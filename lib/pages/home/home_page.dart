@@ -29,6 +29,7 @@ class _HomePageState extends State<HomePage>
   // ตำแหน่งพัก — ล็อคตามดีไซน์ 60/40 (Explore กิน 60%, Profile โชว์ 40% ด้านบน)
   static const double _restExtent = 0.6;
   // ลากขึ้น/ลงจากตำแหน่งพักเกินระยะนี้ (สัดส่วนของความสูงจอ) ถือว่า "ตั้งใจสลับหน้า"
+  // เพิ่มจากเดิมนิดหน่อยกันลากแค่เผลอมือแล้วหลุดไปหน้าอื่น
   static const double _commitDelta = 0.10;
   // ถ้าสะบัดเร็วกว่านี้ (px/s) ก็นับเป็นตั้งใจสลับหน้าเหมือนกัน แม้ลากระยะสั้น
   static const double _flingVelocity = 750;
@@ -56,7 +57,7 @@ class _HomePageState extends State<HomePage>
   }
 
   void _onHandleDragUpdate(DragUpdateDetails details, double screenHeight) {
-    if (_isCommitting) return;
+    if (_isCommitting) return; // กันมือไปแตะโดนตอน animation ไหลไปสุดขอบอยู่
     final delta = details.primaryDelta! / screenHeight;
     final next = (_extentController.value - delta).clamp(
       _minDragExtent,
@@ -69,23 +70,32 @@ class _HomePageState extends State<HomePage>
     _extentController.animateTo(
       _restExtent,
       duration: const Duration(milliseconds: 420),
+      // easeOutBack เด้งเลยเป้าหมายนิดนึงก่อนตั้งตัว ให้ความรู้สึกมีสปริง ไม่แข็งทื่อ
       curve: Curves.easeOutBack,
     );
   }
 
+  // เล่น animation ให้แผ่น "ไหล" ไปสุดขอบ (บนสุด/ล่างสุด) แบบมีแรงส่งก่อน
+  // เสร็จแล้วหน่วงนิดนึงให้รู้สึกว่าไปถึงจริงๆ แล้วค่อยสลับ tab
+  // — สำคัญมาก: ถ้าสลับ tab ทันทีโดยไม่รอ animation จะรู้สึกกระตุกเหมือนเดิม
   Future<void> _commitTo(double targetExtent, int tabIndex) async {
     setState(() => _isCommitting = true);
     HapticFeedback.mediumImpact();
     await _extentController.animateTo(
       targetExtent,
       duration: const Duration(milliseconds: 380),
+      // easeOutExpo: พุ่งไวช่วงแรกแล้วค่อยๆ หน่วงตอนใกล้ขอบ ให้ความรู้สึกมีแรงเหวี่ยง/ไหล
+      // ต่างจาก easeOutCubic เดิมที่จังหวะเรียบเกินไปจนรู้สึกแข็ง
       curve: Curves.easeOutExpo,
     );
     if (!mounted) return;
     HapticFeedback.lightImpact();
+    // หน่วงสั้นๆ ให้ตาเห็นว่า "ถึงขอบแล้วจริงๆ" ก่อนตัดสลับหน้า ไม่ใช่ตัดปุบปับทันที
     await Future.delayed(const Duration(milliseconds: 90));
     if (!mounted) return;
     widget.onNavigateToTab?.call(tabIndex);
+    // รีเซ็ตกลับตำแหน่งพักไว้เงียบๆ (ไม่มี animation) เพราะตอนนี้หน้าถูกซ่อนอยู่หลัง
+    // IndexedStack แล้ว ผู้ใช้จะไม่เห็นการรีเซ็ตนี้ พอกลับมาหน้า Home ใหม่จะเจอตำแหน่งพักปกติ
     _extentController.value = _restExtent;
     _isCommitting = false;
   }
@@ -93,7 +103,8 @@ class _HomePageState extends State<HomePage>
   void _onHandleDragEnd(DragEndDetails details) {
     if (_isCommitting) return;
     final value = _extentController.value;
-    final velocityY = details.velocity.pixelsPerSecond.dy;
+    final velocityY =
+        details.velocity.pixelsPerSecond.dy; // ลบ = สะบัดขึ้น, บวก = สะบัดลง
 
     final draggedUpEnough =
         value >= _restExtent + _commitDelta || velocityY < -_flingVelocity;
@@ -105,6 +116,7 @@ class _HomePageState extends State<HomePage>
     } else if (draggedDownEnough) {
       _commitTo(0.0, _profileTabIndex);
     } else {
+      // ลากแค่นิดเดียว ไม่ถึงเกณฑ์ -> เด้งกลับตำแหน่งพักเสมอ
       _snapBackToRest();
     }
   }
@@ -116,8 +128,11 @@ class _HomePageState extends State<HomePage>
     return Scaffold(
       body: Stack(
         children: [
+          // ---- พื้นหลัง: หน้า Profile จริงเต็มจอ ----
+          // ใช้ตัวจริงเลยแทนเวอร์ชันย่อ เพื่อให้ขนาด/สัดส่วนตรงกับหน้า Profile 100%
           // RepaintBoundary กันไม่ให้หน้า Profile ที่หนักถูกลากมา re-paint ซ้ำระหว่างลาก
           const Positioned.fill(child: RepaintBoundary(child: ProfilePage())),
+          // ---- แผ่น Explore ที่ลากขึ้น-ลงได้ ----
           // AnimatedBuilder ตรงนี้คำนวณแค่ตำแหน่ง/ความสูง (ถูกมาก) ส่วน _ExploreSheet
           // ถูกส่งผ่าน `child` เข้าไปครั้งเดียว ไม่ rebuild ใหม่ทุกเฟรมตอนลาก
           AnimatedBuilder(
@@ -148,6 +163,9 @@ class _HomePageState extends State<HomePage>
   }
 }
 
+// ---------------------------------------------------------------------------
+// แผ่น Explore ลอยด้านล่าง — มี handle ลากได้ + filter chips + list การ์ด quest
+// ---------------------------------------------------------------------------
 class _ExploreSheet extends StatefulWidget {
   final List<QuestCardModel> quests;
   final double restExtent;
@@ -182,11 +200,13 @@ class _ExploreSheetState extends State<_ExploreSheet> {
   @override
   Widget build(BuildContext context) {
     // AnimatedBuilder ตรงนี้ครอบแค่ Container (decoration/มุมโค้ง) เท่านั้น
-    // ส่วน Column เนื้อหาส่งผ่าน `child` เข้ามา สร้างครั้งเดียว ใช้ซ้ำทุกเฟรม
+    // ส่วน Column เนื้อหาข้างล่างส่งผ่าน `child` เข้ามา ถูกสร้างครั้งเดียวแล้วนำมาใช้ซ้ำ
+    // ทุกเฟรมของ animation โดยไม่ rebuild ใหม่ — ลดอาการกระตุกตอนลากได้เยอะ
     return AnimatedBuilder(
       animation: widget.extentController,
       builder: (context, child) {
         final extent = widget.extentController.value;
+        // มุมโค้งด้านบนค่อยๆ คลี่ตรงเป็นเหลี่ยม ตอนแผ่นใกล้เต็มจอ (extent -> 1.0)
         final unroundT =
             ((extent - widget.restExtent) / (1.0 - widget.restExtent)).clamp(
               0.0,
@@ -212,6 +232,8 @@ class _ExploreSheetState extends State<_ExploreSheet> {
       },
       child: Column(
         children: [
+          // ---- handle ลาก — GestureDetector ครอบเฉพาะแถบนี้ ไม่ครอบทั้ง sheet
+          // เพื่อไม่ให้ชนกับการ scroll ลิสต์ quest ข้างล่าง
           GestureDetector(
             behavior: HitTestBehavior.opaque,
             onVerticalDragUpdate: widget.onHandleDragUpdate,
