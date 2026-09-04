@@ -1,8 +1,0 @@
-# เพิ่ม dependencies เหล่านี้ใน pubspec.yaml ของโปรเจค Flutter (ใต้ dependencies:)
-
-dependencies:
-  flutter:
-    sdk: flutter
-  http: ^1.2.2
-  provider: ^6.1.2
-  shared_preferences: ^2.3.2

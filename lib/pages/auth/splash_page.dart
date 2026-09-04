@@ -25,7 +25,7 @@ class _SplashPageState extends State<SplashPage> {
     if (!mounted) return;
 
     if (authProvider.isLoggedIn) {
-      Navigator.pushReplacementNamed(context, '/home');
+      Navigator.pushReplacementNamed(context, '/main');
     } else {
       Navigator.pushReplacementNamed(context, '/login');
     }
