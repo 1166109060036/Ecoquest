@@ -79,6 +79,9 @@ class ProfilePage extends StatelessWidget {
             ),
           ),
           // ---- เนื้อหา ----
+          // Positioned.fill ตรงนี้สำคัญมาก: ถ้าไม่ใส่ Stack จะคำนวณขนาดตาม
+          // ความสูงของเนื้อหาจริงเท่านั้น (สั้นกว่าจอ) เหลือพื้นที่ว่างสีขาว
+          // (background default ของ Scaffold) โผล่ที่ด้านล่างจอ
           Positioned.fill(
             child: SafeArea(
               child: SingleChildScrollView(
@@ -151,12 +154,9 @@ class _TopBar extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        _CircleIconButton(
-          icon: Icons.settings,
-          onTap: () {
-            // TODO: ไปหน้า Settings
-          },
-        ),
+        _CircleIconButton(icon: Icons.settings, onTap: () {
+          // TODO: ไปหน้า Settings
+        }),
         const Text(
           'Profile',
           style: TextStyle(
@@ -165,12 +165,9 @@ class _TopBar extends StatelessWidget {
             fontWeight: FontWeight.w500,
           ),
         ),
-        _CircleIconButton(
-          icon: Icons.notifications_none_rounded,
-          onTap: () {
-            // TODO: ไปหน้า Notifications
-          },
-        ),
+        _CircleIconButton(icon: Icons.notifications_none_rounded, onTap: () {
+          // TODO: ไปหน้า Notifications
+        }),
       ],
     );
   }
@@ -299,10 +296,8 @@ class _PointsAndRankCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Your Point',
-                      style: TextStyle(color: Colors.white70, fontSize: 13),
-                    ),
+                    const Text('Your Point',
+                        style: TextStyle(color: Colors.white70, fontSize: 13)),
                     const SizedBox(height: 6),
                     Text.rich(
                       TextSpan(
@@ -317,10 +312,7 @@ class _PointsAndRankCard extends StatelessWidget {
                           ),
                           const TextSpan(
                             text: ' P',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 16,
-                            ),
+                            style: TextStyle(color: Colors.white70, fontSize: 16),
                           ),
                         ],
                       ),
@@ -339,24 +331,15 @@ class _PointsAndRankCard extends StatelessWidget {
                     CircleAvatar(
                       radius: 18,
                       backgroundColor: Colors.black.withOpacity(0.4),
-                      child: const Icon(
-                        Icons.emoji_events,
-                        color: Colors.amberAccent,
-                        size: 18,
-                      ),
+                      child: const Icon(Icons.emoji_events, color: Colors.amberAccent, size: 18),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Rank',
-                            style: TextStyle(
-                              color: Colors.white54,
-                              fontSize: 10,
-                            ),
-                          ),
+                          const Text('Rank',
+                              style: TextStyle(color: Colors.white54, fontSize: 10)),
                           Text(
                             '$rankTier Rank',
                             style: const TextStyle(
@@ -372,24 +355,16 @@ class _PointsAndRankCard extends StatelessWidget {
                             child: LinearProgressIndicator(
                               value: rankPointsMax == 0
                                   ? 0
-                                  : (rankPoints / rankPointsMax).clamp(
-                                      0.0,
-                                      1.0,
-                                    ),
+                                  : (rankPoints / rankPointsMax).clamp(0.0, 1.0),
                               minHeight: 4,
                               backgroundColor: Colors.white24,
-                              valueColor: const AlwaysStoppedAnimation(
-                                Colors.greenAccent,
-                              ),
+                              valueColor: const AlwaysStoppedAnimation(Colors.greenAccent),
                             ),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             '${_formatNumber(rankPoints)} / ${_formatNumber(rankPointsMax)} P',
-                            style: const TextStyle(
-                              color: Colors.white54,
-                              fontSize: 9,
-                            ),
+                            style: const TextStyle(color: Colors.white54, fontSize: 9),
                           ),
                         ],
                       ),
@@ -420,14 +395,9 @@ class _StatsCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Stats',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            const Text('Stats',
+                style: TextStyle(
+                    color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
             const SizedBox(height: 14),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -435,8 +405,7 @@ class _StatsCard extends StatelessWidget {
                 _StatItem(
                   icon: Icons.eco,
                   iconColor: Colors.greenAccent,
-                  value:
-                      '${stats.questCompleted.toString().padLeft(2, '0')} / '
+                  value: '${stats.questCompleted.toString().padLeft(2, '0')} / '
                       '${stats.questTotal.toString().padLeft(2, '0')}',
                   label: 'Quest Completed',
                 ),
@@ -487,10 +456,7 @@ class _StatItem extends StatelessWidget {
         Text(
           value,
           style: const TextStyle(
-            color: Colors.white,
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-          ),
+              color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 2),
         Text(
@@ -548,14 +514,9 @@ class _UpgradeAbilityCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Upgrade your Ability',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            const Text('Upgrade your Ability',
+                style: TextStyle(
+                    color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
             const SizedBox(height: 12),
             for (final upgrade in upgrades) ...[
               _UpgradeRow(
@@ -611,10 +572,7 @@ class _UpgradeRow extends StatelessWidget {
               Text(
                 title,
                 style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                ),
+                    color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w600),
               ),
               Text(
                 description,
@@ -631,9 +589,7 @@ class _UpgradeRow extends StatelessWidget {
             foregroundColor: Colors.white,
             elevation: 0,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
