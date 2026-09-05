@@ -26,7 +26,7 @@ class _MainShellState extends State<MainShell> {
   // _navigateToTab เข้าไปให้แผ่น Explore ที่ลากได้ใช้สลับ tab ตอนลากสุดขอบ
   List<Widget> get _pages => [
         HomePage(onNavigateToTab: _navigateToTab),
-        const InventoryPage(),
+        InventoryPage(onNavigateToTab: _navigateToTab),
         const ExplorePage(),
         const PartyPage(),
         const ProfilePage(),
