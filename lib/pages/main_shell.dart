@@ -28,7 +28,7 @@ class _MainShellState extends State<MainShell> {
         HomePage(onNavigateToTab: _navigateToTab),
         InventoryPage(onNavigateToTab: _navigateToTab),
         const ExplorePage(),
-        const PartyPage(),
+        PartyPage(onNavigateToTab: _navigateToTab),
         const ProfilePage(),
       ];
 

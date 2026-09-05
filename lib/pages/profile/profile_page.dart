@@ -154,9 +154,10 @@ class _TopBar extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        _CircleIconButton(icon: Icons.settings, onTap: () {
-          // TODO: ไปหน้า Settings
-        }),
+        _CircleIconButton(
+          icon: Icons.settings,
+          onTap: () => Navigator.pushNamed(context, '/settings'),
+        ),
         const Text(
           'Profile',
           style: TextStyle(

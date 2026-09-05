@@ -1,7 +1,8 @@
 class AppConstants {
   // เปลี่ยนเป็น URL จริงตอน deploy backend แล้ว
-  // ถ้ารันบน Android emulator ให้ใช้ 10.0.2.2 แทน localhost
-  static const String baseUrl = 'http://10.0.2.2:5000/api';
+  // ทดสอบบนเครื่องจริงผ่าน USB + `adb reverse tcp:5000 tcp:5000` -> ใช้ 127.0.0.1
+  // ทดสอบบน Android Emulator -> ใช้ 10.0.2.2 แทน localhost (คนละค่ากับเครื่องจริง)
+  static const String baseUrl = 'http://127.0.0.1:5000/api';
 
   static const String tokenKey = 'auth_token';
   static const String userKey = 'auth_user';
