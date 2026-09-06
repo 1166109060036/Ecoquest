@@ -42,6 +42,47 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<bool> verifyCurrentPassword(String password) async {
+    return _runAction(() => _authService.verifyCurrentPassword(password));
+  }
+
+  Future<bool> changePassword(String oldPassword, String newPassword) async {
+    return _runAction(() => _authService.changePassword(
+          oldPassword: oldPassword,
+          newPassword: newPassword,
+        ));
+  }
+
+  Future<bool> requestPasswordResetOtp(String email) async {
+    return _runAction(() => _authService.requestPasswordResetOtp(email: email));
+  }
+
+  Future<bool> resetPassword(String resetToken, String newPassword) async {
+    return _runAction(() => _authService.resetPassword(
+          resetToken: resetToken,
+          newPassword: newPassword,
+        ));
+  }
+
+  // ต่างจาก _runAction เพราะต้องคืน resetToken กลับไปให้หน้า UI ใช้ต่อ ไม่ใช่แค่สำเร็จ/ไม่สำเร็จ
+  Future<String?> verifyPasswordResetOtp(String email, String otp) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final resetToken = await _authService.verifyPasswordResetOtp(email: email, otp: otp);
+      _isLoading = false;
+      notifyListeners();
+      return resetToken;
+    } catch (e) {
+      _isLoading = false;
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return null;
+    }
+  }
+
   Future<bool> _runAuthAction(Future<UserModel> Function() action) async {
     _isLoading = true;
     _errorMessage = null;
@@ -49,6 +90,26 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       _user = await action();
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _isLoading = false;
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
+  // เหมือน _runAuthAction แต่ใช้กับ action ที่ไม่ได้คืน UserModel กลับมา
+  // (เปลี่ยนรหัสผ่าน / ขอ OTP / ตั้งรหัสผ่านใหม่ — ไม่กระทบ _user ที่ login อยู่)
+  Future<bool> _runAction(Future<void> Function() action) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await action();
       _isLoading = false;
       notifyListeners();
       return true;

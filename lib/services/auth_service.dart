@@ -82,4 +82,92 @@ class AuthService {
   Future<void> logout() async {
     await _storage.clearSession();
   }
+
+  // เช็ครหัสผ่านปัจจุบันว่าถูกไหม — ใช้ในขั้นตอนแรกของหน้า Change Password
+  Future<void> verifyCurrentPassword(String password) async {
+    final token = await _storage.getToken();
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/auth/verify-password'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'password': password}),
+    );
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode != 200) {
+      throw Exception(data['message'] ?? 'รหัสผ่านไม่ถูกต้อง');
+    }
+  }
+
+  // เปลี่ยนรหัสผ่านตอน login อยู่แล้ว (ต้องแนบ token ไปด้วย)
+  Future<void> changePassword({
+    required String oldPassword,
+    required String newPassword,
+  }) async {
+    final token = await _storage.getToken();
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/auth/change-password'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'oldPassword': oldPassword, 'newPassword': newPassword}),
+    );
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode != 200) {
+      throw Exception(data['message'] ?? 'เปลี่ยนรหัสผ่านไม่สำเร็จ');
+    }
+  }
+
+  // ขอ OTP ไปที่อีเมล (ขั้นตอนแรกของ "ลืมรหัสผ่าน")
+  Future<void> requestPasswordResetOtp({required String email}) async {
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/auth/forgot-password'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email}),
+    );
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode != 200) {
+      throw Exception(data['message'] ?? 'ส่ง OTP ไม่สำเร็จ');
+    }
+  }
+
+  // ยืนยัน OTP -> ได้ resetToken อายุสั้นไว้ใช้ตั้งรหัสผ่านใหม่
+  Future<String> verifyPasswordResetOtp({
+    required String email,
+    required String otp,
+  }) async {
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/auth/verify-reset-otp'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email, 'otp': otp}),
+    );
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode != 200) {
+      throw Exception(data['message'] ?? 'OTP ไม่ถูกต้องหรือหมดอายุ');
+    }
+    return data['resetToken'];
+  }
+
+  // ตั้งรหัสผ่านใหม่ด้วย resetToken ที่ได้จาก verifyPasswordResetOtp
+  Future<void> resetPassword({
+    required String resetToken,
+    required String newPassword,
+  }) async {
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/auth/reset-password'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'resetToken': resetToken, 'newPassword': newPassword}),
+    );
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode != 200) {
+      throw Exception(data['message'] ?? 'ตั้งรหัสผ่านใหม่ไม่สำเร็จ');
+    }
+  }
 }

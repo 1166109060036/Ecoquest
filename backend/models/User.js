@@ -58,6 +58,11 @@ const UserSchema = new mongoose.Schema(
       default: Date.now,
       // ใช้คำนวณว่า energy ควร regen ไปแล้วกี่แต้ม
     },
+
+    // ---- ฟิลด์สำหรับ flow ลืมรหัสผ่าน (OTP ทางอีเมล) ----
+    // เก็บแค่ hash ของ OTP (เหมือน password) ไม่เก็บ OTP ตัวจริงไว้ในฐานข้อมูล
+    resetOtpHash: { type: String, default: null },
+    resetOtpExpires: { type: Date, default: null },
   },
   { timestamps: true }
 );

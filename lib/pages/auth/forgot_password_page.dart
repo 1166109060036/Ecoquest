@@ -1,0 +1,317 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
+import '../../utils/validators.dart';
+
+// หน้าลืมรหัสผ่าน — 3 ขั้นตอนในหน้าเดียว: กรอกอีเมล -> กรอก OTP ที่ได้รับทางอีเมล -> ตั้งรหัสผ่านใหม่
+// สไตล์หน้าตาเหมือน login_page.dart (Scaffold ธรรมดา ไม่ใช่พื้นหลังรูปแบบ Profile/Settings)
+// เพราะอยู่ในกลุ่ม flow เดียวกับ Login/Register ไม่ใช่หน้าที่ต่อจาก Profile
+class ForgotPasswordPage extends StatefulWidget {
+  const ForgotPasswordPage({super.key});
+
+  @override
+  State<ForgotPasswordPage> createState() => _ForgotPasswordPageState();
+}
+
+enum _Step { email, otp, newPassword }
+
+class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
+  final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
+  final _otpController = TextEditingController();
+  final _newPasswordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+
+  _Step _step = _Step.email;
+  String? _resetToken;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _otpController.dispose();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleRequestOtp() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final authProvider = context.read<AuthProvider>();
+    final success = await authProvider.requestPasswordResetOtp(_emailController.text.trim());
+
+    if (!mounted) return;
+
+    if (success) {
+      setState(() => _step = _Step.otp);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ถ้าอีเมลนี้มีอยู่ในระบบ เราได้ส่ง OTP ไปให้แล้ว')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(authProvider.errorMessage ?? 'ส่ง OTP ไม่สำเร็จ')),
+      );
+    }
+  }
+
+  Future<void> _handleVerifyOtp() async {
+    if (_otpController.text.trim().length != 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('กรุณากรอก OTP 6 หลัก')),
+      );
+      return;
+    }
+
+    final authProvider = context.read<AuthProvider>();
+    final resetToken = await authProvider.verifyPasswordResetOtp(
+      _emailController.text.trim(),
+      _otpController.text.trim(),
+    );
+
+    if (!mounted) return;
+
+    if (resetToken != null) {
+      _resetToken = resetToken;
+      setState(() => _step = _Step.newPassword);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(authProvider.errorMessage ?? 'OTP ไม่ถูกต้องหรือหมดอายุ')),
+      );
+    }
+  }
+
+  Future<void> _handleResetPassword() async {
+    if (_newPasswordController.text.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร')),
+      );
+      return;
+    }
+    if (_newPasswordController.text != _confirmPasswordController.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('รหัสผ่านใหม่ไม่ตรงกัน')),
+      );
+      return;
+    }
+
+    final authProvider = context.read<AuthProvider>();
+    final success = await authProvider.resetPassword(_resetToken!, _newPasswordController.text);
+
+    if (!mounted) return;
+
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ตั้งรหัสผ่านใหม่สำเร็จ กรุณาเข้าสู่ระบบใหม่')),
+      );
+      Navigator.pop(context);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(authProvider.errorMessage ?? 'ตั้งรหัสผ่านใหม่ไม่สำเร็จ')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isLoading = context.watch<AuthProvider>().isLoading;
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('ลืมรหัสผ่าน'), backgroundColor: Colors.transparent, elevation: 0),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 16),
+              const Icon(Icons.lock_reset, size: 56, color: Colors.green),
+              const SizedBox(height: 16),
+              switch (_step) {
+                _Step.email => _EmailStep(
+                    formKey: _formKey,
+                    controller: _emailController,
+                    isLoading: isLoading,
+                    onSubmit: _handleRequestOtp,
+                  ),
+                _Step.otp => _OtpStep(
+                    email: _emailController.text.trim(),
+                    controller: _otpController,
+                    isLoading: isLoading,
+                    onSubmit: _handleVerifyOtp,
+                    onBack: () => setState(() => _step = _Step.email),
+                  ),
+                _Step.newPassword => _NewPasswordStep(
+                    newPasswordController: _newPasswordController,
+                    confirmPasswordController: _confirmPasswordController,
+                    isLoading: isLoading,
+                    onSubmit: _handleResetPassword,
+                  ),
+              },
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmailStep extends StatelessWidget {
+  final GlobalKey<FormState> formKey;
+  final TextEditingController controller;
+  final bool isLoading;
+  final VoidCallback onSubmit;
+
+  const _EmailStep({
+    required this.formKey,
+    required this.controller,
+    required this.isLoading,
+    required this.onSubmit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Form(
+      key: formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'กรอกอีเมลที่ใช้สมัคร เราจะส่งรหัส OTP ไปให้',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.black54, fontSize: 13),
+          ),
+          const SizedBox(height: 20),
+          TextFormField(
+            controller: controller,
+            keyboardType: TextInputType.emailAddress,
+            decoration: const InputDecoration(labelText: 'Email', border: OutlineInputBorder()),
+            validator: Validators.validateEmail,
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton(
+            onPressed: isLoading ? null : onSubmit,
+            style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+            child: isLoading
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  )
+                : const Text('ส่ง OTP'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OtpStep extends StatelessWidget {
+  final String email;
+  final TextEditingController controller;
+  final bool isLoading;
+  final VoidCallback onSubmit;
+  final VoidCallback onBack;
+
+  const _OtpStep({
+    required this.email,
+    required this.controller,
+    required this.isLoading,
+    required this.onSubmit,
+    required this.onBack,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'กรอกรหัส OTP 6 หลักที่ส่งไปที่\n$email',
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: Colors.black54, fontSize: 13),
+        ),
+        const SizedBox(height: 20),
+        TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          maxLength: 6,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 24, letterSpacing: 8, fontWeight: FontWeight.bold),
+          decoration: const InputDecoration(
+            counterText: '',
+            border: OutlineInputBorder(),
+            hintText: '000000',
+          ),
+        ),
+        const SizedBox(height: 12),
+        ElevatedButton(
+          onPressed: isLoading ? null : onSubmit,
+          style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+          child: isLoading
+              ? const SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                )
+              : const Text('ยืนยัน OTP'),
+        ),
+        TextButton(
+          onPressed: isLoading ? null : onBack,
+          child: const Text('กรอกอีเมลใหม่ / ขอ OTP อีกครั้ง'),
+        ),
+      ],
+    );
+  }
+}
+
+class _NewPasswordStep extends StatelessWidget {
+  final TextEditingController newPasswordController;
+  final TextEditingController confirmPasswordController;
+  final bool isLoading;
+  final VoidCallback onSubmit;
+
+  const _NewPasswordStep({
+    required this.newPasswordController,
+    required this.confirmPasswordController,
+    required this.isLoading,
+    required this.onSubmit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          'ตั้งรหัสผ่านใหม่',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.black54, fontSize: 13),
+        ),
+        const SizedBox(height: 20),
+        TextFormField(
+          controller: newPasswordController,
+          obscureText: true,
+          decoration: const InputDecoration(labelText: 'รหัสผ่านใหม่', border: OutlineInputBorder()),
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: confirmPasswordController,
+          obscureText: true,
+          decoration: const InputDecoration(labelText: 'ยืนยันรหัสผ่านใหม่', border: OutlineInputBorder()),
+        ),
+        const SizedBox(height: 20),
+        ElevatedButton(
+          onPressed: isLoading ? null : onSubmit,
+          style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+          child: isLoading
+              ? const SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                )
+              : const Text('เปลี่ยนรหัสผ่าน'),
+        ),
+      ],
+    );
+  }
+}

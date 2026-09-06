@@ -98,7 +98,14 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   validator: Validators.validatePassword,
                 ),
-                const SizedBox(height: 24),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => Navigator.pushNamed(context, '/forgot-password'),
+                    child: const Text('ลืมรหัสผ่าน?'),
+                  ),
+                ),
+                const SizedBox(height: 8),
                 ElevatedButton(
                   onPressed: authProvider.isLoading ? null : _handleLogin,
                   style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),

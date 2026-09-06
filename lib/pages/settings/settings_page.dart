@@ -29,9 +29,10 @@ class SettingsPage extends StatelessWidget {
       ),
     );
 
-    if (confirmed != true) return;
+    if (confirmed != true || !context.mounted) return;
 
-    await context.read<AuthProvider>().logout();
+    final authProvider = context.read<AuthProvider>();
+    await authProvider.logout();
     if (!context.mounted) return;
     // ล้าง stack ทั้งหมดตอน logout ไม่ใช่แค่ replace หน้าเดียว เพราะ Settings อยู่ทับ
     // MainShell ซึ่งเป็น session ที่ล็อกอินอยู่ ถ้าแค่ replace จะเหลือ MainShell ค้างอยู่
@@ -76,6 +77,15 @@ class SettingsPage extends StatelessWidget {
                       email: user?.email,
                       isGuest: user?.isGuest ?? false,
                     ),
+                    // บัญชี Guest ไม่มีรหัสผ่าน เลยไม่ต้องมีเมนูนี้ให้กด
+                    if (!(user?.isGuest ?? false)) ...[
+                      const SizedBox(height: 14),
+                      _SettingsMenuItem(
+                        icon: Icons.lock_outline,
+                        label: 'เปลี่ยนรหัสผ่าน',
+                        onTap: () => Navigator.pushNamed(context, '/change-password'),
+                      ),
+                    ],
                     const Spacer(),
                     ElevatedButton(
                       onPressed: () => _confirmLogout(context),
@@ -216,6 +226,49 @@ class _AccountCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// เมนูรายการเดียวสไตล์กระจก (icon + label + ลูกศร) — ใช้กับ "เปลี่ยนรหัสผ่าน" และเมนูอื่นในอนาคต
+// ---------------------------------------------------------------------------
+class _SettingsMenuItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _SettingsMenuItem({required this.icon, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.black.withOpacity(0.38),
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withOpacity(0.08)),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Icon(icon, color: Colors.white70, size: 20),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: Colors.white54),
+            ],
+          ),
+        ),
       ),
     );
   }

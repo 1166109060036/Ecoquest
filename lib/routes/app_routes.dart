@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import '../pages/auth/splash_page.dart';
 import '../pages/auth/login_page.dart';
 import '../pages/auth/register_page.dart';
+import '../pages/auth/forgot_password_page.dart';
 import '../pages/main_shell.dart';
 import '../pages/settings/settings_page.dart';
+import '../pages/settings/change_password_page.dart';
 
 // รวม route ทั้งหมดของแอพไว้ที่เดียว เพิ่มหน้าใหม่ก็มาแก้ไฟล์นี้ไฟล์เดียว
 //
@@ -16,4 +18,6 @@ final Map<String, WidgetBuilder> appRoutes = {
   '/register': (context) => const RegisterPage(),
   '/main': (context) => const MainShell(),
   '/settings': (context) => const SettingsPage(),
+  '/change-password': (context) => const ChangePasswordPage(),
+  '/forgot-password': (context) => const ForgotPasswordPage(),
 };
