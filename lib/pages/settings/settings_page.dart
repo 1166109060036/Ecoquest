@@ -77,8 +77,19 @@ class SettingsPage extends StatelessWidget {
                       email: user?.email,
                       isGuest: user?.isGuest ?? false,
                     ),
-                    // บัญชี Guest ไม่มีรหัสผ่าน เลยไม่ต้องมีเมนูนี้ให้กด
-                    if (!(user?.isGuest ?? false)) ...[
+                    if (user?.isGuest ?? false) ...[
+                      // Guest ล็อกอินกลับเข้าบัญชีเดิมไม่ได้เลยถ้า logout (ไม่มี email/password)
+                      // เมนูนี้เลยเน้นให้เห็นชัดกว่าเมนูอื่น
+                      const SizedBox(height: 14),
+                      _SettingsMenuItem(
+                        icon: Icons.person_add_alt,
+                        label: 'Create an account',
+                        subtitle: 'Guest progress is lost when you log out',
+                        highlighted: true,
+                        onTap: () => Navigator.pushNamed(context, '/upgrade-account'),
+                      ),
+                    ] else ...[
+                      // บัญชี Guest ไม่มีรหัสผ่าน เลยไม่ต้องมีเมนูนี้ให้กด
                       const SizedBox(height: 14),
                       _SettingsMenuItem(
                         icon: Icons.lock_outline,
@@ -237,9 +248,17 @@ class _AccountCard extends StatelessWidget {
 class _SettingsMenuItem extends StatelessWidget {
   final IconData icon;
   final String label;
+  final String? subtitle;
+  final bool highlighted; // เมนูที่อยากให้เด่นกว่าเมนูอื่น (ขอบ+ไอคอนสีเขียว)
   final VoidCallback onTap;
 
-  const _SettingsMenuItem({required this.icon, required this.label, required this.onTap});
+  const _SettingsMenuItem({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.subtitle,
+    this.highlighted = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -252,17 +271,34 @@ class _SettingsMenuItem extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacity(0.08)),
+            border: Border.all(
+              color: highlighted
+                  ? Colors.green.withOpacity(0.55)
+                  : Colors.white.withOpacity(0.08),
+            ),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Row(
             children: [
-              Icon(icon, color: Colors.white70, size: 20),
+              Icon(icon, color: highlighted ? Colors.greenAccent : Colors.white70, size: 20),
               const SizedBox(width: 14),
               Expanded(
-                child: Text(
-                  label,
-                  style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                          color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                    ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle!,
+                        style: const TextStyle(color: Colors.white54, fontSize: 11),
+                      ),
+                    ],
+                  ],
                 ),
               ),
               const Icon(Icons.chevron_right, color: Colors.white54),

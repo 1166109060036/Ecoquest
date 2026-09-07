@@ -106,6 +106,40 @@ class AuthService {
     await _storage.clearSession();
   }
 
+  // เปลี่ยนบัญชี Guest เป็นบัญชีปกติ — ใช้ user เดิม ข้อมูลความคืบหน้าทั้งหมดติดมาด้วย
+  // token เดิมยังใช้ได้ต่อ (userId ไม่เปลี่ยน) เลยแค่อัปเดต user ที่ cache ไว้พอ
+  Future<UserModel> upgradeGuest({
+    required String email,
+    required String password,
+    required String displayName,
+  }) async {
+    final token = await _storage.getToken();
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/auth/upgrade-guest'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'email': email,
+        'password': password,
+        'displayName': displayName,
+      }),
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode != 200) {
+      throw Exception(data['message'] ?? 'Failed to create your account');
+    }
+
+    final user = UserModel.fromJson(data['user']);
+    if (token != null) {
+      await _storage.saveSession(token, user);
+    }
+    return user;
+  }
+
   // เช็ครหัสผ่านปัจจุบันว่าถูกไหม — ใช้ในขั้นตอนแรกของหน้า Change Password
   Future<void> verifyCurrentPassword(String password) async {
     final token = await _storage.getToken();

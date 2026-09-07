@@ -11,7 +11,6 @@ class UserModel {
   final int xp;
   final int points;
   final String rank;
-  final int energy;
 
   UserModel({
     required this.id,
@@ -22,7 +21,6 @@ class UserModel {
     this.xp = 0,
     this.points = 0,
     this.rank = 'Bronze',
-    this.energy = 5,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -35,7 +33,6 @@ class UserModel {
       xp: json['xp'] ?? 0,
       points: json['points'] ?? 0,
       rank: json['rank'] ?? 'Bronze',
-      energy: json['energy'] ?? 5,
     );
   }
 
@@ -49,7 +46,6 @@ class UserModel {
       'xp': xp,
       'points': points,
       'rank': rank,
-      'energy': energy,
     };
   }
 }

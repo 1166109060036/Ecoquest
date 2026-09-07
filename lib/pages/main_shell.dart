@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/quest_provider.dart';
 import '../widgets/bottom_nav_bar.dart';
 import 'home/home_page.dart';
 import 'inventory/inventory_page.dart';
@@ -18,6 +20,19 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // โหลด quest ครั้งเดียวตรงนี้ ไม่ให้หน้า Explore กับแผ่น Explore ใน Home ต่างคนต่างยิง API
+    // (ทั้งคู่อยู่ใน IndexedStack พร้อมกันตลอด ถ้าโหลดในหน้าตัวเองจะยิงซ้ำ 2 รอบ)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final questProvider = context.read<QuestProvider>();
+      questProvider.loadQuests();
+      questProvider.loadHistory(); // ประวัติ quest ที่โชว์ในหน้า Profile
+    });
+  }
 
   void _navigateToTab(int index) => setState(() => _currentIndex = index);
 

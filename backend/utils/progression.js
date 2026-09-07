@@ -1,5 +1,5 @@
 // รวม "สูตร" ของระบบ progression ทั้งหมดไว้ไฟล์เดียว — อยากปรับความยากของเกมแก้ที่นี่ที่เดียวพอ
-// (level curve, rank tier, energy regen) ทุกที่ในระบบต้องเรียกใช้จากไฟล์นี้ ห้าม hardcode ซ้ำที่อื่น
+// (level curve, rank tier) ทุกที่ในระบบต้องเรียกใช้จากไฟล์นี้ ห้าม hardcode ซ้ำที่อื่น
 
 // ---------------------------------------------------------------------------
 // Level — คำนวณจาก XP สะสม (XP ไม่ reset ตลอดกาล ตามดีไซน์)
@@ -63,29 +63,12 @@ const rankProgress = (seasonXp = 0) => {
   };
 };
 
-// ---------------------------------------------------------------------------
-// Energy — เต็ม 5 ฟื้น +1 ทุก 5 นาที
-// ---------------------------------------------------------------------------
-const MAX_ENERGY = 5;
-const ENERGY_REGEN_MS = 5 * 60 * 1000;
-
-// คำนวณ energy ณ ปัจจุบันแบบ lazy: ไม่เขียน DB ตอนอ่าน คิดจาก lastEnergyUpdate เอา
-// (จะ persist ลง DB จริงเฉพาะตอน "ใช้" energy เช่นตอนทำ quest สำเร็จเท่านั้น)
-const currentEnergy = (energy = MAX_ENERGY, lastEnergyUpdate = new Date()) => {
-  if (energy >= MAX_ENERGY) return MAX_ENERGY;
-
-  const elapsedMs = Date.now() - new Date(lastEnergyUpdate).getTime();
-  const regened = Math.max(0, Math.floor(elapsedMs / ENERGY_REGEN_MS));
-
-  return Math.min(MAX_ENERGY, energy + regened);
-};
+// หมายเหตุ: เคยมีระบบ Energy (เต็ม 5 ฟื้น +1 ทุก 5 นาที) อยู่ในไฟล์นี้
+// แต่ถูกตัดออกจากดีไซน์แล้ว — ทำ quest ได้โดยไม่เสียพลังงาน ไม่ต้องเอากลับมา
 
 module.exports = {
-  MAX_ENERGY,
-  ENERGY_REGEN_MS,
   totalXpForLevel,
   levelFromXp,
   levelProgress,
   rankProgress,
-  currentEnergy,
 };

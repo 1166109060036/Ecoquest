@@ -125,7 +125,10 @@ class QuestCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: quest.category == QuestCardCategory.solo
-                          ? _SoloEnergyRow(progress: quest.energyProgress ?? 0)
+                          ? _SoloInfoRow(
+                              isDaily: quest.isDaily,
+                              completedToday: quest.completedToday,
+                            )
                           : _PartyEventInfoRow(
                               dateLabel: quest.dateLabel,
                               timeLabel: quest.timeLabel,
@@ -134,16 +137,22 @@ class QuestCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     ElevatedButton(
-                      onPressed: onAction,
+                      // quest รายวันที่ทำไปแล้ววันนี้ -> กดซ้ำไม่ได้จนกว่าจะข้ามวัน
+                      onPressed: quest.completedToday ? null : onAction,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: style.actionColor,
                         foregroundColor: Colors.white,
+                        disabledBackgroundColor: Colors.grey.shade300,
+                        disabledForegroundColor: Colors.grey.shade600,
                         elevation: 0,
                         minimumSize: const Size(0, 30),
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       ),
-                      child: Text(style.actionLabel, style: const TextStyle(fontSize: 12)),
+                      child: Text(
+                        quest.completedToday ? 'Done' : style.actionLabel,
+                        style: const TextStyle(fontSize: 12),
+                      ),
                     ),
                   ],
                 ),
@@ -197,25 +206,31 @@ class _PartyEventInfoRow extends StatelessWidget {
   }
 }
 
-class _SoloEnergyRow extends StatelessWidget {
-  final double progress;
-  const _SoloEnergyRow({required this.progress});
+// เดิมช่องนี้เคยเป็นแถบ Energy แต่ระบบ Energy ถูกตัดออกจากดีไซน์แล้ว
+// ตอนนี้ใช้บอกสถานะ quest รายวันแทน (ยังทำได้ / วันนี้ทำไปแล้ว)
+class _SoloInfoRow extends StatelessWidget {
+  final bool isDaily;
+  final bool completedToday;
+
+  const _SoloInfoRow({required this.isDaily, required this.completedToday});
 
   @override
   Widget build(BuildContext context) {
+    if (!isDaily) return const SizedBox.shrink();
+
     return Row(
       children: [
-        const Icon(Icons.bolt, size: 13, color: Colors.green),
+        Icon(
+          completedToday ? Icons.check_circle : Icons.refresh,
+          size: 12,
+          color: completedToday ? Colors.green : Colors.grey,
+        ),
         const SizedBox(width: 4),
-        Expanded(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 5,
-              backgroundColor: Colors.grey.shade200,
-              valueColor: const AlwaysStoppedAnimation(Colors.green),
-            ),
+        Text(
+          completedToday ? 'Completed today' : 'Once per day',
+          style: TextStyle(
+            fontSize: 10,
+            color: completedToday ? Colors.green : Colors.grey.shade600,
           ),
         ),
       ],

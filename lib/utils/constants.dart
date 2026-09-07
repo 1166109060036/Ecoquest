@@ -6,6 +6,8 @@ class AppConstants {
 
   static const String tokenKey = 'auth_token';
   static const String userKey = 'auth_user';
+  // เก็บ path รูปที่ถ่ายจากไอเทม Camera (เก็บแค่ในเครื่อง ไม่ได้อัปขึ้น server)
+  static const String cameraPhotosKey = 'camera_photos';
 
   // path รูปพื้นหลังหน้า Profile — ไฟล์จริงอยู่ที่ lib/utils/assets/background.png
   // ต้องตรงกับ path ที่ประกาศไว้ใน pubspec.yaml (assets:) เป๊ะๆ ทุกตัวอักษร

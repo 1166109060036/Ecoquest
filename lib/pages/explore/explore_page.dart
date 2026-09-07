@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../models/quest_card_model.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/quest_provider.dart';
 import '../../widgets/quest_card.dart';
 
 // หน้า Explore เต็มจอ — เจอได้ 2 ทาง: กด "Explore" ที่ bottom nav ตรงๆ
@@ -17,8 +20,8 @@ class _ExplorePageState extends State<ExplorePage> {
   String _searchQuery = '';
   static const _filters = ['All', 'Solo', 'Party', 'Event'];
 
-  List<QuestCardModel> get _filteredQuests {
-    var quests = mockQuestCards;
+  List<QuestCardModel> _filterQuests(List<QuestCardModel> all) {
+    var quests = all;
 
     if (_selectedFilter != 'All') {
       final category = QuestCardCategory.values.firstWhere(
@@ -39,14 +42,41 @@ class _ExplorePageState extends State<ExplorePage> {
     return quests;
   }
 
-  Future<void> _onRefresh() async {
-    // TODO: เรียก GET /api/quests ใหม่จริงตอนมี endpoint
-    await Future.delayed(const Duration(milliseconds: 600));
+  Future<void> _onRefresh() => context.read<QuestProvider>().loadQuests();
+
+  Future<void> _onStartQuest(QuestCardModel quest) async {
+    // quest ที่ต้องทำ action จริงก่อน — พาไปหน้านั้นแทนการกดจบ quest ทันที
+    // (ถ้าเรียก complete ตรงนี้เลย backend จะปฏิเสธอยู่ดีเพราะยังไม่ได้ทำ action)
+    if (quest.actionKey == 'fridge_check') {
+      Navigator.pushNamed(context, '/fridge');
+      return;
+    }
+
+    final questProvider = context.read<QuestProvider>();
+    final authProvider = context.read<AuthProvider>();
+
+    final reward = await questProvider.completeQuest(quest.id);
+
+    if (!mounted) return;
+
+    if (reward == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(questProvider.errorMessage ?? 'Failed to complete quest')),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Quest complete! +${reward.points} points, +${reward.xp} XP')),
+    );
+    // points/XP ของ user เปลี่ยนไปแล้ว ต้องโหลดโปรไฟล์ใหม่ให้หน้า Profile/Home โชว์เลขล่าสุด
+    await authProvider.refreshProfile();
   }
 
   @override
   Widget build(BuildContext context) {
-    final quests = _filteredQuests;
+    final questProvider = context.watch<QuestProvider>();
+    final quests = _filterQuests(questProvider.quests);
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
@@ -122,26 +152,40 @@ class _ExplorePageState extends State<ExplorePage> {
             ),
             const SizedBox(height: 8),
             Expanded(
-              child: quests.isEmpty
-                  ? _EmptyState(query: _searchQuery)
-                  : RefreshIndicator(
-                      onRefresh: _onRefresh,
-                      color: Colors.green,
-                      child: ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-                        itemCount: quests.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
-                        itemBuilder: (context, index) {
-                          final quest = quests[index];
-                          return QuestCard(
-                            quest: quest,
-                            onAction: () {
-                              // TODO: เรียก API เข้าร่วม/เริ่ม quest จริงตอนมี endpoint
+              child: questProvider.isLoading && questProvider.quests.isEmpty
+                  ? const Center(child: CircularProgressIndicator(color: Colors.green))
+                  : quests.isEmpty
+                      ? RefreshIndicator(
+                          onRefresh: _onRefresh,
+                          color: Colors.green,
+                          // ต้องเป็น scrollable ไม่งั้นลิสต์ว่างจะดึงลง refresh ไม่ได้
+                          child: ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            children: [
+                              SizedBox(height: MediaQuery.of(context).size.height * 0.15),
+                              _EmptyState(
+                                query: _searchQuery,
+                                errorMessage: questProvider.errorMessage,
+                              ),
+                            ],
+                          ),
+                        )
+                      : RefreshIndicator(
+                          onRefresh: _onRefresh,
+                          color: Colors.green,
+                          child: ListView.separated(
+                            padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+                            itemCount: quests.length,
+                            separatorBuilder: (_, __) => const SizedBox(height: 12),
+                            itemBuilder: (context, index) {
+                              final quest = quests[index];
+                              return QuestCard(
+                                quest: quest,
+                                onAction: () => _onStartQuest(quest),
+                              );
                             },
-                          );
-                        },
-                      ),
-                    ),
+                          ),
+                        ),
             ),
           ],
         ),
@@ -152,23 +196,42 @@ class _ExplorePageState extends State<ExplorePage> {
 
 class _EmptyState extends StatelessWidget {
   final String query;
-  const _EmptyState({required this.query});
+  final String? errorMessage; // โหลด quest ไม่สำเร็จ (เน็ตหลุด/server ล่ม) — คนละเคสกับ "ไม่มี quest"
+
+  const _EmptyState({required this.query, this.errorMessage});
 
   @override
   Widget build(BuildContext context) {
+    final failed = errorMessage != null;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.search_off, size: 48, color: Colors.grey.shade400),
+            Icon(
+              failed ? Icons.cloud_off : Icons.search_off,
+              size: 48,
+              color: Colors.grey.shade400,
+            ),
             const SizedBox(height: 12),
             Text(
-              query.trim().isEmpty ? 'No quests in this category' : 'No quests found for "$query"',
+              failed
+                  ? errorMessage!
+                  : query.trim().isEmpty
+                      ? 'No quests in this category'
+                      : 'No quests found for "$query"',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
             ),
+            if (failed) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Pull down to try again',
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+              ),
+            ],
           ],
         ),
       ),

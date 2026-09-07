@@ -1,7 +1,10 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import '../../models/quest_card_model.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/quest_provider.dart';
 import '../../widgets/quest_card.dart';
 import '../profile/profile_page.dart';
 
@@ -152,7 +155,6 @@ class _HomePageState extends State<HomePage>
             },
             child: RepaintBoundary(
               child: _ExploreSheet(
-                quests: mockQuestCards,
                 restExtent: _restExtent,
                 extentController: _extentController,
                 onHandleDragUpdate: (details) =>
@@ -171,14 +173,12 @@ class _HomePageState extends State<HomePage>
 // แผ่น Explore ลอยด้านล่าง — มี handle ลากได้ + filter chips + list การ์ด quest
 // ---------------------------------------------------------------------------
 class _ExploreSheet extends StatefulWidget {
-  final List<QuestCardModel> quests;
   final double restExtent;
   final AnimationController extentController;
   final void Function(DragUpdateDetails) onHandleDragUpdate;
   final void Function(DragEndDetails) onHandleDragEnd;
 
   const _ExploreSheet({
-    required this.quests,
     required this.restExtent,
     required this.extentController,
     required this.onHandleDragUpdate,
@@ -193,16 +193,51 @@ class _ExploreSheetState extends State<_ExploreSheet> {
   String _selectedFilter = 'All';
   static const _filters = ['All', 'Solo', 'Party', 'Event'];
 
-  List<QuestCardModel> get _filteredQuests {
-    if (_selectedFilter == 'All') return widget.quests;
+  // อ่าน quest จาก provider ตรงนี้แทนการรับผ่าน constructor
+  // เพราะ _ExploreSheet ถูกส่งเป็น `child` ของ AnimatedBuilder (สร้างครั้งเดียว)
+  // ถ้ารับผ่าน constructor ลิสต์จะค้างอยู่ที่ค่าตอนสร้าง ไม่อัปเดตตอนทำ quest เสร็จ
+  List<QuestCardModel> _filterQuests(List<QuestCardModel> all) {
+    if (_selectedFilter == 'All') return all;
     final category = QuestCardCategory.values.firstWhere(
       (c) => c.name.toLowerCase() == _selectedFilter.toLowerCase(),
     );
-    return widget.quests.where((q) => q.category == category).toList();
+    return all.where((q) => q.category == category).toList();
+  }
+
+  Future<void> _onStartQuest(QuestCardModel quest) async {
+    // quest ที่ต้องทำ action จริงก่อน — พาไปหน้านั้นแทนการกดจบ quest ทันที
+    if (quest.actionKey == 'fridge_check') {
+      Navigator.pushNamed(context, '/fridge');
+      return;
+    }
+
+    final questProvider = context.read<QuestProvider>();
+    final authProvider = context.read<AuthProvider>();
+
+    final reward = await questProvider.completeQuest(quest.id);
+
+    if (!mounted) return;
+
+    if (reward == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(questProvider.errorMessage ?? 'Failed to complete quest')),
+      );
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Quest complete! +${reward.points} points, +${reward.xp} XP')),
+    );
+    await authProvider.refreshProfile();
   }
 
   @override
   Widget build(BuildContext context) {
+    // watch ตรงนี้ทำให้ sheet rebuild ตอนลิสต์ quest เปลี่ยน (โหลดเสร็จ / ทำ quest สำเร็จ)
+    // ไม่กระทบ perf ตอนลาก เพราะ animation ใช้ `child` ที่ถูกสร้างไว้แล้วซ้ำทุกเฟรมอยู่ดี
+    final questProvider = context.watch<QuestProvider>();
+    final quests = _filterQuests(questProvider.quests);
+
     // AnimatedBuilder ตรงนี้ครอบแค่ Container (decoration/มุมโค้ง) เท่านั้น
     // ส่วน Column เนื้อหาข้างล่างส่งผ่าน `child` เข้ามา ถูกสร้างครั้งเดียวแล้วนำมาใช้ซ้ำ
     // ทุกเฟรมของ animation โดยไม่ rebuild ใหม่ — ลดอาการกระตุกตอนลากได้เยอะ
@@ -301,20 +336,31 @@ class _ExploreSheetState extends State<_ExploreSheet> {
           ),
           const SizedBox(height: 8),
           Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              itemCount: _filteredQuests.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                final quest = _filteredQuests[index];
-                return QuestCard(
-                  quest: quest,
-                  onAction: () {
-                    // TODO: เรียก API เข้าร่วม/เริ่ม quest จริงตอนมี endpoint
-                  },
-                );
-              },
-            ),
+            child: questProvider.isLoading && questProvider.quests.isEmpty
+                ? const Center(child: CircularProgressIndicator(color: Colors.green))
+                : quests.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Text(
+                            questProvider.errorMessage ?? 'No quests in this category',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                          ),
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        itemCount: quests.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          final quest = quests[index];
+                          return QuestCard(
+                            quest: quest,
+                            onAction: () => _onStartQuest(quest),
+                          );
+                        },
+                      ),
           ),
         ],
       ),

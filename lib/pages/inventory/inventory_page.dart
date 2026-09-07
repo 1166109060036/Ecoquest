@@ -96,10 +96,7 @@ class InventoryPage extends StatelessWidget {
       return;
     }
     if (itemId == 'camera') {
-      // TODO: เปิดกล้องถ่ายรูปจริงตอนต่อฟีเจอร์นี้
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Camera feature coming soon')),
-      );
+      Navigator.pushNamed(context, '/camera');
     }
   }
 }

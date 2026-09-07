@@ -196,7 +196,6 @@ router.get('/me', authMiddleware, async (req, res) => {
         xp: user.xp,
         points: user.points,
         rank: progress.rankTier,
-        energy: progression.currentEnergy(user.energy, user.lastEnergyUpdate),
       },
       progress,
       stats: {
@@ -204,6 +203,67 @@ router.get('/me', authMiddleware, async (req, res) => {
         questTotal,
         co2SavedKg,
         partiesJoined,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   POST /api/auth/upgrade-guest
+// @desc    เปลี่ยนบัญชี Guest ให้เป็นบัญชีปกติ (ตั้ง email + password + ชื่อ)
+// สำคัญ: ใช้ _id เดิม ไม่ได้สร้าง user ใหม่ — points / XP / ประวัติ quest / ของในตู้เย็น เลยติดมาครบ
+// token เดิมก็ยังใช้ได้ต่อ เพราะข้างในเก็บ userId ซึ่งไม่ได้เปลี่ยน
+router.post('/upgrade-guest', authMiddleware, async (req, res) => {
+  try {
+    const { email, password, displayName } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ message: 'Email and password are required' });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters' });
+    }
+
+    const user = await User.findById(req.userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    if (!user.isGuest) {
+      return res.status(400).json({ message: 'This account is already registered' });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    const emailTaken = await User.findOne({ email: normalizedEmail });
+    if (emailTaken) {
+      return res.status(409).json({ message: 'This email is already registered' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    user.email = normalizedEmail;
+    user.password = await bcrypt.hash(password, salt);
+    user.displayName = (displayName || '').trim() || normalizedEmail.split('@')[0];
+    user.isGuest = false;
+
+    try {
+      await user.save();
+    } catch (err) {
+      // กันกรณีมีคนสมัครอีเมลนี้แทรกเข้ามาพอดีระหว่างที่เช็คกับที่บันทึก (unique index จะกันให้อีกชั้น)
+      if (err.code === 11000) {
+        return res.status(409).json({ message: 'This email is already registered' });
+      }
+      throw err;
+    }
+
+    res.json({
+      message: 'Account created',
+      user: {
+        id: user._id,
+        email: user.email,
+        displayName: user.displayName,
+        isGuest: user.isGuest,
       },
     });
   } catch (err) {

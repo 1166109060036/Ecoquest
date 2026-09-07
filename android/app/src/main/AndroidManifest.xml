@@ -1,4 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- ใช้ตอนบันทึกรูปลงแกลเลอรีของเครื่อง (package gal)
+         Android 10 (API 29) ขึ้นไปไม่ต้องขอสิทธิ์นี้แล้วเพราะเขียนผ่าน MediaStore
+         เลยจำกัดด้วย maxSdkVersion ไม่ให้ไปขอสิทธิ์เกินจำเป็นบนเครื่องรุ่นใหม่ -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="29" />
+
     <application
         android:label="ecoquest"
         android:name="${applicationName}"

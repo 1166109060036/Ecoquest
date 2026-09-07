@@ -3,11 +3,13 @@ import '../pages/auth/splash_page.dart';
 import '../pages/auth/login_page.dart';
 import '../pages/auth/register_page.dart';
 import '../pages/auth/forgot_password_page.dart';
+import '../pages/inventory/camera_page.dart';
 import '../pages/inventory/fridge_page.dart';
 import '../pages/main_shell.dart';
 import '../pages/notification/notification_page.dart';
 import '../pages/settings/settings_page.dart';
 import '../pages/settings/change_password_page.dart';
+import '../pages/settings/upgrade_account_page.dart';
 
 // รวม route ทั้งหมดของแอพไว้ที่เดียว เพิ่มหน้าใหม่ก็มาแก้ไฟล์นี้ไฟล์เดียว
 //
@@ -22,6 +24,8 @@ final Map<String, WidgetBuilder> appRoutes = {
   '/settings': (context) => const SettingsPage(),
   '/notifications': (context) => const NotificationPage(),
   '/fridge': (context) => const FridgePage(),
+  '/camera': (context) => const CameraPage(),
   '/change-password': (context) => const ChangePasswordPage(),
+  '/upgrade-account': (context) => const UpgradeAccountPage(),
   '/forgot-password': (context) => const ForgotPasswordPage(),
 };

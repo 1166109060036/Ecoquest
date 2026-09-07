@@ -52,6 +52,20 @@ const QuestSchema = new mongoose.Schema(
       type: Number,
       default: 1,
     },
+    // quest ที่ต้อง "ทำอะไรจริงๆ ในแอพ" ก่อนถึงจะกดสำเร็จได้ ให้ใส่ key ไว้ตรงนี้
+    // null = quest แบบผู้ใช้กดยืนยันเองว่าทำแล้ว (เชื่อใจผู้ใช้)
+    // 'fridge_check' = ต้องบันทึกของในตู้เย็นของวันนี้ก่อน ถึงจะกดสำเร็จได้
+    // เพิ่ม key ใหม่ได้เรื่อยๆ — ฝั่งแอพใช้ key นี้ตัดสินว่าจะพาไปหน้าไหนตอนกด Start
+    actionKey: {
+      type: String,
+      default: null,
+    },
+    // true = ทำซ้ำได้วันละครั้ง (เช็คจาก QuestHistory ของวันนั้น)
+    // false = ไม่จำกัด (ยังไม่มี quest แบบทำได้ครั้งเดียวตลอดชีพ ถ้าจะมีค่อยเพิ่มฟิลด์ทีหลัง)
+    isDaily: {
+      type: Boolean,
+      default: false,
+    },
     isActive: {
       type: Boolean,
       default: true,

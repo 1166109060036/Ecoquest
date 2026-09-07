@@ -15,6 +15,7 @@ class InventoryCard extends StatelessWidget {
   final Color? descriptionColor; // null = สีเทาปกติ (ใช้สีอื่นตอนอยากเน้น เช่น ของหมดอายุในตู้เย็น)
   final int? quantity;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress; // เช่น กดค้างเพื่อลบของในตู้เย็น
 
   const InventoryCard({
     super.key,
@@ -27,6 +28,7 @@ class InventoryCard extends StatelessWidget {
     this.descriptionColor,
     this.quantity,
     this.onTap,
+    this.onLongPress,
   });
 
   // รูปจริงจะลอยอยู่บนพื้นโปร่งใสพร้อมเงา ส่วน "ไม่มีรูป" ถึงจะใช้กล่องสีอ่อนรอง icon ไว้
@@ -60,6 +62,7 @@ class InventoryCard extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
         onTap: onTap,
+        onLongPress: onLongPress,
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(

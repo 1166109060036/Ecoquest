@@ -47,17 +47,8 @@ const UserSchema = new mongoose.Schema(
       ref: 'Season',
       default: null,
     },
-    energy: {
-      type: Number,
-      default: 5,
-      min: 0,
-      max: 5,
-    },
-    lastEnergyUpdate: {
-      type: Date,
-      default: Date.now,
-      // ใช้คำนวณว่า energy ควร regen ไปแล้วกี่แต้ม
-    },
+    // หมายเหตุ: เคยมีฟิลด์ energy / lastEnergyUpdate อยู่ตรงนี้
+    // แต่ระบบ Energy ถูกตัดออกจากดีไซน์แล้ว (quest ทำได้โดยไม่เสียพลังงาน) จึงลบทิ้ง
 
     // ---- ฟิลด์สำหรับ flow ลืมรหัสผ่าน (OTP ทางอีเมล) ----
     // เก็บแค่ hash ของ OTP (เหมือน password) ไม่เก็บ OTP ตัวจริงไว้ในฐานข้อมูล

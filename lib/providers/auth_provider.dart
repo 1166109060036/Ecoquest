@@ -71,6 +71,35 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Guest -> บัญชีปกติ (ตั้ง email/password/ชื่อ) — ใช้ _runAuthAction ไม่ได้เพราะต้องรีเฟรชโปรไฟล์ต่อด้วย
+  Future<bool> upgradeGuest({
+    required String email,
+    required String password,
+    required String displayName,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      _user = await _authService.upgradeGuest(
+        email: email,
+        password: password,
+        displayName: displayName,
+      );
+      _isLoading = false;
+      notifyListeners();
+      // ดึงโปรไฟล์ใหม่ให้ทุกหน้าเห็นว่าไม่ใช่ guest แล้ว (เช่น เมนูเปลี่ยนรหัสผ่านจะโผล่ขึ้นมา)
+      await refreshProfile();
+      return true;
+    } catch (e) {
+      _isLoading = false;
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<bool> verifyCurrentPassword(String password) async {
     return _runAction(() => _authService.verifyCurrentPassword(password));
   }

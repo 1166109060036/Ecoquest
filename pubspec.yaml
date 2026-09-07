@@ -37,6 +37,9 @@ dependencies:
   http: ^1.2.2
   provider: ^6.1.2
   shared_preferences: ^2.3.2
+  image_picker: ^1.2.3
+  # ใช้บันทึกรูปลงแกลเลอรีของเครื่อง (เขียนผ่าน MediaStore ให้เอง + จัดการ permission ให้)
+  gal: ^2.3.1
 
 
 dev_dependencies:

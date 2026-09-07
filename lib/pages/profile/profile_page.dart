@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/quest_provider.dart';
 import '../../utils/constants.dart';
 import '../../models/profile_model.dart';
+import '../../models/quest_history_model.dart';
 
 class ProfilePage extends StatelessWidget {
   // หน้า Home เอา ProfilePage ตัวนี้ไปใช้เป็นพื้นหลังด้วย ตรงนั้นต้องปิด pull-to-refresh
@@ -17,6 +19,8 @@ class ProfilePage extends StatelessWidget {
     final user = authProvider.user;
     final progress = authProvider.profile?.progress;
     final stats = authProvider.profile?.stats;
+    // ประวัติ quest มาจาก QuestProvider (โหลดไว้แล้วตั้งแต่ MainShell) ไม่ได้ fetch ซ้ำที่นี่
+    final questHistory = context.watch<QuestProvider>().history;
 
     // ค่าจริงจาก GET /auth/me — ระหว่างที่ยังโหลดไม่เสร็จ ใช้ค่าที่ cache ไว้ใน user ไปก่อน
     final level = progress?.level ?? user?.level ?? 1;
@@ -118,6 +122,8 @@ class ProfilePage extends StatelessWidget {
                       _StatsCard(stats: profileStats),
                       const SizedBox(height: 16),
                       _UpgradeAbilityCard(upgrades: mockUpgrades),
+                      const SizedBox(height: 16),
+                      _QuestHistoryCard(history: questHistory),
                     ],
                   ),
                 ),
@@ -641,6 +647,130 @@ class _UpgradeRow extends StatelessWidget {
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// การ์ด Quest History — quest ที่ทำสำเร็จไปแล้ว (ล่าสุดขึ้นก่อน)
+// ข้อมูลจริงจาก GET /api/quests/history
+// ---------------------------------------------------------------------------
+class _QuestHistoryCard extends StatelessWidget {
+  final List<QuestHistoryEntry> history;
+  const _QuestHistoryCard({required this.history});
+
+  @override
+  Widget build(BuildContext context) {
+    return _GlassCard(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Quest History',
+                style: TextStyle(
+                    color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 12),
+            if (history.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  'No quests completed yet',
+                  style: TextStyle(color: Colors.white54, fontSize: 12),
+                ),
+              )
+            else
+              for (final entry in history) ...[
+                _QuestHistoryRow(entry: entry),
+                if (entry != history.last) const SizedBox(height: 12),
+              ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _QuestHistoryRow extends StatelessWidget {
+  final QuestHistoryEntry entry;
+  const _QuestHistoryRow({required this.entry});
+
+  @override
+  Widget build(BuildContext context) {
+    final visual = _categoryVisual(entry.category);
+
+    return Row(
+      children: [
+        // ยังไม่มีรูป quest จริงในระบบ — ใช้ไอคอนตามหมวดไปก่อน
+        // ถ้าเพิ่มฟิลด์รูปใน Quest model เมื่อไหร่ ค่อยเปลี่ยนตรงนี้เป็น Image.asset/network
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: visual.color.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(visual.icon, color: visual.color, size: 20),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                entry.questTitle,
+                style: const TextStyle(
+                    color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w600),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                _formatHistoryDate(entry.completedAt),
+                style: const TextStyle(color: Colors.white54, fontSize: 10.5),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          '+${entry.pointsEarned} P',
+          style: const TextStyle(
+              color: Colors.greenAccent, fontSize: 12, fontWeight: FontWeight.w600),
+        ),
+      ],
+    );
+  }
+}
+
+class _CategoryVisual {
+  final IconData icon;
+  final Color color;
+  const _CategoryVisual(this.icon, this.color);
+}
+
+// map หมวดของ quest (ค่าเดียวกับ enum category ฝั่ง backend) -> ไอคอน/สี
+_CategoryVisual _categoryVisual(String? category) {
+  switch (category) {
+    case 'food_waste':
+      return const _CategoryVisual(Icons.restaurant, Colors.orangeAccent);
+    case 'recycling':
+      return const _CategoryVisual(Icons.recycling, Colors.greenAccent);
+    case 'plastic':
+      return const _CategoryVisual(Icons.local_drink, Colors.lightBlueAccent);
+    case 'community':
+      return const _CategoryVisual(Icons.groups, Colors.purpleAccent);
+    default:
+      // quest ถูกลบไปแล้วเลยไม่รู้หมวด
+      return const _CategoryVisual(Icons.eco, Colors.white70);
+  }
+}
+
+const _monthNames = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
+// ไม่ได้ลง package intl เลยจัดรูปแบบวันที่เอง — ให้หน้าตาตรงกับ dateLabel ในการ์ด quest
+String _formatHistoryDate(DateTime date) =>
+    '${_monthNames[date.month - 1]} ${date.day}, ${date.year}';
 
 // ---------------------------------------------------------------------------
 // การ์ดกระจกโปร่งใสมาตรฐาน ใช้ซ้ำได้ทุกส่วนของหน้า Profile
