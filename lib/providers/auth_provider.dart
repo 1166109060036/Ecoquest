@@ -25,9 +25,14 @@ class AuthProvider extends ChangeNotifier {
     _user = await _authService.getCurrentSession();
     notifyListeners();
 
-    // มี session ค้างอยู่ -> ดึงค่าล่าสุดจาก backend ต่อเลย (ถ้าเน็ตล่มก็ยังใช้ค่าที่ cache ไว้ได้)
+    // มี session ค้างอยู่ -> ดึงค่าล่าสุดจาก backend ต่อ
+    //
+    // ตั้งใจ "ไม่ await" ตรงนี้ เพราะ splash รอผลอยู่ ถ้า await จะค้างหน้า splash
+    // จนกว่า backend จะตอบ — ซึ่งบน Render free tier ที่ service หลับอยู่อาจนานถึง 30-60 วิ
+    // ปล่อยให้เข้าแอพด้วยค่าที่ cache ไว้ก่อน แล้วตัวเลขค่อยอัปเดตเองตอน response มาถึง
+    // (refreshProfile จับ error เองอยู่แล้ว ไม่มีทาง throw หลุดออกมา)
     if (_user != null) {
-      await refreshProfile();
+      refreshProfile();
     }
   }
 

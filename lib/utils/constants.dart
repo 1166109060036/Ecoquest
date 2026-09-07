@@ -1,8 +1,18 @@
 class AppConstants {
-  // เปลี่ยนเป็น URL จริงตอน deploy backend แล้ว
-  // ทดสอบบนเครื่องจริงผ่าน USB + `adb reverse tcp:5000 tcp:5000` -> ใช้ 127.0.0.1
-  // ทดสอบบน Android Emulator -> ใช้ 10.0.2.2 แทน localhost (คนละค่ากับเครื่องจริง)
-  static const String baseUrl = 'http://127.0.0.1:5000/api';
+  // 🔴 แก้บรรทัดนี้เป็น URL ที่ Render ให้มาหลัง deploy เสร็จ (ต้องมี /api ต่อท้าย)
+  //    เช่น 'https://ecoquest-api.onrender.com/api'
+  //    ตราบใดที่ยังเป็น localhost แอพจะใช้ไม่ได้ถ้าไม่ได้เปิด backend ในคอม
+  static const String _deployedApiUrl = 'http://127.0.0.1:5000/api';
+
+  // ต่อ backend ในเครื่องตอน dev โดยไม่ต้องแก้โค้ด:
+  //   เครื่องจริง (+ adb reverse tcp:5000 tcp:5000):
+  //     flutter run --dart-define=API_BASE_URL=http://127.0.0.1:5000/api
+  //   Android Emulator (10.0.2.2 = คอมของเรา ใช้ได้เฉพาะ emulator):
+  //     flutter run --dart-define=API_BASE_URL=http://10.0.2.2:5000/api
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: _deployedApiUrl,
+  );
 
   static const String tokenKey = 'auth_token';
   static const String userKey = 'auth_user';

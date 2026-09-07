@@ -1,0 +1,27 @@
+# Blueprint สำหรับ deploy backend ขึ้น Render (https://render.com)
+#
+# วิธีใช้: Render Dashboard > New > Blueprint > เลือก repo นี้
+# Render จะอ่านไฟล์นี้แล้วสร้าง service ให้เอง ไม่ต้องกรอก build/start command เอง
+#
+# ⚠️ env var ที่ sync: false ต้องไปกรอกค่าเองในหน้า dashboard ของ Render
+#    (ห้าม commit ค่าจริงลงไฟล์นี้ เพราะไฟล์นี้อยู่ใน git)
+services:
+  - type: web
+    name: ecoquest-api
+    runtime: node
+    plan: free
+    # โค้ด backend อยู่ในโฟลเดอร์ย่อย ไม่ได้อยู่ root ของ repo (root เป็นโปรเจค Flutter)
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    # Render ยิงเช็คที่ path นี้เพื่อดูว่า service ยังไหวอยู่ไหม
+    healthCheckPath: /
+    envVars:
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: GMAIL_USER
+        sync: false
+      - key: GMAIL_APP_PASSWORD
+        sync: false

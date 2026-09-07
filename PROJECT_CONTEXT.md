@@ -226,6 +226,35 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
 - `IndexedStack` ต้องครอบด้วย `SizedBox.expand` ไม่งั้นบางทีไม่ยอมขยายเต็มพื้นที่ (เจอปัญหาช่องว่างสีขาวมาก่อน)
 - Gradle JDK ต้องเป็น JDK 17 (ไม่ใช่ JDK ใหม่กว่านี้) ไม่งั้น Gradle sync fail
 
+## 6.5 Deploy backend (ให้แอพใช้ได้โดยไม่ต้องเปิดคอม)
+
+> ❗ **แอพ Flutter รัน Node/Express + MongoDB ในตัวเองไม่ได้** และห้ามฝัง connection string ของ Atlas
+> ลงในแอพเด็ดขาด (แกะ APK แล้วได้สิทธิ์เข้าฐานข้อมูลทั้งหมด) — ต้อง deploy backend แล้วให้แอพยิงไปที่ URL นั้น
+>
+> ทางเลือกที่พิจารณาแล้ว **ตัดทิ้ง**: ต่อ Flutter เข้า Atlas ตรงๆ ผ่าน `mongo_dart` (ไม่ปลอดภัย),
+> Atlas Data API (MongoDB ปิดบริการไปแล้วตั้งแต่ 30 ก.ย. 2025)
+
+**เลือกใช้: Render free tier** (ตัดสินใจแล้ว — เลือกเพราะ deploy ง่ายที่สุด)
+
+backend พร้อม deploy แล้ว (ทดสอบว่าบูตด้วย env var อย่างเดียวได้ + health check `GET /` ตอบ 200)
+- `backend/package.json` มี `engines.node >= 18`
+- `server.js` ใช้ `process.env.PORT` อยู่แล้ว (host กำหนด port ให้เอง **ห้าม hardcode**)
+- มี `render.yaml` ที่ root ของ repo — Render อ่านแล้วสร้าง service ให้เอง (`rootDir: backend`)
+
+ขั้นตอน:
+1. push โค้ดขึ้น GitHub
+2. Render Dashboard → New → Blueprint → เลือก repo นี้
+3. กรอก env var 4 ตัวใน dashboard: `MONGODB_URI`, `JWT_SECRET`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`
+   (ค่าเดียวกับใน `backend/.env` — ไฟล์นั้นไม่ได้ถูก push ขึ้น git)
+4. **MongoDB Atlas → Network Access → เพิ่ม `0.0.0.0/0`** ⚠️ ข้อนี้ลืมบ่อยที่สุด
+   cloud host ใช้ IP ไม่ตายตัว ถ้าไม่เปิดจะ connect ไม่ได้แล้ว process ตายวนไป
+5. เอา URL ที่ได้ไปใส่ `_deployedApiUrl` ใน `lib/utils/constants.dart` (**ต้องมี `/api` ต่อท้าย**) แล้ว build แอพใหม่
+
+⚠️ **ข้อจำกัด free tier: service หลับหลังไม่มีคนใช้ ~15 นาที คำขอแรกหลังหลับช้า 30-60 วิ**
+- `AuthProvider.checkSession()` เลย **จงใจไม่ await `refreshProfile()`** — ไม่งั้นหน้า splash จะค้างรอ
+  จนกว่า backend จะตื่น ตอนนี้เข้าแอพด้วยค่าที่ cache ไว้ก่อน แล้วตัวเลขค่อยอัปเดตเอง **อย่าเผลอใส่ `await` กลับเข้าไป**
+- ส่วนอื่นยังไม่ได้ใส่ timeout ให้ http request — ถ้าเจอปัญหาค้างนานตอน cold start ค่อยมาเพิ่มทีหลัง
+
 ## 7. งานถัดไปที่แนะนำ (เรียงตามลำดับที่ควรทำ)
 
 1. **ลง `path_provider` แล้วย้ายรูปไปเก็บถาวร** — ตอนนี้รูปทั้งของในตู้เย็นและ EcoQuest Moment
