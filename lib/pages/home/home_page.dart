@@ -131,7 +131,11 @@ class _HomePageState extends State<HomePage>
           // ---- พื้นหลัง: หน้า Profile จริงเต็มจอ ----
           // ใช้ตัวจริงเลยแทนเวอร์ชันย่อ เพื่อให้ขนาด/สัดส่วนตรงกับหน้า Profile 100%
           // RepaintBoundary กันไม่ให้หน้า Profile ที่หนักถูกลากมา re-paint ซ้ำระหว่างลาก
-          const Positioned.fill(child: RepaintBoundary(child: ProfilePage())),
+          // ปิด pull-to-refresh ของ ProfilePage ตรงนี้ ไม่งั้นการดึงลงจะไปแย่ง gesture
+          // กับแผ่น Explore ที่ลากขึ้น-ลงได้ (หน้า Profile ตัวจริงในแท็บ Profile ยังดึง refresh ได้ปกติ)
+          const Positioned.fill(
+            child: RepaintBoundary(child: ProfilePage(enablePullToRefresh: false)),
+          ),
           // ---- แผ่น Explore ที่ลากขึ้น-ลงได้ ----
           // AnimatedBuilder ตรงนี้คำนวณแค่ตำแหน่ง/ความสูง (ถูกมาก) ส่วน _ExploreSheet
           // ถูกส่งผ่าน `child` เข้าไปครั้งเดียว ไม่ rebuild ใหม่ทุกเฟรมตอนลาก

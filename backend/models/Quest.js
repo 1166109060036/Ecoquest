@@ -41,6 +41,12 @@ const QuestSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    // ปริมาณ CO2 ที่ช่วยลดได้เมื่อทำ quest นี้สำเร็จ (kgCO2e)
+    // ใช้รวมเป็นสถิติ "CO2 Saved" ในหน้า Profile — ตอน seed quest จริงต้องใส่ค่านี้ด้วย
+    co2SavedKg: {
+      type: Number,
+      default: 0,
+    },
     // ใช้เฉพาะ party quest — level ขั้นต่ำที่จะสร้าง/host quest นี้ได้
     minLevelToHost: {
       type: Number,

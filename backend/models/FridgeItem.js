@@ -17,6 +17,12 @@ const FridgeItemSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
+    // จำนวนที่มีอยู่ — แสดงเป็น badge "xN" ในหน้า Fridge เหมือนไอเทมในหน้า Inventory
+    quantity: {
+      type: Number,
+      default: 1,
+      min: 1,
+    },
     addedAt: {
       type: Date,
       default: Date.now,

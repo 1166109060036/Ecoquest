@@ -15,8 +15,8 @@ const sendOtpEmail = async (to, otp) => {
   await transporter.sendMail({
     from: `"EcoQuest" <${process.env.GMAIL_USER}>`,
     to,
-    subject: 'รหัส OTP สำหรับตั้งรหัสผ่านใหม่ - EcoQuest',
-    text: `รหัส OTP ของคุณคือ ${otp}\n\nรหัสนี้จะหมดอายุใน 10 นาที\nถ้าคุณไม่ได้ขอเปลี่ยนรหัสผ่าน กรุณาเพิกเฉยต่ออีเมลนี้`,
+    subject: 'Your EcoQuest password reset code',
+    text: `Your OTP code is ${otp}\n\nThis code expires in 10 minutes.\nIf you did not request a password reset, please ignore this email.`,
   });
 };
 

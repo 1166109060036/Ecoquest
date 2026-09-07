@@ -165,7 +165,7 @@ class _EmptyState extends StatelessWidget {
             Icon(Icons.search_off, size: 48, color: Colors.grey.shade400),
             const SizedBox(height: 12),
             Text(
-              query.trim().isEmpty ? 'ไม่มี quest ในหมวดนี้' : 'ไม่พบ quest ที่ตรงกับ "$query"',
+              query.trim().isEmpty ? 'No quests in this category' : 'No quests found for "$query"',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
             ),

@@ -5,27 +5,31 @@ import '../../utils/constants.dart';
 import '../../models/profile_model.dart';
 
 class ProfilePage extends StatelessWidget {
-  const ProfilePage({super.key});
+  // หน้า Home เอา ProfilePage ตัวนี้ไปใช้เป็นพื้นหลังด้วย ตรงนั้นต้องปิด pull-to-refresh
+  // ไม่งั้นจะไปแย่ง gesture กับแผ่น Explore ที่ลากขึ้น-ลงได้
+  final bool enablePullToRefresh;
+
+  const ProfilePage({super.key, this.enablePullToRefresh = true});
 
   @override
   Widget build(BuildContext context) {
-    final user = context.watch<AuthProvider>().user;
+    final authProvider = context.watch<AuthProvider>();
+    final user = authProvider.user;
+    final progress = authProvider.profile?.progress;
+    final stats = authProvider.profile?.stats;
 
-    // TODO: ต่อ backend endpoint จริงตอนมี API ดึงค่านี้แล้ว
-    // ตอนนี้ mock ไว้ก่อนให้เห็นหน้าตาโครงสร้างครบ
-    final mockLevel = 5;
-    final mockXp = 320;
-    final mockXpToNext = 1000;
-    final mockPoints = 0;
-    final mockRankTier = 'Bronze';
-    final mockRankPoints = 0;
-    final mockRankPointsMax = 1000;
-    final mockStats = ProfileStats(
-      questCompleted: 0,
-      questTotal: 0,
-      co2SavedKg: 0.0,
-      partiesJoined: 0,
-    );
+    // ค่าจริงจาก GET /auth/me — ระหว่างที่ยังโหลดไม่เสร็จ ใช้ค่าที่ cache ไว้ใน user ไปก่อน
+    final level = progress?.level ?? user?.level ?? 1;
+    final xpIntoLevel = progress?.xpIntoLevel ?? 0;
+    final xpForNextLevel = progress?.xpForNextLevel ?? 0;
+    final points = user?.points ?? 0;
+    final rankTier = progress?.rankTier ?? user?.rank ?? 'Bronze';
+    final rankXpIntoTier = progress?.rankXpIntoTier ?? 0;
+    final rankXpForNextTier = progress?.rankXpForNextTier;
+    final profileStats = stats ??
+        ProfileStats(questCompleted: 0, questTotal: 0, co2SavedKg: 0.0, partiesJoined: 0);
+
+    // TODO: ยังไม่มี model/endpoint ของ upgrade ฝั่ง backend เลย ส่วนนี้เลยยัง mock อยู่
     final mockUpgrades = [
       AbilityUpgrade(
         id: 'point_booster',
@@ -84,32 +88,38 @@ class ProfilePage extends StatelessWidget {
           // (background default ของ Scaffold) โผล่ที่ด้านล่างจอ
           Positioned.fill(
             child: SafeArea(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _TopBar(),
-                    const SizedBox(height: 16),
-                    _UserHeader(
-                      displayName: user?.displayName ?? 'Player',
-                      level: mockLevel,
-                      rankTier: mockRankTier,
-                      xp: mockXp,
-                      xpToNext: mockXpToNext,
-                    ),
-                    const SizedBox(height: 16),
-                    _PointsAndRankCard(
-                      points: mockPoints,
-                      rankTier: mockRankTier,
-                      rankPoints: mockRankPoints,
-                      rankPointsMax: mockRankPointsMax,
-                    ),
-                    const SizedBox(height: 16),
-                    _StatsCard(stats: mockStats),
-                    const SizedBox(height: 16),
-                    _UpgradeAbilityCard(upgrades: mockUpgrades),
-                  ],
+              child: _MaybeRefreshable(
+                enabled: enablePullToRefresh,
+                onRefresh: () => context.read<AuthProvider>().refreshProfile(),
+                child: SingleChildScrollView(
+                  // ต้อง always scrollable ไม่งั้นตอนเนื้อหาสั้นกว่าจอจะดึงลง refresh ไม่ได้
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _TopBar(),
+                      const SizedBox(height: 16),
+                      _UserHeader(
+                        displayName: user?.displayName ?? 'Player',
+                        level: level,
+                        rankTier: rankTier,
+                        xp: xpIntoLevel,
+                        xpToNext: xpForNextLevel,
+                      ),
+                      const SizedBox(height: 16),
+                      _PointsAndRankCard(
+                        points: points,
+                        rankTier: rankTier,
+                        rankXp: rankXpIntoTier,
+                        rankXpMax: rankXpForNextTier,
+                      ),
+                      const SizedBox(height: 16),
+                      _StatsCard(stats: profileStats),
+                      const SizedBox(height: 16),
+                      _UpgradeAbilityCard(upgrades: mockUpgrades),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -117,6 +127,28 @@ class ProfilePage extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// ครอบ RefreshIndicator ให้เฉพาะตอนใช้เป็นหน้า Profile จริง
+// ตอนถูกเอาไปใช้เป็นพื้นหลังของหน้า Home จะปิดไว้ กัน gesture ชนกับแผ่น Explore ที่ลากได้
+// ---------------------------------------------------------------------------
+class _MaybeRefreshable extends StatelessWidget {
+  final bool enabled;
+  final Future<void> Function() onRefresh;
+  final Widget child;
+
+  const _MaybeRefreshable({
+    required this.enabled,
+    required this.onRefresh,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (!enabled) return child;
+    return RefreshIndicator(onRefresh: onRefresh, color: Colors.green, child: child);
   }
 }
 
@@ -166,9 +198,10 @@ class _TopBar extends StatelessWidget {
             fontWeight: FontWeight.w500,
           ),
         ),
-        _CircleIconButton(icon: Icons.notifications_none_rounded, onTap: () {
-          // TODO: ไปหน้า Notifications
-        }),
+        _CircleIconButton(
+          icon: Icons.notifications_none_rounded,
+          onTap: () => Navigator.pushNamed(context, '/notifications'),
+        ),
       ],
     );
   }
@@ -274,14 +307,14 @@ class _UserHeader extends StatelessWidget {
 class _PointsAndRankCard extends StatelessWidget {
   final int points;
   final String rankTier;
-  final int rankPoints;
-  final int rankPointsMax;
+  final int rankXp; // XP ที่ไต่มาได้แล้วภายใน tier ปัจจุบัน (นับเฉพาะ season นี้)
+  final int? rankXpMax; // null = อยู่ tier สูงสุดแล้ว
 
   const _PointsAndRankCard({
     required this.points,
     required this.rankTier,
-    required this.rankPoints,
-    required this.rankPointsMax,
+    required this.rankXp,
+    required this.rankXpMax,
   });
 
   @override
@@ -354,9 +387,10 @@ class _PointsAndRankCard extends StatelessWidget {
                           ClipRRect(
                             borderRadius: BorderRadius.circular(4),
                             child: LinearProgressIndicator(
-                              value: rankPointsMax == 0
-                                  ? 0
-                                  : (rankPoints / rankPointsMax).clamp(0.0, 1.0),
+                              // tier สูงสุดแล้ว (rankXpMax == null) -> โชว์เต็มหลอด
+                              value: rankXpMax == null
+                                  ? 1.0
+                                  : (rankXpMax == 0 ? 0.0 : (rankXp / rankXpMax!).clamp(0.0, 1.0)),
                               minHeight: 4,
                               backgroundColor: Colors.white24,
                               valueColor: const AlwaysStoppedAnimation(Colors.greenAccent),
@@ -364,7 +398,9 @@ class _PointsAndRankCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            '${_formatNumber(rankPoints)} / ${_formatNumber(rankPointsMax)} P',
+                            rankXpMax == null
+                                ? 'MAX'
+                                : '${_formatNumber(rankXp)} / ${_formatNumber(rankXpMax!)} XP',
                             style: const TextStyle(color: Colors.white54, fontSize: 9),
                           ),
                         ],

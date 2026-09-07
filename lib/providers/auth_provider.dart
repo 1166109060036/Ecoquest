@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
+import '../models/profile_model.dart';
 import '../services/auth_service.dart';
 
 // จัดการ state การ login ของทั้งแอพ ให้ทุกหน้าดึงสถานะ user ปัจจุบันได้
@@ -7,16 +8,43 @@ class AuthProvider extends ChangeNotifier {
   final AuthService _authService = AuthService();
 
   UserModel? _user;
+  ProfileData? _profile;
   bool _isLoading = false;
+  bool _isProfileLoading = false;
   String? _errorMessage;
 
   UserModel? get user => _user;
+  // ข้อมูล level/xp/rank/สถิติ จาก GET /auth/me — null = ยังโหลดไม่เสร็จ (หรือโหลดไม่ได้)
+  ProfileData? get profile => _profile;
   bool get isLoading => _isLoading;
+  bool get isProfileLoading => _isProfileLoading;
   String? get errorMessage => _errorMessage;
   bool get isLoggedIn => _user != null;
 
   Future<void> checkSession() async {
     _user = await _authService.getCurrentSession();
+    notifyListeners();
+
+    // มี session ค้างอยู่ -> ดึงค่าล่าสุดจาก backend ต่อเลย (ถ้าเน็ตล่มก็ยังใช้ค่าที่ cache ไว้ได้)
+    if (_user != null) {
+      await refreshProfile();
+    }
+  }
+
+  // ดึง level/xp/points/rank/สถิติ ของจริงมาเก็บไว้ให้หน้า Profile/Home ใช้
+  // ตั้งใจไม่ throw ต่อ เพราะถ้าเน็ตหลุดก็ไม่ควรทำให้เปิดแอพไม่ได้ — แค่โชว์ค่าที่ cache ไว้แทน
+  Future<void> refreshProfile() async {
+    _isProfileLoading = true;
+    notifyListeners();
+
+    try {
+      _profile = await _authService.fetchProfile();
+      _user = _profile!.user;
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+    }
+
+    _isProfileLoading = false;
     notifyListeners();
   }
 
@@ -39,6 +67,7 @@ class AuthProvider extends ChangeNotifier {
   Future<void> logout() async {
     await _authService.logout();
     _user = null;
+    _profile = null;
     notifyListeners();
   }
 
@@ -92,6 +121,9 @@ class AuthProvider extends ChangeNotifier {
       _user = await action();
       _isLoading = false;
       notifyListeners();
+      // login/register/guest สำเร็จแล้วดึงค่าเกม (level/xp/rank/สถิติ) ตามมาทันที
+      // เพราะ endpoint พวกนั้นส่งกลับมาแค่ข้อมูลบัญชี ไม่มีค่าระบบเกมมาด้วย
+      await refreshProfile();
       return true;
     } catch (e) {
       _isLoading = false;

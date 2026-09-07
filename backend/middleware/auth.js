@@ -5,7 +5,7 @@ const authMiddleware = (req, res, next) => {
   const authHeader = req.headers.authorization; // รูปแบบ: "Bearer <token>"
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ message: 'ไม่พบ token กรุณาเข้าสู่ระบบ' });
+    return res.status(401).json({ message: 'No token provided. Please sign in' });
   }
 
   const token = authHeader.split(' ')[1];
@@ -15,7 +15,7 @@ const authMiddleware = (req, res, next) => {
     req.userId = decoded.userId;
     next();
   } catch (err) {
-    return res.status(401).json({ message: 'token ไม่ถูกต้องหรือหมดอายุ' });
+    return res.status(401).json({ message: 'Invalid or expired token' });
   }
 };
 

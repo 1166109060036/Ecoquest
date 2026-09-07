@@ -45,11 +45,11 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     if (success) {
       setState(() => _step = _Step.otp);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('ถ้าอีเมลนี้มีอยู่ในระบบ เราได้ส่ง OTP ไปให้แล้ว')),
+        const SnackBar(content: Text('If this email is registered, we have sent an OTP to it')),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(authProvider.errorMessage ?? 'ส่ง OTP ไม่สำเร็จ')),
+        SnackBar(content: Text(authProvider.errorMessage ?? 'Failed to send OTP')),
       );
     }
   }
@@ -57,7 +57,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   Future<void> _handleVerifyOtp() async {
     if (_otpController.text.trim().length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('กรุณากรอก OTP 6 หลัก')),
+        const SnackBar(content: Text('Please enter the 6-digit OTP')),
       );
       return;
     }
@@ -75,7 +75,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       setState(() => _step = _Step.newPassword);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(authProvider.errorMessage ?? 'OTP ไม่ถูกต้องหรือหมดอายุ')),
+        SnackBar(content: Text(authProvider.errorMessage ?? 'Invalid or expired OTP')),
       );
     }
   }
@@ -83,13 +83,13 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   Future<void> _handleResetPassword() async {
     if (_newPasswordController.text.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร')),
+        const SnackBar(content: Text('Password must be at least 6 characters')),
       );
       return;
     }
     if (_newPasswordController.text != _confirmPasswordController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('รหัสผ่านใหม่ไม่ตรงกัน')),
+        const SnackBar(content: Text('New passwords do not match')),
       );
       return;
     }
@@ -101,12 +101,12 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('ตั้งรหัสผ่านใหม่สำเร็จ กรุณาเข้าสู่ระบบใหม่')),
+        const SnackBar(content: Text('Password reset successfully. Please sign in again')),
       );
       Navigator.pop(context);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(authProvider.errorMessage ?? 'ตั้งรหัสผ่านใหม่ไม่สำเร็จ')),
+        SnackBar(content: Text(authProvider.errorMessage ?? 'Failed to reset password')),
       );
     }
   }
@@ -116,7 +116,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     final isLoading = context.watch<AuthProvider>().isLoading;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('ลืมรหัสผ่าน'), backgroundColor: Colors.transparent, elevation: 0),
+      appBar: AppBar(title: const Text('Forgot Password'), backgroundColor: Colors.transparent, elevation: 0),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -176,7 +176,7 @@ class _EmailStep extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const Text(
-            'กรอกอีเมลที่ใช้สมัคร เราจะส่งรหัส OTP ไปให้',
+            'Enter the email you signed up with and we will send you an OTP',
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.black54, fontSize: 13),
           ),
@@ -197,7 +197,7 @@ class _EmailStep extends StatelessWidget {
                     width: 20,
                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                   )
-                : const Text('ส่ง OTP'),
+                : const Text('Send OTP'),
           ),
         ],
       ),
@@ -226,7 +226,7 @@ class _OtpStep extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'กรอกรหัส OTP 6 หลักที่ส่งไปที่\n$email',
+          'Enter the 6-digit OTP sent to\n$email',
           textAlign: TextAlign.center,
           style: const TextStyle(color: Colors.black54, fontSize: 13),
         ),
@@ -253,11 +253,11 @@ class _OtpStep extends StatelessWidget {
                   width: 20,
                   child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                 )
-              : const Text('ยืนยัน OTP'),
+              : const Text('Verify OTP'),
         ),
         TextButton(
           onPressed: isLoading ? null : onBack,
-          child: const Text('กรอกอีเมลใหม่ / ขอ OTP อีกครั้ง'),
+          child: const Text('Change email / resend OTP'),
         ),
       ],
     );
@@ -283,7 +283,7 @@ class _NewPasswordStep extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Text(
-          'ตั้งรหัสผ่านใหม่',
+          'Set a new password',
           textAlign: TextAlign.center,
           style: TextStyle(color: Colors.black54, fontSize: 13),
         ),
@@ -291,13 +291,13 @@ class _NewPasswordStep extends StatelessWidget {
         TextFormField(
           controller: newPasswordController,
           obscureText: true,
-          decoration: const InputDecoration(labelText: 'รหัสผ่านใหม่', border: OutlineInputBorder()),
+          decoration: const InputDecoration(labelText: 'New password', border: OutlineInputBorder()),
         ),
         const SizedBox(height: 16),
         TextFormField(
           controller: confirmPasswordController,
           obscureText: true,
-          decoration: const InputDecoration(labelText: 'ยืนยันรหัสผ่านใหม่', border: OutlineInputBorder()),
+          decoration: const InputDecoration(labelText: 'Confirm new password', border: OutlineInputBorder()),
         ),
         const SizedBox(height: 20),
         ElevatedButton(
@@ -309,7 +309,7 @@ class _NewPasswordStep extends StatelessWidget {
                   width: 20,
                   child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                 )
-              : const Text('เปลี่ยนรหัสผ่าน'),
+              : const Text('Reset Password'),
         ),
       ],
     );

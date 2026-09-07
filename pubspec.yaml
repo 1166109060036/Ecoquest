@@ -62,9 +62,14 @@ flutter:
   uses-material-design: true
 
   # To add assets to your application, add an assets section, like this:
+  # หมายเหตุ: ถ้าจะประกาศเป็น "โฟลเดอร์" ต้องมี / ปิดท้ายเสมอ (เช่น lib/utils/assets/)
+  # เขียนเป็น lib/utils/assets เฉยๆ Flutter จะมองว่าเป็นชื่อไฟล์ แล้ว build fail ทั้งแอพ
   assets:
      - lib/utils/assets/background.png
      - lib/utils/assets/items/camera.png
+     - lib/utils/assets/notifications/trophy.png
+     - lib/utils/assets/notifications/fridge_expired.png
+     - lib/utils/assets/inventory/fridge.png
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

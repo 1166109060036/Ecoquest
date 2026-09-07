@@ -28,16 +28,16 @@ class _PartyPageState extends State<PartyPage> {
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('ออกจากปาร์ตี้?'),
-        content: const Text('คุณจะออกจากปาร์ตี้นี้ และต้องเข้าร่วมใหม่ทีหลังถ้าเปลี่ยนใจ'),
+        title: const Text('Leave party?'),
+        content: const Text('You will leave this party and will have to join again if you change your mind'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('ยกเลิก', style: TextStyle(color: Colors.grey.shade600)),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey.shade600)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('ออกจากปาร์ตี้', style: TextStyle(color: Colors.red)),
+            child: const Text('Leave Party', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -52,7 +52,7 @@ class _PartyPageState extends State<PartyPage> {
   void _viewMemberProfile(String name) {
     // TODO: เปิดหน้าโปรไฟล์ของผู้เล่นคนอื่นจริงตอนมี endpoint
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('ดูโปรไฟล์ $name — เร็วๆ นี้')),
+      SnackBar(content: Text("$name's profile — coming soon")),
     );
   }
 
@@ -316,12 +316,12 @@ class _NoPartyState extends StatelessWidget {
           Icon(Icons.groups_outlined, size: 56, color: Colors.white.withOpacity(0.7)),
           const SizedBox(height: 16),
           const Text(
-            'คุณยังไม่มีปาร์ตี้',
+            "You're not in a party yet",
             style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 6),
           Text(
-            'เข้าร่วม Party Quest เพื่อรวมทีมกับผู้เล่นคนอื่น',
+            'Join a Party Quest to team up with other players',
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 13),
           ),

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/user_model.dart';
+import '../models/profile_model.dart';
 import '../utils/constants.dart';
 import 'storage_service.dart';
 
@@ -26,7 +27,7 @@ class AuthService {
     final data = jsonDecode(response.body);
 
     if (response.statusCode != 201) {
-      throw Exception(data['message'] ?? 'สมัครสมาชิกไม่สำเร็จ');
+      throw Exception(data['message'] ?? 'Sign up failed');
     }
 
     final user = UserModel.fromJson(data['user']);
@@ -47,7 +48,7 @@ class AuthService {
     final data = jsonDecode(response.body);
 
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'เข้าสู่ระบบไม่สำเร็จ');
+      throw Exception(data['message'] ?? 'Sign in failed');
     }
 
     final user = UserModel.fromJson(data['user']);
@@ -64,7 +65,7 @@ class AuthService {
     final data = jsonDecode(response.body);
 
     if (response.statusCode != 201) {
-      throw Exception(data['message'] ?? 'เข้าสู่ระบบแบบ guest ไม่สำเร็จ');
+      throw Exception(data['message'] ?? 'Guest sign in failed');
     }
 
     final user = UserModel.fromJson(data['user']);
@@ -77,6 +78,28 @@ class AuthService {
     final token = await _storage.getToken();
     if (token == null) return null;
     return _storage.getUser();
+  }
+
+  // ดึงข้อมูล user ปัจจุบัน + level/xp/rank + สถิติ จาก backend (ของจริง ไม่ใช่ mock)
+  // อัปเดต session ที่ cache ไว้ด้วย เพื่อให้เปิดแอพครั้งหน้าเห็นค่าล่าสุดทันทีก่อน fetch เสร็จ
+  Future<ProfileData> fetchProfile() async {
+    final token = await _storage.getToken();
+    final response = await http.get(
+      Uri.parse('${AppConstants.baseUrl}/auth/me'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode != 200) {
+      throw Exception(data['message'] ?? 'Failed to load your profile');
+    }
+
+    final profile = ProfileData.fromJson(data);
+    if (token != null) {
+      await _storage.saveSession(token, profile.user);
+    }
+    return profile;
   }
 
   Future<void> logout() async {
@@ -97,7 +120,7 @@ class AuthService {
 
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'รหัสผ่านไม่ถูกต้อง');
+      throw Exception(data['message'] ?? 'Incorrect password');
     }
   }
 
@@ -118,11 +141,11 @@ class AuthService {
 
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'เปลี่ยนรหัสผ่านไม่สำเร็จ');
+      throw Exception(data['message'] ?? 'Failed to change password');
     }
   }
 
-  // ขอ OTP ไปที่อีเมล (ขั้นตอนแรกของ "ลืมรหัสผ่าน")
+  // ขอ OTP ไปที่อีเมล (ขั้นตอนแรกของ "Forgot Password")
   Future<void> requestPasswordResetOtp({required String email}) async {
     final response = await http.post(
       Uri.parse('${AppConstants.baseUrl}/auth/forgot-password'),
@@ -132,7 +155,7 @@ class AuthService {
 
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'ส่ง OTP ไม่สำเร็จ');
+      throw Exception(data['message'] ?? 'Failed to send OTP');
     }
   }
 
@@ -149,7 +172,7 @@ class AuthService {
 
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'OTP ไม่ถูกต้องหรือหมดอายุ');
+      throw Exception(data['message'] ?? 'Invalid or expired OTP');
     }
     return data['resetToken'];
   }
@@ -167,7 +190,7 @@ class AuthService {
 
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'ตั้งรหัสผ่านใหม่ไม่สำเร็จ');
+      throw Exception(data['message'] ?? 'Failed to reset password');
     }
   }
 }

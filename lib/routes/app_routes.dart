@@ -3,7 +3,9 @@ import '../pages/auth/splash_page.dart';
 import '../pages/auth/login_page.dart';
 import '../pages/auth/register_page.dart';
 import '../pages/auth/forgot_password_page.dart';
+import '../pages/inventory/fridge_page.dart';
 import '../pages/main_shell.dart';
+import '../pages/notification/notification_page.dart';
 import '../pages/settings/settings_page.dart';
 import '../pages/settings/change_password_page.dart';
 
@@ -18,6 +20,8 @@ final Map<String, WidgetBuilder> appRoutes = {
   '/register': (context) => const RegisterPage(),
   '/main': (context) => const MainShell(),
   '/settings': (context) => const SettingsPage(),
+  '/notifications': (context) => const NotificationPage(),
+  '/fridge': (context) => const FridgePage(),
   '/change-password': (context) => const ChangePasswordPage(),
   '/forgot-password': (context) => const ForgotPasswordPage(),
 };

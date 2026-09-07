@@ -34,7 +34,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   Future<void> _handleVerifyOldPassword() async {
     if (_oldPasswordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('กรุณากรอกรหัสผ่านเดิม')),
+        const SnackBar(content: Text('Please enter your current password')),
       );
       return;
     }
@@ -48,7 +48,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       setState(() => _step = _Step.newPassword);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(authProvider.errorMessage ?? 'รหัสผ่านไม่ถูกต้อง')),
+        SnackBar(content: Text(authProvider.errorMessage ?? 'Incorrect password')),
       );
     }
   }
@@ -56,13 +56,13 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   Future<void> _handleChangePassword() async {
     if (_newPasswordController.text.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร')),
+        const SnackBar(content: Text('New password must be at least 6 characters')),
       );
       return;
     }
     if (_newPasswordController.text != _confirmPasswordController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('รหัสผ่านใหม่ไม่ตรงกัน')),
+        const SnackBar(content: Text('New passwords do not match')),
       );
       return;
     }
@@ -77,12 +77,12 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
 
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('เปลี่ยนรหัสผ่านสำเร็จ')),
+        const SnackBar(content: Text('Password changed successfully')),
       );
       Navigator.pop(context);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(authProvider.errorMessage ?? 'เปลี่ยนรหัสผ่านไม่สำเร็จ')),
+        SnackBar(content: Text(authProvider.errorMessage ?? 'Failed to change password')),
       );
     }
   }
@@ -142,18 +142,18 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
                                   const Text(
-                                    'กรอกรหัสผ่านปัจจุบันเพื่อยืนยันตัวตนก่อน',
+                                    'Enter your current password to verify it is you',
                                     textAlign: TextAlign.center,
                                     style: TextStyle(color: Colors.white70, fontSize: 13),
                                   ),
                                   const SizedBox(height: 16),
                                   _PasswordField(
                                     controller: _oldPasswordController,
-                                    label: 'รหัสผ่านเดิม',
+                                    label: 'Current password',
                                   ),
                                   const SizedBox(height: 24),
                                   _SubmitButton(
-                                    label: 'ยืนยัน',
+                                    label: 'Confirm',
                                     isLoading: isLoading,
                                     onPressed: _handleVerifyOldPassword,
                                   ),
@@ -163,23 +163,23 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
                                   const Text(
-                                    'ตั้งรหัสผ่านใหม่',
+                                    'Set a new password',
                                     textAlign: TextAlign.center,
                                     style: TextStyle(color: Colors.white70, fontSize: 13),
                                   ),
                                   const SizedBox(height: 16),
                                   _PasswordField(
                                     controller: _newPasswordController,
-                                    label: 'รหัสผ่านใหม่',
+                                    label: 'New password',
                                   ),
                                   const SizedBox(height: 16),
                                   _PasswordField(
                                     controller: _confirmPasswordController,
-                                    label: 'ยืนยันรหัสผ่านใหม่',
+                                    label: 'Confirm new password',
                                   ),
                                   const SizedBox(height: 24),
                                   _SubmitButton(
-                                    label: 'บันทึกรหัสผ่านใหม่',
+                                    label: 'Save New Password',
                                     isLoading: isLoading,
                                     onPressed: _handleChangePassword,
                                   ),
@@ -274,7 +274,7 @@ class _TopBar extends StatelessWidget {
         ),
         const Expanded(
           child: Text(
-            'เปลี่ยนรหัสผ่าน',
+            'Change Password',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Colors.white,

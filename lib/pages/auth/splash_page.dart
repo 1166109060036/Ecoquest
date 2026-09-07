@@ -40,7 +40,10 @@ class _SplashPageState extends State<SplashPage> {
           children: [
             Icon(Icons.eco, size: 72, color: Colors.green),
             SizedBox(height: 16),
-            Text('EcoQuest', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            Text(
+              'EcoQuest',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
             SizedBox(height: 24),
             CircularProgressIndicator(),
           ],

@@ -44,7 +44,7 @@ class _RegisterPageState extends State<RegisterPage> {
       Navigator.pushReplacementNamed(context, '/main');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(authProvider.errorMessage ?? 'เกิดข้อผิดพลาด')),
+        SnackBar(content: Text(authProvider.errorMessage ?? 'Something went wrong')),
       );
     }
   }
@@ -54,7 +54,7 @@ class _RegisterPageState extends State<RegisterPage> {
     final authProvider = context.watch<AuthProvider>();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('สมัครสมาชิก')),
+      appBar: AppBar(title: const Text('Sign Up')),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -66,7 +66,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 TextFormField(
                   controller: _displayNameController,
                   decoration: const InputDecoration(
-                    labelText: 'ชื่อที่แสดง (ไม่บังคับ)',
+                    labelText: 'Display name (optional)',
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -95,12 +95,12 @@ class _RegisterPageState extends State<RegisterPage> {
                   controller: _confirmPasswordController,
                   obscureText: true,
                   decoration: const InputDecoration(
-                    labelText: 'ยืนยัน Password',
+                    labelText: 'Confirm Password',
                     border: OutlineInputBorder(),
                   ),
                   validator: (value) {
                     if (value != _passwordController.text) {
-                      return 'รหัสผ่านไม่ตรงกัน';
+                      return 'Passwords do not match';
                     }
                     return null;
                   },
@@ -115,7 +115,7 @@ class _RegisterPageState extends State<RegisterPage> {
                           width: 20,
                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                         )
-                      : const Text('สมัครสมาชิก'),
+                      : const Text('Sign Up'),
                 ),
               ],
             ),

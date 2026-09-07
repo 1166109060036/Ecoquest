@@ -14,16 +14,16 @@ class SettingsPage extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('ออกจากระบบ?'),
-        content: const Text('คุณจะต้องเข้าสู่ระบบใหม่อีกครั้งเพื่อใช้งานต่อ'),
+        title: const Text('Log out?'),
+        content: const Text('You will need to sign in again to continue'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('ยกเลิก', style: TextStyle(color: Colors.grey.shade600)),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey.shade600)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('ออกจากระบบ', style: TextStyle(color: Colors.red)),
+            child: const Text('Log Out', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -82,7 +82,7 @@ class SettingsPage extends StatelessWidget {
                       const SizedBox(height: 14),
                       _SettingsMenuItem(
                         icon: Icons.lock_outline,
-                        label: 'เปลี่ยนรหัสผ่าน',
+                        label: 'Change Password',
                         onTap: () => Navigator.pushNamed(context, '/change-password'),
                       ),
                     ],
@@ -232,7 +232,7 @@ class _AccountCard extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// เมนูรายการเดียวสไตล์กระจก (icon + label + ลูกศร) — ใช้กับ "เปลี่ยนรหัสผ่าน" และเมนูอื่นในอนาคต
+// เมนูรายการเดียวสไตล์กระจก (icon + label + ลูกศร) — ใช้กับ "Change Password" และเมนูอื่นในอนาคต
 // ---------------------------------------------------------------------------
 class _SettingsMenuItem extends StatelessWidget {
   final IconData icon;

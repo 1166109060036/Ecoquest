@@ -92,17 +92,13 @@ class InventoryPage extends StatelessWidget {
 
   void _onItemTap(BuildContext context, String itemId) {
     if (itemId == 'fridge') {
-      // TODO: ไปหน้ารายละเอียด Fridge จริงตอนออกแบบหน้านั้นเสร็จ
-      // ตอนนี้แค่ให้กดเข้าได้ก่อนตามที่ตกลงกันไว้
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('หน้ารายละเอียด Fridge กำลังจะมาเร็วๆ นี้')),
-      );
+      Navigator.pushNamed(context, '/fridge');
       return;
     }
     if (itemId == 'camera') {
       // TODO: เปิดกล้องถ่ายรูปจริงตอนต่อฟีเจอร์นี้
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('ฟีเจอร์ถ่ายรูปกำลังจะมาเร็วๆ นี้')),
+        const SnackBar(content: Text('Camera feature coming soon')),
       );
     }
   }

@@ -2,8 +2,12 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Quest = require('../models/Quest');
+const QuestHistory = require('../models/QuestHistory');
+const Season = require('../models/Season');
 const authMiddleware = require('../middleware/auth');
 const { sendOtpEmail } = require('../utils/mailer');
+const progression = require('../utils/progression');
 
 const router = express.Router();
 
@@ -21,15 +25,15 @@ router.post('/register', async (req, res) => {
     const { email, password, displayName } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ message: 'กรุณากรอก email และ password' });
+      return res.status(400).json({ message: 'Email and password are required' });
     }
     if (password.length < 6) {
-      return res.status(400).json({ message: 'password ต้องมีอย่างน้อย 6 ตัวอักษร' });
+      return res.status(400).json({ message: 'Password must be at least 6 characters' });
     }
 
     const existingUser = await User.findOne({ email: email.toLowerCase() });
     if (existingUser) {
-      return res.status(409).json({ message: 'อีเมลนี้ถูกใช้งานแล้ว' });
+      return res.status(409).json({ message: 'This email is already registered' });
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -55,7 +59,7 @@ router.post('/register', async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
@@ -66,17 +70,17 @@ router.post('/login', async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ message: 'กรุณากรอก email และ password' });
+      return res.status(400).json({ message: 'Email and password are required' });
     }
 
     const user = await User.findOne({ email: email.toLowerCase(), isGuest: false });
     if (!user) {
-      return res.status(401).json({ message: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' });
+      return res.status(401).json({ message: 'Incorrect email or password' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(401).json({ message: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' });
+      return res.status(401).json({ message: 'Incorrect email or password' });
     }
 
     const token = generateToken(user._id);
@@ -92,7 +96,7 @@ router.post('/login', async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
@@ -117,22 +121,94 @@ router.post('/guest', async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
 // @route   GET /api/auth/me
-// @desc    ดึงข้อมูล user ปัจจุบันจาก token (ใช้ตอนเปิดแอพเพื่อเช็ค session)
+// @desc    ดึงข้อมูล user ปัจจุบัน + ความคืบหน้า (level/xp/rank) + สถิติ สำหรับหน้า Profile/Home
 router.get('/me', authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.userId).select('-password');
     if (!user) {
-      return res.status(404).json({ message: 'ไม่พบผู้ใช้งาน' });
+      return res.status(404).json({ message: 'User not found' });
     }
-    res.json({ user });
+
+    const activeSeason = await Season.findOne({ isActive: true });
+
+    // ยิงพร้อมกันทีเดียว ไม่ต้องรอทีละ query
+    const [questCompleted, questTotal, questAgg, seasonAgg] = await Promise.all([
+      QuestHistory.countDocuments({ userId: user._id }),
+      Quest.countDocuments({ isActive: true }),
+      // partiesJoined + co2SavedKg ต้อง join ไปหา Quest เพราะข้อมูลอยู่ที่ template ของ quest
+      QuestHistory.aggregate([
+        { $match: { userId: user._id } },
+        {
+          $lookup: {
+            from: 'quests',
+            localField: 'questId',
+            foreignField: '_id',
+            as: 'quest',
+          },
+        },
+        { $unwind: '$quest' },
+        {
+          $group: {
+            _id: null,
+            partiesJoined: {
+              $sum: { $cond: [{ $eq: ['$quest.type', 'party'] }, 1, 0] },
+            },
+            co2SavedKg: { $sum: { $ifNull: ['$quest.co2SavedKg', 0] } },
+          },
+        },
+      ]),
+      // XP เฉพาะที่ได้ภายใน season ปัจจุบัน — ใช้คิด Rank (ไม่มี season active = ยังไม่เริ่มนับ)
+      activeSeason
+        ? QuestHistory.aggregate([
+            {
+              $match: {
+                userId: user._id,
+                completedAt: { $gte: activeSeason.startDate, $lte: activeSeason.endDate },
+              },
+            },
+            { $group: { _id: null, xp: { $sum: '$xpEarned' } } },
+          ])
+        : Promise.resolve([]),
+    ]);
+
+    const { partiesJoined = 0, co2SavedKg = 0 } = questAgg[0] || {};
+    const seasonXp = seasonAgg[0]?.xp || 0;
+
+    // level/rank คิดสดจาก xp เสมอ (xp คือ source of truth ตามดีไซน์)
+    // ฟิลด์ user.level / user.rank ที่เก็บใน DB เป็นแค่ cache ไว้ query — ตอนทำ quest สำเร็จค่อยเขียนทับให้ตรง
+    const progress = {
+      ...progression.levelProgress(user.xp),
+      ...progression.rankProgress(seasonXp),
+    };
+
+    res.json({
+      user: {
+        id: user._id,
+        email: user.email,
+        displayName: user.displayName,
+        isGuest: user.isGuest,
+        level: progress.level,
+        xp: user.xp,
+        points: user.points,
+        rank: progress.rankTier,
+        energy: progression.currentEnergy(user.energy, user.lastEnergyUpdate),
+      },
+      progress,
+      stats: {
+        questCompleted,
+        questTotal,
+        co2SavedKg,
+        partiesJoined,
+      },
+    });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
@@ -143,23 +219,23 @@ router.post('/verify-password', authMiddleware, async (req, res) => {
   try {
     const { password } = req.body;
     if (!password) {
-      return res.status(400).json({ message: 'กรุณากรอกรหัสผ่าน' });
+      return res.status(400).json({ message: 'Please enter your password' });
     }
 
     const user = await User.findById(req.userId);
     if (!user || user.isGuest) {
-      return res.status(400).json({ message: 'บัญชี Guest ไม่มีรหัสผ่าน' });
+      return res.status(400).json({ message: 'Guest accounts do not have a password' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(401).json({ message: 'รหัสผ่านไม่ถูกต้อง' });
+      return res.status(401).json({ message: 'Incorrect password' });
     }
 
-    res.json({ message: 'รหัสผ่านถูกต้อง' });
+    res.json({ message: 'Password verified' });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
@@ -170,30 +246,30 @@ router.post('/change-password', authMiddleware, async (req, res) => {
     const { oldPassword, newPassword } = req.body;
 
     if (!oldPassword || !newPassword) {
-      return res.status(400).json({ message: 'กรุณากรอกรหัสผ่านเดิมและรหัสผ่านใหม่' });
+      return res.status(400).json({ message: 'Current and new password are required' });
     }
     if (newPassword.length < 6) {
-      return res.status(400).json({ message: 'รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร' });
+      return res.status(400).json({ message: 'New password must be at least 6 characters' });
     }
 
     const user = await User.findById(req.userId);
     if (!user || user.isGuest) {
-      return res.status(400).json({ message: 'บัญชี Guest ไม่มีรหัสผ่านให้เปลี่ยน' });
+      return res.status(400).json({ message: 'Guest accounts have no password to change' });
     }
 
     const isMatch = await bcrypt.compare(oldPassword, user.password);
     if (!isMatch) {
-      return res.status(401).json({ message: 'รหัสผ่านเดิมไม่ถูกต้อง' });
+      return res.status(401).json({ message: 'Current password is incorrect' });
     }
 
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(newPassword, salt);
     await user.save();
 
-    res.json({ message: 'เปลี่ยนรหัสผ่านสำเร็จ' });
+    res.json({ message: 'Password changed successfully' });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
@@ -201,12 +277,12 @@ router.post('/change-password', authMiddleware, async (req, res) => {
 // @desc    ขอ OTP ไปยังอีเมล เพื่อใช้ตั้งรหัสผ่านใหม่ (ลืมรหัสผ่าน)
 router.post('/forgot-password', async (req, res) => {
   // ตอบข้อความเดียวกันเสมอไม่ว่าจะเจออีเมลนี้ในระบบหรือไม่ กันคนเดารายชื่ออีเมลที่สมัครไว้
-  const genericResponse = { message: 'ถ้าอีเมลนี้มีอยู่ในระบบ เราได้ส่ง OTP ไปให้แล้ว' };
+  const genericResponse = { message: 'If this email is registered, we have sent an OTP to it' };
 
   try {
     const { email } = req.body;
     if (!email) {
-      return res.status(400).json({ message: 'กรุณากรอกอีเมล' });
+      return res.status(400).json({ message: 'Email is required' });
     }
 
     const user = await User.findOne({ email: email.toLowerCase(), isGuest: false });
@@ -225,7 +301,7 @@ router.post('/forgot-password', async (req, res) => {
     res.json(genericResponse);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'ส่ง OTP ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' });
+    res.status(500).json({ message: 'Failed to send OTP. Please try again' });
   }
 });
 
@@ -235,17 +311,17 @@ router.post('/verify-reset-otp', async (req, res) => {
   try {
     const { email, otp } = req.body;
     if (!email || !otp) {
-      return res.status(400).json({ message: 'กรุณากรอกอีเมลและ OTP' });
+      return res.status(400).json({ message: 'Email and OTP are required' });
     }
 
     const user = await User.findOne({ email: email.toLowerCase(), isGuest: false });
     if (!user || !user.resetOtpHash || !user.resetOtpExpires || user.resetOtpExpires < new Date()) {
-      return res.status(400).json({ message: 'OTP ไม่ถูกต้องหรือหมดอายุ' });
+      return res.status(400).json({ message: 'Invalid or expired OTP' });
     }
 
     const isMatch = await bcrypt.compare(otp, user.resetOtpHash);
     if (!isMatch) {
-      return res.status(400).json({ message: 'OTP ไม่ถูกต้องหรือหมดอายุ' });
+      return res.status(400).json({ message: 'Invalid or expired OTP' });
     }
 
     // ใช้ OTP ได้ครั้งเดียว — ล้างทิ้งทันทีที่ยืนยันผ่าน กันเอาไปใช้ซ้ำ
@@ -262,7 +338,7 @@ router.post('/verify-reset-otp', async (req, res) => {
     res.json({ resetToken });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
@@ -272,36 +348,36 @@ router.post('/reset-password', async (req, res) => {
   try {
     const { resetToken, newPassword } = req.body;
     if (!resetToken || !newPassword) {
-      return res.status(400).json({ message: 'ข้อมูลไม่ครบถ้วน' });
+      return res.status(400).json({ message: 'Missing required information' });
     }
     if (newPassword.length < 6) {
-      return res.status(400).json({ message: 'รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร' });
+      return res.status(400).json({ message: 'New password must be at least 6 characters' });
     }
 
     let decoded;
     try {
       decoded = jwt.verify(resetToken, process.env.JWT_SECRET);
     } catch (err) {
-      return res.status(401).json({ message: 'คำขอเปลี่ยนรหัสผ่านหมดอายุ กรุณาขอ OTP ใหม่' });
+      return res.status(401).json({ message: 'This password reset request has expired. Please request a new OTP' });
     }
 
     if (decoded.purpose !== 'password_reset') {
-      return res.status(401).json({ message: 'token ไม่ถูกต้อง' });
+      return res.status(401).json({ message: 'Invalid token' });
     }
 
     const user = await User.findById(decoded.userId);
     if (!user) {
-      return res.status(404).json({ message: 'ไม่พบผู้ใช้งาน' });
+      return res.status(404).json({ message: 'User not found' });
     }
 
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(newPassword, salt);
     await user.save();
 
-    res.json({ message: 'ตั้งรหัสผ่านใหม่สำเร็จ' });
+    res.json({ message: 'Password reset successfully' });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'เกิดข้อผิดพลาดฝั่งเซิร์ฟเวอร์' });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 

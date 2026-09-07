@@ -21,8 +21,9 @@ class InventoryItemModel {
 }
 
 // mock data — TODO: ดึงจาก GET /api/inventory จริงตอนมี endpoint
-// Fridge ที่นี่คือทางเข้าไปดู fridgeItems (Mini Quest เช็คอาหาร/วันหมดอายุ)
-// ยังไม่ได้ทำหน้ารายละเอียดจริง — แค่กดเข้าได้ก่อนตามที่ตกลงกันไว้
+// Camera กับ Fridge เป็น "ไอเทมตั้งต้น" ที่ผู้เล่นทุกคนต้องมีติดตัวตั้งแต่แรก
+// (ตอนเขียน endpoint จริงต้องแจกให้อัตโนมัติตอนสมัคร ไม่ใช่ของที่ได้จาก quest/reward)
+// Fridge คือทางเข้าไปดูของในตู้เย็น (Mini Quest เช็คอาหาร/วันหมดอายุ)
 final List<InventoryItemModel> mockInventoryItems = [
   InventoryItemModel(
     id: 'camera',
@@ -37,6 +38,7 @@ final List<InventoryItemModel> mockInventoryItems = [
     title: 'Fridge',
     description: 'View saved food items and their expiration dates.',
     icon: Icons.kitchen,
+    imageAsset: 'lib/utils/assets/inventory/fridge.png',
     quantity: 1,
   ),
 ];

@@ -37,7 +37,7 @@ class _LoginPageState extends State<LoginPage> {
       Navigator.pushReplacementNamed(context, '/main');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(authProvider.errorMessage ?? 'เกิดข้อผิดพลาด')),
+        SnackBar(content: Text(authProvider.errorMessage ?? 'Something went wrong')),
       );
     }
   }
@@ -52,7 +52,7 @@ class _LoginPageState extends State<LoginPage> {
       Navigator.pushReplacementNamed(context, '/main');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(authProvider.errorMessage ?? 'เกิดข้อผิดพลาด')),
+        SnackBar(content: Text(authProvider.errorMessage ?? 'Something went wrong')),
       );
     }
   }
@@ -74,7 +74,7 @@ class _LoginPageState extends State<LoginPage> {
                 const Icon(Icons.eco, size: 64, color: Colors.green),
                 const SizedBox(height: 8),
                 const Text(
-                  'เข้าสู่ระบบ EcoQuest',
+                  'Sign in to EcoQuest',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 ),
@@ -102,7 +102,7 @@ class _LoginPageState extends State<LoginPage> {
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: () => Navigator.pushNamed(context, '/forgot-password'),
-                    child: const Text('ลืมรหัสผ่าน?'),
+                    child: const Text('Forgot password?'),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -115,18 +115,18 @@ class _LoginPageState extends State<LoginPage> {
                           width: 20,
                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                         )
-                      : const Text('เข้าสู่ระบบ'),
+                      : const Text('Sign In'),
                 ),
                 const SizedBox(height: 12),
                 OutlinedButton(
                   onPressed: authProvider.isLoading ? null : _handleGuestLogin,
                   style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
-                  child: const Text('เข้าใช้งานแบบ Guest'),
+                  child: const Text('Continue as Guest'),
                 ),
                 const SizedBox(height: 16),
                 TextButton(
                   onPressed: () => Navigator.pushNamed(context, '/register'),
-                  child: const Text('ยังไม่มีบัญชี? สมัครสมาชิก'),
+                  child: const Text("Don't have an account? Sign up"),
                 ),
               ],
             ),
