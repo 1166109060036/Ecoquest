@@ -59,16 +59,8 @@ class QuestCard extends StatelessWidget {
         child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ---- thumbnail placeholder ----
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade300,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.image_outlined, color: Colors.white70),
-          ),
+          // ---- รูปปก quest (ตัวเดียวกับที่ใช้ในหน้ารายละเอียด) ----
+          _QuestThumbnail(imageAsset: quest.coverImageAsset),
           const SizedBox(width: 12),
           // ---- เนื้อหา ----
           Expanded(
@@ -165,6 +157,40 @@ class QuestCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// รูปปก quest ในการ์ด — ถ้า quest ยังไม่มีรูป (หรือหาไฟล์ไม่เจอ) จะ fallback เป็นกล่องเทาเหมือนเดิม
+class _QuestThumbnail extends StatelessWidget {
+  final String? imageAsset;
+  const _QuestThumbnail({required this.imageAsset});
+
+  Widget _placeholder() {
+    return Container(
+      width: 64,
+      height: 64,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade300,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: const Icon(Icons.image_outlined, color: Colors.white70),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (imageAsset == null) return _placeholder();
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Image.asset(
+        imageAsset!,
+        width: 64,
+        height: 64,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => _placeholder(),
       ),
     );
   }
