@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const express = require('express');
 const Quest = require('../models/Quest');
 const QuestHistory = require('../models/QuestHistory');
@@ -26,11 +27,41 @@ const startOfToday = () => {
   return new Date(localMidnight - offsetMs);
 };
 
+// คีย์ของ "วันนี้" ในรูปแบบ YYYY-MM-DD ตามโซนเวลาที่ใช้ตัดวัน
+const todayKey = () => startOfToday().toISOString().slice(0, 10);
+
+// เลือก quest 1 อันจากกลุ่มสุ่มแบบ "สุ่มแต่คงที่"
+//
+// ทำไมต้องคงที่: ถ้าสุ่มใหม่ทุกครั้งที่เรียก API ผู้ใช้จะดึงรีเฟรชรัวๆ จนได้อันที่คะแนนสูงสุด
+// และลิสต์จะเปลี่ยนไปมาต่อหน้าต่อตาซึ่งดูเหมือนแอพพัง
+// เลยใช้ hash ของ (userId + วันที่ + ชื่อกลุ่ม) เป็นตัวเลือก -> คนละคนได้คนละอัน,
+// คนเดิมได้อันเดิมทั้งวัน, พอข้ามเที่ยงคืนถึงจะเปลี่ยน
+const pickFromPool = (pool, userId, poolName) => {
+  const seed = `${userId}-${todayKey()}-${poolName}`;
+  const hash = crypto.createHash('sha256').update(seed).digest();
+  return pool[hash.readUInt32BE(0) % pool.length];
+};
+
 // @route   GET /api/quests
 // @desc    ลิสต์ quest ที่เปิดใช้งานอยู่ + บอกด้วยว่า quest รายวันอันไหนวันนี้ทำไปแล้ว
 router.get('/', authMiddleware, async (req, res) => {
   try {
-    const quests = await Quest.find({ isActive: true }).sort({ createdAt: 1 });
+    const allQuests = await Quest.find({ isActive: true }).sort({ createdAt: 1 });
+
+    // แยก quest ที่อยู่กลุ่มสุ่มออกมา แล้วเอาแค่กลุ่มละ 1 อัน
+    const pools = new Map();
+    const quests = [];
+    for (const q of allQuests) {
+      if (!q.randomPool) {
+        quests.push(q);
+        continue;
+      }
+      if (!pools.has(q.randomPool)) pools.set(q.randomPool, []);
+      pools.get(q.randomPool).push(q);
+    }
+    for (const [poolName, poolQuests] of pools) {
+      quests.push(pickFromPool(poolQuests, req.userId, poolName));
+    }
 
     // ดึงประวัติของวันนี้มาทีเดียว แล้วค่อย map ว่า quest ไหนทำไปแล้ว (ไม่ query ทีละ quest)
     const todayHistory = await QuestHistory.find({
@@ -56,6 +87,7 @@ router.get('/', authMiddleware, async (req, res) => {
         co2SavedKg: q.co2SavedKg,
         isDaily: q.isDaily,
         actionKey: q.actionKey,
+        randomPool: q.randomPool,
         completedToday: doneToday.has(q._id.toString()),
       })),
     });

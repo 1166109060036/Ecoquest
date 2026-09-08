@@ -757,6 +757,8 @@ _CategoryVisual _categoryVisual(String? category) {
       return const _CategoryVisual(Icons.local_drink, Colors.lightBlueAccent);
     case 'community':
       return const _CategoryVisual(Icons.groups, Colors.purpleAccent);
+    case 'energy':
+      return const _CategoryVisual(Icons.bolt, Colors.yellowAccent);
     default:
       // quest ถูกลบไปแล้วเลยไม่รู้หมวด
       return const _CategoryVisual(Icons.eco, Colors.white70);

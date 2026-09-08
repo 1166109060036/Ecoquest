@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/quest_card_model.dart';
+import '../../widgets/quest_card.dart';
 
 // หน้ารายละเอียด quest — เข้าโดยกดที่ตัวการ์ด quest (ปุ่ม Start บนการ์ดยังทำงานเหมือนเดิม)
 // โครงตามดีไซน์: รูปปกเต็มความกว้างด้านบน -> การ์ดขาวคร่อมขึ้นมาทับรูป -> ปุ่ม Start ล่างสุด
@@ -208,9 +209,16 @@ class _MainCard extends StatelessWidget {
                 fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1B5E20)),
           ),
           const SizedBox(height: 3),
-          Text(
-            quest.subtitle,
-            style: TextStyle(fontSize: 12.5, color: Colors.grey.shade600),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  quest.subtitle,
+                  style: TextStyle(fontSize: 12.5, color: Colors.grey.shade600),
+                ),
+              ),
+              DifficultyChip(difficulty: quest.difficulty, large: true),
+            ],
           ),
           const SizedBox(height: 16),
           // ---- กล่องรายละเอียด (ตามดีไซน์ มี badge หมวดลอยมุมขวาบน) ----

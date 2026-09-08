@@ -25,7 +25,9 @@ const QuestSchema = new mongoose.Schema(
     },
     category: {
       type: String,
-      enum: ['food_waste', 'recycling', 'plastic', 'community'],
+      // 'energy' เพิ่มเข้ามาทีหลังตอน seed quest จริง (เควสประหยัดไฟ/ถอดปลั๊ก)
+      // ถ้าเพิ่มหมวดใหม่ อย่าลืมเพิ่มไอคอนใน _categoryVisual ของ profile_page.dart ด้วย
+      enum: ['food_waste', 'recycling', 'plastic', 'community', 'energy'],
       required: true,
     },
     type: {
@@ -71,6 +73,14 @@ const QuestSchema = new mongoose.Schema(
     actionKey: {
       type: String,
       default: null,
+    },
+    // quest ที่อยู่ "กลุ่มสุ่ม" เดียวกัน จะถูกสุ่มโชว์แค่อันเดียวต่อวัน
+    // เช่น 'food_saver' -> Food Saver 1/3/7 Days จะโผล่วันละอันเท่านั้น ไม่ได้โผล่พร้อมกันทั้ง 3
+    // null = โชว์ตลอด ไม่เข้ากลุ่มสุ่ม
+    randomPool: {
+      type: String,
+      default: null,
+      index: true,
     },
     // true = ทำซ้ำได้วันละครั้ง (เช็คจาก QuestHistory ของวันนั้น)
     // false = ไม่จำกัด (ยังไม่มี quest แบบทำได้ครั้งเดียวตลอดชีพ ถ้าจะมีค่อยเพิ่มฟิลด์ทีหลัง)

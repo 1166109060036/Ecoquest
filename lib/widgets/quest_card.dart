@@ -119,6 +119,9 @@ class QuestCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 Row(
                   children: [
+                    // ความยาก — ให้ผู้เล่นตัดสินใจได้ตั้งแต่ยังไม่กดเข้าไปดูรายละเอียด
+                    DifficultyChip(difficulty: quest.difficulty),
+                    const SizedBox(width: 6),
                     Expanded(
                       child: quest.category == QuestCardCategory.solo
                           ? _SoloInfoRow(
@@ -156,6 +159,45 @@ class QuestCard extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ป้ายความยากของ quest — ใช้ทั้งในการ์ดและหน้ารายละเอียด
+// สีสื่อความหมายตรงตัว: เขียว = ง่าย, ส้ม = ปานกลาง, แดง = ยาก
+class DifficultyChip extends StatelessWidget {
+  final String difficulty; // easy / medium / hard (ค่าที่ backend ส่งมา)
+  final bool large; // true = ขนาดสำหรับหน้ารายละเอียด
+
+  const DifficultyChip({super.key, required this.difficulty, this.large = false});
+
+  @override
+  Widget build(BuildContext context) {
+    if (difficulty.isEmpty) return const SizedBox.shrink();
+
+    final (label, color) = switch (difficulty) {
+      'easy' => ('Easy', Colors.green),
+      'medium' => ('Medium', Colors.orange),
+      'hard' => ('Hard', Colors.redAccent),
+      // เผื่อ backend เพิ่มระดับใหม่มาแล้วแอพยังไม่รู้จัก
+      _ => (difficulty, Colors.blueGrey),
+    };
+
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: large ? 10 : 7, vertical: large ? 4 : 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.45)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: large ? 12 : 9.5,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
