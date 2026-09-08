@@ -4,6 +4,7 @@ import '../../models/quest_card_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/quest_provider.dart';
 import '../../widgets/quest_card.dart';
+import 'quest_detail_page.dart';
 
 // หน้า Explore เต็มจอ — เจอได้ 2 ทาง: กด "Explore" ที่ bottom nav ตรงๆ
 // หรือลากแผ่น Explore ในหน้า Home ขึ้นสุดจอ (ซึ่งจะสลับมาที่แท็บนี้)
@@ -43,6 +44,17 @@ class _ExplorePageState extends State<ExplorePage> {
   }
 
   Future<void> _onRefresh() => context.read<QuestProvider>().loadQuests();
+
+  // ใช้ MaterialPageRoute แทน named route เพราะต้องส่ง object quest เข้าไปทั้งก้อน
+  // (ถ้าใช้ named route ต้องยัดผ่าน settings.arguments แล้ว cast เอง ซึ่งพังง่ายกว่า)
+  void _openQuestDetail(QuestCardModel quest) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => QuestDetailPage(quest: quest, onStart: _onStartQuest),
+      ),
+    );
+  }
 
   Future<void> _onStartQuest(QuestCardModel quest) async {
     // quest ที่ต้องทำ action จริงก่อน — พาไปหน้านั้นแทนการกดจบ quest ทันที
@@ -182,6 +194,7 @@ class _ExplorePageState extends State<ExplorePage> {
                               return QuestCard(
                                 quest: quest,
                                 onAction: () => _onStartQuest(quest),
+                                onTap: () => _openQuestDetail(quest),
                               );
                             },
                           ),

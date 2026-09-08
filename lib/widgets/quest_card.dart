@@ -4,8 +4,9 @@ import '../models/quest_card_model.dart';
 class QuestCard extends StatelessWidget {
   final QuestCardModel quest;
   final VoidCallback? onAction;
+  final VoidCallback? onTap; // กดที่ตัวการ์ด = เปิดหน้ารายละเอียด (คนละอันกับปุ่ม Start/Join)
 
-  const QuestCard({super.key, required this.quest, this.onAction});
+  const QuestCard({super.key, required this.quest, this.onAction, this.onTap});
 
   _CategoryStyle get _style {
     switch (quest.category) {
@@ -38,21 +39,24 @@ class QuestCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final style = _style;
 
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade200),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ---- thumbnail placeholder ----
@@ -154,12 +158,13 @@ class QuestCard extends StatelessWidget {
                         style: const TextStyle(fontSize: 12),
                       ),
                     ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -73,6 +73,9 @@ flutter:
      - lib/utils/assets/notifications/trophy.png
      - lib/utils/assets/notifications/fridge_expired.png
      - lib/utils/assets/inventory/fridge.png
+     # ประกาศเป็นโฟลเดอร์ (ต้องมี / ปิดท้าย) เพราะรูปปก quest จะเพิ่มเรื่อยๆ
+     # เพิ่มรูปใหม่แค่วางไฟล์ลงโฟลเดอร์นี้ ไม่ต้องมาแก้ pubspec ทุกครั้ง
+     - lib/utils/assets/questimg/
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

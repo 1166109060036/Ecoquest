@@ -17,6 +17,19 @@ class QuestCardModel {
   // null = กดยืนยันเองได้เลย — ฝั่งแอพใช้ค่านี้ตัดสินว่ากด Start แล้วจะพาไปหน้าไหน
   final String? actionKey;
 
+  // ---- ใช้เฉพาะในหน้ารายละเอียด quest ----
+  final String detail; // ข้อความอธิบายยาวในกล่อง "Quest Detail"
+  final String? imageKey; // ชื่อไฟล์รูปปก (ไม่รวมนามสกุล) ในโฟลเดอร์ questimg
+  final int xpReward;
+  final double co2SavedKg;
+  final String difficulty; // easy / medium / hard
+  final String impact; // low / medium / high
+  final String questCategory; // food_waste / recycling / plastic / community
+
+  // path รูปปกจริง — null ถ้า quest นั้นยังไม่มีรูป
+  String? get coverImageAsset =>
+      imageKey == null ? null : 'lib/utils/assets/questimg/$imageKey.png';
+
   QuestCardModel({
     required this.id,
     required this.title,
@@ -29,6 +42,13 @@ class QuestCardModel {
     this.isDaily = false,
     this.completedToday = false,
     this.actionKey,
+    this.detail = '',
+    this.imageKey,
+    this.xpReward = 0,
+    this.co2SavedKg = 0,
+    this.difficulty = '',
+    this.impact = '',
+    this.questCategory = '',
   });
 
   factory QuestCardModel.fromJson(Map<String, dynamic> json) {
@@ -48,6 +68,14 @@ class QuestCardModel {
       isDaily: json['isDaily'] ?? false,
       completedToday: json['completedToday'] ?? false,
       actionKey: json['actionKey'],
+      detail: json['detail'] ?? '',
+      imageKey: json['imageKey'],
+      xpReward: json['xpReward'] ?? 0,
+      // Mongo อาจส่งมาเป็น int ถ้าค่าเป็นจำนวนเต็มพอดี เลยต้องแปลงเป็น double เอง
+      co2SavedKg: (json['co2SavedKg'] ?? 0).toDouble(),
+      difficulty: json['difficulty'] ?? '',
+      impact: json['impact'] ?? '',
+      questCategory: json['category'] ?? '',
     );
   }
 }

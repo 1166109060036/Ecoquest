@@ -8,13 +8,22 @@ const progression = require('../utils/progression');
 
 const router = express.Router();
 
-// เที่ยงคืนของ "วันนี้" ตามเวลาเครื่อง server
-// ⚠️ ถ้าเอาไป deploy บน server ที่ตั้งเป็น UTC เส้นแบ่งวันจะเลื่อนไปจากเวลาไทย/ญี่ปุ่น
-// ถ้าจะ deploy จริงควรกำหนด timezone ให้ชัดเจนก่อน
+// โซนเวลาที่ใช้ตัดวันของ quest รายวัน — default = UTC+9 (ญี่ปุ่น/Ebetsu City ซึ่งเป็นกลุ่มผู้ใช้จริง)
+// ห้ามใช้เวลาเครื่อง server เฉยๆ เพราะ Render รันเป็น UTC ถ้าใช้เวลาเครื่อง
+// quest จะไปรีเซ็ตตอน 9 โมงเช้าเวลาญี่ปุ่นแทนที่จะเป็นเที่ยงคืน
+const QUEST_DAY_UTC_OFFSET_HOURS = Number(process.env.QUEST_DAY_UTC_OFFSET_HOURS ?? 9);
+
+// เที่ยงคืนของ "วันนี้" ตามโซนเวลาข้างบน คืนออกมาเป็นเวลา UTC จริงเพื่อเอาไป query Mongo
+// วิธีคิด: เลื่อนเวลาปัจจุบันไปเป็นเวลาท้องถิ่นก่อน -> ตัดเอาเฉพาะวันที่ -> เลื่อนกลับเป็น UTC
 const startOfToday = () => {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
+  const offsetMs = QUEST_DAY_UTC_OFFSET_HOURS * 60 * 60 * 1000;
+  const localNow = new Date(Date.now() + offsetMs);
+  const localMidnight = Date.UTC(
+    localNow.getUTCFullYear(),
+    localNow.getUTCMonth(),
+    localNow.getUTCDate()
+  );
+  return new Date(localMidnight - offsetMs);
 };
 
 // @route   GET /api/quests
@@ -36,6 +45,8 @@ router.get('/', authMiddleware, async (req, res) => {
         id: q._id,
         title: q.title,
         description: q.description,
+        detail: q.detail,
+        imageKey: q.imageKey,
         category: q.category,
         type: q.type,
         difficulty: q.difficulty,

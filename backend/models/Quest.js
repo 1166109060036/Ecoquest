@@ -7,9 +7,21 @@ const QuestSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    // บรรทัดสั้นใต้ชื่อ quest (เช่น "Food Waste Quest") — โชว์บนการ์ดและหน้ารายละเอียด
     description: {
       type: String,
       default: '',
+    },
+    // ข้อความอธิบายยาวๆ ในกล่อง "Quest Detail" ของหน้ารายละเอียด
+    detail: {
+      type: String,
+      default: '',
+    },
+    // key ของรูปปก — ฝั่งแอพจะไปหาไฟล์ lib/utils/assets/questimg/<imageKey>.png เอง
+    // (เก็บเป็น key ไม่ใช่ path เต็ม เพราะ backend ไม่ควรรู้โครงสร้างโฟลเดอร์ของแอพ)
+    imageKey: {
+      type: String,
+      default: null,
     },
     category: {
       type: String,

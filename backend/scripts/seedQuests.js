@@ -10,6 +10,10 @@ const QUESTS = [
   {
     title: 'Check Your Food & Expiration Dates',
     description: 'Food Waste Quest',
+    detail:
+      'Open your fridge and record what is inside along with each expiration date. ' +
+      'Knowing what needs to be eaten first is the simplest way to stop good food from being thrown away.',
+    imageKey: 'checkfridge',
     category: 'food_waste',
     type: 'solo',
     difficulty: 'easy',

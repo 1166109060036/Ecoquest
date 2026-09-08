@@ -6,6 +6,7 @@ import '../../models/quest_card_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/quest_provider.dart';
 import '../../widgets/quest_card.dart';
+import '../explore/quest_detail_page.dart';
 import '../profile/profile_page.dart';
 
 // Home = หน้า Profile จริง (เต็มจอ) เป็นพื้นหลัง + แผ่น "Explore" ลอยทับด้านล่าง
@@ -204,6 +205,16 @@ class _ExploreSheetState extends State<_ExploreSheet> {
     return all.where((q) => q.category == category).toList();
   }
 
+  // ใช้ MaterialPageRoute เพราะต้องส่ง object quest เข้าไปทั้งก้อน (named route ส่งยาก)
+  void _openQuestDetail(QuestCardModel quest) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => QuestDetailPage(quest: quest, onStart: _onStartQuest),
+      ),
+    );
+  }
+
   Future<void> _onStartQuest(QuestCardModel quest) async {
     // quest ที่ต้องทำ action จริงก่อน — พาไปหน้านั้นแทนการกดจบ quest ทันที
     if (quest.actionKey == 'fridge_check') {
@@ -358,6 +369,7 @@ class _ExploreSheetState extends State<_ExploreSheet> {
                           return QuestCard(
                             quest: quest,
                             onAction: () => _onStartQuest(quest),
+                            onTap: () => _openQuestDetail(quest),
                           );
                         },
                       ),

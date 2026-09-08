@@ -1,8 +1,6 @@
 class AppConstants {
-  // 🔴 แก้บรรทัดนี้เป็น URL ที่ Render ให้มาหลัง deploy เสร็จ (ต้องมี /api ต่อท้าย)
-  //    เช่น 'https://ecoquest-api.onrender.com/api'
-  //    ตราบใดที่ยังเป็น localhost แอพจะใช้ไม่ได้ถ้าไม่ได้เปิด backend ในคอม
-  static const String _deployedApiUrl = 'http://127.0.0.1:5000/api';
+  // backend ที่ deploy อยู่บน Render (แอพใช้ตัวนี้เป็นค่าเริ่มต้น = ไม่ต้องเปิดคอมแล้ว)
+  static const String _deployedApiUrl = 'https://ecoquest-api-71cl.onrender.com/api';
 
   // ต่อ backend ในเครื่องตอน dev โดยไม่ต้องแก้โค้ด:
   //   เครื่องจริง (+ adb reverse tcp:5000 tcp:5000):
