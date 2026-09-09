@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/quest_provider.dart';
+import '../providers/achievement_provider.dart';
 import '../widgets/bottom_nav_bar.dart';
 import 'home/home_page.dart';
 import 'inventory/inventory_page.dart';
@@ -31,6 +32,7 @@ class _MainShellState extends State<MainShell> {
       final questProvider = context.read<QuestProvider>();
       questProvider.loadQuests();
       questProvider.loadHistory(); // ประวัติ quest ที่โชว์ในหน้า Profile
+      context.read<AchievementProvider>().loadAchievements(); // เหรียญที่โชว์ในหน้า Inventory
     });
   }
 

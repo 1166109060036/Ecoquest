@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../models/quest_card_model.dart';
-import '../../providers/auth_provider.dart';
+import '../../utils/quest_completion.dart';
 import '../../providers/quest_provider.dart';
 import '../../widgets/quest_card.dart';
 import '../explore/quest_detail_page.dart';
@@ -223,7 +223,6 @@ class _ExploreSheetState extends State<_ExploreSheet> {
     }
 
     final questProvider = context.read<QuestProvider>();
-    final authProvider = context.read<AuthProvider>();
 
     final reward = await questProvider.completeQuest(quest.id);
 
@@ -236,10 +235,8 @@ class _ExploreSheetState extends State<_ExploreSheet> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Quest complete! +${reward.points} points, +${reward.xp} XP')),
-    );
-    await authProvider.refreshProfile();
+    // โชว์รางวัล + รีเฟรชโปรไฟล์/เหรียญ + เด้งแสดงความยินดีถ้าได้เหรียญใหม่
+    await handleQuestCompleted(context, reward);
   }
 
   @override

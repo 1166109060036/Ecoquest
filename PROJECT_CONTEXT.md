@@ -105,8 +105,21 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
   - **quest รายวัน (`isDaily`)** ทำซ้ำในวันเดียวกันไม่ได้ — backend ตอบ 409 และการ์ดจะขึ้นปุ่ม "Done" กดไม่ได้
   - ลิสต์ quest แชร์กันผ่าน `QuestProvider` ตัวเดียว ระหว่างหน้า Explore กับแผ่น Explore ในหน้า Home
     (โหลดครั้งเดียวใน `MainShell.initState` ไม่ให้ 2 หน้ายิง API ซ้ำ เพราะอยู่ใน `IndexedStack` พร้อมกันตลอด)
-  - ⚠️ **ตอนนี้มี quest ใน DB แค่ 1 อัน** (Check Your Food & Expiration Dates) เพิ่มได้ที่ `backend/scripts/seedQuests.js` แล้วรัน `npm run seed:quests`
-    (สคริปต์เป็น upsert อิง `title` — รันซ้ำได้ไม่สร้างของซ้ำ แต่**ลบ quest ออกจากไฟล์แล้วจะไม่ลบออกจาก DB** ต้องลบเองใน DB)
+  - **มี quest ใช้งานได้ 15 อัน** ครอบ 5 หมวด (food_waste / recycling / plastic / **energy** / community)
+    seed มาจาก `Quest_list.md` ที่เจ้าของโปรเจคเขียนไว้ — แก้/เพิ่มได้ที่ `backend/scripts/seedQuests.js` แล้วรัน `npm run seed:quests`
+    (สคริปต์เป็น upsert อิง `title` — รันซ้ำได้ไม่สร้างของซ้ำ แต่**ลบ quest ออกจากไฟล์แล้วจะไม่ลบออกจาก DB** ต้องลบเองใน DB หรือตั้ง `isActive: false`)
+  - 🎲 **ระบบกลุ่มสุ่ม (`Quest.randomPool`)** — quest ที่อยู่กลุ่มเดียวกันจะโผล่แค่ **วันละ 1 อัน**
+    ตอนนี้มีกลุ่มเดียวคือ `food_saver` (Food Saver 1 Day / 3 Days / 7 Days) — **ไม่ได้ใช้ระบบนับ streak**
+    - เลือกด้วย hash ของ `(userId + วันที่ + ชื่อกลุ่ม)` → **สุ่มแต่คงที่**: คนเดิมได้อันเดิมทั้งวัน
+      ดึงรีเฟรชกี่ครั้งก็ไม่เปลี่ยน (กันรีเฟรชรัวๆ จนได้อันคะแนนสูงสุด) ข้ามเที่ยงคืนถึงสุ่มใหม่
+    - ทดสอบแล้ว: คนละคนได้คนละอัน, เรียกซ้ำได้อันเดิม, กระจายตัว ≈33% เท่ากันทั้ง 3 อัน
+    - เพิ่มกลุ่มใหม่ได้แค่ใส่ `randomPool: 'ชื่อกลุ่ม'` ให้ quest หลายอัน ไม่ต้องแก้โค้ด route
+  - ⚠️ **`Community Cleanup` ยังปิดอยู่ (`isActive: false`)** เพราะต้องมีระบบ Party/Event ก่อน
+    ถ้าเปิดตอนนี้จะกลายเป็นกดปุ่มรับ 30 แต้มฟรี
+  - ⚠️ **ค่า `co2SavedKg` ทุกอันเป็นค่าประมาณ ยังไม่ได้อ้างอิงงานวิจัยจริง** ถ้าจะเอาไปนำเสนอควรหาตัวเลขอ้างอิงมาแทน
+  - **Season 1 seed แล้ว** (`npm run seed:season`, ยาว 90 วัน) — Rank เริ่มขยับได้จริงแล้ว
+    ทดสอบแล้ว: ทำ quest 1 อัน -> `seasonXp` 0→10, `rankXpIntoTier` 0→10
+    ⚠️ **ถ้าไม่มี season ที่ `isActive: true` แถบ Rank จะค้างที่ Bronze 0/500 ตลอด** ทั้งที่โค้ดถูก — season หมดอายุเมื่อไหร่ต้อง seed อันใหม่
 - **Mini Quest "เช็คของในตู้เย็น" ทำงานจริงแล้ว (ไม่ใช่กดรับคะแนนเปล่าๆ)**
   - `Quest.actionKey` = key บอกว่า quest นี้ต้องทำ action จริงในแอพก่อน (`null` = กดยืนยันเองได้เลย)
     quest เช็คตู้เย็นใช้ `actionKey: 'fridge_check'`
@@ -135,6 +148,18 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
   - ⚠️ ไฟล์ในคอลเลกชันของแอพอยู่ใน **temp/cache** (ยังไม่มี `path_provider` เลยขอ documents dir ไม่ได้)
     ถ้าระบบเคลียร์ cache รูปหาย — `PhotoStorageService.loadPhotos()` กรอง path ที่ไฟล์หายไปแล้วออกให้อัตโนมัติ
     (รูปที่กด Save to device ไปแล้วไม่หาย เพราะอยู่ในแกลเลอรีของเครื่อง)
+- **Achievement system ใช้งานได้จริง** — `GET /api/achievements` + ปลดล็อกอัตโนมัติตอนทำ quest สำเร็จ
+  - นิยามเหรียญ + เงื่อนไขปลดล็อกทั้งหมดอยู่ที่ **`backend/utils/achievements.js` ไฟล์เดียว**
+    (แนวเดียวกับ `progression.js`) — อยากปรับให้ปลดล็อกง่ายขึ้นตอนเดโมก็ลดเลข `required` ได้เลย
+  - เหรียญตอนนี้: Food Saver / Recycling / Plastic Reduction / **Energy Saver** / Community
+    เงื่อนไข = ทำ quest ในหมวดนั้นครบ **10 ครั้ง** (ยกเว้น Community = 1 ครั้ง เพราะเป็นงานลงพื้นที่จริง)
+  - ⚠️ `medalType` **ห้ามเปลี่ยนหลังมีคนปลดล็อกแล้ว** เพราะเป็นคีย์ที่บันทึกลง DB (มี unique index กันซ้ำ)
+  - API ส่งกลับ**ทั้งเหรียญที่ปลดล็อกแล้วและยังไม่ปลดล็อก** พร้อม `progress/required`
+    หน้า Inventory เลยโชว์เหรียญที่ยังล็อกเป็นสีเทาพร้อมความคืบหน้า (เช่น `3/10`) ให้เห็นว่าเหลืออีกเท่าไหร่
+  - ตอนทำ quest สำเร็จ response จะมี `newAchievements` ติดมาด้วย -> แอพเด้ง dialog แสดงความยินดี
+  - โค้ด "หลังทำ quest สำเร็จ" รวมไว้ที่ `lib/utils/quest_completion.dart` ตัวเดียว
+    ใช้ร่วมกัน 3 ที่ (Explore / แผ่น Explore ใน Home / Fridge) — แก้ที่เดียวพอ
+  - ⚠️ `Community` ยังปลดล็อกไม่ได้จนกว่าจะมี community quest ที่เปิดใช้งาน (รอระบบ Party)
 - **Quest History ในหน้า Profile** — การ์ดล่างสุด (ต่อจาก Upgrade your Ability) โชว์ quest ที่ทำสำเร็จ
   แต่ละแถว: ไอคอนตามหมวด + ชื่อ quest + วันที่สำเร็จ + คะแนนที่ได้ (`+10 P`) ข้อมูลจริงจาก `GET /api/quests/history`
   ⚠️ **ยังไม่มี "รูป quest" จริงในระบบ** (`Quest` model ไม่มีฟิลด์รูป, ไม่มีไฟล์ภาพใน assets)
@@ -174,7 +199,8 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
   **ไม่ใช่บั๊ก** — พอต่อกล้องเสร็จแล้วใส่ path รูปลง `photoPath` รูปจะขึ้นแทนไอคอนเองโดยไม่ต้องแก้หน้าจอ
 - **Camera item** — กดแล้วมีแค่ SnackBar ยังไม่ได้เปิดกล้องจริง (ยังไม่ได้ลง `image_picker` / ยังไม่ได้ขอ permission กล้อง)
 - **การแจ้งเตือน** ในหน้า Notification เป็น mock (`mockNotifications` ใน `lib/models/notification_model.dart`) ยังไม่มี endpoint
-- **Achievement/Inventory ทั้งหมด** — mock data ใน `achievement_model.dart` / `inventory_item_model.dart` ยังไม่มี backend endpoint
+- **ไอเทมในกระเป๋า (Camera/Fridge)** ยัง mock อยู่ใน `inventory_item_model.dart` — ยังไม่มี `GET /api/inventory`
+  (ส่วนเหรียญ Achievement ในหน้าเดียวกันใช้ข้อมูลจริงแล้ว)
   (Camera กับ Fridge คือ **ไอเทมตั้งต้นที่ผู้เล่นทุกคนต้องมี** — ตอนเขียน endpoint จริงต้องแจกให้อัตโนมัติตอนสมัคร ไม่ใช่ของที่ได้จาก quest/reward)
 
 **Route ฝั่ง Flutter** (รวมไว้ที่ `lib/routes/app_routes.dart` ไฟล์เดียว — เพิ่มหน้าใหม่มาแก้ที่นี่):
@@ -191,12 +217,13 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
 - `backend/routes/quests.js` → mount ที่ `/api/quests`: `GET /`, `GET /history?limit=` , `POST /:id/complete` (ต้อง login ทั้งหมด)
   (`/history` ต้องประกาศก่อน route ที่มี `:id` ไม่งั้นคำว่า history จะถูกจับเป็น id)
 - `backend/routes/fridgeItems.js` → mount ที่ `/api/fridge-items`: `GET /`, `POST /`, `DELETE /:id` (ต้อง login ทั้งหมด)
+- `backend/routes/achievements.js` → mount ที่ `/api/achievements`: `GET /` (ต้อง login)
 - สคริปต์: `npm run seed:quests` (`backend/scripts/seedQuests.js`)
 
 `GET /api/auth/me` คืน 3 ก้อน: `user` (+ level/xp/points/rank), `progress` (ความคืบหน้า level/rank),
 `stats` (questCompleted / questTotal / co2SavedKg / partiesJoined — คำนวณจริงจาก `QuestHistory` + `Quest`)
 
-**Backend routes ที่ยังไม่มี (ต้องเขียนเพิ่ม)**: `GET /api/inventory`, `GET /api/achievements`, Party/Event API, endpoint การแจ้งเตือน
+**Backend routes ที่ยังไม่มี (ต้องเขียนเพิ่ม)**: `GET /api/inventory`, Party/Event API, endpoint การแจ้งเตือน
 
 ## 6. รายละเอียดปลีกย่อยที่เคยเสียเวลาแก้ปัญหามาก่อน (กันเสียเวลาซ้ำ)
 
@@ -261,9 +288,9 @@ backend พร้อม deploy แล้ว (ทดสอบว่าบูต�
    อยู่ใน cache ของแอพ มีโอกาสหายถ้าระบบเคลียร์ cache
    ต้อง copy ไฟล์ไป `getApplicationDocumentsDirectory()` ตอนถ่ายเสร็จ (หรือทำ upload ขึ้น server/cloud ไปเลย)
    ⚠️ ลงไม่ได้ตอนนี้ถ้า Flutter ในเครื่องเก่ากว่า `sdk: ^3.11.0` ที่ pubspec กำหนด — `pub get` จะ fail
-2. **เพิ่ม quest ให้ครบทุกหมวด** — ตอนนี้มีแค่ 1 อัน (food_waste) เพิ่มที่ `backend/scripts/seedQuests.js`
-   ให้ครบ recycling / plastic / community แล้วรัน `npm run seed:quests`
-   (อย่าลืมใส่ `co2SavedKg` ทุกอัน ไม่งั้นสถิติ CO2 ในหน้า Profile จะไม่ขยับ)
+2. **Party/Event ของจริง** — งานใหญ่สุดที่เหลือ ต้องเพิ่มฟิลด์ วันที่/เวลา/สถานที่/จำนวนคนรับ ใน `Quest` model
+   แล้วทำ Party API (สร้าง/เข้าร่วม/ออก) แทน `mockParty` — ทำเสร็จจะปลดล็อกได้อีก 2 อย่าง:
+   เปิด quest `Community Cleanup` ที่ seed ไว้แล้ว และทำให้เหรียญ Community ปลดล็อกได้
 4. **Party/Event quest** — ต้องเพิ่มฟิลด์ วันที่/เวลา/สถานที่/จำนวนคนรับ ใน `Quest` model ก่อน (ตอนนี้ยังไม่มี)
    แล้วค่อยทำ Party API จริง (สร้าง/เข้าร่วม/ออกจากปาร์ตี้) แทน `mockParty`
    (`Quest.type` มี `'solo'`/`'party'` และ `minLevelToHost` รออยู่แล้ว)

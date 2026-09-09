@@ -64,6 +64,6 @@ class QuestService {
       throw Exception(data['message'] ?? 'Failed to complete quest');
     }
 
-    return QuestReward.fromJson(data['earned'] ?? {});
+    return QuestReward.fromResponse(data);
   }
 }

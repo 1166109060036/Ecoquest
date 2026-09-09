@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../models/inventory_item_model.dart';
-import '../../models/achievement_model.dart';
+import '../../providers/achievement_provider.dart';
 import '../../widgets/inventory_card.dart';
 
 // หน้า Inventory — ไอเทม (Camera, Fridge) และเหรียญ Achievement ที่ปลดล็อกแล้ว
@@ -17,6 +18,14 @@ class InventoryPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // เหรียญมาจาก backend จริง (โหลดไว้แล้วตั้งแต่ MainShell) — เรียงให้อันที่ปลดล็อกแล้วขึ้นก่อน
+    final medals = [...context.watch<AchievementProvider>().achievements]
+      ..sort((a, b) {
+        if (a.unlocked != b.unlocked) return a.unlocked ? -1 : 1;
+        // ยังไม่ปลดล็อกเหมือนกัน -> อันที่ใกล้ได้ขึ้นก่อน
+        return (b.progress / b.required).compareTo(a.progress / a.required);
+      });
+
     // รวมไอเทมปกติ + achievement medal เป็นลิสต์เดียวกัน
     final allEntries = <_InventoryEntry>[
       for (final item in mockInventoryItems)
@@ -29,18 +38,22 @@ class InventoryPage extends StatelessWidget {
           quantity: item.quantity,
           onTap: () => _onItemTap(context, item.id),
         ),
-      for (final medal in mockAchievementMedals)
+      for (final medal in medals)
         _InventoryEntry(
           icon: medal.icon,
-          iconColor: medal.color,
-          title: medal.title,
-          description: medal.description,
-          quantity: medal.quantity,
+          // เหรียญที่ยังไม่ปลดล็อกทำเป็นสีเทา ให้แยกออกจากอันที่ได้แล้วชัดๆ
+          iconColor: medal.unlocked ? medal.color : Colors.grey.shade400,
+          title: medal.unlocked ? '${medal.title} Medal' : medal.title,
+          description: medal.unlocked
+              ? medal.description
+              : '${medal.description}  (${medal.progress}/${medal.required})',
+          // นับช่องเฉพาะเหรียญที่ได้จริงแล้ว อันที่ยังล็อกไม่ควรกินช่องกระเป๋า
+          quantity: medal.unlocked ? 1 : null,
         ),
     ];
 
-    // นับจำนวนช่องที่ใช้ไปทั้งหมด (ไอเทม + medal รวมกัน)
-    final usedCapacity = allEntries.fold<int>(0, (sum, e) => sum + (e.quantity ?? 1));
+    // นับจำนวนช่องที่ใช้ไปทั้งหมด (ไอเทม + เหรียญที่ปลดล็อกแล้ว)
+    final usedCapacity = allEntries.fold<int>(0, (sum, e) => sum + (e.quantity ?? 0));
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,

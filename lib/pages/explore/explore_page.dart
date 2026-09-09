@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/quest_card_model.dart';
-import '../../providers/auth_provider.dart';
+import '../../utils/quest_completion.dart';
 import '../../providers/quest_provider.dart';
 import '../../widgets/quest_card.dart';
 import 'quest_detail_page.dart';
@@ -65,7 +65,6 @@ class _ExplorePageState extends State<ExplorePage> {
     }
 
     final questProvider = context.read<QuestProvider>();
-    final authProvider = context.read<AuthProvider>();
 
     final reward = await questProvider.completeQuest(quest.id);
 
@@ -78,11 +77,8 @@ class _ExplorePageState extends State<ExplorePage> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Quest complete! +${reward.points} points, +${reward.xp} XP')),
-    );
-    // points/XP ของ user เปลี่ยนไปแล้ว ต้องโหลดโปรไฟล์ใหม่ให้หน้า Profile/Home โชว์เลขล่าสุด
-    await authProvider.refreshProfile();
+    // โชว์รางวัล + รีเฟรชโปรไฟล์/เหรียญ + เด้งแสดงความยินดีถ้าได้เหรียญใหม่
+    await handleQuestCompleted(context, reward);
   }
 
   @override

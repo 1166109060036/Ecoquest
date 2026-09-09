@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../models/fridge_item_model.dart';
-import '../../providers/auth_provider.dart';
+import '../../utils/quest_completion.dart';
 import '../../providers/fridge_provider.dart';
 import '../../providers/quest_provider.dart';
 import '../../widgets/inventory_card.dart';
@@ -60,7 +60,6 @@ class _FridgePageState extends State<FridgePage> {
   Future<void> _saveAndCompleteQuest() async {
     final fridgeProvider = context.read<FridgeProvider>();
     final questProvider = context.read<QuestProvider>();
-    final authProvider = context.read<AuthProvider>();
 
     final saved = await fridgeProvider.saveDrafts();
     if (!mounted) return;
@@ -97,10 +96,8 @@ class _FridgePageState extends State<FridgePage> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Quest complete! +${reward.points} points, +${reward.xp} XP')),
-    );
-    await authProvider.refreshProfile();
+    // โชว์รางวัล + รีเฟรชโปรไฟล์/เหรียญ + เด้งแสดงความยินดีถ้าได้เหรียญใหม่
+    await handleQuestCompleted(context, reward);
   }
 
   Future<void> _confirmDelete(FridgeItemModel item) async {

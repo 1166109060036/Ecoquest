@@ -1,4 +1,5 @@
 // Model สำหรับแสดง Quest card ในหน้า Home/Explore
+import 'achievement_model.dart';
 
 enum QuestCardCategory { solo, party, event }
 
@@ -84,10 +85,25 @@ class QuestCardModel {
 class QuestReward {
   final int points;
   final int xp;
+  // เหรียญที่เพิ่งปลดล็อกจากการทำ quest ครั้งนี้ (ปกติว่าง) — เอาไปเด้งแสดงความยินดี
+  final List<UnlockedMedal> newAchievements;
 
-  QuestReward({required this.points, required this.xp});
+  QuestReward({
+    required this.points,
+    required this.xp,
+    this.newAchievements = const [],
+  });
 
-  factory QuestReward.fromJson(Map<String, dynamic> json) {
-    return QuestReward(points: json['points'] ?? 0, xp: json['xp'] ?? 0);
+  // รับทั้งก้อน response มาเลย เพราะ earned กับ newAchievements อยู่คนละชั้นกัน
+  factory QuestReward.fromResponse(Map<String, dynamic> json) {
+    final earned = (json['earned'] ?? {}) as Map<String, dynamic>;
+    final medals = (json['newAchievements'] ?? []) as List;
+
+    return QuestReward(
+      points: earned['points'] ?? 0,
+      xp: earned['xp'] ?? 0,
+      newAchievements:
+          medals.map((m) => UnlockedMedal.fromJson(m as Map<String, dynamic>)).toList(),
+    );
   }
 }

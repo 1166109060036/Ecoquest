@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/quest_provider.dart';
 import 'providers/fridge_provider.dart';
+import 'providers/achievement_provider.dart';
 import 'routes/app_routes.dart';
 
 void main() {
@@ -19,6 +20,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => QuestProvider()),
         ChangeNotifierProvider(create: (_) => FridgeProvider()),
+        ChangeNotifierProvider(create: (_) => AchievementProvider()),
       ],
       child: MaterialApp(
         title: 'EcoQuest',

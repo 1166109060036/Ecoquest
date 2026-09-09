@@ -6,6 +6,7 @@ const FridgeItem = require('../models/FridgeItem');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 const progression = require('../utils/progression');
+const { syncAchievements } = require('../utils/achievements');
 
 const router = express.Router();
 
@@ -182,12 +183,17 @@ router.post('/:id/complete', authMiddleware, async (req, res) => {
     user.level = progression.levelFromXp(user.xp);
     await user.save();
 
+    // เช็คเหรียญหลังบันทึกประวัติแล้ว — quest ที่เพิ่งทำต้องถูกนับด้วย
+    const newAchievements = await syncAchievements(user._id);
+
     res.json({
       message: 'Quest completed',
       earned: {
         points: quest.scorePoints,
         xp: quest.xpReward,
       },
+      // เหรียญที่เพิ่งปลดล็อกรอบนี้ (ปกติเป็น array ว่าง) — แอพเอาไปเด้งแจ้งเตือน
+      newAchievements,
       user: {
         level: user.level,
         xp: user.xp,
