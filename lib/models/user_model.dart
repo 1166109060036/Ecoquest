@@ -3,6 +3,9 @@ class UserModel {
   final String? email;
   final String displayName;
   final bool isGuest;
+  // path รูปโปรไฟล์ในเครื่อง — null = ยังไม่ได้ตั้ง (โชว์ไอคอน placeholder แทน)
+  // ⚠️ เป็น path ในเครื่องที่ตั้งค่าไว้เท่านั้น ข้ามเครื่องจะไม่เห็นรูป (ดู backend/models/User.js)
+  final String? avatarPath;
 
   // ---- ค่าระบบเกม ----
   // register/login/guest ไม่ได้ส่งค่าพวกนี้กลับมาด้วย จะได้ค่าจริงตอนเรียก GET /auth/me
@@ -17,6 +20,7 @@ class UserModel {
     this.email,
     required this.displayName,
     required this.isGuest,
+    this.avatarPath,
     this.level = 1,
     this.xp = 0,
     this.points = 0,
@@ -29,6 +33,7 @@ class UserModel {
       email: json['email'],
       displayName: json['displayName'] ?? 'Player',
       isGuest: json['isGuest'] ?? false,
+      avatarPath: json['avatarPath'],
       level: json['level'] ?? 1,
       xp: json['xp'] ?? 0,
       points: json['points'] ?? 0,
@@ -42,6 +47,7 @@ class UserModel {
       'email': email,
       'displayName': displayName,
       'isGuest': isGuest,
+      'avatarPath': avatarPath,
       'level': level,
       'xp': xp,
       'points': points,

@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/quest_provider.dart';
@@ -106,10 +108,12 @@ class ProfilePage extends StatelessWidget {
                       const SizedBox(height: 16),
                       _UserHeader(
                         displayName: user?.displayName ?? 'Player',
+                        avatarPath: user?.avatarPath,
                         level: level,
                         rankTier: rankTier,
                         xp: xpIntoLevel,
                         xpToNext: xpForNextLevel,
+                        onTapAvatar: () => _pickAvatar(context, hasAvatar: user?.avatarPath != null),
                       ),
                       const SizedBox(height: 16),
                       _PointsAndRankCard(
@@ -131,6 +135,109 @@ class ProfilePage extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // เปิด bottom sheet ให้เลือกถ่ายรูป/เลือกจากคลังรูป/ลบรูป (ลบโชว์เฉพาะตอนมีรูปอยู่แล้ว)
+  // แล้วอัปเดต avatar ผ่าน AuthProvider — path ที่ได้จาก image_picker ใช้ตรงๆ เหมือนหน้า Fridge/Camera
+  // (ยังไม่มี path_provider/cloud storage ในโปรเจค รูปเลยอยู่แค่บนเครื่องนี้ ดู PROJECT_CONTEXT.md)
+  Future<void> _pickAvatar(BuildContext context, {required bool hasAvatar}) async {
+    // ใช้ String action ('camera'/'gallery'/'remove') แทน ImageSource? ตรงๆ
+    // เพราะ ImageSource ไม่มีค่าให้แทนความหมาย "ลบรูป" ได้
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _AvatarSourceSheet(hasAvatar: hasAvatar),
+    );
+
+    if (action == null || !context.mounted) return;
+    final authProvider = context.read<AuthProvider>();
+
+    if (action == 'remove') {
+      final ok = await authProvider.updateAvatar(null);
+      if (!context.mounted) return;
+      if (!ok) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(authProvider.errorMessage ?? 'Failed to remove photo')),
+        );
+      }
+      return;
+    }
+
+    try {
+      final picker = ImagePicker();
+      final shot = await picker.pickImage(
+        source: action == 'camera' ? ImageSource.camera : ImageSource.gallery,
+        maxWidth: 800,
+        imageQuality: 85,
+      );
+      if (shot == null || !context.mounted) return;
+
+      final ok = await authProvider.updateAvatar(shot.path);
+      if (!context.mounted) return;
+      if (!ok) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(authProvider.errorMessage ?? 'Failed to update photo')),
+        );
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+      // เครื่องไม่มีกล้อง / ผู้ใช้ปฏิเสธ permission
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open the camera')),
+      );
+    }
+  }
+}
+
+// bottom sheet เลือกที่มาของรูปโปรไฟล์ — คืนค่า 'camera' / 'gallery' / 'remove' (null = ปิดเฉยๆ)
+class _AvatarSourceSheet extends StatelessWidget {
+  final bool hasAvatar;
+  const _AvatarSourceSheet({required this.hasAvatar});
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text('Profile Photo',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
+            const SizedBox(height: 8),
+            ListTile(
+              leading: const Icon(Icons.photo_camera, color: Colors.green),
+              title: const Text('Take Photo'),
+              onTap: () => Navigator.pop(context, 'camera'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined, color: Colors.green),
+              title: const Text('Choose from Gallery'),
+              onTap: () => Navigator.pop(context, 'gallery'),
+            ),
+            if (hasAvatar)
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Colors.red),
+                title: const Text('Remove Photo', style: TextStyle(color: Colors.red)),
+                onTap: () => Navigator.pop(context, 'remove'),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -240,17 +347,21 @@ class _CircleIconButton extends StatelessWidget {
 // ---------------------------------------------------------------------------
 class _UserHeader extends StatelessWidget {
   final String displayName;
+  final String? avatarPath; // path รูปโปรไฟล์ในเครื่อง — null = ยังไม่ได้ตั้ง
   final int level;
   final String rankTier;
   final int xp;
   final int xpToNext;
+  final VoidCallback onTapAvatar;
 
   const _UserHeader({
     required this.displayName,
+    this.avatarPath,
     required this.level,
     required this.rankTier,
     required this.xp,
     required this.xpToNext,
+    required this.onTapAvatar,
   });
 
   @override
@@ -260,12 +371,7 @@ class _UserHeader extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // Avatar placeholder — icon ง่ายๆ ไปก่อนตามที่ขอ
-        CircleAvatar(
-          radius: 32,
-          backgroundColor: Colors.black.withOpacity(0.4),
-          child: const Icon(Icons.person, color: Colors.white70, size: 34),
-        ),
+        _AvatarPicker(avatarPath: avatarPath, onTap: onTapAvatar),
         const SizedBox(width: 14),
         Expanded(
           child: Column(
@@ -303,6 +409,55 @@ class _UserHeader extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// อวตาร 64px แตะเพื่อเปิด bottom sheet เลือก/ลบรูป — มีป้ายกล้องเล็กๆ มุมล่างขวาบอกว่ากดได้
+// โชว์รูปจาก avatarPath ถ้ามี (fallback เป็นไอคอนคนถ้าไฟล์หายหรือยังไม่ได้ตั้งรูป)
+class _AvatarPicker extends StatelessWidget {
+  final String? avatarPath;
+  final VoidCallback onTap;
+
+  const _AvatarPicker({required this.avatarPath, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      customBorder: const CircleBorder(),
+      child: SizedBox(
+        width: 64,
+        height: 64,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            CircleAvatar(
+              radius: 32,
+              backgroundColor: Colors.black.withValues(alpha: 0.4),
+              backgroundImage: avatarPath != null ? FileImage(File(avatarPath!)) : null,
+              // ยังไม่มีรูป หรือไฟล์หายไปแล้ว (เช่นระบบเคลียร์ cache) -> โชว์ไอคอนคนแทน
+              onBackgroundImageError: avatarPath != null ? (_, _) {} : null,
+              child: avatarPath == null
+                  ? const Icon(Icons.person, color: Colors.white70, size: 34)
+                  : null,
+            ),
+            Positioned(
+              right: -2,
+              bottom: -2,
+              child: Material(
+                color: Colors.green,
+                shape: const CircleBorder(),
+                elevation: 2,
+                child: Padding(
+                  padding: const EdgeInsets.all(5),
+                  child: Icon(Icons.photo_camera, size: 13, color: Colors.white),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

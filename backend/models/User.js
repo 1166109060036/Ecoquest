@@ -22,6 +22,13 @@ const UserSchema = new mongoose.Schema(
       type: String,
       default: 'Player',
     },
+    // path รูปโปรไฟล์ — เก็บเป็น path ในเครื่องผู้ใช้เหมือน FridgeItem.photoPath
+    // (โปรเจคยังไม่มี path_provider/cloud storage เลยยังอัปโหลดรูปจริงขึ้น server ไม่ได้
+    // รูปเลยโชว์ได้แค่บนเครื่องที่ตั้งค่าไว้ ข้ามเครื่องจะไม่เห็น — ดู PROJECT_CONTEXT.md)
+    avatarPath: {
+      type: String,
+      default: null,
+    },
 
     // ---- ฟิลด์ระบบเกม ----
     level: {

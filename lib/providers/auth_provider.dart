@@ -11,6 +11,7 @@ class AuthProvider extends ChangeNotifier {
   ProfileData? _profile;
   bool _isLoading = false;
   bool _isProfileLoading = false;
+  bool _isUpdatingAvatar = false;
   String? _errorMessage;
 
   UserModel? get user => _user;
@@ -18,6 +19,7 @@ class AuthProvider extends ChangeNotifier {
   ProfileData? get profile => _profile;
   bool get isLoading => _isLoading;
   bool get isProfileLoading => _isProfileLoading;
+  bool get isUpdatingAvatar => _isUpdatingAvatar;
   String? get errorMessage => _errorMessage;
   bool get isLoggedIn => _user != null;
 
@@ -74,6 +76,26 @@ class AuthProvider extends ChangeNotifier {
     _user = null;
     _profile = null;
     notifyListeners();
+  }
+
+  // ตั้ง/ลบรูปโปรไฟล์ (null = ลบรูป) — เรียก refreshProfile() ต่อให้ทุกหน้าที่ใช้ user เห็นค่าใหม่ทันที
+  Future<bool> updateAvatar(String? avatarPath) async {
+    _isUpdatingAvatar = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await _authService.updateAvatar(avatarPath);
+      await refreshProfile();
+      _isUpdatingAvatar = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _isUpdatingAvatar = false;
+      notifyListeners();
+      return false;
+    }
   }
 
   // Guest -> บัญชีปกติ (ตั้ง email/password/ชื่อ) — ใช้ _runAuthAction ไม่ได้เพราะต้องรีเฟรชโปรไฟล์ต่อด้วย

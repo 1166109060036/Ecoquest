@@ -148,6 +148,16 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
   - ⚠️ ไฟล์ในคอลเลกชันของแอพอยู่ใน **temp/cache** (ยังไม่มี `path_provider` เลยขอ documents dir ไม่ได้)
     ถ้าระบบเคลียร์ cache รูปหาย — `PhotoStorageService.loadPhotos()` กรอง path ที่ไฟล์หายไปแล้วออกให้อัตโนมัติ
     (รูปที่กด Save to device ไปแล้วไม่หาย เพราะอยู่ในแกลเลอรีของเครื่อง)
+- **รูปโปรไฟล์ (avatar) ใส่ได้จริงแล้ว** — แตะที่ avatar ในหน้า Profile (`_AvatarPicker` ใน `profile_page.dart`)
+  เปิด bottom sheet ให้ถ่ายรูป / เลือกจากคลังรูป / ลบรูป (ลบโชว์เฉพาะตอนมีรูปอยู่แล้ว)
+  - `User.avatarPath` (backend) + `POST /api/auth/avatar` (body `{avatarPath}`, ส่ง `null` เพื่อลบ)
+    อัปเดตแล้ว `AuthProvider.updateAvatar()` จะเรียก `refreshProfile()` ต่อให้ทุกหน้าที่ใช้ `user.avatarPath` เห็นค่าใหม่ทันที
+  - ⚠️ **เก็บแค่ path ในเครื่องเหมือน `FridgeItem.photoPath`** ไม่ได้อัปโหลดไฟล์จริงขึ้น server
+    (โปรเจคยังไม่มี multer/cloud storage) เลยเห็นรูปได้แค่บนเครื่องที่ตั้งค่าไว้ — ถ้า login เครื่องอื่นจะไม่เห็นรูป
+    และอยู่ในโฟลเดอร์ cache ของ `image_picker` เหมือนกัน ถ้าระบบเคลียร์ cache รูปหาย (fallback เป็นไอคอนคนให้เอง ไม่พัง)
+  - ยังไม่โชว์ avatar ของ**คนอื่น**ที่ไหนในแอพ (เช่นรายชื่อสมาชิกปาร์ตี้ยังเป็นไอคอนคนทั่วไปเหมือนเดิม)
+    เพราะ backend ของ party ยังไม่ได้ส่ง `avatarPath` ของสมาชิกแต่ละคนมาด้วย ถ้าจะทำต่อต้องเพิ่มที่
+    `toPartyPayload` ใน `backend/routes/party.js` และ `PartyMemberModel` ใน `lib/models/party_model.dart`
 - **Achievement system ใช้งานได้จริง** — `GET /api/achievements` + ปลดล็อกอัตโนมัติตอนทำ quest สำเร็จ
   - นิยามเหรียญ + เงื่อนไขปลดล็อกทั้งหมดอยู่ที่ **`backend/utils/achievements.js` ไฟล์เดียว**
     (แนวเดียวกับ `progression.js`) — อยากปรับให้ปลดล็อกง่ายขึ้นตอนเดโมก็ลดเลข `required` ได้เลย

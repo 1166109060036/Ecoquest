@@ -192,6 +192,7 @@ router.get('/me', authMiddleware, async (req, res) => {
         email: user.email,
         displayName: user.displayName,
         isGuest: user.isGuest,
+        avatarPath: user.avatarPath,
         level: progress.level,
         xp: user.xp,
         points: user.points,
@@ -205,6 +206,32 @@ router.get('/me', authMiddleware, async (req, res) => {
         partiesJoined,
       },
     });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   POST /api/auth/avatar
+// @desc    ตั้ง/ลบรูปโปรไฟล์ — ส่ง avatarPath: null มาเพื่อลบรูป
+// (แค่บันทึก path ในเครื่อง ไม่ได้อัปโหลดไฟล์จริงขึ้น server — ดูหมายเหตุที่ models/User.js)
+router.post('/avatar', authMiddleware, async (req, res) => {
+  try {
+    const { avatarPath } = req.body;
+
+    if (avatarPath != null && (typeof avatarPath !== 'string' || avatarPath.length > 500)) {
+      return res.status(400).json({ message: 'Invalid avatar path' });
+    }
+
+    const user = await User.findById(req.userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    user.avatarPath = avatarPath || null;
+    await user.save();
+
+    res.json({ message: 'Avatar updated', avatarPath: user.avatarPath });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });

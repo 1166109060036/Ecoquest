@@ -106,6 +106,24 @@ class AuthService {
     await _storage.clearSession();
   }
 
+  // ตั้ง/ลบรูปโปรไฟล์ — ส่ง avatarPath: null เพื่อลบรูป
+  Future<void> updateAvatar(String? avatarPath) async {
+    final token = await _storage.getToken();
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/auth/avatar'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'avatarPath': avatarPath}),
+    );
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode != 200) {
+      throw Exception(data['message'] ?? 'Failed to update avatar');
+    }
+  }
+
   // เปลี่ยนบัญชี Guest เป็นบัญชีปกติ — ใช้ user เดิม ข้อมูลความคืบหน้าทั้งหมดติดมาด้วย
   // token เดิมยังใช้ได้ต่อ (userId ไม่เปลี่ยน) เลยแค่อัปเดต user ที่ cache ไว้พอ
   Future<UserModel> upgradeGuest({
