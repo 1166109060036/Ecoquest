@@ -7,6 +7,7 @@ import '../pages/inventory/camera_page.dart';
 import '../pages/inventory/fridge_page.dart';
 import '../pages/main_shell.dart';
 import '../pages/notification/notification_page.dart';
+import '../pages/party/create_party_page.dart';
 import '../pages/settings/settings_page.dart';
 import '../pages/settings/change_password_page.dart';
 import '../pages/settings/upgrade_account_page.dart';
@@ -23,6 +24,9 @@ final Map<String, WidgetBuilder> appRoutes = {
   '/main': (context) => const MainShell(),
   '/settings': (context) => const SettingsPage(),
   '/notifications': (context) => const NotificationPage(),
+  // ไม่มี preselected quest ตรงนี้ — ใช้ตอนกด "Create Party" จากหน้า Party -> Browse Rooms
+  // (ถ้ากดมาจากการ์ด quest ใน Explore/Home จะ push ผ่าน MaterialPageRoute พร้อม quest แทน)
+  '/party/create': (context) => const CreatePartyPage(),
   '/fridge': (context) => const FridgePage(),
   '/camera': (context) => const CameraPage(),
   '/change-password': (context) => const ChangePasswordPage(),

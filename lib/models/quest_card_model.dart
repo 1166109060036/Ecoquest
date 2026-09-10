@@ -9,9 +9,6 @@ class QuestCardModel {
   final String subtitle; // "Place" สำหรับ party/event หรือ "Quest Detail" สำหรับ solo
   final QuestCardCategory category;
   final int pointsReward;
-  final String? dateLabel; // เช่น "Month D, Y"
-  final String? timeLabel; // เช่น "00:00"
-  final String? capacityLabel; // "00 / 00" คนเข้าร่วม — ใช้กับ party/event
   final bool isDaily; // ทำได้วันละครั้ง
   final bool completedToday; // วันนี้ทำไปแล้วหรือยัง (ใช้กับ quest ที่ isDaily)
   // quest ที่ต้องทำ action จริงในแอพก่อน ('fridge_check' = ต้องบันทึกของในตู้เย็น)
@@ -27,12 +24,12 @@ class QuestCardModel {
   final String impact; // low / medium / high
   final String questCategory; // food_waste / recycling / plastic / community / energy
 
-  // ---- ใช้เฉพาะ party quest (อีเวนต์กลุ่ม) ----
+  // ---- ใช้เฉพาะ party quest — quest เดี่ยวๆ นี้ยังไม่มี "ห้อง" (ต้องกดสร้างก่อน) ----
+  // location/capacity เป็นแค่ค่า default ให้ฟอร์มสร้างห้องดึงไปเติม ไม่ได้ผูกกับห้องจริง
+  final String location;
   final int capacity; // 0 = ไม่จำกัด
-  final int joinedCount;
-  final bool hasJoined; // เราเข้าร่วมอีเวนต์นี้ไปแล้วหรือยัง
-
-  bool get isFull => capacity > 0 && joinedCount >= capacity;
+  final int minLevelToHost; // level ขั้นต่ำที่จะสร้างห้องจาก quest นี้ได้
+  final int openPartyCount; // จำนวนห้องที่ยังเปิดรับสมาชิกอยู่ตอนนี้ — โชว์บนการ์ดเฉยๆ
 
   // path รูปปกจริง — null ถ้า quest นั้นยังไม่มีรูป
   String? get coverImageAsset =>
@@ -44,9 +41,6 @@ class QuestCardModel {
     required this.subtitle,
     required this.category,
     required this.pointsReward,
-    this.dateLabel,
-    this.timeLabel,
-    this.capacityLabel,
     this.isDaily = false,
     this.completedToday = false,
     this.actionKey,
@@ -57,9 +51,10 @@ class QuestCardModel {
     this.difficulty = '',
     this.impact = '',
     this.questCategory = '',
+    this.location = '',
     this.capacity = 0,
-    this.joinedCount = 0,
-    this.hasJoined = false,
+    this.minLevelToHost = 1,
+    this.openPartyCount = 0,
   });
 
   factory QuestCardModel.fromJson(Map<String, dynamic> json) {
@@ -70,25 +65,12 @@ class QuestCardModel {
       orElse: () => QuestCardCategory.solo,
     );
 
-    // party quest ส่ง eventDate มาเป็น UTC — แปลงเป็นเวลาเครื่องแล้วทำเป็น label ให้การ์ดใช้เลย
-    final eventDate = DateTime.tryParse(json['eventDate']?.toString() ?? '')?.toLocal();
-    final capacity = json['capacity'] ?? 0;
-    final joinedCount = json['joinedCount'] ?? 0;
-
     return QuestCardModel(
       id: json['id'] ?? json['_id'],
       title: json['title'] ?? '',
       subtitle: json['description'] ?? '',
       category: category,
       pointsReward: json['scorePoints'] ?? 0,
-      dateLabel: eventDate == null ? null : _shortDate(eventDate),
-      timeLabel: eventDate == null ? null : _shortTime(eventDate),
-      capacityLabel: capacity > 0
-          ? '${_pad(joinedCount)} / ${_pad(capacity)}'
-          : (joinedCount > 0 ? '$joinedCount joined' : null),
-      capacity: capacity,
-      joinedCount: joinedCount,
-      hasJoined: json['hasJoined'] ?? false,
       isDaily: json['isDaily'] ?? false,
       completedToday: json['completedToday'] ?? false,
       actionKey: json['actionKey'],
@@ -100,11 +82,16 @@ class QuestCardModel {
       difficulty: json['difficulty'] ?? '',
       impact: json['impact'] ?? '',
       questCategory: json['category'] ?? '',
+      location: json['location'] ?? '',
+      capacity: json['capacity'] ?? 0,
+      minLevelToHost: json['minLevelToHost'] ?? 1,
+      openPartyCount: json['openPartyCount'] ?? 0,
     );
   }
 }
 
 // รางวัลที่ได้ตอนทำ quest สำเร็จ — มาจาก response ของ POST /api/quests/:id/complete
+// (หรือ POST /api/party/complete ตอนหัวหน้าห้องกดจบอีเวนต์ ซึ่งใช้รูปแบบ response เดียวกัน)
 class QuestReward {
   final int points;
   final int xp;
@@ -130,13 +117,3 @@ class QuestReward {
     );
   }
 }
-
-// ---- helper สำหรับทำ label ของ party quest (ไม่ได้ลง intl เลยจัดรูปแบบเอง) ----
-const _monthNames = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-];
-
-String _pad(int n) => n.toString().padLeft(2, '0');
-String _shortDate(DateTime d) => '${_monthNames[d.month - 1]} ${d.day}, ${d.year}';
-String _shortTime(DateTime d) => '${_pad(d.hour)}:${_pad(d.minute)}';

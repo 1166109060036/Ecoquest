@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');
 const { seedQuests } = require('./scripts/seedQuests');
+const PartyMember = require('./models/PartyMember');
 const authRoutes = require('./routes/auth');
 const questRoutes = require('./routes/quests');
 const fridgeItemRoutes = require('./routes/fridgeItems');
@@ -16,6 +17,17 @@ const app = express();
 // `npm run seed:quests` เองไม่ได้ — ให้ตัว server บน Render seed ให้แทน
 // ปิดได้ด้วย env SEED_QUESTS_ON_BOOT=false
 connectDB().then(async () => {
+  // ล้าง PartyMember รุ่นเก่าที่ผูกกับ questId ตรงๆ (ก่อนจะมีห้อง/Party แยกออกมา)
+  // เขียนเป็น idempotent เพราะรันซ้ำทุกครั้งที่ Render restart ก็ไม่มีผลเสีย
+  try {
+    const { deletedCount } = await PartyMember.deleteMany({ partyId: { $exists: false } });
+    if (deletedCount > 0) {
+      console.log(`🧹 ล้าง PartyMember รุ่นเก่าทิ้ง ${deletedCount} แถว`);
+    }
+  } catch (err) {
+    console.error('⚠️  ล้าง PartyMember รุ่นเก่าไม่สำเร็จ:', err.message);
+  }
+
   if (process.env.SEED_QUESTS_ON_BOOT === 'false') return;
   try {
     const active = await seedQuests({ verbose: false });

@@ -1,36 +1,16 @@
-const crypto = require('crypto');
 const express = require('express');
 const Quest = require('../models/Quest');
 const QuestHistory = require('../models/QuestHistory');
 const FridgeItem = require('../models/FridgeItem');
-const PartyMember = require('../models/PartyMember');
+const Party = require('../models/Party');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 const progression = require('../utils/progression');
 const { syncAchievements } = require('../utils/achievements');
+const { startOfToday, todayKey } = require('../utils/questDay');
+const crypto = require('crypto');
 
 const router = express.Router();
-
-// โซนเวลาที่ใช้ตัดวันของ quest รายวัน — default = UTC+9 (ญี่ปุ่น/Ebetsu City ซึ่งเป็นกลุ่มผู้ใช้จริง)
-// ห้ามใช้เวลาเครื่อง server เฉยๆ เพราะ Render รันเป็น UTC ถ้าใช้เวลาเครื่อง
-// quest จะไปรีเซ็ตตอน 9 โมงเช้าเวลาญี่ปุ่นแทนที่จะเป็นเที่ยงคืน
-const QUEST_DAY_UTC_OFFSET_HOURS = Number(process.env.QUEST_DAY_UTC_OFFSET_HOURS ?? 9);
-
-// เที่ยงคืนของ "วันนี้" ตามโซนเวลาข้างบน คืนออกมาเป็นเวลา UTC จริงเพื่อเอาไป query Mongo
-// วิธีคิด: เลื่อนเวลาปัจจุบันไปเป็นเวลาท้องถิ่นก่อน -> ตัดเอาเฉพาะวันที่ -> เลื่อนกลับเป็น UTC
-const startOfToday = () => {
-  const offsetMs = QUEST_DAY_UTC_OFFSET_HOURS * 60 * 60 * 1000;
-  const localNow = new Date(Date.now() + offsetMs);
-  const localMidnight = Date.UTC(
-    localNow.getUTCFullYear(),
-    localNow.getUTCMonth(),
-    localNow.getUTCDate()
-  );
-  return new Date(localMidnight - offsetMs);
-};
-
-// คีย์ของ "วันนี้" ในรูปแบบ YYYY-MM-DD ตามโซนเวลาที่ใช้ตัดวัน
-const todayKey = () => startOfToday().toISOString().slice(0, 10);
 
 // เลือก quest 1 อันจากกลุ่มสุ่มแบบ "สุ่มแต่คงที่"
 //
@@ -73,22 +53,18 @@ router.get('/', authMiddleware, async (req, res) => {
 
     const doneToday = new Set(todayHistory.map((h) => h.questId.toString()));
 
-    // party quest ต้องรู้ว่ามีคนเข้าร่วมกี่คนแล้ว และเราเข้าร่วมไปหรือยัง
+    // party quest ตอนนี้ไม่มี "เข้าร่วม/ยังไม่เข้าร่วม" ต่อ quest แล้ว — เปลี่ยนเป็นสร้าง/เข้าร่วม
+    // "ห้อง" (Party) แทน เลยแค่บอกว่ามีกี่ห้องที่ยังเปิดรับอยู่ (openPartyCount) ให้การ์ดโชว์เฉยๆ
     // ยิงทีเดียวสำหรับทุก party quest ไม่ query ทีละอัน
     const partyQuestIds = quests.filter((q) => q.type === 'party').map((q) => q._id);
-    const joinedCounts = new Map();
-    const myJoined = new Set();
+    const openPartyCounts = new Map();
 
     if (partyQuestIds.length > 0) {
-      const [counts, mine] = await Promise.all([
-        PartyMember.aggregate([
-          { $match: { questId: { $in: partyQuestIds } } },
-          { $group: { _id: '$questId', count: { $sum: 1 } } },
-        ]),
-        PartyMember.find({ userId: req.userId, questId: { $in: partyQuestIds } }).select('questId'),
+      const counts = await Party.aggregate([
+        { $match: { questId: { $in: partyQuestIds }, status: 'open' } },
+        { $group: { _id: '$questId', count: { $sum: 1 } } },
       ]);
-      for (const c of counts) joinedCounts.set(c._id.toString(), c.count);
-      for (const m of mine) myJoined.add(m.questId.toString());
+      for (const c of counts) openPartyCounts.set(c._id.toString(), c.count);
     }
 
     res.json({
@@ -112,11 +88,12 @@ router.get('/', authMiddleware, async (req, res) => {
           randomPool: q.randomPool,
           completedToday: doneToday.has(id),
           // ---- เฉพาะ party quest ----
-          eventDate: q.eventDate,
+          // location/capacity ตรงนี้เป็นแค่ค่า default ให้ฟอร์มสร้างห้องดึงไปเติม
+          // (ห้องจริงแต่ละห้องนัดคนละเวลา/สถานที่กันได้ ดูรายละเอียดที่ Party model)
           location: q.location,
           capacity: q.capacity,
-          joinedCount: joinedCounts.get(id) || 0,
-          hasJoined: myJoined.has(id),
+          minLevelToHost: q.minLevelToHost,
+          openPartyCount: openPartyCounts.get(id) || 0,
         };
       }),
     });
@@ -166,6 +143,14 @@ router.post('/:id/complete', authMiddleware, async (req, res) => {
       return res.status(404).json({ message: 'Quest not found' });
     }
 
+    // party quest เปลี่ยนวิธีทำสำเร็จแล้ว — ต้องผ่านห้อง (Party) และให้หัวหน้าห้องเป็นคนกด
+    // ทุกคนในห้องถึงจะได้คะแนนพร้อมกัน ไม่ใช่กดยืนยันเองตรงนี้แบบเดิม
+    if (quest.type === 'party') {
+      return res.status(400).json({
+        message: 'Party quests are completed by the party leader from the Party tab',
+      });
+    }
+
     // quest รายวัน — ทำซ้ำในวันเดียวกันไม่ได้
     if (quest.isDaily) {
       const alreadyDone = await QuestHistory.findOne({
@@ -175,20 +160,6 @@ router.post('/:id/complete', authMiddleware, async (req, res) => {
       });
       if (alreadyDone) {
         return res.status(409).json({ message: 'You have already completed this quest today' });
-      }
-    }
-
-    // party quest = อีเวนต์ที่เกิดขึ้นครั้งเดียว ไม่ใช่ quest รายวัน
-    // เลยต้องกัน 2 อย่าง: ต้องเข้าร่วมก่อน และทำได้ครั้งเดียวตลอด
-    if (quest.type === 'party') {
-      const joined = await PartyMember.findOne({ questId: quest._id, userId: req.userId });
-      if (!joined) {
-        return res.status(400).json({ message: 'Join this event first to complete it' });
-      }
-
-      const alreadyDone = await QuestHistory.findOne({ userId: req.userId, questId: quest._id });
-      if (alreadyDone) {
-        return res.status(409).json({ message: 'You have already completed this event' });
       }
     }
 

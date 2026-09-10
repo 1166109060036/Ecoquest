@@ -61,24 +61,23 @@ const QuestSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-    // ใช้เฉพาะ party quest — level ขั้นต่ำที่จะสร้าง/host quest นี้ได้
+    // ใช้เฉพาะ party quest — level ขั้นต่ำที่จะสร้างห้อง (Party) จาก quest นี้ได้
+    // เช็คจริงตอน POST /api/party ใน backend/routes/party.js
     minLevelToHost: {
       type: Number,
       default: 1,
     },
 
     // ---- ใช้เฉพาะ party quest (type: 'party') — quest เดี่ยวไม่ต้องมีค่าพวกนี้ ----
-    // วัน-เวลาที่นัดเจอกันจริง
-    eventDate: {
-      type: Date,
-      default: null,
-    },
-    // สถานที่นัดพบ เช่น 'Riverside Park'
+    // ⚠️ ไม่มี eventDate ที่นี่แล้ว — วัน-เวลานัดเจอกันย้ายไปอยู่ที่ Party.eventDate
+    // (แต่ละห้องนัดคนละเวลากันได้ ถึงจะสร้างจาก quest template เดียวกัน)
+    //
+    // location/capacity ที่เหลือด้านล่างนี้เป็นแค่ "ค่า default" ให้ฟอร์มสร้างห้องดึงไปเติมให้เอง
+    // ผู้สร้างห้องแก้เป็นค่าอื่นได้ ค่าจริงที่ใช้งานอยู่ที่ Party.location / Party.capacity
     location: {
       type: String,
       default: '',
     },
-    // รับได้สูงสุดกี่คน — 0 = ไม่จำกัด
     capacity: {
       type: Number,
       default: 0,

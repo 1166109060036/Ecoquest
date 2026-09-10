@@ -1,15 +1,12 @@
 const mongoose = require('mongoose');
 
-// คนที่เข้าร่วม party quest (อีเวนต์กลุ่ม) หนึ่งอีเวนต์
-//
-// ดีไซน์: "ปาร์ตี้" = กลุ่มคนที่เข้าร่วม party quest อันเดียวกัน ไม่ได้แยกเป็น collection ปาร์ตี้ต่างหาก
-// ทำแบบนี้เพราะอีเวนต์กับปาร์ตี้เป็นสิ่งเดียวกันในดีไซน์นี้ (เข้าร่วม cleanup = อยู่ปาร์ตี้ cleanup)
-// ถ้าอนาคตอยากให้หลายปาร์ตี้ลงอีเวนต์เดียวกันได้ ค่อยเพิ่ม partyId เข้ามาทีหลัง
+// สมาชิกของห้อง (Party) — คนที่กดเข้าร่วมห้องที่มีคนสร้างไว้แล้ว
+// เควส (quest template) เข้าถึงได้ผ่าน party.questId ไม่ต้องเก็บซ้ำที่นี่
 const PartyMemberSchema = new mongoose.Schema(
   {
-    questId: {
+    partyId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Quest',
+      ref: 'Party',
       required: true,
       index: true,
     },
@@ -19,8 +16,7 @@ const PartyMemberSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    // คนแรกที่เข้าร่วมอีเวนต์จะได้เป็นหัวหน้าปาร์ตี้โดยอัตโนมัติ
-    // (ตอนนี้อีเวนต์มาจากการ seed ยังไม่มีระบบให้ผู้เล่นสร้างเอง — พอทำแล้วค่อยให้คนสร้างเป็นหัวหน้าแทน)
+    // คนแรกที่สร้างห้องเป็นหัวหน้า ถ้าหัวหน้าออกจากห้องก่อนอีเวนต์จบ ตำแหน่งจะตกไปคนถัดไปตาม joinedAt
     isLeader: {
       type: Boolean,
       default: false,
@@ -33,7 +29,8 @@ const PartyMemberSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// กันเข้าร่วมอีเวนต์เดิมซ้ำ
-PartyMemberSchema.index({ questId: 1, userId: 1 }, { unique: true });
+// คนเดียวเข้าห้องเดียวกันซ้ำไม่ได้ (การเช็ค "อยู่คนละห้องพร้อมกันไม่ได้" ทำที่ route แทน
+// เพราะต้องใช้ userId เดี่ยวๆ ค้นหา ไม่เกี่ยวกับ partyId)
+PartyMemberSchema.index({ partyId: 1, userId: 1 }, { unique: true });
 
 module.exports = mongoose.model('PartyMember', PartyMemberSchema);

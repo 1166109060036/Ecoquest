@@ -4,6 +4,7 @@ import '../../models/quest_card_model.dart';
 import '../../utils/quest_completion.dart';
 import '../../providers/quest_provider.dart';
 import '../../widgets/quest_card.dart';
+import '../party/create_party_page.dart';
 import 'quest_detail_page.dart';
 
 // หน้า Explore เต็มจอ — เจอได้ 2 ทาง: กด "Explore" ที่ bottom nav ตรงๆ
@@ -57,9 +58,13 @@ class _ExplorePageState extends State<ExplorePage> {
   }
 
   Future<void> _onStartQuest(QuestCardModel quest) async {
-    // party quest: ปุ่มคือ "Join" — เข้าร่วมอีเวนต์ก่อน แล้วค่อยไปกดสำเร็จที่หน้า Party
+    // party quest: ปุ่มคือ "Create Party" — ต้องสร้างห้องก่อน คนอื่นถึงจะเข้าร่วมได้
+    // (เข้าร่วมห้องที่คนอื่นสร้างไว้แล้วทำที่หน้า Party -> Browse Rooms แทน)
     if (quest.category == QuestCardCategory.party) {
-      await joinPartyQuest(context, quest);
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => CreatePartyPage(preselectedQuest: quest)),
+      );
       return;
     }
 

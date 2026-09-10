@@ -182,24 +182,44 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
   - **หมดอายุแล้ว** → ข้อความเป็น **สีแดง**
   - ใช้ `Timer.periodic` 1 วินาทีตัวเดียวทั้งหน้า (ไม่ใช่ timer แยกต่อการ์ด) และ `cancel()` ใน `dispose()` แล้ว
 
-- **ระบบ Party (อีเวนต์กลุ่ม) — ใช้งานได้จริงแล้ว ไม่ใช่ mock**
-  แนวคิด: **ไม่มี collection `Party` แยก** — "ปาร์ตี้" คือกลุ่มคนที่เข้าร่วม party quest ตัวเดียวกัน
-  - `backend/models/PartyMember.js` — `{ questId, userId, isLeader, joinedAt }` + unique index `(questId, userId)`
-    คนแรกที่เข้าร่วมได้เป็น leader อัตโนมัติ; ถ้า leader ออก ตำแหน่งจะตกไปที่คนถัดไปตาม `joinedAt`
+- **ระบบ Party (ห้อง/lobby ที่ผู้เล่นสร้างเอง) — ใช้งานได้จริงแล้ว ไม่ใช่ mock**
+  แนวคิดใหม่ (เดิม party quest = ปาร์ตี้ไปในตัว, ตอนนี้แยกออกจากกันแล้ว): **party quest เป็นแค่ "แม่แบบ"**
+  ผู้เล่นต้อง**กดสร้างห้อง (Party)** จาก quest นั้นก่อน ตั้งชื่อห้อง/วันเวลา/สถานที่/จำนวนคนรับเอง
+  แล้วคนอื่นค่อยมากดเข้าร่วมห้องที่มีอยู่ — เหมือนห้องในเกมที่มีลิสต์ให้เลือก ไม่ใช่กด Join ที่ตัว quest ตรงๆ
+  - `backend/models/Party.js` (**collection ใหม่**) — `{ questId, leaderId, name, eventDate, location, capacity, status: 'open'|'completed', completedAt }`
+    1 quest template สร้างได้หลายห้อง คนละเวลา/สถานที่กัน
+  - `backend/models/PartyMember.js` — ผูกกับ `partyId` (เดิมผูกกับ `questId` ตรงๆ) + unique index `(partyId, userId)`
+    คนสร้างห้องเป็น leader ทันที; ถ้า leader ออกก่อนอีเวนต์จบ ตำแหน่งจะตกไปคนถัดไปตาม `joinedAt`
   - `backend/routes/party.js` (mount ที่ `/api/party`)
-    - `GET /api/party` → ปาร์ตี้ปัจจุบัน (`{ party: null }` ถ้ายังไม่ได้เข้าร่วมอะไร) พร้อม**รายละเอียดอีเวนต์เต็ม** + ลิสต์สมาชิก
-    - `POST /api/party/join/:questId` → 400 ถ้าไม่ใช่ party quest, 409 ถ้าเข้าร่วมแล้ว / อยู่ปาร์ตี้อื่นอยู่ / อีเวนต์เต็ม
-    - `POST /api/party/leave`
-  - `Quest` model เพิ่มฟิลด์อีเวนต์: `eventDate`, `location`, `capacity` (0 = ไม่จำกัด)
-    และ `GET /api/quests` ส่ง `joinedCount` / `hasJoined` มาให้การ์ดใช้ด้วย
-  - **กันโกงคะแนน**: `POST /api/quests/:id/complete` ของ party quest จะต้อง**เข้าร่วมก่อน** และ**ทำได้ครั้งเดียว**
-  - ฝั่งแอพ: `PartyProvider` + `PartyService` (`lib/providers/party_provider.dart`, `lib/services/party_service.dart`)
-    โหลดครั้งเดียวใน `MainShell.initState` เหมือน quest/achievement
-  - หน้า Party แสดง **การ์ดรายละเอียดอีเวนต์ที่กำลังทำอยู่** (รูปปก, สถานที่, วันเวลา, `n / capacity` คน, คำอธิบาย, รางวัล P/XP/CO₂)
-    ต่อด้วยลิสต์สมาชิก (leader อยู่บนสุด กดดูโปรไฟล์ได้) แล้วปุ่ม "I joined this event" + "Leave Party"
-  - ปุ่มบนการ์ด party quest ในหน้า Explore/Home เปลี่ยนตามสถานะเป็น `Join` / `Joined` / `Full` และกดแล้ว**เข้าร่วม** ไม่ใช่กดจบ quest
-  - party quest สำหรับทดสอบ 3 อัน seed ไว้แล้ว: Community Cleanup, Tree Planting Day, Neighborhood Recycling Drive
-    เขียนวันที่เป็น `daysFromNow` + `eventTime` ในไฟล์ seed จะได้ไม่ต้องแก้วันที่ทุกครั้งที่ demo
+    - `GET /api/party` → ห้องที่ฉันอยู่ตอนนี้ (`{ party: null }` ถ้ายังไม่ได้เข้าห้องไหน)
+    - `GET /api/party/rooms` → ลิสต์ห้องที่ยังเปิดรับสมาชิกอยู่ (`status: 'open'`) ให้เลือกเข้าร่วม
+    - `POST /api/party` → สร้างห้องใหม่จาก party quest — เช็ค `quest.minLevelToHost` ด้วย (ใช้จริงแล้ว ไม่ใช่ dead field)
+    - `POST /api/party/join/:partyId`, `POST /api/party/leave` (leave ตอนห้อง completed = แค่ dismiss)
+    - **`POST /api/party/complete`** — **เฉพาะหัวหน้าห้องกดได้** ทุกคนในห้อง (รวมหัวหน้า) ได้ P/XP พร้อมกัน
+      ล็อกสถานะเป็น `completed` แบบ atomic (`findOneAndUpdate` เช็ค `status: 'open'` ไปด้วย) กันกดซ้ำได้คะแนนซ้ำ
+  - **party quest ทำซ้ำได้วันละครั้งต่อคน** (เหมือน quest รายวัน ใช้ตัดเที่ยงคืน JST เดียวกัน) — ใครทำไปแล้ววันนี้
+    (ไม่ว่าจะผ่านห้องไหน) จะไม่ได้คะแนนซ้ำถ้าหัวหน้าห้องอื่นกด complete ซ้อน
+  - เวลาตัดวันแยกออกมาเป็น `backend/utils/questDay.js` ให้ `routes/quests.js` และ `routes/party.js` เรียกใช้ร่วมกัน
+  - `Quest.eventDate` **ถูกลบออกแล้ว** — วันเวลานัดหมายอยู่ที่ `Party.eventDate` (แต่ละห้องนัดคนละเวลากันได้)
+    `Quest.location`/`capacity` เหลือไว้เป็นแค่ **ค่า default ให้ฟอร์มสร้างห้องดึงไปเติม**
+  - `GET /api/quests` ไม่ส่ง `joinedCount`/`hasJoined` แล้ว (ความหมายเดิมหายไปเพราะไม่มี "เข้าร่วม quest ตรงๆ")
+    ส่ง `openPartyCount` (มีกี่ห้องเปิดอยู่) และ `minLevelToHost` แทน
+  - ฝั่งแอพ: `PartyProvider` ถือทั้ง "ห้องของฉัน" และ "ลิสต์ห้องให้เลือก" (`lib/providers/party_provider.dart`)
+    โหลดทั้งคู่ใน `MainShell.initState` เหมือน quest/achievement
+  - **หน้า Party มี 3 สถานะ** (`lib/pages/party/party_page.dart`):
+    1. ยังไม่มีห้อง → `_RoomBrowser` (ปุ่ม "Create Party" + ลิสต์ห้องเปิดให้ join)
+    2. อยู่ห้องที่ `status: open` → การ์ดรายละเอียดห้อง + รายชื่อสมาชิก + **หัวหน้าเห็นปุ่ม "Complete Event"
+       ส่วนสมาชิกทั่วไปเห็นแค่ป้าย "Waiting for the leader..."** (ตรงนี้คือจุดที่ `isLeader` เริ่มมีผลกับ UI จริงๆ)
+       ทั้งคู่กด "Leave Party" ได้เสมอ
+    3. หัวหน้ากด complete แล้ว (`status: completed`) → แบนเนอร์สรุปรางวัลค้างไว้ให้เห็นก่อน แล้วกด "Back to Parties"
+       (= dismiss ผ่าน `POST /party/leave` ตัวเดิม) ถึงจะไปสร้าง/เข้าร่วมห้องใหม่ได้
+  - **หน้าสร้างห้องใหม่** `lib/pages/party/create_party_page.dart` (route `/party/create`, หรือ push พร้อม quest
+    preselect จากปุ่ม "Create Party" บนการ์ดใน Explore/Home) — เลือกเควส (ถ้ายังไม่เลือกมา) → กรอกชื่อห้อง/วันเวลา
+    (`showDatePicker`+`showTimePicker`)/สถานที่/จำนวนคนรับ (ดึงค่า default จาก quest ให้)
+  - ปุ่มบนการ์ด party quest ในหน้า Explore/Home เปลี่ยนเป็น **"Create Party"** เสมอ (ไม่มี Join/Joined/Full
+    ที่การ์ดแล้ว เพราะ join ทำที่ห้อง ไม่ใช่ที่ quest) กดแล้วพาไปหน้าสร้างห้องเลย
+  - party quest สำหรับทดสอบ 3 อัน seed ไว้แล้ว (ไม่มี `eventDate` ในไฟล์ seed แล้ว — อันนั้นเป็นของห้อง):
+    Community Cleanup, Tree Planting Day, Neighborhood Recycling Drive
 
 ### ยังเป็น placeholder / mock ทั้งหมด (มี `// TODO` กำกับในโค้ดแล้ว)
 - **การ์ด "Upgrade your Ability"** ในหน้า Profile ยัง mock อยู่ — ยังไม่มี model/endpoint ของ upgrade ฝั่ง backend เลย
@@ -301,8 +321,9 @@ backend พร้อม deploy แล้ว (ทดสอบว่าบูต�
 มีไว้เพราะบางเน็ต เช่น **wifi มหาลัย ต่อ MongoDB Atlas จากเครื่องตัวเองไม่ได้** (ไม่อยู่ใน IP whitelist)
 เลยรัน `npm run seed:quests` เองไม่ได้ → ให้ server บน Render seed ให้แทนตอน deploy
 ปิดได้ด้วย env `SEED_QUESTS_ON_BOOT=false` และ seed พังจะไม่ทำให้ API ล่ม (แค่ log warning)
-⚠️ ผลข้างเคียง: `eventDate` ของ party quest จะถูกเลื่อนใหม่ทุกครั้งที่ server สตาร์ท (เพราะคิดจาก `daysFromNow`)
-   ซึ่งดีสำหรับ demo — วันอีเวนต์จะไม่มีทางเป็นอดีต
+เดียวกันตอน boot ยังล้าง `PartyMember` รุ่นเก่าที่ผูกกับ `questId` ตรงๆ (ก่อนมีห้อง/`Party` แยก) ทิ้งด้วย
+(idempotent รันซ้ำได้) party quest ในไฟล์ seed **ไม่มี `eventDate` แล้ว** เพราะวันเวลานัดหมายย้ายไปอยู่ที่
+`Party.eventDate` ของแต่ละห้องแทน (ผู้เล่นกรอกเองตอนสร้างห้อง) — restart ถี่แค่ไหนก็ไม่กระทบวันที่ในห้องที่มีอยู่แล้ว
 
 ## 7. งานถัดไปที่แนะนำ (เรียงตามลำดับที่ควรทำ)
 
@@ -310,11 +331,8 @@ backend พร้อม deploy แล้ว (ทดสอบว่าบูต�
    อยู่ใน cache ของแอพ มีโอกาสหายถ้าระบบเคลียร์ cache
    ต้อง copy ไฟล์ไป `getApplicationDocumentsDirectory()` ตอนถ่ายเสร็จ (หรือทำ upload ขึ้น server/cloud ไปเลย)
    ⚠️ ลงไม่ได้ตอนนี้ถ้า Flutter ในเครื่องเก่ากว่า `sdk: ^3.11.0` ที่ pubspec กำหนด — `pub get` จะ fail
-2. **ให้ผู้เล่นสร้างอีเวนต์เองได้** — ตอนนี้ party quest มาจาก seed อย่างเดียว
-   `Quest.minLevelToHost` รออยู่แล้ว เหลือทำ endpoint สร้างอีเวนต์ + หน้าฟอร์มในแอพ
-   และหน้าโปรไฟล์ของผู้เล่นคนอื่น (ตอนกดลูกศรข้างชื่อสมาชิกในหน้า Party ยังขึ้นแค่ SnackBar)
+2. **หน้าโปรไฟล์ของผู้เล่นคนอื่น** — ตอนกดลูกศร/ชื่อสมาชิกในหน้า Party ยังขึ้นแค่ SnackBar
+   "coming soon" (`_viewMemberProfile` ใน `party_page.dart`) ยังไม่มี endpoint ดึงโปรไฟล์คนอื่นเลย
 3. เขียน backend routes สำหรับ Inventory/Achievement แล้วต่อเข้ากับหน้า Inventory
    — Achievement ทำได้แล้วตอนนี้ เพราะ `QuestHistory` เริ่มมีข้อมูลจริงให้เอาไปเช็คเงื่อนไขปลดล็อก medal
-4. Season — ยังไม่มี season ตัวจริงใน DB สักอัน ทำให้ Rank ยังนับ XP ไม่ได้ (`seasonXp` = 0 ตลอด)
-   ต้อง seed season ที่ `isActive: true` สักอันก่อน Rank ถึงจะเริ่มขยับ
-5. endpoint การแจ้งเตือน แทน `mockNotifications` (ยังไม่มี model ฝั่ง backend เลย)
+4. endpoint การแจ้งเตือน แทน `mockNotifications` (ยังไม่มี model ฝั่ง backend เลย)

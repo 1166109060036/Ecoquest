@@ -14,7 +14,8 @@ class QuestDetailPage extends StatelessWidget {
   _CategoryStyle get _style {
     switch (quest.category) {
       case QuestCardCategory.party:
-        return const _CategoryStyle('Party', Colors.deepOrange, 'Join');
+        // ต้องสร้างห้องก่อน คนอื่นถึงจะเข้าร่วมได้ — ตรงกับปุ่มบนการ์ดในหน้า Explore/Home
+        return const _CategoryStyle('Party', Colors.deepOrange, 'Create Party');
       case QuestCardCategory.event:
         return const _CategoryStyle('Event', Colors.blue, 'Join');
       case QuestCardCategory.solo:

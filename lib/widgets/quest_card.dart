@@ -14,7 +14,9 @@ class QuestCard extends StatelessWidget {
         return _CategoryStyle(
           label: 'Party',
           badgeColor: Colors.deepOrange,
-          actionLabel: 'Join',
+          // เควส party ไม่ได้กด "เข้าร่วม" ตรงนี้แล้ว — ต้องกดสร้างห้องก่อน คนอื่นถึงเข้าร่วมได้
+          // (เข้าร่วมห้องที่คนอื่นสร้างไว้ทำที่หน้า Party -> Browse Rooms แทน)
+          actionLabel: 'Create Party',
           actionColor: Colors.green,
         );
       case QuestCardCategory.event:
@@ -35,24 +37,11 @@ class QuestCard extends StatelessWidget {
     }
   }
 
-  // ป้ายบนปุ่ม + เปิด/ปิดปุ่ม — party quest มีสถานะเพิ่มจาก solo คือ "เข้าร่วมแล้ว" กับ "เต็ม"
-  String _actionLabel(_CategoryStyle style) {
-    if (quest.completedToday) return 'Done';
-    if (quest.category == QuestCardCategory.party) {
-      if (quest.hasJoined) return 'Joined';
-      if (quest.isFull) return 'Full';
-    }
-    return style.actionLabel;
-  }
+  // ป้ายบนปุ่ม — เควส party ทำซ้ำได้วันละครั้งเหมือน quest รายวัน (เช็คจาก QuestHistory
+  // ของวันนี้ ไม่ว่าจะทำผ่านห้องไหนก็ตาม) ถ้าวันนี้ทำไปแล้วก็สร้าง/เข้าร่วมห้องใหม่ไปก็ไม่ได้คะแนนซ้ำ
+  String _actionLabel(_CategoryStyle style) => quest.completedToday ? 'Done' : style.actionLabel;
 
-  // เข้าร่วมแล้วก็ไม่ต้องกดซ้ำ (ไปกดจบที่หน้า Party แทน) และเต็มแล้วก็กดไม่ได้
-  bool get _actionEnabled {
-    if (quest.completedToday) return false;
-    if (quest.category == QuestCardCategory.party) {
-      return !quest.hasJoined && !quest.isFull;
-    }
-    return true;
-  }
+  bool get _actionEnabled => !quest.completedToday;
 
   @override
   Widget build(BuildContext context) {
@@ -148,9 +137,8 @@ class QuestCard extends StatelessWidget {
                               completedToday: quest.completedToday,
                             )
                           : _PartyEventInfoRow(
-                              dateLabel: quest.dateLabel,
-                              timeLabel: quest.timeLabel,
-                              capacityLabel: quest.capacityLabel,
+                              location: quest.location,
+                              openPartyCount: quest.openPartyCount,
                             ),
                     ),
                     const SizedBox(width: 8),
@@ -273,26 +261,53 @@ class _CategoryStyle {
   });
 }
 
+// การ์ดของ party quest ไม่มีวันเวลานัดหมายของตัวเองแล้ว (แต่ละห้องนัดคนละเวลากันได้)
+// เลยโชว์แค่สถานที่ default กับจำนวนห้องที่เปิดรับอยู่ตอนนี้แทน กดเข้าไปดูห้องจริงได้ในหน้า Party
 class _PartyEventInfoRow extends StatelessWidget {
-  final String? dateLabel;
-  final String? timeLabel;
-  final String? capacityLabel;
+  final String location;
+  final int openPartyCount;
 
-  const _PartyEventInfoRow({this.dateLabel, this.timeLabel, this.capacityLabel});
+  const _PartyEventInfoRow({required this.location, required this.openPartyCount});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    // แยกเป็น 2 บรรทัด (สถานที่ / จำนวนห้อง) แทนบรรทัดเดียว เพราะพื้นที่ในการ์ด
+    // แคบมาก (โดนบีบด้วย DifficultyChip ด้านซ้ายกับปุ่ม Create Party ด้านขวา) ถ้ายัดรวมบรรทัด
+    // เดียวจะล้นจอ (RenderFlex overflow) — ทุก Text ต้องมี Flexible+ellipsis กันเหนียวไว้ด้วย
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.calendar_today, size: 11, color: Colors.grey),
-        const SizedBox(width: 3),
-        Text('$dateLabel   $timeLabel',
-            style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
-        const SizedBox(width: 10),
-        const Icon(Icons.groups, size: 12, color: Colors.grey),
-        const SizedBox(width: 3),
-        Text(capacityLabel ?? '',
-            style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+        if (location.isNotEmpty)
+          Row(
+            children: [
+              const Icon(Icons.place_outlined, size: 10, color: Colors.grey),
+              const SizedBox(width: 3),
+              Flexible(
+                child: Text(
+                  location,
+                  style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ),
+            ],
+          ),
+        const SizedBox(height: 2),
+        Row(
+          children: [
+            const Icon(Icons.groups, size: 11, color: Colors.grey),
+            const SizedBox(width: 3),
+            Flexible(
+              child: Text(
+                openPartyCount > 0 ? '$openPartyCount room${openPartyCount > 1 ? 's' : ''} open' : 'No rooms yet',
+                style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }

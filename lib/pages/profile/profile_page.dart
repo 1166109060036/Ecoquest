@@ -770,7 +770,7 @@ const _monthNames = [
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ];
 
-// ไม่ได้ลง package intl เลยจัดรูปแบบวันที่เอง — ให้หน้าตาตรงกับ dateLabel ในการ์ด quest
+// ไม่ได้ลง package intl เลยจัดรูปแบบวันที่เอง (แบบเดียวกับที่หน้า Party ใช้)
 String _formatHistoryDate(DateTime date) =>
     '${_monthNames[date.month - 1]} ${date.day}, ${date.year}';
 

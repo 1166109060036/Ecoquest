@@ -272,9 +272,10 @@ const QUESTS = [
   },
 
   // ------------------------------------------------------------------------
-  // 👥 Party quest (อีเวนต์กลุ่ม) — ต้องกด Join ก่อนถึงจะกดสำเร็จได้ และทำได้ครั้งเดียวตลอด
-  //    eventDate/location/capacity ใช้เฉพาะ quest ประเภทนี้
-  //    วันที่คิดจาก "กี่วันนับจากวันที่ seed" เพื่อให้อีเวนต์ไม่เป็นอดีตตอนเอาไปเดโม
+  // 👥 Party quest (เควสกลุ่ม) — ผู้เล่นต้อง "สร้างห้อง" จาก quest พวกนี้ก่อน คนอื่นถึงจะเข้าร่วมได้
+  //    (ดู backend/routes/party.js) ทำซ้ำได้วันละครั้งต่อคนเหมือน quest รายวันทั่วไป
+  //    location/capacity ที่ใส่ไว้เป็นแค่ค่า default ให้ฟอร์มสร้างห้องดึงไปเติม
+  //    ไม่มี eventDate ตรงนี้แล้ว เพราะวันเวลานัดเจอกันเป็นของแต่ละห้อง (Party.eventDate)
   // ------------------------------------------------------------------------
   {
     title: 'Community Cleanup',
@@ -288,8 +289,6 @@ const QUESTS = [
     impact: 'high',
     xpReward: 30,
     co2SavedKg: 2.0,
-    daysFromNow: 3,
-    eventTime: '09:00',
     location: 'Riverside Park',
     capacity: 10,
   },
@@ -305,8 +304,6 @@ const QUESTS = [
     impact: 'high',
     xpReward: 25,
     co2SavedKg: 5.0,
-    daysFromNow: 7,
-    eventTime: '10:00',
     location: 'Ebetsu City Park',
     capacity: 30,
   },
@@ -322,8 +319,6 @@ const QUESTS = [
     impact: 'medium',
     xpReward: 20,
     co2SavedKg: 1.5,
-    daysFromNow: 1,
-    eventTime: '13:00',
     location: 'Community Center',
     capacity: 15,
   },
@@ -338,20 +333,9 @@ async function seedQuests({ verbose = true } = {}) {
       const scorePoints = Quest.calculateScore(q.difficulty, q.impact);
       const isActive = q.isActive !== false;
 
-      // party quest: แปลง daysFromNow + eventTime -> eventDate จริง
-      // (เขียนเป็น "อีกกี่วัน" ในไฟล์ seed จะได้ไม่ต้องมาแก้วันที่ทุกครั้งที่ demo)
-      const { daysFromNow, eventTime, ...questFields } = q;
-      if (daysFromNow !== undefined) {
-        const [hh, mm] = (eventTime || '09:00').split(':').map(Number);
-        const date = new Date();
-        date.setDate(date.getDate() + daysFromNow);
-        date.setHours(hh, mm, 0, 0);
-        questFields.eventDate = date;
-      }
-
       const saved = await Quest.findOneAndUpdate(
         { title: q.title },
-        { ...questFields, scorePoints, isActive },
+        { ...q, scorePoints, isActive },
         { upsert: true, new: true, setDefaultsOnInsert: true }
       );
 

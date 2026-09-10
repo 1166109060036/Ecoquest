@@ -34,7 +34,9 @@ class _MainShellState extends State<MainShell> {
       questProvider.loadQuests();
       questProvider.loadHistory(); // ประวัติ quest ที่โชว์ในหน้า Profile
       context.read<AchievementProvider>().loadAchievements(); // เหรียญที่โชว์ในหน้า Inventory
-      context.read<PartyProvider>().loadParty(); // ปาร์ตี้ที่โชว์ในหน้า Party
+      final partyProvider = context.read<PartyProvider>();
+      partyProvider.loadParty(); // ห้องที่ฉันอยู่ตอนนี้ (ถ้ามี)
+      partyProvider.loadRooms(); // ลิสต์ห้องให้เลือกเข้าร่วม ตอนยังไม่มีห้อง
     });
   }
 
