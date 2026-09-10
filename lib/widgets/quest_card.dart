@@ -15,7 +15,8 @@ class QuestCard extends StatelessWidget {
           label: 'Party',
           badgeColor: Colors.deepOrange,
           // เควส party ไม่ได้กด "เข้าร่วม" ตรงนี้แล้ว — ต้องกดสร้างห้องก่อน คนอื่นถึงเข้าร่วมได้
-          // (เข้าร่วมห้องที่คนอื่นสร้างไว้ทำที่หน้า Party -> Browse Rooms แทน)
+          // (การ์ดนี้เป็นแค่ template ไม่ใช่ห้องจริง — ห้องที่เข้าร่วมได้แสดงเป็น PartyRoomCard
+          // ในลิสต์ Explore ตอนเลือก chip "Party" แทน ดู party_room_card.dart)
           actionLabel: 'Create Party',
           actionColor: Colors.green,
         );

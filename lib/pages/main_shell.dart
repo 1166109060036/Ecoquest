@@ -43,12 +43,12 @@ class _MainShellState extends State<MainShell> {
   void _navigateToTab(int index) => setState(() => _currentIndex = index);
 
   // ลำดับต้องตรงกับลำดับปุ่มใน AppBottomNavBar (Home, Inventory, Explore, Party, Profile)
-  // HomePage ต้อง build ใหม่ทุกครั้ง (ไม่ใช่ static const) เพราะต้องส่ง callback
-  // _navigateToTab เข้าไปให้แผ่น Explore ที่ลากได้ใช้สลับ tab ตอนลากสุดขอบ
+  // HomePage/ExplorePage/PartyPage ต้อง build ใหม่ทุกครั้ง (ไม่ใช่ static const) เพราะต้องส่ง
+  // callback _navigateToTab เข้าไปให้ใช้สลับ tab (ลากสุดขอบ / สร้าง-เข้าร่วมห้องแล้วพาไปแท็บ Party)
   List<Widget> get _pages => [
         HomePage(onNavigateToTab: _navigateToTab),
         InventoryPage(onNavigateToTab: _navigateToTab),
-        const ExplorePage(),
+        ExplorePage(onNavigateToTab: _navigateToTab),
         PartyPage(onNavigateToTab: _navigateToTab),
         const ProfilePage(),
       ];

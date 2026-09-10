@@ -1,29 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../models/party_model.dart';
 import '../../models/quest_card_model.dart';
-import '../../utils/quest_completion.dart';
+import '../../providers/party_provider.dart';
 import '../../providers/quest_provider.dart';
+import '../../utils/party_actions.dart';
+import '../../utils/quest_completion.dart';
+import '../../widgets/party_room_card.dart';
 import '../../widgets/quest_card.dart';
-import '../party/create_party_page.dart';
 import 'quest_detail_page.dart';
 
 // หน้า Explore เต็มจอ — เจอได้ 2 ทาง: กด "Explore" ที่ bottom nav ตรงๆ
 // หรือลากแผ่น Explore ในหน้า Home ขึ้นสุดจอ (ซึ่งจะสลับมาที่แท็บนี้)
 // เหมือนกับแผ่น Explore ใน Home แต่มีพื้นที่เต็มจอ เลยเพิ่มช่องค้นหาเข้ามาด้วย
+//
+// chip "Party" ไม่ได้แสดง party quest template แล้ว — แสดง "ห้อง" ที่มีคนสร้างไว้จริง
+// ให้กดเข้าร่วมได้เลย (ตัว quest template เจอได้เฉพาะตอนกด + สร้างห้องใหม่เท่านั้น)
 class ExplorePage extends StatefulWidget {
-  const ExplorePage({super.key});
+  // MainShell ส่ง callback นี้เข้ามาเพื่อสลับ tab ของ bottom nav (พาไปแท็บ Party หลังสร้าง/เข้าร่วมห้อง)
+  final ValueChanged<int>? onNavigateToTab;
+
+  const ExplorePage({super.key, this.onNavigateToTab});
 
   @override
   State<ExplorePage> createState() => _ExplorePageState();
 }
 
 class _ExplorePageState extends State<ExplorePage> {
+  // ลำดับ index ต้องตรงกับ AppBottomNavBar (Home=0, Inventory=1, Explore=2, Party=3, Profile=4)
+  static const int _partyTabIndex = 3;
+
   String _selectedFilter = 'All';
   String _searchQuery = '';
   static const _filters = ['All', 'Solo', 'Party', 'Event'];
 
   List<QuestCardModel> _filterQuests(List<QuestCardModel> all) {
-    var quests = all;
+    // party quest เป็นแค่ template สร้างห้อง — ไม่โผล่เป็นการ์ดให้กดในลิสต์นี้แล้ว
+    var quests = all.where((q) => q.category != QuestCardCategory.party).toList();
+
+    // chip "Party" มีแต่ห้อง ไม่มีเควสเดี่ยวปนอยู่
+    if (_selectedFilter == 'Party') return [];
 
     if (_selectedFilter != 'All') {
       final category = QuestCardCategory.values.firstWhere(
@@ -44,7 +60,26 @@ class _ExplorePageState extends State<ExplorePage> {
     return quests;
   }
 
-  Future<void> _onRefresh() => context.read<QuestProvider>().loadQuests();
+  List<PartyRoomModel> _filterRooms(List<PartyRoomModel> all) {
+    // chip "Solo"/"Event" ไม่มีห้องปาร์ตี้ปนอยู่
+    if (_selectedFilter == 'Solo' || _selectedFilter == 'Event') return [];
+
+    var rooms = all;
+    if (_searchQuery.trim().isNotEmpty) {
+      final query = _searchQuery.trim().toLowerCase();
+      rooms = rooms
+          .where((r) =>
+              r.name.toLowerCase().contains(query) ||
+              r.quest.title.toLowerCase().contains(query))
+          .toList();
+    }
+    return rooms;
+  }
+
+  Future<void> _onRefresh() => Future.wait([
+        context.read<QuestProvider>().loadQuests(),
+        context.read<PartyProvider>().loadRooms(),
+      ]);
 
   // ใช้ MaterialPageRoute แทน named route เพราะต้องส่ง object quest เข้าไปทั้งก้อน
   // (ถ้าใช้ named route ต้องยัดผ่าน settings.arguments แล้ว cast เอง ซึ่งพังง่ายกว่า)
@@ -58,16 +93,6 @@ class _ExplorePageState extends State<ExplorePage> {
   }
 
   Future<void> _onStartQuest(QuestCardModel quest) async {
-    // party quest: ปุ่มคือ "Create Party" — ต้องสร้างห้องก่อน คนอื่นถึงจะเข้าร่วมได้
-    // (เข้าร่วมห้องที่คนอื่นสร้างไว้แล้วทำที่หน้า Party -> Browse Rooms แทน)
-    if (quest.category == QuestCardCategory.party) {
-      await Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => CreatePartyPage(preselectedQuest: quest)),
-      );
-      return;
-    }
-
     // quest ที่ต้องทำ action จริงก่อน — พาไปหน้านั้นแทนการกดจบ quest ทันที
     // (ถ้าเรียก complete ตรงนี้เลย backend จะปฏิเสธอยู่ดีเพราะยังไม่ได้ทำ action)
     if (quest.actionKey == 'fridge_check') {
@@ -92,13 +117,43 @@ class _ExplorePageState extends State<ExplorePage> {
     await handleQuestCompleted(context, reward);
   }
 
+  Future<void> _joinRoom(PartyRoomModel room) async {
+    await joinPartyRoom(
+      context,
+      room,
+      onJoined: () => widget.onNavigateToTab?.call(_partyTabIndex),
+    );
+  }
+
+  Future<void> _createParty() async {
+    final created = await Navigator.pushNamed(context, '/party/create');
+    if (created == true && mounted) widget.onNavigateToTab?.call(_partyTabIndex);
+  }
+
   @override
   Widget build(BuildContext context) {
     final questProvider = context.watch<QuestProvider>();
+    final partyProvider = context.watch<PartyProvider>();
     final quests = _filterQuests(questProvider.quests);
+    final rooms = _filterRooms(partyProvider.rooms);
+    final myPartyId = partyProvider.party?.id;
+    // ห้องขึ้นก่อนเควส เพราะเป็นอีเวนต์ที่มีกำหนดเวลา ส่วนเควสเดี่ยวทำเมื่อไหร่ก็ได้
+    final items = <Object>[...rooms, ...quests];
+
+    final isLoading = (questProvider.isLoading || partyProvider.isLoadingRooms) && items.isEmpty;
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
+      // FAB สร้างห้องปาร์ตี้ — โผล่เฉพาะตอนเลือก chip "Party" เท่านั้น
+      floatingActionButton: _selectedFilter == 'Party'
+          ? FloatingActionButton.extended(
+              onPressed: _createParty,
+              backgroundColor: Colors.green,
+              icon: const Icon(Icons.add, color: Colors.white),
+              label: const Text('Create Party',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+            )
+          : null,
       body: SafeArea(
         child: Column(
           children: [
@@ -171,9 +226,9 @@ class _ExplorePageState extends State<ExplorePage> {
             ),
             const SizedBox(height: 8),
             Expanded(
-              child: questProvider.isLoading && questProvider.quests.isEmpty
+              child: isLoading
                   ? const Center(child: CircularProgressIndicator(color: Colors.green))
-                  : quests.isEmpty
+                  : items.isEmpty
                       ? RefreshIndicator(
                           onRefresh: _onRefresh,
                           color: Colors.green,
@@ -184,7 +239,10 @@ class _ExplorePageState extends State<ExplorePage> {
                               SizedBox(height: MediaQuery.of(context).size.height * 0.15),
                               _EmptyState(
                                 query: _searchQuery,
-                                errorMessage: questProvider.errorMessage,
+                                isPartyFilter: _selectedFilter == 'Party',
+                                errorMessage: _selectedFilter == 'Party'
+                                    ? partyProvider.roomsErrorMessage
+                                    : questProvider.errorMessage,
                               ),
                             ],
                           ),
@@ -193,11 +251,20 @@ class _ExplorePageState extends State<ExplorePage> {
                           onRefresh: _onRefresh,
                           color: Colors.green,
                           child: ListView.separated(
-                            padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-                            itemCount: quests.length,
+                            // เผื่อพื้นที่ด้านล่างให้ FAB ไม่บังการ์ดใบสุดท้าย
+                            padding: EdgeInsets.fromLTRB(20, 4, 20, _selectedFilter == 'Party' ? 88 : 20),
+                            itemCount: items.length,
                             separatorBuilder: (_, __) => const SizedBox(height: 12),
                             itemBuilder: (context, index) {
-                              final quest = quests[index];
+                              final item = items[index];
+                              if (item is PartyRoomModel) {
+                                return PartyRoomCard(
+                                  room: item,
+                                  isJoined: item.id == myPartyId,
+                                  onJoin: () => _joinRoom(item),
+                                );
+                              }
+                              final quest = item as QuestCardModel;
                               return QuestCard(
                                 quest: quest,
                                 onAction: () => _onStartQuest(quest),
@@ -216,13 +283,30 @@ class _ExplorePageState extends State<ExplorePage> {
 
 class _EmptyState extends StatelessWidget {
   final String query;
-  final String? errorMessage; // โหลด quest ไม่สำเร็จ (เน็ตหลุด/server ล่ม) — คนละเคสกับ "ไม่มี quest"
+  final bool isPartyFilter;
+  final String? errorMessage; // โหลดไม่สำเร็จ (เน็ตหลุด/server ล่ม) — คนละเคสกับ "ไม่มีอะไรให้แสดง"
 
-  const _EmptyState({required this.query, this.errorMessage});
+  const _EmptyState({required this.query, required this.isPartyFilter, this.errorMessage});
 
   @override
   Widget build(BuildContext context) {
     final failed = errorMessage != null;
+
+    final String message;
+    final String? hint;
+    if (failed) {
+      message = errorMessage!;
+      hint = 'Pull down to try again';
+    } else if (isPartyFilter) {
+      message = 'No party rooms open right now';
+      hint = 'Tap + to create one';
+    } else if (query.trim().isNotEmpty) {
+      message = 'No quests found for "$query"';
+      hint = null;
+    } else {
+      message = 'No quests in this category';
+      hint = null;
+    }
 
     return Center(
       child: Padding(
@@ -231,26 +315,19 @@ class _EmptyState extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              failed ? Icons.cloud_off : Icons.search_off,
+              failed ? Icons.cloud_off : (isPartyFilter ? Icons.groups_outlined : Icons.search_off),
               size: 48,
               color: Colors.grey.shade400,
             ),
             const SizedBox(height: 12),
             Text(
-              failed
-                  ? errorMessage!
-                  : query.trim().isEmpty
-                      ? 'No quests in this category'
-                      : 'No quests found for "$query"',
+              message,
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
             ),
-            if (failed) ...[
+            if (hint != null) ...[
               const SizedBox(height: 6),
-              Text(
-                'Pull down to try again',
-                style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
-              ),
+              Text(hint, style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
             ],
           ],
         ),

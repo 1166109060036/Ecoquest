@@ -206,18 +206,23 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
     ส่ง `openPartyCount` (มีกี่ห้องเปิดอยู่) และ `minLevelToHost` แทน
   - ฝั่งแอพ: `PartyProvider` ถือทั้ง "ห้องของฉัน" และ "ลิสต์ห้องให้เลือก" (`lib/providers/party_provider.dart`)
     โหลดทั้งคู่ใน `MainShell.initState` เหมือน quest/achievement
-  - **หน้า Party มี 3 สถานะ** (`lib/pages/party/party_page.dart`):
-    1. ยังไม่มีห้อง → `_RoomBrowser` (ปุ่ม "Create Party" + ลิสต์ห้องเปิดให้ join)
+  - **หน้า Explore คือที่เดียวที่เจอ/เข้าร่วมห้องได้** (`lib/pages/explore/explore_page.dart`)
+    chip "Party" แสดง **ห้องที่มีคนสร้างไว้แล้ว** เป็น `PartyRoomCard` (`lib/widgets/party_room_card.dart`,
+    หน้าตาก็อปแบบ `QuestCard` ให้เหมือนกันเป๊ะเพราะโชว์ปนกันตอนเลือก chip "All") **ไม่ใช่ party quest template
+    เหมือนก่อนหน้านี้** — เควส party ตัวเทมเพลตไม่โผล่เป็นการ์ดให้กดในหน้า Explore อีกต่อไป จะเจอได้เฉพาะตอน
+    กด + สร้างห้องเท่านั้น ปุ่ม **Create Party (FAB มุมขวาล่าง)** โผล่เฉพาะตอนเลือก chip "Party"
+    แผ่น Explore ที่ลากขึ้นจากหน้า Home (`_ExploreSheet` ใน `home_page.dart`) แสดงห้องแบบเดียวกัน แต่ไม่มี FAB
+    (ไม่ใช่ `Scaffold` เลยใส่ FAB ไม่ได้ — สร้างห้องได้จากแท็บ Explore เต็มจอเท่านั้น)
+  - **หน้า Party เหลือแค่ "ห้องของฉัน"** (`lib/pages/party/party_page.dart`) มี 2 สถานะ:
+    1. ยังไม่อยู่ห้องไหน → ป้ายว่าง + ปุ่ม "Browse Parties" พาไปแท็บ Explore
     2. อยู่ห้องที่ `status: open` → การ์ดรายละเอียดห้อง + รายชื่อสมาชิก + **หัวหน้าเห็นปุ่ม "Complete Event"
        ส่วนสมาชิกทั่วไปเห็นแค่ป้าย "Waiting for the leader..."** (ตรงนี้คือจุดที่ `isLeader` เริ่มมีผลกับ UI จริงๆ)
-       ทั้งคู่กด "Leave Party" ได้เสมอ
-    3. หัวหน้ากด complete แล้ว (`status: completed`) → แบนเนอร์สรุปรางวัลค้างไว้ให้เห็นก่อน แล้วกด "Back to Parties"
-       (= dismiss ผ่าน `POST /party/leave` ตัวเดิม) ถึงจะไปสร้าง/เข้าร่วมห้องใหม่ได้
-  - **หน้าสร้างห้องใหม่** `lib/pages/party/create_party_page.dart` (route `/party/create`, หรือ push พร้อม quest
-    preselect จากปุ่ม "Create Party" บนการ์ดใน Explore/Home) — เลือกเควส (ถ้ายังไม่เลือกมา) → กรอกชื่อห้อง/วันเวลา
-    (`showDatePicker`+`showTimePicker`)/สถานที่/จำนวนคนรับ (ดึงค่า default จาก quest ให้)
-  - ปุ่มบนการ์ด party quest ในหน้า Explore/Home เปลี่ยนเป็น **"Create Party"** เสมอ (ไม่มี Join/Joined/Full
-    ที่การ์ดแล้ว เพราะ join ทำที่ห้อง ไม่ใช่ที่ quest) กดแล้วพาไปหน้าสร้างห้องเลย
+       ทั้งคู่กด "Leave Party" ได้เสมอ; ห้อง `status: completed` → แบนเนอร์สรุปรางวัลค้างไว้ให้เห็นก่อน แล้วกด
+       "Back to Parties" (= dismiss ผ่าน `POST /party/leave` ตัวเดิม) ถึงจะไปสร้าง/เข้าร่วมห้องใหม่ได้
+  - **หน้าสร้างห้องใหม่** `lib/pages/party/create_party_page.dart` (route `/party/create`, เข้าได้ทางเดียว
+    คือกด FAB ในหน้า Explore) — เลือกเควส party → กรอกชื่อห้อง/วันเวลา (`showDatePicker`+`showTimePicker`)/
+    สถานที่/จำนวนคนรับ (ดึงค่า default จาก quest ให้) สร้างสำเร็จจะ pop กลับพร้อม `true` ให้ Explore
+    สลับไปแท็บ Party ให้อัตโนมัติ
   - party quest สำหรับทดสอบ 3 อัน seed ไว้แล้ว (ไม่มี `eventDate` ในไฟล์ seed แล้ว — อันนั้นเป็นของห้อง):
     Community Cleanup, Tree Planting Day, Neighborhood Recycling Drive
 

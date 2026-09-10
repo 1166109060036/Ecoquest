@@ -4,17 +4,18 @@ import '../../models/party_model.dart';
 import '../../providers/party_provider.dart';
 import '../../providers/quest_provider.dart';
 import '../../utils/constants.dart';
+import '../../utils/date_format.dart';
 import '../../utils/quest_completion.dart';
-import 'create_party_page.dart';
 
-// หน้า Party — 3 สถานะ:
-//  1) ยังไม่อยู่ห้องไหน -> _RoomBrowser (ลิสต์ห้องเปิดให้เข้าร่วม + ปุ่มสร้างห้องใหม่)
-//  2) อยู่ในห้องที่ยัง open -> _PartyView (รายละเอียดอีเวนต์ + สมาชิก + ปุ่ม Complete/Leave)
-//  3) หัวหน้ากดจบอีเวนต์แล้ว (status completed) -> แบนเนอร์สรุปรางวัล + ปุ่ม dismiss
+// หน้า Party — โชว์แค่ "ห้องของฉัน" เท่านั้น (ไม่มีลิสต์ห้องให้เลือกเข้าร่วมแล้ว
+// ย้ายไปอยู่หน้า Explore ตอนเลือก chip "Party" แทน ดู explore_page.dart + party_room_card.dart)
+// มี 2 สถานะ:
+//  1) ยังไม่อยู่ห้องไหน -> _NoPartyState (พาไปหน้า Explore เพื่อหา/สร้างห้อง)
+//  2) อยู่ในห้อง -> _PartyView (ยัง open) หรือ _CompletedView (หัวหน้ากดจบแล้ว)
 //
-// ข้อมูลจริงจาก GET /api/party (ห้องของฉัน) และ GET /api/party/rooms (ลิสต์ห้องให้เลือก)
+// ข้อมูลจริงจาก GET /api/party
 class PartyPage extends StatefulWidget {
-  // MainShell ส่ง callback นี้เข้ามาเพื่อสลับ tab ของ bottom nav (ปุ่มย้อนกลับ)
+  // MainShell ส่ง callback นี้เข้ามาเพื่อสลับ tab ของ bottom nav (ปุ่มย้อนกลับ / ไป Explore)
   final ValueChanged<int>? onNavigateToTab;
 
   const PartyPage({super.key, this.onNavigateToTab});
@@ -26,35 +27,15 @@ class PartyPage extends StatefulWidget {
 class _PartyPageState extends State<PartyPage> {
   // ลำดับ index ต้องตรงกับ AppBottomNavBar (Home=0, Inventory=1, Explore=2, Party=3, Profile=4)
   static const int _homeTabIndex = 0;
+  static const int _exploreTabIndex = 2;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final partyProvider = context.read<PartyProvider>();
-      partyProvider.loadParty();
-      partyProvider.loadRooms();
+      context.read<PartyProvider>().loadParty();
     });
-  }
-
-  Future<void> _createParty() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const CreatePartyPage()),
-    );
-  }
-
-  Future<void> _joinRoom(PartyRoomModel room) async {
-    final partyProvider = context.read<PartyProvider>();
-    final ok = await partyProvider.join(room.id);
-    if (!mounted) return;
-
-    if (!ok) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(partyProvider.errorMessage ?? 'Failed to join this party')),
-      );
-    }
   }
 
   Future<void> _confirmLeaveParty() async {
@@ -192,14 +173,9 @@ class _PartyPageState extends State<PartyPage> {
                       child: partyProvider.isLoading && party == null
                           ? const Center(child: CircularProgressIndicator(color: Colors.white70))
                           : party == null
-                              ? _RoomBrowser(
-                                  rooms: partyProvider.rooms,
-                                  isLoading: partyProvider.isLoadingRooms,
-                                  errorMessage: partyProvider.roomsErrorMessage,
-                                  isBusy: partyProvider.isBusy,
-                                  onRefresh: partyProvider.loadRooms,
-                                  onCreate: _createParty,
-                                  onJoin: _joinRoom,
+                              ? _NoPartyState(
+                                  errorMessage: partyProvider.errorMessage,
+                                  onBrowse: () => widget.onNavigateToTab?.call(_exploreTabIndex),
                                 )
                               : party.isCompleted
                                   ? _CompletedView(party: party, onDismiss: _leaveParty)
@@ -223,84 +199,13 @@ class _PartyPageState extends State<PartyPage> {
 }
 
 // ---------------------------------------------------------------------------
-// สถานะ 1: ยังไม่อยู่ห้องไหน — ลิสต์ห้องที่เปิดรับอยู่ + ปุ่มสร้างห้องใหม่
+// สถานะ 1: ยังไม่อยู่ห้องไหน — พาไปหน้า Explore เพื่อหา/สร้างห้อง (ไม่มีลิสต์ห้องในหน้านี้แล้ว)
 // ---------------------------------------------------------------------------
-class _RoomBrowser extends StatelessWidget {
-  final List<PartyRoomModel> rooms;
-  final bool isLoading;
+class _NoPartyState extends StatelessWidget {
   final String? errorMessage;
-  final bool isBusy;
-  final Future<void> Function() onRefresh;
-  final VoidCallback onCreate;
-  final ValueChanged<PartyRoomModel> onJoin;
+  final VoidCallback onBrowse;
 
-  const _RoomBrowser({
-    required this.rooms,
-    required this.isLoading,
-    required this.errorMessage,
-    required this.isBusy,
-    required this.onRefresh,
-    required this.onCreate,
-    required this.onJoin,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: onCreate,
-            icon: const Icon(Icons.add),
-            label: const Text('Create Party', style: TextStyle(fontWeight: FontWeight.w600)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        Expanded(
-          child: isLoading && rooms.isEmpty
-              ? const Center(child: CircularProgressIndicator(color: Colors.white70))
-              : RefreshIndicator(
-                  onRefresh: onRefresh,
-                  color: Colors.green,
-                  child: rooms.isEmpty
-                      ? ListView(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          children: [
-                            SizedBox(height: MediaQuery.of(context).size.height * 0.12),
-                            _EmptyRooms(errorMessage: errorMessage),
-                          ],
-                        )
-                      : ListView.separated(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          itemCount: rooms.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 10),
-                          itemBuilder: (context, index) {
-                            final room = rooms[index];
-                            return _RoomTile(
-                              room: room,
-                              isBusy: isBusy,
-                              onJoin: () => onJoin(room),
-                            );
-                          },
-                        ),
-                ),
-        ),
-      ],
-    );
-  }
-}
-
-class _EmptyRooms extends StatelessWidget {
-  final String? errorMessage;
-  const _EmptyRooms({this.errorMessage});
+  const _NoPartyState({required this.errorMessage, required this.onBrowse});
 
   @override
   Widget build(BuildContext context) {
@@ -313,87 +218,35 @@ class _EmptyRooms extends StatelessWidget {
           children: [
             Icon(
               failed ? Icons.cloud_off : Icons.groups_outlined,
-              size: 48,
+              size: 56,
               color: Colors.white.withValues(alpha: 0.6),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Text(
-              failed ? errorMessage! : 'No party rooms open right now',
+              failed ? errorMessage! : "You're not in a party yet",
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white70, fontSize: 14),
+              style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 6),
             Text(
-              failed ? 'Pull down to try again' : 'Be the first to create one!',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12),
+              failed ? 'Pull down to try again' : 'Browse open parties in the Explore tab',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: onBrowse,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+              ),
+              child: const Text('Browse Parties', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _RoomTile extends StatelessWidget {
-  final PartyRoomModel room;
-  final bool isBusy;
-  final VoidCallback onJoin;
-
-  const _RoomTile({required this.room, required this.isBusy, required this.onJoin});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.38),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(room.name,
-                    style: const TextStyle(
-                        color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 2),
-                Text(room.quest.title,
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12)),
-                const SizedBox(height: 6),
-                _InfoLine(icon: Icons.calendar_today_outlined, text: _formatEventDate(room.eventDate)),
-                const SizedBox(height: 4),
-                _InfoLine(
-                  icon: Icons.place_outlined,
-                  text: room.location.isEmpty ? 'Location to be announced' : room.location,
-                ),
-                const SizedBox(height: 4),
-                _InfoLine(
-                  icon: Icons.groups_outlined,
-                  text: room.capacity > 0
-                      ? '${room.memberCount} / ${room.capacity} joined'
-                      : '${room.memberCount} joined',
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          ElevatedButton(
-            onPressed: (isBusy || room.isFull) ? null : onJoin,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
-              disabledBackgroundColor: Colors.grey.shade700,
-              elevation: 0,
-              minimumSize: const Size(0, 32),
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            ),
-            child: Text(room.isFull ? 'Full' : 'Join', style: const TextStyle(fontSize: 12)),
-          ),
-        ],
       ),
     );
   }
@@ -668,7 +521,7 @@ class _EventCard extends StatelessWidget {
                   text: party.location.isEmpty ? 'Location to be announced' : party.location,
                 ),
                 const SizedBox(height: 6),
-                _InfoLine(icon: Icons.calendar_today_outlined, text: _formatEventDate(party.eventDate)),
+                _InfoLine(icon: Icons.calendar_today_outlined, text: formatEventDateTime(party.eventDate)),
                 const SizedBox(height: 6),
                 _InfoLine(
                   icon: Icons.groups_outlined,
@@ -782,18 +635,6 @@ class _RewardChip extends StatelessWidget {
       child: Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700)),
     );
   }
-}
-
-const _monthNames = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-];
-
-// ไม่ได้ลง intl เลยจัดรูปแบบเอง — เช่น "Sep 13, 2026 · 09:00"
-String _formatEventDate(DateTime date) {
-  final hh = date.hour.toString().padLeft(2, '0');
-  final mm = date.minute.toString().padLeft(2, '0');
-  return '${_monthNames[date.month - 1]} ${date.day}, ${date.year}  ·  $hh:$mm';
 }
 
 // การ์ดกระจกโปร่งใส ใช้ซ้ำทั้งหน้า (สไตล์เดียวกับหน้า Profile/Settings)

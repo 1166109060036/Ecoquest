@@ -2,12 +2,15 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import '../../models/party_model.dart';
 import '../../models/quest_card_model.dart';
-import '../../utils/quest_completion.dart';
+import '../../providers/party_provider.dart';
 import '../../providers/quest_provider.dart';
+import '../../utils/party_actions.dart';
+import '../../utils/quest_completion.dart';
+import '../../widgets/party_room_card.dart';
 import '../../widgets/quest_card.dart';
 import '../explore/quest_detail_page.dart';
-import '../party/create_party_page.dart';
 import '../profile/profile_page.dart';
 
 // Home = หน้า Profile จริง (เต็มจอ) เป็นพื้นหลัง + แผ่น "Explore" ลอยทับด้านล่าง
@@ -162,6 +165,7 @@ class _HomePageState extends State<HomePage>
                 onHandleDragUpdate: (details) =>
                     _onHandleDragUpdate(details, screenHeight),
                 onHandleDragEnd: _onHandleDragEnd,
+                onNavigateToTab: widget.onNavigateToTab,
               ),
             ),
           ),
@@ -179,12 +183,15 @@ class _ExploreSheet extends StatefulWidget {
   final AnimationController extentController;
   final void Function(DragUpdateDetails) onHandleDragUpdate;
   final void Function(DragEndDetails) onHandleDragEnd;
+  // MainShell ส่งต่อมาจาก HomePage เพื่อพาไปแท็บ Party หลังสร้าง/เข้าร่วมห้องสำเร็จ
+  final ValueChanged<int>? onNavigateToTab;
 
   const _ExploreSheet({
     required this.restExtent,
     required this.extentController,
     required this.onHandleDragUpdate,
     required this.onHandleDragEnd,
+    this.onNavigateToTab,
   });
 
   @override
@@ -192,18 +199,38 @@ class _ExploreSheet extends StatefulWidget {
 }
 
 class _ExploreSheetState extends State<_ExploreSheet> {
+  // ลำดับ index ต้องตรงกับ AppBottomNavBar (Home=0, Inventory=1, Explore=2, Party=3, Profile=4)
+  static const int _partyTabIndex = 3;
+
   String _selectedFilter = 'All';
   static const _filters = ['All', 'Solo', 'Party', 'Event'];
 
-  // อ่าน quest จาก provider ตรงนี้แทนการรับผ่าน constructor
+  // อ่าน quest/room จาก provider ตรงนี้แทนการรับผ่าน constructor
   // เพราะ _ExploreSheet ถูกส่งเป็น `child` ของ AnimatedBuilder (สร้างครั้งเดียว)
   // ถ้ารับผ่าน constructor ลิสต์จะค้างอยู่ที่ค่าตอนสร้าง ไม่อัปเดตตอนทำ quest เสร็จ
   List<QuestCardModel> _filterQuests(List<QuestCardModel> all) {
-    if (_selectedFilter == 'All') return all;
+    // party quest เป็นแค่ template สร้างห้อง — ไม่โผล่เป็นการ์ดให้กดในลิสต์นี้แล้ว
+    var quests = all.where((q) => q.category != QuestCardCategory.party).toList();
+    if (_selectedFilter == 'Party') return [];
+    if (_selectedFilter == 'All') return quests;
+
     final category = QuestCardCategory.values.firstWhere(
       (c) => c.name.toLowerCase() == _selectedFilter.toLowerCase(),
     );
-    return all.where((q) => q.category == category).toList();
+    return quests.where((q) => q.category == category).toList();
+  }
+
+  List<PartyRoomModel> _filterRooms(List<PartyRoomModel> all) {
+    if (_selectedFilter == 'Solo' || _selectedFilter == 'Event') return [];
+    return all;
+  }
+
+  Future<void> _joinRoom(PartyRoomModel room) async {
+    await joinPartyRoom(
+      context,
+      room,
+      onJoined: () => widget.onNavigateToTab?.call(_partyTabIndex),
+    );
   }
 
   // ใช้ MaterialPageRoute เพราะต้องส่ง object quest เข้าไปทั้งก้อน (named route ส่งยาก)
@@ -217,16 +244,6 @@ class _ExploreSheetState extends State<_ExploreSheet> {
   }
 
   Future<void> _onStartQuest(QuestCardModel quest) async {
-    // party quest: ปุ่มคือ "Create Party" — ต้องสร้างห้องก่อน คนอื่นถึงจะเข้าร่วมได้
-    // (เข้าร่วมห้องที่คนอื่นสร้างไว้แล้วทำที่หน้า Party -> Browse Rooms แทน)
-    if (quest.category == QuestCardCategory.party) {
-      await Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => CreatePartyPage(preselectedQuest: quest)),
-      );
-      return;
-    }
-
     // quest ที่ต้องทำ action จริงก่อน — พาไปหน้านั้นแทนการกดจบ quest ทันที
     if (quest.actionKey == 'fridge_check') {
       Navigator.pushNamed(context, '/fridge');
@@ -252,10 +269,15 @@ class _ExploreSheetState extends State<_ExploreSheet> {
 
   @override
   Widget build(BuildContext context) {
-    // watch ตรงนี้ทำให้ sheet rebuild ตอนลิสต์ quest เปลี่ยน (โหลดเสร็จ / ทำ quest สำเร็จ)
+    // watch ตรงนี้ทำให้ sheet rebuild ตอนลิสต์ quest/ห้องเปลี่ยน (โหลดเสร็จ / ทำ quest สำเร็จ / เข้าร่วมห้อง)
     // ไม่กระทบ perf ตอนลาก เพราะ animation ใช้ `child` ที่ถูกสร้างไว้แล้วซ้ำทุกเฟรมอยู่ดี
     final questProvider = context.watch<QuestProvider>();
+    final partyProvider = context.watch<PartyProvider>();
     final quests = _filterQuests(questProvider.quests);
+    final rooms = _filterRooms(partyProvider.rooms);
+    final myPartyId = partyProvider.party?.id;
+    // ห้องขึ้นก่อนเควส เพราะเป็นอีเวนต์ที่มีกำหนดเวลา (เหมือนหน้า Explore เต็มจอ)
+    final items = <Object>[...rooms, ...quests];
 
     // AnimatedBuilder ตรงนี้ครอบแค่ Container (decoration/มุมโค้ง) เท่านั้น
     // ส่วน Column เนื้อหาข้างล่างส่งผ่าน `child` เข้ามา ถูกสร้างครั้งเดียวแล้วนำมาใช้ซ้ำ
@@ -355,14 +377,19 @@ class _ExploreSheetState extends State<_ExploreSheet> {
           ),
           const SizedBox(height: 8),
           Expanded(
-            child: questProvider.isLoading && questProvider.quests.isEmpty
+            child: (questProvider.isLoading || partyProvider.isLoadingRooms) && items.isEmpty
                 ? const Center(child: CircularProgressIndicator(color: Colors.green))
-                : quests.isEmpty
+                : items.isEmpty
                     ? Center(
                         child: Padding(
                           padding: const EdgeInsets.all(24),
                           child: Text(
-                            questProvider.errorMessage ?? 'No quests in this category',
+                            (_selectedFilter == 'Party'
+                                    ? partyProvider.roomsErrorMessage
+                                    : questProvider.errorMessage) ??
+                                (_selectedFilter == 'Party'
+                                    ? 'No party rooms open right now'
+                                    : 'No quests in this category'),
                             textAlign: TextAlign.center,
                             style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
                           ),
@@ -370,10 +397,18 @@ class _ExploreSheetState extends State<_ExploreSheet> {
                       )
                     : ListView.separated(
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                        itemCount: quests.length,
+                        itemCount: items.length,
                         separatorBuilder: (_, __) => const SizedBox(height: 12),
                         itemBuilder: (context, index) {
-                          final quest = quests[index];
+                          final item = items[index];
+                          if (item is PartyRoomModel) {
+                            return PartyRoomCard(
+                              room: item,
+                              isJoined: item.id == myPartyId,
+                              onJoin: () => _joinRoom(item),
+                            );
+                          }
+                          final quest = item as QuestCardModel;
                           return QuestCard(
                             quest: quest,
                             onAction: () => _onStartQuest(quest),

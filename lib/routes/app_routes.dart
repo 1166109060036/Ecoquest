@@ -24,8 +24,8 @@ final Map<String, WidgetBuilder> appRoutes = {
   '/main': (context) => const MainShell(),
   '/settings': (context) => const SettingsPage(),
   '/notifications': (context) => const NotificationPage(),
-  // ไม่มี preselected quest ตรงนี้ — ใช้ตอนกด "Create Party" จากหน้า Party -> Browse Rooms
-  // (ถ้ากดมาจากการ์ด quest ใน Explore/Home จะ push ผ่าน MaterialPageRoute พร้อม quest แทน)
+  // เปิดจากปุ่ม + (FAB) มุมขวาล่างของหน้า Explore ตอนเลือก chip "Party" เท่านั้น
+  // คืนค่า true กลับมาตอน pop ถ้าสร้างห้องสำเร็จ ให้ผู้เรียกเอาไปสลับไปแท็บ Party ต่อได้
   '/party/create': (context) => const CreatePartyPage(),
   '/fridge': (context) => const FridgePage(),
   '/camera': (context) => const CameraPage(),

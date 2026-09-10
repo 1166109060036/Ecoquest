@@ -5,14 +5,14 @@ import '../../providers/auth_provider.dart';
 import '../../providers/party_provider.dart';
 import '../../providers/quest_provider.dart';
 import '../../utils/constants.dart';
+import '../../utils/date_format.dart';
 
 // หน้าสร้างห้อง (Party) จาก party quest ที่มีอยู่แล้ว — เหมือนสร้างห้องในเกมให้คนอื่นกดเข้าร่วม
-// เข้าถึงได้ 2 ทาง: กด "Create Party" บนการ์ด party quest ใน Explore/Home (ส่ง [preselectedQuest]
-// มาให้เลย ข้ามขั้นตอนเลือกเควส) หรือกด "Create Party" ในหน้า Party -> Browse Rooms (เลือกเควสเอง)
+// เข้าถึงได้ทางเดียว: กดปุ่ม + (FAB) มุมขวาล่างของหน้า Explore ตอนเลือก chip "Party"
+// (เดิมกด "Create Party" บนการ์ด quest ได้เลย แต่ตอนนี้การ์ด quest หายไปจาก Explore แล้ว —
+// เควส party จะเจอได้เฉพาะในขั้นตอนเลือกเควสของหน้านี้เท่านั้น)
 class CreatePartyPage extends StatefulWidget {
-  final QuestCardModel? preselectedQuest;
-
-  const CreatePartyPage({super.key, this.preselectedQuest});
+  const CreatePartyPage({super.key});
 
   @override
   State<CreatePartyPage> createState() => _CreatePartyPageState();
@@ -21,24 +21,13 @@ class CreatePartyPage extends StatefulWidget {
 enum _Step { pickQuest, details }
 
 class _CreatePartyPageState extends State<CreatePartyPage> {
-  late _Step _step;
+  _Step _step = _Step.pickQuest;
   QuestCardModel? _selectedQuest;
 
   final _nameController = TextEditingController();
   final _locationController = TextEditingController();
   DateTime? _eventDate;
   int _capacity = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.preselectedQuest != null) {
-      _step = _Step.details;
-      _applyQuest(widget.preselectedQuest!);
-    } else {
-      _step = _Step.pickQuest;
-    }
-  }
 
   @override
   void dispose() {
@@ -139,9 +128,10 @@ class _CreatePartyPageState extends State<CreatePartyPage> {
 
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Party created! Open the Party tab to see your room.')),
+        const SnackBar(content: Text('Party created!')),
       );
-      Navigator.pop(context);
+      // ส่ง true กลับไปให้หน้า Explore เอาไปสลับไปแท็บ Party ให้อัตโนมัติ
+      Navigator.pop(context, true);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(partyProvider.errorMessage ?? 'Failed to create the party')),
@@ -181,8 +171,8 @@ class _CreatePartyPageState extends State<CreatePartyPage> {
                   children: [
                     _TopBar(
                       onBack: () {
-                        // ถ้าเลือกเควสเองมา (ไม่ใช่ preselected) กดย้อนกลับให้ถอยไปเลือกเควสใหม่ก่อน
-                        if (_step == _Step.details && widget.preselectedQuest == null) {
+                        // อยู่ขั้นกรอกรายละเอียดแล้ว -> กดย้อนกลับให้ถอยไปเลือกเควสใหม่ก่อน ไม่ใช่ออกจากหน้าเลย
+                        if (_step == _Step.details) {
                           setState(() => _step = _Step.pickQuest);
                         } else {
                           Navigator.pop(context);
@@ -200,7 +190,6 @@ class _CreatePartyPageState extends State<CreatePartyPage> {
                             eventDate: _eventDate,
                             capacity: _capacity,
                             isBusy: isBusy,
-                            canChangeQuest: widget.preselectedQuest == null,
                             onChangeQuest: () => setState(() => _step = _Step.pickQuest),
                             onPickDate: _pickEventDateTime,
                             onQuickDate: _setQuickDate,
@@ -338,7 +327,6 @@ class _DetailsForm extends StatelessWidget {
   final DateTime? eventDate;
   final int capacity;
   final bool isBusy;
-  final bool canChangeQuest;
   final VoidCallback onChangeQuest;
   final VoidCallback onPickDate;
   final void Function(Duration from, {int hour}) onQuickDate;
@@ -352,7 +340,6 @@ class _DetailsForm extends StatelessWidget {
     required this.eventDate,
     required this.capacity,
     required this.isBusy,
-    required this.canChangeQuest,
     required this.onChangeQuest,
     required this.onPickDate,
     required this.onQuickDate,
@@ -381,11 +368,10 @@ class _DetailsForm extends StatelessWidget {
                     style: const TextStyle(color: Colors.white70, fontSize: 13),
                   ),
                 ),
-                if (canChangeQuest)
-                  TextButton(
-                    onPressed: onChangeQuest,
-                    child: const Text('Change', style: TextStyle(color: Colors.green)),
-                  ),
+                TextButton(
+                  onPressed: onChangeQuest,
+                  child: const Text('Change', style: TextStyle(color: Colors.green)),
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -417,7 +403,7 @@ class _DetailsForm extends StatelessWidget {
                     const Icon(Icons.calendar_today, size: 16, color: Colors.white70),
                     const SizedBox(width: 8),
                     Text(
-                      eventDate == null ? 'Tap to pick date & time' : _formatDateTime(eventDate!),
+                      eventDate == null ? 'Tap to pick date & time' : formatEventDateTime(eventDate!),
                       style: TextStyle(
                         color: eventDate == null ? Colors.white54 : Colors.white,
                         fontSize: 14,
@@ -544,14 +530,6 @@ class _QuickDateChip extends StatelessWidget {
     );
   }
 }
-
-const _monthNames = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-];
-String _pad(int n) => n.toString().padLeft(2, '0');
-String _formatDateTime(DateTime d) =>
-    '${_monthNames[d.month - 1]} ${d.day}, ${d.year}  ·  ${_pad(d.hour)}:${_pad(d.minute)}';
 
 class _Background extends StatelessWidget {
   const _Background();
