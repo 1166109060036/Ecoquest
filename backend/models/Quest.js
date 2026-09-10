@@ -66,6 +66,23 @@ const QuestSchema = new mongoose.Schema(
       type: Number,
       default: 1,
     },
+
+    // ---- ใช้เฉพาะ party quest (type: 'party') — quest เดี่ยวไม่ต้องมีค่าพวกนี้ ----
+    // วัน-เวลาที่นัดเจอกันจริง
+    eventDate: {
+      type: Date,
+      default: null,
+    },
+    // สถานที่นัดพบ เช่น 'Riverside Park'
+    location: {
+      type: String,
+      default: '',
+    },
+    // รับได้สูงสุดกี่คน — 0 = ไม่จำกัด
+    capacity: {
+      type: Number,
+      default: 0,
+    },
     // quest ที่ต้อง "ทำอะไรจริงๆ ในแอพ" ก่อนถึงจะกดสำเร็จได้ ให้ใส่ key ไว้ตรงนี้
     // null = quest แบบผู้ใช้กดยืนยันเองว่าทำแล้ว (เชื่อใจผู้ใช้)
     // 'fridge_check' = ต้องบันทึกของในตู้เย็นของวันนี้ก่อน ถึงจะกดสำเร็จได้

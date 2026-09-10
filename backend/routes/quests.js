@@ -3,6 +3,7 @@ const express = require('express');
 const Quest = require('../models/Quest');
 const QuestHistory = require('../models/QuestHistory');
 const FridgeItem = require('../models/FridgeItem');
+const PartyMember = require('../models/PartyMember');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 const progression = require('../utils/progression');
@@ -72,25 +73,52 @@ router.get('/', authMiddleware, async (req, res) => {
 
     const doneToday = new Set(todayHistory.map((h) => h.questId.toString()));
 
+    // party quest ต้องรู้ว่ามีคนเข้าร่วมกี่คนแล้ว และเราเข้าร่วมไปหรือยัง
+    // ยิงทีเดียวสำหรับทุก party quest ไม่ query ทีละอัน
+    const partyQuestIds = quests.filter((q) => q.type === 'party').map((q) => q._id);
+    const joinedCounts = new Map();
+    const myJoined = new Set();
+
+    if (partyQuestIds.length > 0) {
+      const [counts, mine] = await Promise.all([
+        PartyMember.aggregate([
+          { $match: { questId: { $in: partyQuestIds } } },
+          { $group: { _id: '$questId', count: { $sum: 1 } } },
+        ]),
+        PartyMember.find({ userId: req.userId, questId: { $in: partyQuestIds } }).select('questId'),
+      ]);
+      for (const c of counts) joinedCounts.set(c._id.toString(), c.count);
+      for (const m of mine) myJoined.add(m.questId.toString());
+    }
+
     res.json({
-      quests: quests.map((q) => ({
-        id: q._id,
-        title: q.title,
-        description: q.description,
-        detail: q.detail,
-        imageKey: q.imageKey,
-        category: q.category,
-        type: q.type,
-        difficulty: q.difficulty,
-        impact: q.impact,
-        scorePoints: q.scorePoints,
-        xpReward: q.xpReward,
-        co2SavedKg: q.co2SavedKg,
-        isDaily: q.isDaily,
-        actionKey: q.actionKey,
-        randomPool: q.randomPool,
-        completedToday: doneToday.has(q._id.toString()),
-      })),
+      quests: quests.map((q) => {
+        const id = q._id.toString();
+        return {
+          id: q._id,
+          title: q.title,
+          description: q.description,
+          detail: q.detail,
+          imageKey: q.imageKey,
+          category: q.category,
+          type: q.type,
+          difficulty: q.difficulty,
+          impact: q.impact,
+          scorePoints: q.scorePoints,
+          xpReward: q.xpReward,
+          co2SavedKg: q.co2SavedKg,
+          isDaily: q.isDaily,
+          actionKey: q.actionKey,
+          randomPool: q.randomPool,
+          completedToday: doneToday.has(id),
+          // ---- เฉพาะ party quest ----
+          eventDate: q.eventDate,
+          location: q.location,
+          capacity: q.capacity,
+          joinedCount: joinedCounts.get(id) || 0,
+          hasJoined: myJoined.has(id),
+        };
+      }),
     });
   } catch (err) {
     console.error(err);
@@ -147,6 +175,20 @@ router.post('/:id/complete', authMiddleware, async (req, res) => {
       });
       if (alreadyDone) {
         return res.status(409).json({ message: 'You have already completed this quest today' });
+      }
+    }
+
+    // party quest = อีเวนต์ที่เกิดขึ้นครั้งเดียว ไม่ใช่ quest รายวัน
+    // เลยต้องกัน 2 อย่าง: ต้องเข้าร่วมก่อน และทำได้ครั้งเดียวตลอด
+    if (quest.type === 'party') {
+      const joined = await PartyMember.findOne({ questId: quest._id, userId: req.userId });
+      if (!joined) {
+        return res.status(400).json({ message: 'Join this event first to complete it' });
+      }
+
+      const alreadyDone = await QuestHistory.findOne({ userId: req.userId, questId: quest._id });
+      if (alreadyDone) {
+        return res.status(409).json({ message: 'You have already completed this event' });
       }
     }
 

@@ -5,6 +5,8 @@ import '../models/achievement_model.dart';
 import '../models/quest_card_model.dart';
 import '../providers/achievement_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/party_provider.dart';
+import '../providers/quest_provider.dart';
 
 // สิ่งที่ต้องทำ "หลังทำ quest สำเร็จ" — เหมือนกันทั้ง 3 ที่ที่ทำ quest ได้
 // (หน้า Explore, แผ่น Explore ในหน้า Home, และหน้า Fridge)
@@ -28,6 +30,39 @@ Future<void> handleQuestCompleted(BuildContext context, QuestReward reward) asyn
 
   HapticFeedback.mediumImpact();
   await _showMedalDialog(context, reward.newAchievements);
+}
+
+// กด "Join" บนการ์ด party quest — เข้าร่วมอีเวนต์ ไม่ใช่กดจบ quest ทันที
+// (จะไปกดจบจริงที่หน้า Party ตอนไปร่วมงานแล้ว) ใช้ร่วมกันทั้งหน้า Explore
+// และแผ่น Explore ในหน้า Home
+Future<void> joinPartyQuest(BuildContext context, QuestCardModel quest) async {
+  final partyProvider = context.read<PartyProvider>();
+  final questProvider = context.read<QuestProvider>();
+
+  if (quest.hasJoined) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('You already joined this event. Open the Party tab.')),
+    );
+    return;
+  }
+
+  final joined = await partyProvider.join(quest.id);
+
+  if (!context.mounted) return;
+
+  if (!joined) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(partyProvider.errorMessage ?? 'Failed to join this event')),
+    );
+    return;
+  }
+
+  // โหลด quest ใหม่ให้การ์ดอัปเดตจำนวนคนเข้าร่วม + เปลี่ยนปุ่มเป็น "Joined"
+  questProvider.loadQuests();
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text('Joined! See the details in the Party tab.')),
+  );
 }
 
 // เด้งแสดงความยินดีตอนได้เหรียญใหม่ — รองรับกรณีได้หลายเหรียญพร้อมกันด้วย

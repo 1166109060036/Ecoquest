@@ -25,7 +25,14 @@ class QuestCardModel {
   final double co2SavedKg;
   final String difficulty; // easy / medium / hard
   final String impact; // low / medium / high
-  final String questCategory; // food_waste / recycling / plastic / community
+  final String questCategory; // food_waste / recycling / plastic / community / energy
+
+  // ---- ใช้เฉพาะ party quest (อีเวนต์กลุ่ม) ----
+  final int capacity; // 0 = ไม่จำกัด
+  final int joinedCount;
+  final bool hasJoined; // เราเข้าร่วมอีเวนต์นี้ไปแล้วหรือยัง
+
+  bool get isFull => capacity > 0 && joinedCount >= capacity;
 
   // path รูปปกจริง — null ถ้า quest นั้นยังไม่มีรูป
   String? get coverImageAsset =>
@@ -50,6 +57,9 @@ class QuestCardModel {
     this.difficulty = '',
     this.impact = '',
     this.questCategory = '',
+    this.capacity = 0,
+    this.joinedCount = 0,
+    this.hasJoined = false,
   });
 
   factory QuestCardModel.fromJson(Map<String, dynamic> json) {
@@ -60,12 +70,25 @@ class QuestCardModel {
       orElse: () => QuestCardCategory.solo,
     );
 
+    // party quest ส่ง eventDate มาเป็น UTC — แปลงเป็นเวลาเครื่องแล้วทำเป็น label ให้การ์ดใช้เลย
+    final eventDate = DateTime.tryParse(json['eventDate']?.toString() ?? '')?.toLocal();
+    final capacity = json['capacity'] ?? 0;
+    final joinedCount = json['joinedCount'] ?? 0;
+
     return QuestCardModel(
       id: json['id'] ?? json['_id'],
       title: json['title'] ?? '',
       subtitle: json['description'] ?? '',
       category: category,
       pointsReward: json['scorePoints'] ?? 0,
+      dateLabel: eventDate == null ? null : _shortDate(eventDate),
+      timeLabel: eventDate == null ? null : _shortTime(eventDate),
+      capacityLabel: capacity > 0
+          ? '${_pad(joinedCount)} / ${_pad(capacity)}'
+          : (joinedCount > 0 ? '$joinedCount joined' : null),
+      capacity: capacity,
+      joinedCount: joinedCount,
+      hasJoined: json['hasJoined'] ?? false,
       isDaily: json['isDaily'] ?? false,
       completedToday: json['completedToday'] ?? false,
       actionKey: json['actionKey'],
@@ -107,3 +130,13 @@ class QuestReward {
     );
   }
 }
+
+// ---- helper สำหรับทำ label ของ party quest (ไม่ได้ลง intl เลยจัดรูปแบบเอง) ----
+const _monthNames = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
+String _pad(int n) => n.toString().padLeft(2, '0');
+String _shortDate(DateTime d) => '${_monthNames[d.month - 1]} ${d.day}, ${d.year}';
+String _shortTime(DateTime d) => '${_pad(d.hour)}:${_pad(d.minute)}';

@@ -272,37 +272,86 @@ const QUESTS = [
   },
 
   // ------------------------------------------------------------------------
-  // ⛔ ยังปิดไว้ (isActive: false) เพราะกลไกที่ต้องใช้ยังไม่ได้ทำ
+  // 👥 Party quest (อีเวนต์กลุ่ม) — ต้องกด Join ก่อนถึงจะกดสำเร็จได้ และทำได้ครั้งเดียวตลอด
+  //    eventDate/location/capacity ใช้เฉพาะ quest ประเภทนี้
+  //    วันที่คิดจาก "กี่วันนับจากวันที่ seed" เพื่อให้อีเวนต์ไม่เป็นอดีตตอนเอาไปเดโม
   // ------------------------------------------------------------------------
   {
-    // ต้องมีระบบ Party/Event ก่อน (Quest model ยังไม่มีฟิลด์ วันที่/เวลา/สถานที่/จำนวนคนรับ)
     title: 'Community Cleanup',
-    description: 'Community Quest',
+    description: 'Riverside Park',
     detail:
-      'Join a neighbourhood cleanup — collect litter along the river or in a park with other players.',
+      'Join your neighbours to collect litter along the Ishikari river bank. '
+      + 'Gloves and bags are provided — just bring yourself and a bit of energy.',
     category: 'community',
     type: 'party',
     difficulty: 'hard',
     impact: 'high',
     xpReward: 30,
     co2SavedKg: 2.0,
-    isActive: false,
+    daysFromNow: 3,
+    eventTime: '09:00',
+    location: 'Riverside Park',
+    capacity: 10,
   },
+  {
+    title: 'Tree Planting Day',
+    description: 'Ebetsu City Park',
+    detail:
+      'Help plant young trees in the city park. Every tree planted keeps absorbing CO2 for decades, '
+      + 'so this is one of the highest impact things a group can do in an afternoon.',
+    category: 'community',
+    type: 'party',
+    difficulty: 'medium',
+    impact: 'high',
+    xpReward: 25,
+    co2SavedKg: 5.0,
+    daysFromNow: 7,
+    eventTime: '10:00',
+    location: 'Ebetsu City Park',
+    capacity: 30,
+  },
+  {
+    title: 'Neighborhood Recycling Drive',
+    description: 'Community Center',
+    detail:
+      'Collect and sort recyclables from around the neighbourhood together, '
+      + 'and help neighbours who are not sure which bag things belong in.',
+    category: 'recycling',
+    type: 'party',
+    difficulty: 'medium',
+    impact: 'medium',
+    xpReward: 20,
+    co2SavedKg: 1.5,
+    daysFromNow: 1,
+    eventTime: '13:00',
+    location: 'Community Center',
+    capacity: 15,
+  },
+
 ];
 
-(async () => {
-  try {
-    await mongoose.connect(process.env.MONGODB_URI);
-    console.log('เชื่อม MongoDB Atlas สำเร็จ\n');
-
+// แยกตัว seed ออกมาเป็นฟังก์ชัน เพื่อให้ server.js เรียกตอน boot ได้ด้วย
+// (จำเป็นเพราะเครื่อง dev บางเน็ต เช่น wifi มหาลัย ต่อ Atlas ไม่ได้ — ให้ Render seed แทน)
+async function seedQuests({ verbose = true } = {}) {
     for (const q of QUESTS) {
       // scorePoints คำนวณจาก difficulty + impact เสมอ ห้ามกรอกมือ (easy+low = 5+5 = 10)
       const scorePoints = Quest.calculateScore(q.difficulty, q.impact);
       const isActive = q.isActive !== false;
 
+      // party quest: แปลง daysFromNow + eventTime -> eventDate จริง
+      // (เขียนเป็น "อีกกี่วัน" ในไฟล์ seed จะได้ไม่ต้องมาแก้วันที่ทุกครั้งที่ demo)
+      const { daysFromNow, eventTime, ...questFields } = q;
+      if (daysFromNow !== undefined) {
+        const [hh, mm] = (eventTime || '09:00').split(':').map(Number);
+        const date = new Date();
+        date.setDate(date.getDate() + daysFromNow);
+        date.setHours(hh, mm, 0, 0);
+        questFields.eventDate = date;
+      }
+
       const saved = await Quest.findOneAndUpdate(
         { title: q.title },
-        { ...q, scorePoints, isActive },
+        { ...questFields, scorePoints, isActive },
         { upsert: true, new: true, setDefaultsOnInsert: true }
       );
 
@@ -310,25 +359,39 @@ const QUESTS = [
         saved.isDaily ? 'วันละครั้ง' : null,
         saved.actionKey ? `action=${saved.actionKey}` : null,
         saved.randomPool ? `กลุ่มสุ่ม=${saved.randomPool}` : null,
+        saved.type === 'party' ? `อีเวนต์ ${saved.location} รับ ${saved.capacity} คน` : null,
         saved.isActive ? null : 'ปิดอยู่',
       ]
         .filter(Boolean)
         .join(', ');
 
-      console.log(
+      if (verbose) console.log(
         `${saved.isActive ? '✔' : '·'} ${saved.title.padEnd(38)}` +
           `[${saved.difficulty}+${saved.impact}] = ${String(saved.scorePoints).padStart(2)} points` +
           (flags ? `  (${flags})` : '')
       );
     }
 
-    const active = await Quest.countDocuments({ isActive: true });
-    const inactive = await Quest.countDocuments({ isActive: false });
-    console.log(`\nเปิดใช้งานอยู่ ${active} quest | ปิดไว้ ${inactive} quest`);
-  } catch (err) {
-    console.error('seed ไม่สำเร็จ:', err.message);
-    process.exitCode = 1;
-  } finally {
-    await mongoose.disconnect();
-  }
-})();
+  const active = await Quest.countDocuments({ isActive: true });
+  const inactive = await Quest.countDocuments({ isActive: false });
+  if (verbose) console.log(`\nเปิดใช้งานอยู่ ${active} quest | ปิดไว้ ${inactive} quest`);
+  return active;
+}
+
+module.exports = { seedQuests };
+
+// รันตรงๆ ด้วย `npm run seed:quests` — กรณีนี้ต้องต่อ/ตัด connection เอง
+if (require.main === module) {
+  (async () => {
+    try {
+      await mongoose.connect(process.env.MONGODB_URI);
+      console.log('เชื่อม MongoDB Atlas สำเร็จ\n');
+      await seedQuests({ verbose: true });
+    } catch (err) {
+      console.error('seed ไม่สำเร็จ:', err.message);
+      process.exitCode = 1;
+    } finally {
+      await mongoose.disconnect();
+    }
+  })();
+}

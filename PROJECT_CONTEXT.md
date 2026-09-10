@@ -114,7 +114,7 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
       ดึงรีเฟรชกี่ครั้งก็ไม่เปลี่ยน (กันรีเฟรชรัวๆ จนได้อันคะแนนสูงสุด) ข้ามเที่ยงคืนถึงสุ่มใหม่
     - ทดสอบแล้ว: คนละคนได้คนละอัน, เรียกซ้ำได้อันเดิม, กระจายตัว ≈33% เท่ากันทั้ง 3 อัน
     - เพิ่มกลุ่มใหม่ได้แค่ใส่ `randomPool: 'ชื่อกลุ่ม'` ให้ quest หลายอัน ไม่ต้องแก้โค้ด route
-  - ⚠️ **`Community Cleanup` ยังปิดอยู่ (`isActive: false`)** เพราะต้องมีระบบ Party/Event ก่อน
+  - ✅ `Community Cleanup` เปิดใช้งานแล้ว (เป็น party quest ตัวจริง) — ดูหัวข้อ "ระบบ Party" ด้านล่าง
     ถ้าเปิดตอนนี้จะกลายเป็นกดปุ่มรับ 30 แต้มฟรี
   - ⚠️ **ค่า `co2SavedKg` ทุกอันเป็นค่าประมาณ ยังไม่ได้อ้างอิงงานวิจัยจริง** ถ้าจะเอาไปนำเสนอควรหาตัวเลขอ้างอิงมาแทน
   - **Season 1 seed แล้ว** (`npm run seed:season`, ยาว 90 วัน) — Rank เริ่มขยับได้จริงแล้ว
@@ -159,7 +159,7 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
   - ตอนทำ quest สำเร็จ response จะมี `newAchievements` ติดมาด้วย -> แอพเด้ง dialog แสดงความยินดี
   - โค้ด "หลังทำ quest สำเร็จ" รวมไว้ที่ `lib/utils/quest_completion.dart` ตัวเดียว
     ใช้ร่วมกัน 3 ที่ (Explore / แผ่น Explore ใน Home / Fridge) — แก้ที่เดียวพอ
-  - ⚠️ `Community` ยังปลดล็อกไม่ได้จนกว่าจะมี community quest ที่เปิดใช้งาน (รอระบบ Party)
+  - ✅ `Community` ปลดล็อกได้แล้ว เพราะมี party quest หมวด community เปิดใช้งานอยู่
 - **Quest History ในหน้า Profile** — การ์ดล่างสุด (ต่อจาก Upgrade your Ability) โชว์ quest ที่ทำสำเร็จ
   แต่ละแถว: ไอคอนตามหมวด + ชื่อ quest + วันที่สำเร็จ + คะแนนที่ได้ (`+10 P`) ข้อมูลจริงจาก `GET /api/quests/history`
   ⚠️ **ยังไม่มี "รูป quest" จริงในระบบ** (`Quest` model ไม่มีฟิลด์รูป, ไม่มีไฟล์ภาพใน assets)
@@ -182,13 +182,27 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
   - **หมดอายุแล้ว** → ข้อความเป็น **สีแดง**
   - ใช้ `Timer.periodic` 1 วินาทีตัวเดียวทั้งหน้า (ไม่ใช่ timer แยกต่อการ์ด) และ `cancel()` ใน `dispose()` แล้ว
 
+- **ระบบ Party (อีเวนต์กลุ่ม) — ใช้งานได้จริงแล้ว ไม่ใช่ mock**
+  แนวคิด: **ไม่มี collection `Party` แยก** — "ปาร์ตี้" คือกลุ่มคนที่เข้าร่วม party quest ตัวเดียวกัน
+  - `backend/models/PartyMember.js` — `{ questId, userId, isLeader, joinedAt }` + unique index `(questId, userId)`
+    คนแรกที่เข้าร่วมได้เป็น leader อัตโนมัติ; ถ้า leader ออก ตำแหน่งจะตกไปที่คนถัดไปตาม `joinedAt`
+  - `backend/routes/party.js` (mount ที่ `/api/party`)
+    - `GET /api/party` → ปาร์ตี้ปัจจุบัน (`{ party: null }` ถ้ายังไม่ได้เข้าร่วมอะไร) พร้อม**รายละเอียดอีเวนต์เต็ม** + ลิสต์สมาชิก
+    - `POST /api/party/join/:questId` → 400 ถ้าไม่ใช่ party quest, 409 ถ้าเข้าร่วมแล้ว / อยู่ปาร์ตี้อื่นอยู่ / อีเวนต์เต็ม
+    - `POST /api/party/leave`
+  - `Quest` model เพิ่มฟิลด์อีเวนต์: `eventDate`, `location`, `capacity` (0 = ไม่จำกัด)
+    และ `GET /api/quests` ส่ง `joinedCount` / `hasJoined` มาให้การ์ดใช้ด้วย
+  - **กันโกงคะแนน**: `POST /api/quests/:id/complete` ของ party quest จะต้อง**เข้าร่วมก่อน** และ**ทำได้ครั้งเดียว**
+  - ฝั่งแอพ: `PartyProvider` + `PartyService` (`lib/providers/party_provider.dart`, `lib/services/party_service.dart`)
+    โหลดครั้งเดียวใน `MainShell.initState` เหมือน quest/achievement
+  - หน้า Party แสดง **การ์ดรายละเอียดอีเวนต์ที่กำลังทำอยู่** (รูปปก, สถานที่, วันเวลา, `n / capacity` คน, คำอธิบาย, รางวัล P/XP/CO₂)
+    ต่อด้วยลิสต์สมาชิก (leader อยู่บนสุด กดดูโปรไฟล์ได้) แล้วปุ่ม "I joined this event" + "Leave Party"
+  - ปุ่มบนการ์ด party quest ในหน้า Explore/Home เปลี่ยนตามสถานะเป็น `Join` / `Joined` / `Full` และกดแล้ว**เข้าร่วม** ไม่ใช่กดจบ quest
+  - party quest สำหรับทดสอบ 3 อัน seed ไว้แล้ว: Community Cleanup, Tree Planting Day, Neighborhood Recycling Drive
+    เขียนวันที่เป็น `daysFromNow` + `eventTime` ในไฟล์ seed จะได้ไม่ต้องแก้วันที่ทุกครั้งที่ demo
+
 ### ยังเป็น placeholder / mock ทั้งหมด (มี `// TODO` กำกับในโค้ดแล้ว)
-- **สมาชิกปาร์ตี้** ในหน้า Party เป็น mock (`mockParty` ใน `lib/models/party_model.dart`) ยังไม่มี Party API จริง
-  (ตั้ง `mockParty = null` เพื่อดู empty state ได้)
 - **การ์ด "Upgrade your Ability"** ในหน้า Profile ยัง mock อยู่ — ยังไม่มี model/endpoint ของ upgrade ฝั่ง backend เลย
-- **Party / Event quest** — ยังสร้างไม่ได้จริง เพราะ `Quest` model **ไม่มีฟิลด์ วันที่ / เวลา / สถานที่ / จำนวนคนรับ**
-  การ์ดฝั่ง UI รองรับแล้ว (`dateLabel` / `timeLabel` / `capacityLabel`) แต่ backend ยังไม่มีข้อมูลพวกนี้ให้ส่ง
-  → ตอนนี้ลิสต์จะมีแต่ solo quest ส่วน filter chip "Party" / "Event" จะว่างเปล่า **ไม่ใช่บั๊ก**
 - ⚠️ **รูปของในตู้เย็นอาจหายได้** — ใช้ `image_picker` ถ่ายรูปแล้วเก็บแค่ **path ในเครื่อง** (โฟลเดอร์ cache ของแอพ)
   ไม่ได้อัปโหลดขึ้น server และ**ยังไม่ได้ copy ไปเก็บถาวร** เพราะโปรเจคยังไม่มี `path_provider`
   → Android เคลียร์ cache เมื่อไหร่รูปหาย (เหลือแต่ชื่อ+วันหมดอายุ) โค้ดรองรับแล้ว จะ fallback เป็นไอคอนอาหารให้เอง ไม่พัง
@@ -282,20 +296,25 @@ backend พร้อม deploy แล้ว (ทดสอบว่าบูต�
   จนกว่า backend จะตื่น ตอนนี้เข้าแอพด้วยค่าที่ cache ไว้ก่อน แล้วตัวเลขค่อยอัปเดตเอง **อย่าเผลอใส่ `await` กลับเข้าไป**
 - ส่วนอื่นยังไม่ได้ใส่ timeout ให้ http request — ถ้าเจอปัญหาค้างนานตอน cold start ค่อยมาเพิ่มทีหลัง
 
+### seed quest ตอน server boot
+`server.js` เรียก `seedQuests()` ทุกครั้งที่ backend สตาร์ท (upsert อิง `title` เลยรันซ้ำได้ ไม่สร้างของซ้ำ)
+มีไว้เพราะบางเน็ต เช่น **wifi มหาลัย ต่อ MongoDB Atlas จากเครื่องตัวเองไม่ได้** (ไม่อยู่ใน IP whitelist)
+เลยรัน `npm run seed:quests` เองไม่ได้ → ให้ server บน Render seed ให้แทนตอน deploy
+ปิดได้ด้วย env `SEED_QUESTS_ON_BOOT=false` และ seed พังจะไม่ทำให้ API ล่ม (แค่ log warning)
+⚠️ ผลข้างเคียง: `eventDate` ของ party quest จะถูกเลื่อนใหม่ทุกครั้งที่ server สตาร์ท (เพราะคิดจาก `daysFromNow`)
+   ซึ่งดีสำหรับ demo — วันอีเวนต์จะไม่มีทางเป็นอดีต
+
 ## 7. งานถัดไปที่แนะนำ (เรียงตามลำดับที่ควรทำ)
 
 1. **ลง `path_provider` แล้วย้ายรูปไปเก็บถาวร** — ตอนนี้รูปทั้งของในตู้เย็นและ EcoQuest Moment
    อยู่ใน cache ของแอพ มีโอกาสหายถ้าระบบเคลียร์ cache
    ต้อง copy ไฟล์ไป `getApplicationDocumentsDirectory()` ตอนถ่ายเสร็จ (หรือทำ upload ขึ้น server/cloud ไปเลย)
    ⚠️ ลงไม่ได้ตอนนี้ถ้า Flutter ในเครื่องเก่ากว่า `sdk: ^3.11.0` ที่ pubspec กำหนด — `pub get` จะ fail
-2. **Party/Event ของจริง** — งานใหญ่สุดที่เหลือ ต้องเพิ่มฟิลด์ วันที่/เวลา/สถานที่/จำนวนคนรับ ใน `Quest` model
-   แล้วทำ Party API (สร้าง/เข้าร่วม/ออก) แทน `mockParty` — ทำเสร็จจะปลดล็อกได้อีก 2 อย่าง:
-   เปิด quest `Community Cleanup` ที่ seed ไว้แล้ว และทำให้เหรียญ Community ปลดล็อกได้
-4. **Party/Event quest** — ต้องเพิ่มฟิลด์ วันที่/เวลา/สถานที่/จำนวนคนรับ ใน `Quest` model ก่อน (ตอนนี้ยังไม่มี)
-   แล้วค่อยทำ Party API จริง (สร้าง/เข้าร่วม/ออกจากปาร์ตี้) แทน `mockParty`
-   (`Quest.type` มี `'solo'`/`'party'` และ `minLevelToHost` รออยู่แล้ว)
-5. เขียน backend routes สำหรับ Inventory/Achievement แล้วต่อเข้ากับหน้า Inventory
+2. **ให้ผู้เล่นสร้างอีเวนต์เองได้** — ตอนนี้ party quest มาจาก seed อย่างเดียว
+   `Quest.minLevelToHost` รออยู่แล้ว เหลือทำ endpoint สร้างอีเวนต์ + หน้าฟอร์มในแอพ
+   และหน้าโปรไฟล์ของผู้เล่นคนอื่น (ตอนกดลูกศรข้างชื่อสมาชิกในหน้า Party ยังขึ้นแค่ SnackBar)
+3. เขียน backend routes สำหรับ Inventory/Achievement แล้วต่อเข้ากับหน้า Inventory
    — Achievement ทำได้แล้วตอนนี้ เพราะ `QuestHistory` เริ่มมีข้อมูลจริงให้เอาไปเช็คเงื่อนไขปลดล็อก medal
-6. Season — ยังไม่มี season ตัวจริงใน DB สักอัน ทำให้ Rank ยังนับ XP ไม่ได้ (`seasonXp` = 0 ตลอด)
+4. Season — ยังไม่มี season ตัวจริงใน DB สักอัน ทำให้ Rank ยังนับ XP ไม่ได้ (`seasonXp` = 0 ตลอด)
    ต้อง seed season ที่ `isActive: true` สักอันก่อน Rank ถึงจะเริ่มขยับ
-7. endpoint การแจ้งเตือน แทน `mockNotifications` (ยังไม่มี model ฝั่ง backend เลย)
+5. endpoint การแจ้งเตือน แทน `mockNotifications` (ยังไม่มี model ฝั่ง backend เลย)

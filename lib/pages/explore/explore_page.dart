@@ -57,6 +57,12 @@ class _ExplorePageState extends State<ExplorePage> {
   }
 
   Future<void> _onStartQuest(QuestCardModel quest) async {
+    // party quest: ปุ่มคือ "Join" — เข้าร่วมอีเวนต์ก่อน แล้วค่อยไปกดสำเร็จที่หน้า Party
+    if (quest.category == QuestCardCategory.party) {
+      await joinPartyQuest(context, quest);
+      return;
+    }
+
     // quest ที่ต้องทำ action จริงก่อน — พาไปหน้านั้นแทนการกดจบ quest ทันที
     // (ถ้าเรียก complete ตรงนี้เลย backend จะปฏิเสธอยู่ดีเพราะยังไม่ได้ทำ action)
     if (quest.actionKey == 'fridge_check') {

@@ -35,6 +35,25 @@ class QuestCard extends StatelessWidget {
     }
   }
 
+  // ป้ายบนปุ่ม + เปิด/ปิดปุ่ม — party quest มีสถานะเพิ่มจาก solo คือ "เข้าร่วมแล้ว" กับ "เต็ม"
+  String _actionLabel(_CategoryStyle style) {
+    if (quest.completedToday) return 'Done';
+    if (quest.category == QuestCardCategory.party) {
+      if (quest.hasJoined) return 'Joined';
+      if (quest.isFull) return 'Full';
+    }
+    return style.actionLabel;
+  }
+
+  // เข้าร่วมแล้วก็ไม่ต้องกดซ้ำ (ไปกดจบที่หน้า Party แทน) และเต็มแล้วก็กดไม่ได้
+  bool get _actionEnabled {
+    if (quest.completedToday) return false;
+    if (quest.category == QuestCardCategory.party) {
+      return !quest.hasJoined && !quest.isFull;
+    }
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
     final style = _style;
@@ -137,7 +156,7 @@ class QuestCard extends StatelessWidget {
                     const SizedBox(width: 8),
                     ElevatedButton(
                       // quest รายวันที่ทำไปแล้ววันนี้ -> กดซ้ำไม่ได้จนกว่าจะข้ามวัน
-                      onPressed: quest.completedToday ? null : onAction,
+                      onPressed: _actionEnabled ? onAction : null,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: style.actionColor,
                         foregroundColor: Colors.white,
@@ -149,7 +168,7 @@ class QuestCard extends StatelessWidget {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       ),
                       child: Text(
-                        quest.completedToday ? 'Done' : style.actionLabel,
+                        _actionLabel(style),
                         style: const TextStyle(fontSize: 12),
                       ),
                     ),
