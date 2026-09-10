@@ -1,12 +1,11 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/quest_provider.dart';
-import '../../utils/constants.dart';
+import '../../services/app_photo_storage.dart';
 import '../../models/profile_model.dart';
-import '../../models/quest_history_model.dart';
+import '../../widgets/profile_sections.dart';
 
 class ProfilePage extends StatelessWidget {
   // หน้า Home เอา ProfilePage ตัวนี้ไปใช้เป็นพื้นหลังด้วย ตรงนั้นต้องปิด pull-to-refresh
@@ -71,7 +70,7 @@ class ProfilePage extends StatelessWidget {
       body: Stack(
         children: [
           // ---- พื้นหลัง ----
-          Positioned.fill(child: _ProfileBackground()),
+          const Positioned.fill(child: ProfileBackground()),
           // ---- overlay มืดให้อ่านตัวหนังสือง่ายขึ้น ----
           Positioned.fill(
             child: Container(
@@ -80,9 +79,9 @@ class ProfilePage extends StatelessWidget {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withOpacity(0.45),
-                    Colors.black.withOpacity(0.25),
-                    Colors.black.withOpacity(0.55),
+                    Colors.black.withValues(alpha: 0.45),
+                    Colors.black.withValues(alpha: 0.25),
+                    Colors.black.withValues(alpha: 0.55),
                   ],
                 ),
               ),
@@ -104,9 +103,9 @@ class ProfilePage extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _TopBar(),
+                      const _TopBar(),
                       const SizedBox(height: 16),
-                      _UserHeader(
+                      UserHeader(
                         displayName: user?.displayName ?? 'Player',
                         avatarPath: user?.avatarPath,
                         level: level,
@@ -116,18 +115,18 @@ class ProfilePage extends StatelessWidget {
                         onTapAvatar: () => _pickAvatar(context, hasAvatar: user?.avatarPath != null),
                       ),
                       const SizedBox(height: 16),
-                      _PointsAndRankCard(
+                      PointsAndRankCard(
                         points: points,
                         rankTier: rankTier,
                         rankXp: rankXpIntoTier,
                         rankXpMax: rankXpForNextTier,
                       ),
                       const SizedBox(height: 16),
-                      _StatsCard(stats: profileStats),
+                      StatsCard(stats: profileStats),
                       const SizedBox(height: 16),
                       _UpgradeAbilityCard(upgrades: mockUpgrades),
                       const SizedBox(height: 16),
-                      _QuestHistoryCard(history: questHistory),
+                      QuestHistoryCard(history: questHistory),
                     ],
                   ),
                 ),
@@ -140,8 +139,8 @@ class ProfilePage extends StatelessWidget {
   }
 
   // เปิด bottom sheet ให้เลือกถ่ายรูป/เลือกจากคลังรูป/ลบรูป (ลบโชว์เฉพาะตอนมีรูปอยู่แล้ว)
-  // แล้วอัปเดต avatar ผ่าน AuthProvider — path ที่ได้จาก image_picker ใช้ตรงๆ เหมือนหน้า Fridge/Camera
-  // (ยังไม่มี path_provider/cloud storage ในโปรเจค รูปเลยอยู่แค่บนเครื่องนี้ ดู PROJECT_CONTEXT.md)
+  // แล้วอัปเดต avatar ผ่าน AuthProvider — copy ไฟล์ไปเก็บถาวรผ่าน AppPhotoStorage ก่อน
+  // (path ที่ image_picker คืนมาอยู่ใน cache เคลียร์ทิ้งได้ตลอด)
   Future<void> _pickAvatar(BuildContext context, {required bool hasAvatar}) async {
     // ใช้ String action ('camera'/'gallery'/'remove') แทน ImageSource? ตรงๆ
     // เพราะ ImageSource ไม่มีค่าให้แทนความหมาย "ลบรูป" ได้
@@ -153,6 +152,8 @@ class ProfilePage extends StatelessWidget {
 
     if (action == null || !context.mounted) return;
     final authProvider = context.read<AuthProvider>();
+    // จำรูปเก่าไว้ก่อนอัปเดต เพื่อลบไฟล์ทิ้งถ้าเปลี่ยน/ลบสำเร็จ (กันไฟล์ค้าง)
+    final oldAvatarPath = authProvider.user?.avatarPath;
 
     if (action == 'remove') {
       final ok = await authProvider.updateAvatar(null);
@@ -161,7 +162,9 @@ class ProfilePage extends StatelessWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(authProvider.errorMessage ?? 'Failed to remove photo')),
         );
+        return;
       }
+      await AppPhotoStorage.delete(oldAvatarPath);
       return;
     }
 
@@ -174,13 +177,20 @@ class ProfilePage extends StatelessWidget {
       );
       if (shot == null || !context.mounted) return;
 
-      final ok = await authProvider.updateAvatar(shot.path);
+      final saved = await AppPhotoStorage.save(shot.path, prefix: 'avatar');
+      if (!context.mounted) return;
+
+      final ok = await authProvider.updateAvatar(saved);
       if (!context.mounted) return;
       if (!ok) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(authProvider.errorMessage ?? 'Failed to update photo')),
         );
+        // อัปโหลดไม่สำเร็จ ไฟล์ที่เพิ่ง copy ไว้ก็ไม่ต้องเก็บไว้เปล่าๆ
+        await AppPhotoStorage.delete(saved);
+        return;
       }
+      await AppPhotoStorage.delete(oldAvatarPath);
     } catch (e) {
       if (!context.mounted) return;
       // เครื่องไม่มีกล้อง / ผู้ใช้ปฏิเสธ permission
@@ -266,34 +276,11 @@ class _MaybeRefreshable extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// พื้นหลัง — ใส่รูปเองได้ทีหลังผ่าน AppConstants.profileBgAsset
-// ถ้ายังไม่มีไฟล์รูป จะ fallback เป็น gradient สีเขียว-ฟ้าให้อัตโนมัติ ไม่มี error ค้าง
-// ---------------------------------------------------------------------------
-class _ProfileBackground extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Image.asset(
-      AppConstants.profileBgAsset,
-      fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) {
-        return Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF3E5C4E), Color(0xFF2C3E50)],
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
 // แถวบนสุด: ปุ่ม Settings + ปุ่ม Notification
 // ---------------------------------------------------------------------------
 class _TopBar extends StatelessWidget {
+  const _TopBar();
+
   @override
   Widget build(BuildContext context) {
     return Row(
@@ -333,7 +320,7 @@ class _CircleIconButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.3),
+          color: Colors.black.withValues(alpha: 0.3),
           shape: BoxShape.circle,
         ),
         child: Icon(icon, color: Colors.white, size: 20),
@@ -343,332 +330,8 @@ class _CircleIconButton extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// ส่วนหัว: avatar (icon ง่ายๆ ไปก่อน) + ชื่อ + level/rank + progress bar
-// ---------------------------------------------------------------------------
-class _UserHeader extends StatelessWidget {
-  final String displayName;
-  final String? avatarPath; // path รูปโปรไฟล์ในเครื่อง — null = ยังไม่ได้ตั้ง
-  final int level;
-  final String rankTier;
-  final int xp;
-  final int xpToNext;
-  final VoidCallback onTapAvatar;
-
-  const _UserHeader({
-    required this.displayName,
-    this.avatarPath,
-    required this.level,
-    required this.rankTier,
-    required this.xp,
-    required this.xpToNext,
-    required this.onTapAvatar,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final progress = xpToNext == 0 ? 0.0 : (xp / xpToNext).clamp(0.0, 1.0);
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        _AvatarPicker(avatarPath: avatarPath, onTap: onTapAvatar),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                displayName,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'Lv. ${level.toString().padLeft(2, '0')}   $rankTier Rank',
-                style: const TextStyle(color: Colors.white70, fontSize: 12),
-              ),
-              const SizedBox(height: 6),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: LinearProgressIndicator(
-                  value: progress,
-                  minHeight: 6,
-                  backgroundColor: Colors.white24,
-                  valueColor: const AlwaysStoppedAnimation(Colors.orangeAccent),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '$xp / $xpToNext XP',
-                style: const TextStyle(color: Colors.white54, fontSize: 11),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// อวตาร 64px แตะเพื่อเปิด bottom sheet เลือก/ลบรูป — มีป้ายกล้องเล็กๆ มุมล่างขวาบอกว่ากดได้
-// โชว์รูปจาก avatarPath ถ้ามี (fallback เป็นไอคอนคนถ้าไฟล์หายหรือยังไม่ได้ตั้งรูป)
-class _AvatarPicker extends StatelessWidget {
-  final String? avatarPath;
-  final VoidCallback onTap;
-
-  const _AvatarPicker({required this.avatarPath, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      customBorder: const CircleBorder(),
-      child: SizedBox(
-        width: 64,
-        height: 64,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            CircleAvatar(
-              radius: 32,
-              backgroundColor: Colors.black.withValues(alpha: 0.4),
-              backgroundImage: avatarPath != null ? FileImage(File(avatarPath!)) : null,
-              // ยังไม่มีรูป หรือไฟล์หายไปแล้ว (เช่นระบบเคลียร์ cache) -> โชว์ไอคอนคนแทน
-              onBackgroundImageError: avatarPath != null ? (_, _) {} : null,
-              child: avatarPath == null
-                  ? const Icon(Icons.person, color: Colors.white70, size: 34)
-                  : null,
-            ),
-            Positioned(
-              right: -2,
-              bottom: -2,
-              child: Material(
-                color: Colors.green,
-                shape: const CircleBorder(),
-                elevation: 2,
-                child: Padding(
-                  padding: const EdgeInsets.all(5),
-                  child: Icon(Icons.photo_camera, size: 13, color: Colors.white),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// การ์ด "Your Point" + "Rank"
-// ---------------------------------------------------------------------------
-class _PointsAndRankCard extends StatelessWidget {
-  final int points;
-  final String rankTier;
-  final int rankXp; // XP ที่ไต่มาได้แล้วภายใน tier ปัจจุบัน (นับเฉพาะ season นี้)
-  final int? rankXpMax; // null = อยู่ tier สูงสุดแล้ว
-
-  const _PointsAndRankCard({
-    required this.points,
-    required this.rankTier,
-    required this.rankXp,
-    required this.rankXpMax,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return _GlassCard(
-      child: IntrinsicHeight(
-        child: Row(
-          children: [
-            Expanded(
-              flex: 3,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Your Point',
-                        style: TextStyle(color: Colors.white70, fontSize: 13)),
-                    const SizedBox(height: 6),
-                    Text.rich(
-                      TextSpan(
-                        children: [
-                          TextSpan(
-                            text: _formatNumber(points),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 26,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const TextSpan(
-                            text: ' P',
-                            style: TextStyle(color: Colors.white70, fontSize: 16),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const VerticalDivider(color: Colors.white24, width: 1),
-            Expanded(
-              flex: 2,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 18,
-                      backgroundColor: Colors.black.withOpacity(0.4),
-                      child: const Icon(Icons.emoji_events, color: Colors.amberAccent, size: 18),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Rank',
-                              style: TextStyle(color: Colors.white54, fontSize: 10)),
-                          Text(
-                            '$rankTier Rank',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 4),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: LinearProgressIndicator(
-                              // tier สูงสุดแล้ว (rankXpMax == null) -> โชว์เต็มหลอด
-                              value: rankXpMax == null
-                                  ? 1.0
-                                  : (rankXpMax == 0 ? 0.0 : (rankXp / rankXpMax!).clamp(0.0, 1.0)),
-                              minHeight: 4,
-                              backgroundColor: Colors.white24,
-                              valueColor: const AlwaysStoppedAnimation(Colors.greenAccent),
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            rankXpMax == null
-                                ? 'MAX'
-                                : '${_formatNumber(rankXp)} / ${_formatNumber(rankXpMax!)} XP',
-                            style: const TextStyle(color: Colors.white54, fontSize: 9),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// การ์ด Stats: Quest Completed / CO2 Saved / Parties Joined
-// ---------------------------------------------------------------------------
-class _StatsCard extends StatelessWidget {
-  final ProfileStats stats;
-  const _StatsCard({required this.stats});
-
-  @override
-  Widget build(BuildContext context) {
-    return _GlassCard(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Stats',
-                style: TextStyle(
-                    color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 14),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _StatItem(
-                  icon: Icons.eco,
-                  iconColor: Colors.greenAccent,
-                  value: '${stats.questCompleted.toString().padLeft(2, '0')} / '
-                      '${stats.questTotal.toString().padLeft(2, '0')}',
-                  label: 'Quest Completed',
-                ),
-                _StatItem(
-                  icon: Icons.cloud_outlined,
-                  iconColor: Colors.lightBlueAccent,
-                  value: '${stats.co2SavedKg.toStringAsFixed(1)} kgCO2e',
-                  label: 'CO2 Saved',
-                ),
-                _StatItem(
-                  icon: Icons.groups,
-                  iconColor: Colors.orangeAccent,
-                  value: stats.partiesJoined.toString().padLeft(2, '0'),
-                  label: 'Parties Joined',
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StatItem extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final String value;
-  final String label;
-
-  const _StatItem({
-    required this.icon,
-    required this.iconColor,
-    required this.value,
-    required this.label,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        CircleAvatar(
-          radius: 20,
-          backgroundColor: Colors.white.withOpacity(0.12),
-          child: Icon(icon, color: iconColor, size: 20),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          value,
-          style: const TextStyle(
-              color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          textAlign: TextAlign.center,
-          style: const TextStyle(color: Colors.white54, fontSize: 10),
-        ),
-      ],
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// การ์ด Upgrade Your Ability — list ของ upgrade พร้อมปุ่มราคา
+// การ์ด Upgrade Your Ability — list ของ upgrade พร้อมปุ่มราคา (ใช้กับตัวเองเท่านั้น
+// เพราะเป็น UI ซื้อของ — โปรไฟล์ของผู้เล่นคนอื่นไม่มีการ์ดนี้)
 // ---------------------------------------------------------------------------
 class _UpgradeAbilityCard extends StatelessWidget {
   final List<AbilityUpgrade> upgrades;
@@ -706,7 +369,7 @@ class _UpgradeAbilityCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _GlassCard(
+    return ProfileGlassCard(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -759,7 +422,7 @@ class _UpgradeRow extends StatelessWidget {
       children: [
         CircleAvatar(
           radius: 16,
-          backgroundColor: Colors.white.withOpacity(0.12),
+          backgroundColor: Colors.white.withValues(alpha: 0.12),
           child: Icon(icon, color: iconColor, size: 16),
         ),
         const SizedBox(width: 10),
@@ -783,7 +446,7 @@ class _UpgradeRow extends StatelessWidget {
         ElevatedButton(
           onPressed: onBuy,
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.white.withOpacity(0.15),
+            backgroundColor: Colors.white.withValues(alpha: 0.15),
             foregroundColor: Colors.white,
             elevation: 0,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -801,160 +464,4 @@ class _UpgradeRow extends StatelessWidget {
       ],
     );
   }
-}
-
-// ---------------------------------------------------------------------------
-// การ์ด Quest History — quest ที่ทำสำเร็จไปแล้ว (ล่าสุดขึ้นก่อน)
-// ข้อมูลจริงจาก GET /api/quests/history
-// ---------------------------------------------------------------------------
-class _QuestHistoryCard extends StatelessWidget {
-  final List<QuestHistoryEntry> history;
-  const _QuestHistoryCard({required this.history});
-
-  @override
-  Widget build(BuildContext context) {
-    return _GlassCard(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Quest History',
-                style: TextStyle(
-                    color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 12),
-            if (history.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
-                child: Text(
-                  'No quests completed yet',
-                  style: TextStyle(color: Colors.white54, fontSize: 12),
-                ),
-              )
-            else
-              for (final entry in history) ...[
-                _QuestHistoryRow(entry: entry),
-                if (entry != history.last) const SizedBox(height: 12),
-              ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _QuestHistoryRow extends StatelessWidget {
-  final QuestHistoryEntry entry;
-  const _QuestHistoryRow({required this.entry});
-
-  @override
-  Widget build(BuildContext context) {
-    final visual = _categoryVisual(entry.category);
-
-    return Row(
-      children: [
-        // ยังไม่มีรูป quest จริงในระบบ — ใช้ไอคอนตามหมวดไปก่อน
-        // ถ้าเพิ่มฟิลด์รูปใน Quest model เมื่อไหร่ ค่อยเปลี่ยนตรงนี้เป็น Image.asset/network
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: visual.color.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(visual.icon, color: visual.color, size: 20),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                entry.questTitle,
-                style: const TextStyle(
-                    color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w600),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                _formatHistoryDate(entry.completedAt),
-                style: const TextStyle(color: Colors.white54, fontSize: 10.5),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          '+${entry.pointsEarned} P',
-          style: const TextStyle(
-              color: Colors.greenAccent, fontSize: 12, fontWeight: FontWeight.w600),
-        ),
-      ],
-    );
-  }
-}
-
-class _CategoryVisual {
-  final IconData icon;
-  final Color color;
-  const _CategoryVisual(this.icon, this.color);
-}
-
-// map หมวดของ quest (ค่าเดียวกับ enum category ฝั่ง backend) -> ไอคอน/สี
-_CategoryVisual _categoryVisual(String? category) {
-  switch (category) {
-    case 'food_waste':
-      return const _CategoryVisual(Icons.restaurant, Colors.orangeAccent);
-    case 'recycling':
-      return const _CategoryVisual(Icons.recycling, Colors.greenAccent);
-    case 'plastic':
-      return const _CategoryVisual(Icons.local_drink, Colors.lightBlueAccent);
-    case 'community':
-      return const _CategoryVisual(Icons.groups, Colors.purpleAccent);
-    case 'energy':
-      return const _CategoryVisual(Icons.bolt, Colors.yellowAccent);
-    default:
-      // quest ถูกลบไปแล้วเลยไม่รู้หมวด
-      return const _CategoryVisual(Icons.eco, Colors.white70);
-  }
-}
-
-const _monthNames = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-];
-
-// ไม่ได้ลง package intl เลยจัดรูปแบบวันที่เอง (แบบเดียวกับที่หน้า Party ใช้)
-String _formatHistoryDate(DateTime date) =>
-    '${_monthNames[date.month - 1]} ${date.day}, ${date.year}';
-
-// ---------------------------------------------------------------------------
-// การ์ดกระจกโปร่งใสมาตรฐาน ใช้ซ้ำได้ทุกส่วนของหน้า Profile
-// ---------------------------------------------------------------------------
-class _GlassCard extends StatelessWidget {
-  final Widget child;
-  const _GlassCard({required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.38),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
-      ),
-      child: child,
-    );
-  }
-}
-
-String _formatNumber(int n) {
-  final str = n.toString();
-  final buffer = StringBuffer();
-  for (int i = 0; i < str.length; i++) {
-    if (i > 0 && (str.length - i) % 3 == 0) buffer.write(',');
-    buffer.write(str[i]);
-  }
-  return buffer.toString();
 }

@@ -145,19 +145,24 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
     ต้องมี `<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29"/>`
     ใน `AndroidManifest.xml` (ใส่ไว้แล้ว) — Android 10+ ไม่ต้องขอสิทธิ์เพราะเขียนผ่าน MediaStore
     และเวลาเช็คสิทธิ์ต้องใช้ `Gal.hasAccess(toAlbum: true)` ให้ตรงกับที่เซฟลงอัลบั้มชื่อเอง
-  - ⚠️ ไฟล์ในคอลเลกชันของแอพอยู่ใน **temp/cache** (ยังไม่มี `path_provider` เลยขอ documents dir ไม่ได้)
-    ถ้าระบบเคลียร์ cache รูปหาย — `PhotoStorageService.loadPhotos()` กรอง path ที่ไฟล์หายไปแล้วออกให้อัตโนมัติ
-    (รูปที่กด Save to device ไปแล้วไม่หาย เพราะอยู่ในแกลเลอรีของเครื่อง)
-- **รูปโปรไฟล์ (avatar) ใส่ได้จริงแล้ว** — แตะที่ avatar ในหน้า Profile (`_AvatarPicker` ใน `profile_page.dart`)
-  เปิด bottom sheet ให้ถ่ายรูป / เลือกจากคลังรูป / ลบรูป (ลบโชว์เฉพาะตอนมีรูปอยู่แล้ว)
+  - ✅ **รูปเก็บถาวรแล้ว ไม่หายตอนเคลียร์ cache** — ผ่าน `lib/services/app_photo_storage.dart`
+    (`AppPhotoStorage`) ที่ copy ไฟล์ไป `getApplicationDocumentsDirectory()` (ต้องลง `path_provider`
+    แล้ว, เพิ่มแล้วใน `pubspec.yaml`) แทนที่จะปล่อยไว้ใน cache ของ `image_picker`/`Directory.systemTemp`
+    เก็บลง DB/SharedPreferences เป็น **ชื่อไฟล์** เท่านั้น (ไม่ใช่ absolute path เพราะ documents dir
+    เปลี่ยนได้ข้ามเครื่อง/รุ่น) แล้วค่อย `AppPhotoStorage.resolve()` เป็น absolute path ตอนจะวาดรูปจริง
+    ต้องเรียก `AppPhotoStorage.init()` ก่อน `runApp()` เสมอ (ทำไว้ใน `lib/main.dart` แล้ว)
+    รองรับค่าเก่าที่เคยเป็น absolute path เต็มด้วย (`resolve()` เช็คว่ามี `/` ในค่าไหม)
+    — `PhotoStorageService.loadPhotos()` ยังเป็นจุด migrate รูปเก่าที่ยังไม่โดนเคลียร์ให้อัตโนมัติด้วย
+- **รูปโปรไฟล์ (avatar) ใส่ได้จริงแล้ว** — แตะที่ avatar ในหน้า Profile (`UserHeader` ใน
+  `lib/widgets/profile_sections.dart`) เปิด bottom sheet ให้ถ่ายรูป / เลือกจากคลังรูป / ลบรูป
+  (ลบโชว์เฉพาะตอนมีรูปอยู่แล้ว) — copy ไฟล์ผ่าน `AppPhotoStorage` เหมือนรูปของในตู้เย็น
   - `User.avatarPath` (backend) + `POST /api/auth/avatar` (body `{avatarPath}`, ส่ง `null` เพื่อลบ)
     อัปเดตแล้ว `AuthProvider.updateAvatar()` จะเรียก `refreshProfile()` ต่อให้ทุกหน้าที่ใช้ `user.avatarPath` เห็นค่าใหม่ทันที
   - ⚠️ **เก็บแค่ path ในเครื่องเหมือน `FridgeItem.photoPath`** ไม่ได้อัปโหลดไฟล์จริงขึ้น server
     (โปรเจคยังไม่มี multer/cloud storage) เลยเห็นรูปได้แค่บนเครื่องที่ตั้งค่าไว้ — ถ้า login เครื่องอื่นจะไม่เห็นรูป
-    และอยู่ในโฟลเดอร์ cache ของ `image_picker` เหมือนกัน ถ้าระบบเคลียร์ cache รูปหาย (fallback เป็นไอคอนคนให้เอง ไม่พัง)
+    (แต่รูปจะไม่หายจากเครื่องเดิมแล้วต่อให้เคลียร์ cache เพราะเก็บถาวรผ่าน `AppPhotoStorage`)
   - ยังไม่โชว์ avatar ของ**คนอื่น**ที่ไหนในแอพ (เช่นรายชื่อสมาชิกปาร์ตี้ยังเป็นไอคอนคนทั่วไปเหมือนเดิม)
-    เพราะ backend ของ party ยังไม่ได้ส่ง `avatarPath` ของสมาชิกแต่ละคนมาด้วย ถ้าจะทำต่อต้องเพิ่มที่
-    `toPartyPayload` ใน `backend/routes/party.js` และ `PartyMemberModel` ใน `lib/models/party_model.dart`
+    เพราะเป็น path ในเครื่องของเจ้าของรูป เครื่องอื่นเปิดไม่ได้อยู่ดี ต้องทำ upload ขึ้น server ก่อนถึงจะทำได้จริง
 - **Achievement system ใช้งานได้จริง** — `GET /api/achievements` + ปลดล็อกอัตโนมัติตอนทำ quest สำเร็จ
   - นิยามเหรียญ + เงื่อนไขปลดล็อกทั้งหมดอยู่ที่ **`backend/utils/achievements.js` ไฟล์เดียว**
     (แนวเดียวกับ `progression.js`) — อยากปรับให้ปลดล็อกง่ายขึ้นตอนเดโมก็ลดเลข `required` ได้เลย
@@ -229,6 +234,18 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
        ส่วนสมาชิกทั่วไปเห็นแค่ป้าย "Waiting for the leader..."** (ตรงนี้คือจุดที่ `isLeader` เริ่มมีผลกับ UI จริงๆ)
        ทั้งคู่กด "Leave Party" ได้เสมอ; ห้อง `status: completed` → แบนเนอร์สรุปรางวัลค้างไว้ให้เห็นก่อน แล้วกด
        "Back to Parties" (= dismiss ผ่าน `POST /party/leave` ตัวเดิม) ถึงจะไปสร้าง/เข้าร่วมห้องใหม่ได้
+  - ✅ **กดชื่อสมาชิกในหน้า Party เปิดโปรไฟล์ได้จริงแล้ว** ไม่ใช่ SnackBar "coming soon" อีกต่อไป
+    ทุกแถวกดได้ (ไม่ใช่แค่แถวหัวหน้าเหมือนก่อนหน้านี้) — แถวของ**ตัวเอง** สลับไปแท็บ Profile ของจริง
+    ส่วนแถวของ**คนอื่น**เปิด `lib/pages/profile/player_profile_page.dart` (โปรไฟล์แบบดูอย่างเดียว)
+    ผ่าน `GET /api/users/:id` (ผู้เล่นที่ login แล้วดูของกันและกันได้ทุกคน ไม่ต้องอยู่ห้องเดียวกัน)
+    - `backend/routes/users.js` คัดฟิลด์แบบ **allow-list** เท่านั้น (`displayName level xp points rank`)
+      ห้ามใช้ `.select('-password')` เพราะยังหลุด `email`/`resetOtpHash`/`resetOtpExpires` ได้ และไม่ส่ง
+      `avatarPath` เพราะเป็น path ในเครื่องคนอื่น เครื่องเราเปิดไม่ได้อยู่ดี
+    - progress/stats คำนวณผ่าน `backend/utils/profilePayload.js` (`buildProfileStats`) ตัวเดียวที่
+      `GET /auth/me` ก็เรียกใช้ ทั้งสอง endpoint เลยคิดเลขตรงกันเป๊ะ
+    - ชิ้นส่วน UI ที่ไม่ผูกกับ "ตัวเอง" (หัวข้อ+แถบ XP, การ์ด Point/Rank, การ์ดสถิติ, ประวัติเควส) ถูกยกออกมา
+      เป็น public widget ที่ `lib/widgets/profile_sections.dart` ให้ทั้งหน้า Profile ตัวเองและหน้าโปรไฟล์
+      คนอื่นเรียกใช้ร่วมกัน (การ์ด Upgrade Ability ไม่ได้ยกมาเพราะเป็นของตัวเองเท่านั้น)
   - **หน้าสร้างห้องใหม่** `lib/pages/party/create_party_page.dart` (route `/party/create`, เข้าได้ทางเดียว
     คือกด FAB ในหน้า Explore) — เลือกเควส party → กรอกชื่อห้อง/วันเวลา (`showDatePicker`+`showTimePicker`)/
     สถานที่/จำนวนคนรับ (ดึงค่า default จาก quest ให้) สร้างสำเร็จจะ pop กลับพร้อม `true` ให้ Explore
@@ -238,15 +255,6 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
 
 ### ยังเป็น placeholder / mock ทั้งหมด (มี `// TODO` กำกับในโค้ดแล้ว)
 - **การ์ด "Upgrade your Ability"** ในหน้า Profile ยัง mock อยู่ — ยังไม่มี model/endpoint ของ upgrade ฝั่ง backend เลย
-- ⚠️ **รูปของในตู้เย็นอาจหายได้** — ใช้ `image_picker` ถ่ายรูปแล้วเก็บแค่ **path ในเครื่อง** (โฟลเดอร์ cache ของแอพ)
-  ไม่ได้อัปโหลดขึ้น server และ**ยังไม่ได้ copy ไปเก็บถาวร** เพราะโปรเจคยังไม่มี `path_provider`
-  → Android เคลียร์ cache เมื่อไหร่รูปหาย (เหลือแต่ชื่อ+วันหมดอายุ) โค้ดรองรับแล้ว จะ fallback เป็นไอคอนอาหารให้เอง ไม่พัง
-  → แก้ให้ถาวร: ลง `path_provider` แล้ว copy ไฟล์ไป `getApplicationDocumentsDirectory()` ตอนถ่ายเสร็จ
-  หรือทำ upload ขึ้น server/cloud storage ไปเลย (มี TODO กำกับไว้ใน `backend/models/FridgeItem.js` แล้ว)
-- **รูปของในตู้เย็น** — โค้ดพร้อมแสดงรูปที่ผู้ใช้ถ่ายเองแล้ว (ฟิลด์ `photoPath` → `InventoryCard.imageFile`)
-  แต่ตอนนี้ทุกชิ้น `photoPath = null` เพราะ**ยังไม่มีฟีเจอร์กล้อง** เลยขึ้นเป็นไอคอนอาหาร (`Icons.restaurant`) หมด
-  **ไม่ใช่บั๊ก** — พอต่อกล้องเสร็จแล้วใส่ path รูปลง `photoPath` รูปจะขึ้นแทนไอคอนเองโดยไม่ต้องแก้หน้าจอ
-- **Camera item** — กดแล้วมีแค่ SnackBar ยังไม่ได้เปิดกล้องจริง (ยังไม่ได้ลง `image_picker` / ยังไม่ได้ขอ permission กล้อง)
 - **การแจ้งเตือน** ในหน้า Notification เป็น mock (`mockNotifications` ใน `lib/models/notification_model.dart`) ยังไม่มี endpoint
 - **ไอเทมในกระเป๋า (Camera/Fridge)** ยัง mock อยู่ใน `inventory_item_model.dart` — ยังไม่มี `GET /api/inventory`
   (ส่วนเหรียญ Achievement ในหน้าเดียวกันใช้ข้อมูลจริงแล้ว)
@@ -342,12 +350,7 @@ backend พร้อม deploy แล้ว (ทดสอบว่าบูต�
 
 ## 7. งานถัดไปที่แนะนำ (เรียงตามลำดับที่ควรทำ)
 
-1. **ลง `path_provider` แล้วย้ายรูปไปเก็บถาวร** — ตอนนี้รูปทั้งของในตู้เย็นและ EcoQuest Moment
-   อยู่ใน cache ของแอพ มีโอกาสหายถ้าระบบเคลียร์ cache
-   ต้อง copy ไฟล์ไป `getApplicationDocumentsDirectory()` ตอนถ่ายเสร็จ (หรือทำ upload ขึ้น server/cloud ไปเลย)
-   ⚠️ ลงไม่ได้ตอนนี้ถ้า Flutter ในเครื่องเก่ากว่า `sdk: ^3.11.0` ที่ pubspec กำหนด — `pub get` จะ fail
-2. **หน้าโปรไฟล์ของผู้เล่นคนอื่น** — ตอนกดลูกศร/ชื่อสมาชิกในหน้า Party ยังขึ้นแค่ SnackBar
-   "coming soon" (`_viewMemberProfile` ใน `party_page.dart`) ยังไม่มี endpoint ดึงโปรไฟล์คนอื่นเลย
-3. เขียน backend routes สำหรับ Inventory/Achievement แล้วต่อเข้ากับหน้า Inventory
+1. เขียน backend routes สำหรับ Inventory แล้วต่อเข้ากับหน้า Inventory
    — Achievement ทำได้แล้วตอนนี้ เพราะ `QuestHistory` เริ่มมีข้อมูลจริงให้เอาไปเช็คเงื่อนไขปลดล็อก medal
-4. endpoint การแจ้งเตือน แทน `mockNotifications` (ยังไม่มี model ฝั่ง backend เลย)
+2. endpoint การแจ้งเตือน แทน `mockNotifications` (ยังไม่มี model ฝั่ง backend เลย)
+3. การ์ด "Upgrade your Ability" ในหน้า Profile ยัง mock อยู่ — ยังไม่มี model/endpoint ฝั่ง backend เลย

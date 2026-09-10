@@ -180,7 +180,16 @@ class _CameraPageState extends State<CameraPage> {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(20),
-              child: Image.file(File(path)),
+              child: Image.file(
+                File(path),
+                // ไฟล์อาจหายไปแล้วระหว่างที่ dialog ยังเปิดค้างอยู่ (เช่นโดนลบจากที่อื่น)
+                errorBuilder: (_, _, _) => Container(
+                  width: 240,
+                  height: 240,
+                  color: Colors.grey.shade200,
+                  child: Icon(Icons.broken_image_outlined, color: Colors.grey.shade400, size: 48),
+                ),
+              ),
             ),
             const SizedBox(height: 12),
             Row(

@@ -2,12 +2,9 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const Quest = require('../models/Quest');
-const QuestHistory = require('../models/QuestHistory');
-const Season = require('../models/Season');
 const authMiddleware = require('../middleware/auth');
 const { sendOtpEmail } = require('../utils/mailer');
-const progression = require('../utils/progression');
+const { buildProfileStats } = require('../utils/profilePayload');
 
 const router = express.Router();
 
@@ -134,57 +131,9 @@ router.get('/me', authMiddleware, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    const activeSeason = await Season.findOne({ isActive: true });
-
-    // ยิงพร้อมกันทีเดียว ไม่ต้องรอทีละ query
-    const [questCompleted, questTotal, questAgg, seasonAgg] = await Promise.all([
-      QuestHistory.countDocuments({ userId: user._id }),
-      Quest.countDocuments({ isActive: true }),
-      // partiesJoined + co2SavedKg ต้อง join ไปหา Quest เพราะข้อมูลอยู่ที่ template ของ quest
-      QuestHistory.aggregate([
-        { $match: { userId: user._id } },
-        {
-          $lookup: {
-            from: 'quests',
-            localField: 'questId',
-            foreignField: '_id',
-            as: 'quest',
-          },
-        },
-        { $unwind: '$quest' },
-        {
-          $group: {
-            _id: null,
-            partiesJoined: {
-              $sum: { $cond: [{ $eq: ['$quest.type', 'party'] }, 1, 0] },
-            },
-            co2SavedKg: { $sum: { $ifNull: ['$quest.co2SavedKg', 0] } },
-          },
-        },
-      ]),
-      // XP เฉพาะที่ได้ภายใน season ปัจจุบัน — ใช้คิด Rank (ไม่มี season active = ยังไม่เริ่มนับ)
-      activeSeason
-        ? QuestHistory.aggregate([
-            {
-              $match: {
-                userId: user._id,
-                completedAt: { $gte: activeSeason.startDate, $lte: activeSeason.endDate },
-              },
-            },
-            { $group: { _id: null, xp: { $sum: '$xpEarned' } } },
-          ])
-        : Promise.resolve([]),
-    ]);
-
-    const { partiesJoined = 0, co2SavedKg = 0 } = questAgg[0] || {};
-    const seasonXp = seasonAgg[0]?.xp || 0;
-
-    // level/rank คิดสดจาก xp เสมอ (xp คือ source of truth ตามดีไซน์)
-    // ฟิลด์ user.level / user.rank ที่เก็บใน DB เป็นแค่ cache ไว้ query — ตอนทำ quest สำเร็จค่อยเขียนทับให้ตรง
-    const progress = {
-      ...progression.levelProgress(user.xp),
-      ...progression.rankProgress(seasonXp),
-    };
+    // progress (level/xp/rank) + stats (จำนวนเควส/CO2/ปาร์ตี้) ใช้ตัวช่วยร่วมกับ
+    // GET /users/:id (ดูโปรไฟล์คนอื่น) เพื่อให้คิดเลขแบบเดียวกันเป๊ะๆ
+    const { progress, stats } = await buildProfileStats(user);
 
     res.json({
       user: {
@@ -199,12 +148,7 @@ router.get('/me', authMiddleware, async (req, res) => {
         rank: progress.rankTier,
       },
       progress,
-      stats: {
-        questCompleted,
-        questTotal,
-        co2SavedKg,
-        partiesJoined,
-      },
+      stats,
     });
   } catch (err) {
     console.error(err);

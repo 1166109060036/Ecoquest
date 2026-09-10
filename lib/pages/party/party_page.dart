@@ -3,9 +3,10 @@ import 'package:provider/provider.dart';
 import '../../models/party_model.dart';
 import '../../providers/party_provider.dart';
 import '../../providers/quest_provider.dart';
-import '../../utils/constants.dart';
 import '../../utils/date_format.dart';
 import '../../utils/quest_completion.dart';
+import '../../widgets/profile_sections.dart';
+import '../profile/player_profile_page.dart';
 
 // หน้า Party — โชว์แค่ "ห้องของฉัน" เท่านั้น (ไม่มีลิสต์ห้องให้เลือกเข้าร่วมแล้ว
 // ย้ายไปอยู่หน้า Explore ตอนเลือก chip "Party" แทน ดู explore_page.dart + party_room_card.dart)
@@ -28,6 +29,7 @@ class _PartyPageState extends State<PartyPage> {
   // ลำดับ index ต้องตรงกับ AppBottomNavBar (Home=0, Inventory=1, Explore=2, Party=3, Profile=4)
   static const int _homeTabIndex = 0;
   static const int _exploreTabIndex = 2;
+  static const int _profileTabIndex = 4;
 
   @override
   void initState() {
@@ -129,10 +131,18 @@ class _PartyPageState extends State<PartyPage> {
     await Future.wait([questProvider.loadQuests(), questProvider.loadHistory()]);
   }
 
-  void _viewMemberProfile(String name) {
-    // TODO: เปิดหน้าโปรไฟล์ของผู้เล่นคนอื่นจริงตอนมี endpoint
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("$name's profile — coming soon")),
+  // แถวของตัวเอง -> สลับไปแท็บ Profile (ของจริง แก้ไขได้) แทนที่จะเปิดหน้าโปรไฟล์แบบดูอย่างเดียว
+  // แถวของคนอื่น -> เปิดหน้าโปรไฟล์สาธารณะ (ดูอย่างเดียว) ของคนนั้น
+  void _viewMemberProfile(PartyMemberModel member) {
+    if (member.isMe) {
+      widget.onNavigateToTab?.call(_profileTabIndex);
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PlayerProfilePage(userId: member.userId, displayName: member.name),
+      ),
     );
   }
 
@@ -145,7 +155,7 @@ class _PartyPageState extends State<PartyPage> {
       body: Stack(
         children: [
           // ---- พื้นหลัง: ใช้รูปเดียวกับหน้า Profile ให้ธีมไปด้วยกัน ----
-          const Positioned.fill(child: _PartyBackground()),
+          const Positioned.fill(child: ProfileBackground()),
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
@@ -178,7 +188,11 @@ class _PartyPageState extends State<PartyPage> {
                                   onBrowse: () => widget.onNavigateToTab?.call(_exploreTabIndex),
                                 )
                               : party.isCompleted
-                                  ? _CompletedView(party: party, onDismiss: _leaveParty)
+                                  ? _CompletedView(
+                                      party: party,
+                                      onTapMember: _viewMemberProfile,
+                                      onDismiss: _leaveParty,
+                                    )
                                   : _PartyView(
                                       party: party,
                                       isBusy: partyProvider.isBusy,
@@ -258,7 +272,7 @@ class _NoPartyState extends StatelessWidget {
 class _PartyView extends StatelessWidget {
   final PartyModel party;
   final bool isBusy;
-  final ValueChanged<String> onTapMember;
+  final ValueChanged<PartyMemberModel> onTapMember;
   final VoidCallback onLeave;
   final VoidCallback onComplete;
 
@@ -292,7 +306,7 @@ class _PartyView extends StatelessWidget {
                           member: leader,
                           roleLabel: 'Party Leader',
                           showArrow: true,
-                          onTap: () => onTapMember(leader.name),
+                          onTap: () => onTapMember(leader),
                         ),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -303,7 +317,9 @@ class _PartyView extends StatelessWidget {
                         _MemberRow(
                           member: member,
                           roleLabel: 'Party Member',
-                          onTap: () => onTapMember(member.name),
+                          // ทุกแถวกดได้เหมือนกัน ไม่ใช่แค่แถวหัวหน้า
+                          showArrow: true,
+                          onTap: () => onTapMember(member),
                         ),
                     ],
                   ),
@@ -368,9 +384,10 @@ class _PartyView extends StatelessWidget {
 // ---------------------------------------------------------------------------
 class _CompletedView extends StatelessWidget {
   final PartyModel party;
+  final ValueChanged<PartyMemberModel> onTapMember;
   final VoidCallback onDismiss;
 
-  const _CompletedView({required this.party, required this.onDismiss});
+  const _CompletedView({required this.party, required this.onTapMember, required this.onDismiss});
 
   @override
   Widget build(BuildContext context) {
@@ -429,7 +446,8 @@ class _CompletedView extends StatelessWidget {
                         _MemberRow(
                           member: member,
                           roleLabel: member.isLeader ? 'Party Leader' : 'Party Member',
-                          onTap: () {},
+                          showArrow: true,
+                          onTap: () => onTapMember(member),
                         ),
                     ],
                   ),
@@ -656,31 +674,6 @@ class _GlassCard extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// พื้นหลัง — ใช้รูปเดียวกับ AppConstants.profileBgAsset (ไม่มีรูปก็ fallback เป็น gradient)
-// ---------------------------------------------------------------------------
-class _PartyBackground extends StatelessWidget {
-  const _PartyBackground();
-
-  @override
-  Widget build(BuildContext context) {
-    return Image.asset(
-      AppConstants.profileBgAsset,
-      fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) {
-        return Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF3E5C4E), Color(0xFF2C3E50)],
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
 
 // ---------------------------------------------------------------------------
 // แถบบนสุด: ปุ่มย้อนกลับ (ไป Home) + หัวข้อ "PARTY"

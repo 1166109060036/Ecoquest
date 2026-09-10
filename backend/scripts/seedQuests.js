@@ -39,6 +39,7 @@ const QUESTS = [
     detail:
       'Eat everything on your plate today. Taking only what you can finish is the easiest habit '
       + 'that keeps food out of the bin.',
+    imageKey: 'finishyourmeal',
     category: 'food_waste',
     type: 'solo',
     difficulty: 'easy',
@@ -53,6 +54,7 @@ const QUESTS = [
     detail:
       'Cook a meal using ingredients that were about to go bad. '
       + 'Leftovers become a new dish instead of waste.',
+    imageKey: 'useleftoveringredients',
     category: 'food_waste',
     type: 'solo',
     difficulty: 'easy',
@@ -248,6 +250,8 @@ const QUESTS = [
     title: 'Food Saver — 3 Days',
     description: 'Food Waste Quest',
     detail: 'Commit to keeping your food waste at zero for the next 3 days.',
+    // ใช้รูปเดียวกับ Finish Your Meal ตามที่ผู้ใช้ระบุ (ยังไม่มีรูปแยกของตัวเองในโฟลเดอร์ questimg)
+    imageKey: 'finishyourmeal',
     category: 'food_waste',
     type: 'solo',
     difficulty: 'medium',
@@ -261,6 +265,8 @@ const QUESTS = [
     title: 'Food Saver — 7 Days',
     description: 'Food Waste Quest',
     detail: 'Commit to keeping your food waste at zero for a full week.',
+    // ใช้รูปเดียวกับ Finish Your Meal ตามที่ผู้ใช้ระบุ (ยังไม่มีรูปแยกของตัวเองในโฟลเดอร์ questimg)
+    imageKey: 'finishyourmeal',
     category: 'food_waste',
     type: 'solo',
     difficulty: 'hard',

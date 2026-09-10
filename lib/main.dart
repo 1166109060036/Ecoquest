@@ -6,8 +6,14 @@ import 'providers/fridge_provider.dart';
 import 'providers/achievement_provider.dart';
 import 'providers/party_provider.dart';
 import 'routes/app_routes.dart';
+import 'services/app_photo_storage.dart';
 
-void main() {
+void main() async {
+  // ต้อง ensureInitialized ก่อนเรียก plugin ใดๆ (path_provider) ตอนแอพยังไม่เริ่ม
+  WidgetsFlutterBinding.ensureInitialized();
+  // เตรียมโฟลเดอร์เก็บรูปถาวรให้พร้อมก่อน — resolve() ของ AppPhotoStorage เป็น sync
+  // ต้อง init ให้เสร็จก่อน widget แรกที่อาจวาดรูปจะ build
+  await AppPhotoStorage.init();
   runApp(const MyApp());
 }
 

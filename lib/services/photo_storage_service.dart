@@ -1,63 +1,84 @@
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/constants.dart';
+import 'app_photo_storage.dart';
 
 // เก็บรูป "EcoQuest Moment" ที่ถ่ายจากไอเทม Camera
 //
-// ⚠️ เก็บไว้ในเครื่องอย่างเดียว ไม่ได้อัปขึ้น server — และไฟล์อยู่ในโฟลเดอร์ temp/cache ของแอพ
-// เพราะโปรเจคยังไม่มี path_provider เลยขอ documents directory ไม่ได้
-// ถ้าระบบเคลียร์ cache รูปจะหาย (โค้ดกรองรูปที่ไฟล์หายไปแล้วออกให้อัตโนมัติ)
-// TODO: ลง path_provider แล้วย้ายไป getApplicationDocumentsDirectory() หรืออัปขึ้น server
+// ไฟล์จริงเก็บผ่าน AppPhotoStorage (documents directory — ถาวร ไม่หายตอนเคลียร์ cache)
+// ส่วนตัวนี้แค่จำลิสต์ "ชื่อไฟล์" ไว้ใน SharedPreferences ตามลำดับที่ถ่าย
+//
+// ⚠️ migration: ก่อนหน้านี้เคยเก็บเป็น absolute path เต็มไว้ใน temp/cache — loadPhotos()
+// เป็นจุดที่กู้ของเก่าเหล่านั้นมาเก็บถาวรให้อัตโนมัติ (ถ้าไฟล์ยังไม่โดนเคลียร์ไปก่อน)
 class PhotoStorageService {
-  Future<Directory> _photoDir() async {
-    final dir = Directory('${Directory.systemTemp.path}/ecoquest_moments');
-    if (!await dir.exists()) {
-      await dir.create(recursive: true);
-    }
-    return dir;
-  }
-
-  // เขียนไฟล์รูปที่ตกแต่งแล้วลงเครื่อง + จำ path ไว้ คืน path ที่บันทึก
+  // เขียนไฟล์รูปที่ตกแต่งแล้วลงเครื่องแบบถาวร + จำชื่อไฟล์ไว้ คืน absolute path ที่บันทึก
+  // (คืน absolute path ไม่ใช่ชื่อไฟล์ เพื่อให้ผู้เรียกใช้ต่อกับ Image.file/Gal.putImage ได้ตรงๆ
+  // เหมือนพฤติกรรมเดิม — คนเรียกไม่ต้องรู้เรื่อง resolve())
   Future<String> savePhoto(List<int> pngBytes) async {
-    final dir = await _photoDir();
-    final file = File('${dir.path}/moment_${DateTime.now().millisecondsSinceEpoch}.png');
-    await file.writeAsBytes(pngBytes);
+    final filename = await AppPhotoStorage.saveBytes(pngBytes, prefix: 'moment');
 
     final prefs = await SharedPreferences.getInstance();
-    final paths = prefs.getStringList(AppConstants.cameraPhotosKey) ?? [];
+    final names = prefs.getStringList(AppConstants.cameraPhotosKey) ?? [];
     // ใส่ไว้หน้าสุด รูปล่าสุดจะได้ขึ้นก่อน
-    paths.insert(0, file.path);
-    await prefs.setStringList(AppConstants.cameraPhotosKey, paths);
+    names.insert(0, filename);
+    await prefs.setStringList(AppConstants.cameraPhotosKey, names);
 
-    return file.path;
+    return AppPhotoStorage.resolve(filename);
   }
 
-  // คืนเฉพาะรูปที่ไฟล์ยังอยู่จริง แล้วเขียนลิสต์ที่กรองแล้วกลับไปด้วย
-  // (กันลิสต์บวมด้วย path ของไฟล์ที่โดนเคลียร์ cache ไปแล้ว)
+  // คืน absolute path ของรูปที่ยังมีไฟล์อยู่จริงเท่านั้น (เรียงล่าสุดก่อน)
+  // ระหว่างทางยัง migrate ค่าเก่าที่เป็น absolute path เต็ม (ของก่อนอัปเดตนี้) มาเก็บถาวรให้ด้วย
   Future<List<String>> loadPhotos() async {
     final prefs = await SharedPreferences.getInstance();
-    final paths = prefs.getStringList(AppConstants.cameraPhotosKey) ?? [];
+    final stored = prefs.getStringList(AppConstants.cameraPhotosKey) ?? [];
 
-    final existing = <String>[];
-    for (final path in paths) {
-      if (await File(path).exists()) existing.add(path);
+    final resolvedNames = <String>[];
+    var changed = false;
+
+    for (final entry in stored) {
+      final isLegacyPath = entry.contains('/') || entry.contains('\\');
+
+      if (!isLegacyPath) {
+        // ชื่อไฟล์ใหม่ปกติ — เช็คแค่ว่าไฟล์ยังอยู่จริงไหม
+        if (await File(AppPhotoStorage.resolve(entry)).exists()) {
+          resolvedNames.add(entry);
+        } else {
+          changed = true; // ไฟล์หายไปแล้ว ตัดออกจากลิสต์
+        }
+        continue;
+      }
+
+      // ค่าเก่า: absolute path เต็มในโฟลเดอร์ temp — ถ้าไฟล์ยังไม่โดนเคลียร์ ให้กู้มาเก็บถาวร
+      final legacyFile = File(entry);
+      if (await legacyFile.exists()) {
+        final migrated = await AppPhotoStorage.save(entry, prefix: 'moment');
+        resolvedNames.add(migrated);
+      }
+      // ไม่ว่าจะ migrate สำเร็จหรือไฟล์หายไปแล้ว ค่าเก่าตัวนี้ต้องไม่เก็บซ้ำอีก
+      changed = true;
     }
 
-    if (existing.length != paths.length) {
-      await prefs.setStringList(AppConstants.cameraPhotosKey, existing);
+    if (changed) {
+      await prefs.setStringList(AppConstants.cameraPhotosKey, resolvedNames);
     }
-    return existing;
+
+    return resolvedNames.map(AppPhotoStorage.resolve).toList();
   }
 
+  // path ที่รับมาเป็น absolute path (ตามที่ loadPhotos/savePhoto คืนให้) — แปลงกลับเป็น
+  // ชื่อไฟล์ก่อนหาตัวเทียบในลิสต์ที่เก็บไว้ เพราะ SharedPreferences เก็บแค่ชื่อไฟล์
   Future<void> deletePhoto(String path) async {
     final file = File(path);
     if (await file.exists()) {
       await file.delete();
     }
 
+    // ใช้ "/" ตรงๆ ไม่ใช้ Platform.pathSeparator เพราะ AppPhotoStorage ต่อ path ด้วย "/"
+    // เสมอไม่ว่าจะรันบน platform ไหน (ดู AppPhotoStorage.resolve)
+    final filename = path.split('/').last;
     final prefs = await SharedPreferences.getInstance();
-    final paths = prefs.getStringList(AppConstants.cameraPhotosKey) ?? [];
-    paths.remove(path);
-    await prefs.setStringList(AppConstants.cameraPhotosKey, paths);
+    final names = prefs.getStringList(AppConstants.cameraPhotosKey) ?? [];
+    names.removeWhere((n) => n == filename || n == path);
+    await prefs.setStringList(AppConstants.cameraPhotosKey, names);
   }
 }

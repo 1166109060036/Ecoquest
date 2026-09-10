@@ -40,6 +40,9 @@ dependencies:
   image_picker: ^1.2.3
   # ใช้บันทึกรูปลงแกลเลอรีของเครื่อง (เขียนผ่าน MediaStore ให้เอง + จัดการ permission ให้)
   gal: ^2.3.1
+  # ใช้ขอ path ของ documents directory เพื่อเก็บรูปที่ผู้ใช้ถ่ายแบบถาวร
+  # (image_picker คืน path ใน cache ซึ่งระบบเคลียร์ทิ้งเมื่อไหร่ก็ได้ ดู AppPhotoStorage)
+  path_provider: ^2.1.4
 
 
 dev_dependencies:
