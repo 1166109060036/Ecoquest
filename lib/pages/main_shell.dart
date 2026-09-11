@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/quest_provider.dart';
 import '../providers/achievement_provider.dart';
+import '../providers/inventory_provider.dart';
 import '../providers/party_provider.dart';
 import '../widgets/bottom_nav_bar.dart';
 import 'home/home_page.dart';
@@ -34,6 +35,7 @@ class _MainShellState extends State<MainShell> {
       questProvider.loadQuests();
       questProvider.loadHistory(); // ประวัติ quest ที่โชว์ในหน้า Profile
       context.read<AchievementProvider>().loadAchievements(); // เหรียญที่โชว์ในหน้า Inventory
+      context.read<InventoryProvider>().loadInventory(); // ไอเทม (Camera/Fridge) ที่โชว์ในหน้า Inventory
       final partyProvider = context.read<PartyProvider>();
       partyProvider.loadParty(); // ห้องที่ฉันอยู่ตอนนี้ (ถ้ามี)
       partyProvider.loadRooms(); // ลิสต์ห้องให้เลือกเข้าร่วม ตอนยังไม่มีห้อง

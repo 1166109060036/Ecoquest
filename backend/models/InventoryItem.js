@@ -12,7 +12,7 @@ const InventoryItemSchema = new mongoose.Schema(
     itemType: {
       type: String,
       required: true,
-      // เช่น 'energy_drink' — เพิ่ม type ใหม่ได้เรื่อยๆ ตามฟีเจอร์ที่เพิ่ม
+      // เช่น 'camera', 'fridge' — นิยามของแต่ละ type อยู่ใน utils/inventory.js (ITEMS)
     },
     quantity: {
       type: Number,
@@ -26,5 +26,8 @@ const InventoryItemSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// กันไม่ให้ user ได้ไอเทม type เดิมซ้ำเป็นหลายแถว (ใช้คู่กับ findOneAndUpdate upsert ใน utils/inventory.js)
+InventoryItemSchema.index({ userId: 1, itemType: 1 }, { unique: true });
 
 module.exports = mongoose.model('InventoryItem', InventoryItemSchema);

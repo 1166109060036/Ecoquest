@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../models/inventory_item_model.dart';
 import '../../providers/achievement_provider.dart';
+import '../../providers/inventory_provider.dart';
 import '../../widgets/inventory_card.dart';
 
 // หน้า Inventory — ไอเทม (Camera, Fridge) และเหรียญ Achievement ที่ปลดล็อกแล้ว
@@ -16,8 +16,14 @@ class InventoryPage extends StatelessWidget {
   static const int _maxCapacity = 100;
   static const int _homeTabIndex = 0; // ต้องตรงกับลำดับใน AppBottomNavBar
 
+  Future<void> _onRefresh(BuildContext context) => Future.wait([
+        context.read<InventoryProvider>().loadInventory(),
+        context.read<AchievementProvider>().loadAchievements(),
+      ]);
+
   @override
   Widget build(BuildContext context) {
+    final inventoryProvider = context.watch<InventoryProvider>();
     // เหรียญมาจาก backend จริง (โหลดไว้แล้วตั้งแต่ MainShell) — เรียงให้อันที่ปลดล็อกแล้วขึ้นก่อน
     final medals = [...context.watch<AchievementProvider>().achievements]
       ..sort((a, b) {
@@ -28,7 +34,7 @@ class InventoryPage extends StatelessWidget {
 
     // รวมไอเทมปกติ + achievement medal เป็นลิสต์เดียวกัน
     final allEntries = <_InventoryEntry>[
-      for (final item in mockInventoryItems)
+      for (final item in inventoryProvider.items)
         _InventoryEntry(
           icon: item.icon,
           iconColor: Colors.black87,
@@ -36,7 +42,10 @@ class InventoryPage extends StatelessWidget {
           title: item.title,
           description: item.description,
           quantity: item.quantity,
-          onTap: () => _onItemTap(context, item.id),
+          // itemType ที่ไม่รู้จัก (ยังไม่มีหน้าให้ไป) ไม่ต้องกดได้ — ไม่งั้นการ์ดจะขึ้นลูกศรเปล่าๆ
+          onTap: _routeFor(item.itemType) == null
+              ? null
+              : () => Navigator.pushNamed(context, _routeFor(item.itemType)!),
         ),
       for (final medal in medals)
         _InventoryEntry(
@@ -79,23 +88,42 @@ class InventoryPage extends StatelessWidget {
               ),
             ),
             Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-                itemCount: allEntries.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 14),
-                itemBuilder: (context, index) {
-                  final entry = allEntries[index];
-                  return InventoryCard(
-                    icon: entry.icon,
-                    iconColor: entry.iconColor,
-                    imageAsset: entry.imageAsset,
-                    title: entry.title,
-                    description: entry.description,
-                    quantity: entry.quantity,
-                    onTap: entry.onTap,
-                  );
-                },
-              ),
+              child: inventoryProvider.isLoading && allEntries.isEmpty
+                  ? const Center(child: CircularProgressIndicator(color: Colors.green))
+                  : allEntries.isEmpty
+                      ? RefreshIndicator(
+                          onRefresh: () => _onRefresh(context),
+                          color: Colors.green,
+                          // ต้อง scrollable เสมอ ไม่งั้นตอนลิสต์ว่างจะดึงลง refresh ไม่ได้
+                          child: ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            children: [
+                              SizedBox(height: MediaQuery.of(context).size.height * 0.15),
+                              _EmptyState(errorMessage: inventoryProvider.errorMessage),
+                            ],
+                          ),
+                        )
+                      : RefreshIndicator(
+                          onRefresh: () => _onRefresh(context),
+                          color: Colors.green,
+                          child: ListView.separated(
+                            padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+                            itemCount: allEntries.length,
+                            separatorBuilder: (_, __) => const SizedBox(height: 14),
+                            itemBuilder: (context, index) {
+                              final entry = allEntries[index];
+                              return InventoryCard(
+                                icon: entry.icon,
+                                iconColor: entry.iconColor,
+                                imageAsset: entry.imageAsset,
+                                title: entry.title,
+                                description: entry.description,
+                                quantity: entry.quantity,
+                                onTap: entry.onTap,
+                              );
+                            },
+                          ),
+                        ),
             ),
           ],
         ),
@@ -103,15 +131,12 @@ class InventoryPage extends StatelessWidget {
     );
   }
 
-  void _onItemTap(BuildContext context, String itemId) {
-    if (itemId == 'fridge') {
-      Navigator.pushNamed(context, '/fridge');
-      return;
-    }
-    if (itemId == 'camera') {
-      Navigator.pushNamed(context, '/camera');
-    }
-  }
+  // เส้นทางที่กดไอเทมแล้วต้องไป — itemType อื่นที่ไม่รู้จัก (backend เพิ่มมาใหม่) คืน null
+  String? _routeFor(String itemType) => switch (itemType) {
+        'fridge' => '/fridge',
+        'camera' => '/camera',
+        _ => null,
+      };
 }
 
 // helper ภายในไฟล์นี้ ใช้รวมไอเทม+medal ให้อยู่ในรูปแบบเดียวกันก่อน render
@@ -151,6 +176,45 @@ class _CircleBackButton extends StatelessWidget {
           shape: BoxShape.circle,
         ),
         child: const Icon(Icons.chevron_left, color: Colors.black54, size: 22),
+      ),
+    );
+  }
+}
+
+// ลิสต์ว่างจริงๆ ไม่ควรเกิดขึ้น (Camera/Fridge เป็นไอเทมตั้งต้นที่ทุกคนต้องมี) แต่โหลดไม่ติด
+// ตอนเปิดแอพครั้งแรกก็เป็นไปได้ — โชว์ข้อความนี้กันหน้าว่างเปล่าไปเลย
+class _EmptyState extends StatelessWidget {
+  final String? errorMessage;
+  const _EmptyState({this.errorMessage});
+
+  @override
+  Widget build(BuildContext context) {
+    final failed = errorMessage != null;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              failed ? Icons.cloud_off : Icons.inventory_2_outlined,
+              size: 48,
+              color: Colors.grey.shade400,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              failed ? errorMessage! : 'No items in your inventory yet',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Pull down to try again',
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+            ),
+          ],
+        ),
       ),
     );
   }

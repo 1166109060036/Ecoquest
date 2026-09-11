@@ -10,6 +10,7 @@ const fridgeItemRoutes = require('./routes/fridgeItems');
 const achievementRoutes = require('./routes/achievements');
 const partyRoutes = require('./routes/party');
 const userRoutes = require('./routes/users');
+const inventoryRoutes = require('./routes/inventory');
 
 const app = express();
 
@@ -48,6 +49,7 @@ app.use('/api/fridge-items', fridgeItemRoutes);
 app.use('/api/achievements', achievementRoutes);
 app.use('/api/party', partyRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/inventory', inventoryRoutes);
 
 app.get('/', (req, res) => {
   res.send('EcoQuest API is running 🌱');
