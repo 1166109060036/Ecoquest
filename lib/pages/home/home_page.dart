@@ -11,6 +11,7 @@ import '../../utils/quest_completion.dart';
 import '../../widgets/party_room_card.dart';
 import '../../widgets/quest_card.dart';
 import '../explore/quest_detail_page.dart';
+import '../inventory/fridge_page.dart';
 import '../profile/profile_page.dart';
 
 // Home = หน้า Profile จริง (เต็มจอ) เป็นพื้นหลัง + แผ่น "Explore" ลอยทับด้านล่าง
@@ -246,7 +247,12 @@ class _ExploreSheetState extends State<_ExploreSheet> {
   Future<void> _onStartQuest(QuestCardModel quest) async {
     // quest ที่ต้องทำ action จริงก่อน — พาไปหน้านั้นแทนการกดจบ quest ทันที
     if (quest.actionKey == 'fridge_check') {
-      Navigator.pushNamed(context, '/fridge');
+      // forQuest: true เพื่อให้โชว์ปุ่ม Add Item — ทางเข้านี้คือการทำเควสจริงๆ
+      // (เข้าจากหน้า Inventory จะใช้ named route '/fridge' ซึ่ง forQuest = false ดูอย่างเดียว)
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const FridgePage(forQuest: true)),
+      );
       return;
     }
 

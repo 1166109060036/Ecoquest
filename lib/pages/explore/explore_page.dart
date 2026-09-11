@@ -8,6 +8,7 @@ import '../../utils/party_actions.dart';
 import '../../utils/quest_completion.dart';
 import '../../widgets/party_room_card.dart';
 import '../../widgets/quest_card.dart';
+import '../inventory/fridge_page.dart';
 import 'quest_detail_page.dart';
 
 // หน้า Explore เต็มจอ — เจอได้ 2 ทาง: กด "Explore" ที่ bottom nav ตรงๆ
@@ -96,7 +97,12 @@ class _ExplorePageState extends State<ExplorePage> {
     // quest ที่ต้องทำ action จริงก่อน — พาไปหน้านั้นแทนการกดจบ quest ทันที
     // (ถ้าเรียก complete ตรงนี้เลย backend จะปฏิเสธอยู่ดีเพราะยังไม่ได้ทำ action)
     if (quest.actionKey == 'fridge_check') {
-      Navigator.pushNamed(context, '/fridge');
+      // forQuest: true เพื่อให้โชว์ปุ่ม Add Item — ทางเข้านี้คือการทำเควสจริงๆ
+      // (เข้าจากหน้า Inventory จะใช้ named route '/fridge' ซึ่ง forQuest = false ดูอย่างเดียว)
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const FridgePage(forQuest: true)),
+      );
       return;
     }
 

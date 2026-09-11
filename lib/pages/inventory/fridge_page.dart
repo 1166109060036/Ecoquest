@@ -12,15 +12,19 @@ import '../../services/app_photo_storage.dart';
 import '../../widgets/inventory_card.dart';
 
 // หน้าดูของในตู้เย็น + บันทึกของใหม่ — เข้าได้ 2 ทาง:
-//   1) กดไอเทม Fridge ในหน้า Inventory
+//   1) กดไอเทม Fridge ในหน้า Inventory -> ดูของอย่างเดียว ไม่มีปุ่ม Add Item
 //   2) กด Start บน quest "Check Your Food & Expiration Dates" (quest ที่มี actionKey = fridge_check)
+//      -> ทางนี้เท่านั้นที่มีปุ่ม Add Item เพราะการบันทึกของที่นี่ *คือ* ตัว Mini Quest จริงๆ
 //
-// การบันทึกของที่นี่ *คือ* ตัว Mini Quest จริงๆ — พอกด Save สำเร็จจะไปกดจบ quest ให้อัตโนมัติ
+// พอกด Save สำเร็จจะไปกดจบ quest ให้อัตโนมัติ
 // (backend ก็เช็คซ้ำอีกชั้นว่าต้องมีของที่บันทึกวันนี้จริงถึงจะให้คะแนน กดปุ่มเฉยๆ ไม่ผ่าน)
 const IconData _foodFallbackIcon = Icons.restaurant;
 
 class FridgePage extends StatefulWidget {
-  const FridgePage({super.key});
+  // true = เปิดผ่านเควส (โชว์ปุ่ม Add Item ได้) / false = เปิดจากหน้า Inventory (ดูอย่างเดียว)
+  final bool forQuest;
+
+  const FridgePage({super.key, this.forQuest = false});
 
   @override
   State<FridgePage> createState() => _FridgePageState();
@@ -147,13 +151,16 @@ class _FridgePageState extends State<FridgePage> {
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _openAddItemSheet,
-        backgroundColor: Colors.green,
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Add Item',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-      ),
+      // เปิดจากหน้า Inventory มาแค่ดูของ ไม่ให้เพิ่มของได้ที่นี่ — ต้องมาจากเควสเท่านั้น
+      floatingActionButton: widget.forQuest
+          ? FloatingActionButton.extended(
+              onPressed: _openAddItemSheet,
+              backgroundColor: Colors.green,
+              icon: const Icon(Icons.add, color: Colors.white),
+              label: const Text('Add Item',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+            )
+          : null,
       body: SafeArea(
         child: Column(
           children: [
