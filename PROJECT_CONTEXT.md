@@ -189,6 +189,20 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
     จุดปลดล็อกเหรียญรวมไว้ที่เดียวใน `syncAchievements` ครอบคลุมทั้ง 2 ทางที่ปลดล็อกได้
   - `NotificationProvider.unreadCount` นับจากลิสต์ในเครื่อง ไม่ได้ให้ backend ส่งเลขมาแยก
     เข้าหน้า Notification แล้วถือว่าอ่านหมดทันที (`markAllRead`)
+- **ร้าน Upgrade Ability ใช้งานได้จริงแล้ว** — การ์ด "Upgrade your Ability" ในหน้า Profile ซื้อได้จริง
+  ผ่าน `GET /api/upgrades` + `POST /api/upgrades/:upgradeType/buy` ขาย 5 ตัว: Point Booster, XP Booster,
+  Rank Booster, Party Bonus Points, Quest Unlock — ซื้อซ้ำได้สูงสุด 50 ระดับ (Quest Unlock 14 ระดับ
+  เพราะมี solo quest แค่ 18 อัน) แต่ละระดับเพิ่มผล 1% (Quest Unlock เพิ่ม 1 เควส) ราคาแพงขึ้นทุกระดับ
+  - นิยาม + สูตรทั้งหมดอยู่ที่ **`backend/utils/upgrades.js` ไฟล์เดียว** (แนวเดียวกับ `progression.js`)
+  - ⚠️ **XP Booster กับ Rank Booster ตั้งใจแยกกัน ไม่ใช่บั๊ก** — XP Booster คูณ `user.xp` (คิด Level)
+    ส่วน Rank Booster คูณค่าที่เขียนลง `QuestHistory.xpEarned` (ผลรวมใน season คิด Rank แยกต่างหาก
+    ดู `utils/profilePayload.js`) ซื้อ XP Booster ไม่ทำให้ Rank ขยับเร็วขึ้นด้วย ต้องซื้อ Rank Booster แยก
+  - หักแต้มแบบ atomic ด้วย `findOneAndUpdate({points: {$gte: cost}}, {$inc: {points: -cost}})`
+    (compare-and-swap แบบเดียวกับ latch ที่ `routes/party.js` ใช้กันคะแนนซ้ำ) กันทั้งแต้มติดลบและกดซื้อซ้อนกัน
+  - `GET /api/quests` คูณ `scorePoints`/`xpReward` ที่โชว์บนการ์ดด้วย upgrade ของผู้เล่นแล้ว และ
+    จำกัดจำนวน **solo** quest ที่เห็นตามระดับ Quest Unlock (party quest เห็นครบเสมอ ไม่งั้นสร้างห้องไม่ได้)
+  - ทุกจุดที่ให้รางวัล (`routes/quests.js`, `routes/party.js` fan-out) คำนวณ bonus ครั้งเดียวแล้วใช้ค่า
+    เดียวกันทั้ง `QuestHistory`, ยอดผู้ใช้, response, และข้อความแจ้งเตือน ไม่งั้นตัวเลขจะไม่ตรงกันเอง
 - **Quest History ในหน้า Profile** — การ์ดล่างสุด (ต่อจาก Upgrade your Ability) โชว์ quest ที่ทำสำเร็จ
   แต่ละแถว: ไอคอนตามหมวด + ชื่อ quest + วันที่สำเร็จ + คะแนนที่ได้ (`+10 P`) ข้อมูลจริงจาก `GET /api/quests/history`
   ⚠️ **ยังไม่มี "รูป quest" จริงในระบบ** (`Quest` model ไม่มีฟิลด์รูป, ไม่มีไฟล์ภาพใน assets)
@@ -267,9 +281,8 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
   - party quest สำหรับทดสอบ 3 อัน seed ไว้แล้ว (ไม่มี `eventDate` ในไฟล์ seed แล้ว — อันนั้นเป็นของห้อง):
     Community Cleanup, Tree Planting Day, Neighborhood Recycling Drive
 
-### ยังเป็น placeholder / mock (มี `// TODO` กำกับในโค้ดแล้ว)
-- **การ์ด "Upgrade your Ability"** ในหน้า Profile ยัง mock อยู่ — ยังไม่มี model/endpoint ของ upgrade ฝั่ง backend เลย
-  (เหลือฟีเจอร์เดียวที่ยัง mock อยู่ ที่เหลือทั้งหมดต่อ backend จริงแล้ว)
+### ยังเป็น placeholder / mock
+✅ **ไม่มีฟีเจอร์ไหนเป็น mock อีกแล้ว** — ทุกหน้าต่อ backend จริงครบหมด (ล่าสุดคือร้าน Upgrade Ability)
 
 **Route ฝั่ง Flutter** (รวมไว้ที่ `lib/routes/app_routes.dart` ไฟล์เดียว — เพิ่มหน้าใหม่มาแก้ที่นี่):
 `/splash`, `/login`, `/register`, `/forgot-password`, `/main` (MainShell + bottom nav),
@@ -294,6 +307,8 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
 - `backend/routes/inventory.js` → mount ที่ `/api/inventory`: `GET /` (แจกไอเทมตั้งต้น Camera/Fridge อัตโนมัติถ้ายังไม่มี)
 - `backend/routes/notifications.js` → mount ที่ `/api/notifications`: `GET /`, `POST /read`
   (สร้างแจ้งเตือนของใกล้หมดอายุแบบ lazy ตอน `GET /` เพราะไม่มี scheduler — ดูหัวข้อ "ระบบแจ้งเตือน" ด้านบน)
+- `backend/routes/upgrades.js` → mount ที่ `/api/upgrades`: `GET /`, `POST /:upgradeType/buy`
+  (ดูหัวข้อ "ร้าน Upgrade Ability" ด้านบน)
 - สคริปต์: `npm run seed:quests` (`backend/scripts/seedQuests.js`)
 
 `GET /api/auth/me` คืน 3 ก้อน: `user` (+ level/xp/points/rank), `progress` (ความคืบหน้า level/rank),
@@ -365,7 +380,9 @@ backend พร้อม deploy แล้ว (ทดสอบว่าบูต�
 (idempotent รันซ้ำได้) party quest ในไฟล์ seed **ไม่มี `eventDate` แล้ว** เพราะวันเวลานัดหมายย้ายไปอยู่ที่
 `Party.eventDate` ของแต่ละห้องแทน (ผู้เล่นกรอกเองตอนสร้างห้อง) — restart ถี่แค่ไหนก็ไม่กระทบวันที่ในห้องที่มีอยู่แล้ว
 
-## 7. งานถัดไปที่แนะนำ (เรียงตามลำดับที่ควรทำ)
+## 7. งานถัดไปที่แนะนำ
 
-1. การ์ด "Upgrade your Ability" ในหน้า Profile ยัง mock อยู่ — ยังไม่มี model/endpoint ฝั่ง backend เลย
-   (เหลือฟีเจอร์ mock เดียวในทั้งแอพ ที่เหลือทั้งหมดต่อ backend จริงแล้ว)
+ทุกฟีเจอร์หลักต่อ backend จริงครบแล้ว ไม่มี mock เหลืออยู่ในแอพ งานที่เหลือเป็นงานเสริม/ปรับแต่ง เช่น:
+- ทำ upload รูปขึ้น server/cloud storage แทนการเก็บ path ในเครื่อง (รูปโปรไฟล์ + รูปของในตู้เย็น
+  เก็บถาวรไม่หายแล้วผ่าน `AppPhotoStorage` แต่ยังเห็นได้แค่บนเครื่องที่ตั้งค่าไว้ ข้ามเครื่องจะไม่เห็น)
+- ปรับสมดุลราคา/ผลของ upgrade ถ้าเทสแล้วรู้สึกไม่ลงตัว (แก้ที่ `backend/utils/upgrades.js` ไฟล์เดียว)

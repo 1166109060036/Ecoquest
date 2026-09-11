@@ -76,29 +76,3 @@ class ProfileStats {
     );
   }
 }
-
-class AbilityUpgrade {
-  final String id;
-  final String title;
-  final String description;
-  final int cost; // ราคาเป็น Points
-  final String iconKey; // ใช้ map ไปหา icon ใน UI
-
-  AbilityUpgrade({
-    required this.id,
-    required this.title,
-    required this.description,
-    required this.cost,
-    required this.iconKey,
-  });
-
-  factory AbilityUpgrade.fromJson(Map<String, dynamic> json) {
-    return AbilityUpgrade(
-      id: json['id'],
-      title: json['title'],
-      description: json['description'],
-      cost: json['cost'],
-      iconKey: json['iconKey'] ?? 'star',
-    );
-  }
-}

@@ -7,6 +7,7 @@ import 'providers/achievement_provider.dart';
 import 'providers/inventory_provider.dart';
 import 'providers/notification_provider.dart';
 import 'providers/party_provider.dart';
+import 'providers/upgrade_provider.dart';
 import 'routes/app_routes.dart';
 import 'services/app_photo_storage.dart';
 
@@ -33,6 +34,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => InventoryProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ChangeNotifierProvider(create: (_) => PartyProvider()),
+        ChangeNotifierProvider(create: (_) => UpgradeProvider()),
       ],
       child: MaterialApp(
         title: 'EcoQuest',

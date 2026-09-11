@@ -5,6 +5,7 @@ import '../providers/achievement_provider.dart';
 import '../providers/inventory_provider.dart';
 import '../providers/notification_provider.dart';
 import '../providers/party_provider.dart';
+import '../providers/upgrade_provider.dart';
 import '../widgets/bottom_nav_bar.dart';
 import 'home/home_page.dart';
 import 'inventory/inventory_page.dart';
@@ -42,6 +43,7 @@ class _MainShellState extends State<MainShell> {
       final partyProvider = context.read<PartyProvider>();
       partyProvider.loadParty(); // ห้องที่ฉันอยู่ตอนนี้ (ถ้ามี)
       partyProvider.loadRooms(); // ลิสต์ห้องให้เลือกเข้าร่วม ตอนยังไม่มีห้อง
+      context.read<UpgradeProvider>().loadUpgrades(); // การ์ด Upgrade your Ability ในหน้า Profile
     });
   }
 

@@ -4,8 +4,10 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/notification_provider.dart';
 import '../../providers/quest_provider.dart';
+import '../../providers/upgrade_provider.dart';
 import '../../services/app_photo_storage.dart';
 import '../../models/profile_model.dart';
+import '../../models/upgrade_model.dart';
 import '../../widgets/profile_sections.dart';
 
 class ProfilePage extends StatelessWidget {
@@ -23,6 +25,7 @@ class ProfilePage extends StatelessWidget {
     final stats = authProvider.profile?.stats;
     // ประวัติ quest มาจาก QuestProvider (โหลดไว้แล้วตั้งแต่ MainShell) ไม่ได้ fetch ซ้ำที่นี่
     final questHistory = context.watch<QuestProvider>().history;
+    final upgradeProvider = context.watch<UpgradeProvider>();
 
     // ค่าจริงจาก GET /auth/me — ระหว่างที่ยังโหลดไม่เสร็จ ใช้ค่าที่ cache ไว้ใน user ไปก่อน
     final level = progress?.level ?? user?.level ?? 1;
@@ -34,38 +37,6 @@ class ProfilePage extends StatelessWidget {
     final rankXpForNextTier = progress?.rankXpForNextTier;
     final profileStats = stats ??
         ProfileStats(questCompleted: 0, questTotal: 0, co2SavedKg: 0.0, partiesJoined: 0);
-
-    // TODO: ยังไม่มี model/endpoint ของ upgrade ฝั่ง backend เลย ส่วนนี้เลยยัง mock อยู่
-    final mockUpgrades = [
-      AbilityUpgrade(
-        id: 'point_booster',
-        title: 'Point Booster',
-        description: 'Increase point earned by 1%',
-        cost: 20,
-        iconKey: 'trending_up',
-      ),
-      AbilityUpgrade(
-        id: 'quest_unlock',
-        title: 'Quest Unlock',
-        description: 'Unlock more quests',
-        cost: 20,
-        iconKey: 'lock_open',
-      ),
-      AbilityUpgrade(
-        id: 'party_bonus',
-        title: 'Party Bonus Points',
-        description: 'Get 2X more bonus points in parties',
-        cost: 20,
-        iconKey: 'star',
-      ),
-      AbilityUpgrade(
-        id: 'more_stamina',
-        title: 'More Stamina',
-        description: 'Increase stamina limit by 1',
-        cost: 20,
-        iconKey: 'favorite',
-      ),
-    ];
 
     return Scaffold(
       body: Stack(
@@ -125,7 +96,12 @@ class ProfilePage extends StatelessWidget {
                       const SizedBox(height: 16),
                       StatsCard(stats: profileStats),
                       const SizedBox(height: 16),
-                      _UpgradeAbilityCard(upgrades: mockUpgrades),
+                      _UpgradeAbilityCard(
+                        upgrades: upgradeProvider.items,
+                        isBusy: upgradeProvider.isBusy,
+                        points: points,
+                        onBuy: (upgrade) => _buyUpgrade(context, upgrade),
+                      ),
                       const SizedBox(height: 16),
                       QuestHistoryCard(history: questHistory),
                     ],
@@ -199,6 +175,26 @@ class ProfilePage extends StatelessWidget {
         const SnackBar(content: Text('Could not open the camera')),
       );
     }
+  }
+
+  // ซื้อ upgrade 1 ระดับ — สำเร็จแล้วต้องรีเฟรชทั้งยอดแต้ม (อยู่ใน AuthProvider คนละตัว)
+  // และรายการเควส (Quest Unlock เปลี่ยนจำนวนเควสที่เห็นในหน้า Explore)
+  Future<void> _buyUpgrade(BuildContext context, UpgradeModel upgrade) async {
+    final upgradeProvider = context.read<UpgradeProvider>();
+    final ok = await upgradeProvider.buy(upgrade.upgradeType);
+    if (!context.mounted) return;
+
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(upgradeProvider.errorMessage ?? 'Failed to buy this upgrade')),
+      );
+      return;
+    }
+
+    await Future.wait([
+      context.read<AuthProvider>().refreshProfile(),
+      context.read<QuestProvider>().loadQuests(),
+    ]);
   }
 }
 
@@ -356,41 +352,20 @@ class _CircleIconButton extends StatelessWidget {
 
 // ---------------------------------------------------------------------------
 // การ์ด Upgrade Your Ability — list ของ upgrade พร้อมปุ่มราคา (ใช้กับตัวเองเท่านั้น
-// เพราะเป็น UI ซื้อของ — โปรไฟล์ของผู้เล่นคนอื่นไม่มีการ์ดนี้)
+// เพราะเป็น UI ซื้อของ — โปรไฟล์ของผู้เล่นคนอื่นไม่มีการ์ดนี้) ข้อมูลจริงจาก GET /api/upgrades
 // ---------------------------------------------------------------------------
 class _UpgradeAbilityCard extends StatelessWidget {
-  final List<AbilityUpgrade> upgrades;
-  const _UpgradeAbilityCard({required this.upgrades});
+  final List<UpgradeModel> upgrades;
+  final bool isBusy;
+  final int points; // ยอดแต้มปัจจุบัน — ใช้เช็คว่าซื้อไหวไหม
+  final ValueChanged<UpgradeModel> onBuy;
 
-  IconData _iconFor(String key) {
-    switch (key) {
-      case 'trending_up':
-        return Icons.trending_up;
-      case 'lock_open':
-        return Icons.lock_open;
-      case 'star':
-        return Icons.star;
-      case 'favorite':
-        return Icons.favorite;
-      default:
-        return Icons.bolt;
-    }
-  }
-
-  Color _colorFor(String key) {
-    switch (key) {
-      case 'trending_up':
-        return Colors.greenAccent;
-      case 'lock_open':
-        return Colors.lightBlueAccent;
-      case 'star':
-        return Colors.purpleAccent;
-      case 'favorite':
-        return Colors.pinkAccent;
-      default:
-        return Colors.white;
-    }
-  }
+  const _UpgradeAbilityCard({
+    required this.upgrades,
+    required this.isBusy,
+    required this.points,
+    required this.onBuy,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -404,19 +379,23 @@ class _UpgradeAbilityCard extends StatelessWidget {
                 style: TextStyle(
                     color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
             const SizedBox(height: 12),
-            for (final upgrade in upgrades) ...[
-              _UpgradeRow(
-                icon: _iconFor(upgrade.iconKey),
-                iconColor: _colorFor(upgrade.iconKey),
-                title: upgrade.title,
-                description: upgrade.description,
-                cost: upgrade.cost,
-                onBuy: () {
-                  // TODO: เรียก API ซื้อ upgrade จริงตอนมี endpoint
-                },
-              ),
-              if (upgrade != upgrades.last) const SizedBox(height: 10),
-            ],
+            if (upgrades.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Text('No upgrades available',
+                    style: TextStyle(color: Colors.white54, fontSize: 12)),
+              )
+            else
+              for (final upgrade in upgrades) ...[
+                _UpgradeRow(
+                  upgrade: upgrade,
+                  // แต้มไม่พอ หรือกำลังซื้ออยู่ หรือเต็มระดับแล้ว = กดไม่ได้
+                  isBusy: isBusy,
+                  canAfford: upgrade.nextCost != null && points >= upgrade.nextCost!,
+                  onBuy: () => onBuy(upgrade),
+                ),
+                if (upgrade != upgrades.last) const SizedBox(height: 10),
+              ],
           ],
         ),
       ),
@@ -425,30 +404,28 @@ class _UpgradeAbilityCard extends StatelessWidget {
 }
 
 class _UpgradeRow extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final String title;
-  final String description;
-  final int cost;
+  final UpgradeModel upgrade;
+  final bool isBusy;
+  final bool canAfford;
   final VoidCallback onBuy;
 
   const _UpgradeRow({
-    required this.icon,
-    required this.iconColor,
-    required this.title,
-    required this.description,
-    required this.cost,
+    required this.upgrade,
+    required this.isBusy,
+    required this.canAfford,
     required this.onBuy,
   });
 
   @override
   Widget build(BuildContext context) {
+    final maxed = upgrade.isMaxed;
+
     return Row(
       children: [
         CircleAvatar(
           radius: 16,
           backgroundColor: Colors.white.withValues(alpha: 0.12),
-          child: Icon(icon, color: iconColor, size: 16),
+          child: Icon(upgrade.icon, color: upgrade.color, size: 16),
         ),
         const SizedBox(width: 10),
         Expanded(
@@ -456,35 +433,44 @@ class _UpgradeRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                title,
+                upgrade.title,
                 style: const TextStyle(
                     color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w600),
               ),
               Text(
-                description,
+                upgrade.description,
                 style: const TextStyle(color: Colors.white54, fontSize: 10.5),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Lv. ${upgrade.level} / ${upgrade.maxLevel}',
+                style: const TextStyle(color: Colors.white38, fontSize: 9.5),
               ),
             ],
           ),
         ),
         const SizedBox(width: 8),
         ElevatedButton(
-          onPressed: onBuy,
+          onPressed: (isBusy || maxed || !canAfford) ? null : onBuy,
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.white.withValues(alpha: 0.15),
             foregroundColor: Colors.white,
+            disabledBackgroundColor: Colors.white.withValues(alpha: 0.08),
+            disabledForegroundColor: Colors.white38,
             elevation: 0,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.bolt, size: 13, color: Colors.greenAccent),
-              const SizedBox(width: 3),
-              Text('$cost P', style: const TextStyle(fontSize: 11)),
-            ],
-          ),
+          child: maxed
+              ? const Text('MAX', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700))
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.bolt, size: 13, color: canAfford ? Colors.greenAccent : Colors.white38),
+                    const SizedBox(width: 3),
+                    Text('${upgrade.nextCost} P', style: const TextStyle(fontSize: 11)),
+                  ],
+                ),
         ),
       ],
     );

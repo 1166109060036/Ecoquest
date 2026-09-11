@@ -12,6 +12,7 @@ const partyRoutes = require('./routes/party');
 const userRoutes = require('./routes/users');
 const inventoryRoutes = require('./routes/inventory');
 const notificationRoutes = require('./routes/notifications');
+const upgradeRoutes = require('./routes/upgrades');
 
 const app = express();
 
@@ -52,6 +53,7 @@ app.use('/api/party', partyRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/upgrades', upgradeRoutes);
 
 app.get('/', (req, res) => {
   res.send('EcoQuest API is running 🌱');

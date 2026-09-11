@@ -20,12 +20,15 @@ const createNotification = async ({ userId, type, title, message, dedupeKey }) =
 
 // ทำเควสสำเร็จ (ทั้ง solo และ party) — dedupeKey อิง questHistoryId เพราะเควสรายวัน/รายวันของปาร์ตี้
 // ทำซ้ำได้คนละวัน แต่ละครั้งที่ทำสำเร็จควรได้แจ้งเตือนเป็นใบใหม่
-const notifyQuestCompleted = async (userId, quest, questHistoryId) => {
+//
+// ⚠️ pointsEarned ต้องเป็นแต้มที่ "คูณ upgrade แล้ว" (ผลจาก utils/upgrades.js#applyBonuses)
+// ไม่ใช่ quest.scorePoints ตรงๆ ไม่งั้นข้อความจะโชว์แต้มฐานที่ไม่ตรงกับที่ผู้เล่นได้จริง
+const notifyQuestCompleted = async (userId, quest, questHistoryId, pointsEarned) => {
   await createNotification({
     userId,
     type: 'quest_complete',
     title: 'Quest Completed',
-    message: `${quest.title} · +${quest.scorePoints} points`,
+    message: `${quest.title} · +${pointsEarned} points`,
     dedupeKey: `quest:${questHistoryId}`,
   });
 };

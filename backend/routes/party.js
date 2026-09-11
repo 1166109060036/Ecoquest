@@ -8,6 +8,7 @@ const authMiddleware = require('../middleware/auth');
 const progression = require('../utils/progression');
 const { syncAchievements } = require('../utils/achievements');
 const { notifyQuestCompleted } = require('../utils/notifications');
+const { getUserBonusesMap, applyBonuses } = require('../utils/upgrades');
 const { startOfToday } = require('../utils/questDay');
 
 const router = express.Router();
@@ -331,6 +332,10 @@ router.post('/complete', authMiddleware, async (req, res) => {
     const members = await PartyMember.find({ partyId: party._id });
     const startOfDay = startOfToday();
 
+    // ดึง upgrade ของสมาชิกทุกคนมาทีเดียวก่อนเข้าลูป ไม่ query ต่อคนต่อรอบ
+    // แต่ละคนมี upgrade ไม่เท่ากัน เลยต้องคิด bonus แยกรายคน ไม่ใช่ค่าเดียวทั้งห้อง
+    const bonusesMap = await getUserBonusesMap(members.map((m) => m.userId));
+
     let awardedCount = 0;
     let leaderReward = { points: 0, xp: 0 };
     let leaderNewAchievements = [];
@@ -347,15 +352,25 @@ router.post('/complete', authMiddleware, async (req, res) => {
       const user = await User.findById(m.userId);
       if (!user) continue; // user ถูกลบไปแล้ว
 
+      const bonuses = bonusesMap.get(String(user._id)) || {
+        pointPct: 0,
+        xpPct: 0,
+        rankPct: 0,
+        partyPct: 0,
+        questSlots: 0,
+      };
+      const reward = applyBonuses(bonuses, quest);
+
       const history = await QuestHistory.create({
         userId: user._id,
         questId: quest._id,
-        pointsEarned: quest.scorePoints,
-        xpEarned: quest.xpReward,
+        pointsEarned: reward.points,
+        // ⚠️ เก็บ rankXp ไม่ใช่ reward.xp — ใช้คิด Rank แยกจาก user.xp ที่คิด Level (ดู utils/upgrades.js)
+        xpEarned: reward.rankXp,
       });
 
-      user.points += quest.scorePoints;
-      user.xp += quest.xpReward;
+      user.points += reward.points;
+      user.xp += reward.xp;
       user.level = progression.levelFromXp(user.xp);
       await user.save();
 
@@ -364,13 +379,13 @@ router.post('/complete', authMiddleware, async (req, res) => {
 
       // สมาชิกทุกคนที่ได้คะแนนรอบนี้ ไม่ใช่แค่หัวหน้า ต้องได้แจ้งเตือนของตัวเอง
       try {
-        await notifyQuestCompleted(user._id, quest, history._id);
+        await notifyQuestCompleted(user._id, quest, history._id, reward.points);
       } catch (notifyErr) {
         console.error('สร้างแจ้งเตือนทำเควสสำเร็จไม่สำเร็จ:', notifyErr.message);
       }
 
       if (String(user._id) === String(req.userId)) {
-        leaderReward = { points: quest.scorePoints, xp: quest.xpReward };
+        leaderReward = { points: reward.points, xp: reward.xp };
         leaderNewAchievements = unlocked;
       }
     }

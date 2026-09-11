@@ -8,6 +8,7 @@ const authMiddleware = require('../middleware/auth');
 const progression = require('../utils/progression');
 const { syncAchievements } = require('../utils/achievements');
 const { notifyQuestCompleted } = require('../utils/notifications');
+const { getUserBonuses, applyBonuses, BASE_VISIBLE_QUESTS } = require('../utils/upgrades');
 const { startOfToday, todayKey } = require('../utils/questDay');
 const crypto = require('crypto');
 
@@ -46,6 +47,18 @@ router.get('/', authMiddleware, async (req, res) => {
       quests.push(pickFromPool(poolQuests, req.userId, poolName));
     }
 
+    // upgrade "Quest Unlock" จำกัดจำนวน solo quest ที่เห็นได้ (เริ่มต้น 4 อัน + 1 ต่อระดับ)
+    // ห้ามจำกัด party quest เด็ดขาด เพราะหน้าสร้างห้องปาร์ตี้เลือกเควสจากลิสต์นี้เหมือนกัน
+    // ถ้าโดนตัดไปด้วยจะสร้างห้องไม่ได้เลย — เรียงตามลำดับเดิม (createdAt) ก่อนตัด ให้ผลคงที่
+    const bonuses = await getUserBonuses(req.userId);
+    const soloLimit = BASE_VISIBLE_QUESTS + bonuses.questSlots;
+    let soloSeen = 0;
+    const visibleQuests = quests.filter((q) => {
+      if (q.type !== 'solo') return true;
+      soloSeen++;
+      return soloSeen <= soloLimit;
+    });
+
     // ดึงประวัติของวันนี้มาทีเดียว แล้วค่อย map ว่า quest ไหนทำไปแล้ว (ไม่ query ทีละ quest)
     const todayHistory = await QuestHistory.find({
       userId: req.userId,
@@ -57,7 +70,7 @@ router.get('/', authMiddleware, async (req, res) => {
     // party quest ตอนนี้ไม่มี "เข้าร่วม/ยังไม่เข้าร่วม" ต่อ quest แล้ว — เปลี่ยนเป็นสร้าง/เข้าร่วม
     // "ห้อง" (Party) แทน เลยแค่บอกว่ามีกี่ห้องที่ยังเปิดรับอยู่ (openPartyCount) ให้การ์ดโชว์เฉยๆ
     // ยิงทีเดียวสำหรับทุก party quest ไม่ query ทีละอัน
-    const partyQuestIds = quests.filter((q) => q.type === 'party').map((q) => q._id);
+    const partyQuestIds = visibleQuests.filter((q) => q.type === 'party').map((q) => q._id);
     const openPartyCounts = new Map();
 
     if (partyQuestIds.length > 0) {
@@ -69,8 +82,10 @@ router.get('/', authMiddleware, async (req, res) => {
     }
 
     res.json({
-      quests: quests.map((q) => {
+      quests: visibleQuests.map((q) => {
         const id = q._id.toString();
+        // การ์ดต้องโชว์ตัวเลขหลังคูณ upgrade แล้ว ไม่งั้นจะดูเหมือนบั๊กตอนได้จริงมากกว่าที่การ์ดบอก
+        const reward = applyBonuses(bonuses, q);
         return {
           id: q._id,
           title: q.title,
@@ -81,8 +96,8 @@ router.get('/', authMiddleware, async (req, res) => {
           type: q.type,
           difficulty: q.difficulty,
           impact: q.impact,
-          scorePoints: q.scorePoints,
-          xpReward: q.xpReward,
+          scorePoints: reward.points,
+          xpReward: reward.xp,
           co2SavedKg: q.co2SavedKg,
           isDaily: q.isDaily,
           actionKey: q.actionKey,
@@ -183,15 +198,22 @@ router.post('/:id/complete', authMiddleware, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
+    // คำนวณครั้งเดียวแล้วใช้ค่าเดิมทุกจุดด้านล่าง (ประวัติ, ยอดผู้ใช้, response, แจ้งเตือน)
+    // ไม่งั้นตัวเลขที่บันทึกกับที่โชว์จะไม่ตรงกัน
+    const bonuses = await getUserBonuses(user._id);
+    const reward = applyBonuses(bonuses, quest);
+
     const history = await QuestHistory.create({
       userId: user._id,
       questId: quest._id,
-      pointsEarned: quest.scorePoints,
-      xpEarned: quest.xpReward,
+      pointsEarned: reward.points,
+      // ⚠️ เก็บ rankXp ตรงนี้ ไม่ใช่ reward.xp — ค่านี้จะถูกรวมเป็น seasonXp ไปคิด Rank
+      // (ดู utils/profilePayload.js) แยกจาก user.xp ที่ใช้คิด Level โดยตั้งใจ (คนละ upgrade กัน)
+      xpEarned: reward.rankXp,
     });
 
-    user.points += quest.scorePoints;
-    user.xp += quest.xpReward;
+    user.points += reward.points;
+    user.xp += reward.xp;
     // level เป็น cache ของ xp — คำนวณใหม่ทุกครั้งที่ xp เปลี่ยน
     // ส่วน user.rank ปล่อยให้ GET /auth/me คิดสดจาก season XP เอา (ไม่ต้อง query season ตรงนี้)
     user.level = progression.levelFromXp(user.xp);
@@ -202,7 +224,7 @@ router.post('/:id/complete', authMiddleware, async (req, res) => {
 
     // แจ้งเตือนว่าทำเควสสำเร็จ — ไม่ทำให้ทั้ง request พังถ้าสร้างแจ้งเตือนไม่สำเร็จ
     try {
-      await notifyQuestCompleted(user._id, quest, history._id);
+      await notifyQuestCompleted(user._id, quest, history._id, reward.points);
     } catch (notifyErr) {
       console.error('สร้างแจ้งเตือนทำเควสสำเร็จไม่สำเร็จ:', notifyErr.message);
     }
@@ -210,8 +232,8 @@ router.post('/:id/complete', authMiddleware, async (req, res) => {
     res.json({
       message: 'Quest completed',
       earned: {
-        points: quest.scorePoints,
-        xp: quest.xpReward,
+        points: reward.points,
+        xp: reward.xp,
       },
       // เหรียญที่เพิ่งปลดล็อกรอบนี้ (ปกติเป็น array ว่าง) — แอพเอาไปเด้งแจ้งเตือน
       newAchievements,
