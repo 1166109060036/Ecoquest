@@ -1,41 +1,57 @@
 import 'package:flutter/material.dart';
 
-// การแจ้งเตือนที่แสดงในหน้า Notification
-// ตอนนี้ยังไม่ได้ต่อ backend จริง ใช้ mock data ไปก่อน
+// การแจ้งเตือนที่แสดงในหน้า Notification — ข้อมูลจริงจาก GET /api/notifications
+// backend ส่งมาแค่ type + title/message ที่เขียนสำเร็จรูปมาแล้ว ส่วนไอคอน/รูปเป็นเรื่องของฝั่งแอพ
+// (แนวเดียวกับ InventoryItemModel.icon ใน inventory_item_model.dart)
 class NotificationModel {
   final String id;
+  final String type; // quest_complete / fridge_expiring / achievement
   final String title;
   final String message;
-  final IconData icon; // fallback ถ้าหาไฟล์รูปไม่เจอ (ยังไม่ได้ใส่รูป/ลืมประกาศใน pubspec)
-  final Color iconColor;
-  final String? imageAsset; // path รูปจริง ถ้ามี — ใช้แทน icon
+  final bool isRead;
+  final DateTime createdAt;
 
   const NotificationModel({
     required this.id,
+    required this.type,
     required this.title,
     required this.message,
-    required this.icon,
-    this.iconColor = Colors.black87,
-    this.imageAsset,
+    required this.isRead,
+    required this.createdAt,
   });
-}
 
-// mock data — TODO: ดึงจาก backend จริงตอนมี endpoint แจ้งเตือน
-final List<NotificationModel> mockNotifications = [
-  NotificationModel(
-    id: 'quest_complete',
-    title: 'Quest Complete!',
-    message: 'The Quest Complete You have received 10 points.',
-    icon: Icons.emoji_events,
-    iconColor: Colors.amber,
-    imageAsset: 'lib/utils/assets/notifications/trophy.png',
-  ),
-  NotificationModel(
-    id: 'almost_expired',
-    title: 'Almost Expired',
-    message: 'Your bread expires on 5/9/2026 only 24 hours remain.',
-    icon: Icons.kitchen,
-    iconColor: Colors.blueGrey,
-    imageAsset: 'lib/utils/assets/notifications/fridge_expired.png',
-  ),
-];
+  factory NotificationModel.fromJson(Map<String, dynamic> json) {
+    return NotificationModel(
+      id: (json['id'] ?? '').toString(),
+      type: json['type'] ?? '',
+      title: json['title'] ?? '',
+      message: json['message'] ?? '',
+      isRead: json['isRead'] ?? false,
+      // createdAt ควรมีเสมอ แต่กันไว้เผื่อข้อมูลเก่าที่ไม่มีค่านี้ ไม่ให้ทั้งลิสต์พัง
+      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? '')?.toLocal() ??
+          DateTime.now(),
+    );
+  }
+
+  // fallback ถ้าหาไฟล์รูปไม่เจอ (ยังไม่ได้ใส่รูป/ลืมประกาศใน pubspec)
+  IconData get icon => switch (type) {
+        'quest_complete' => Icons.emoji_events,
+        'fridge_expiring' => Icons.kitchen,
+        'achievement' => Icons.military_tech,
+        _ => Icons.notifications,
+      };
+
+  Color get iconColor => switch (type) {
+        'quest_complete' => Colors.amber,
+        'fridge_expiring' => Colors.blueGrey,
+        'achievement' => Colors.purple,
+        _ => Colors.black87,
+      };
+
+  // path รูปจริง ถ้ามี — ใช้แทน icon (ยังไม่มีรูปเหรียญ Achievement เลยใช้ icon ไปก่อน)
+  String? get imageAsset => switch (type) {
+        'quest_complete' => 'lib/utils/assets/notifications/trophy.png',
+        'fridge_expiring' => 'lib/utils/assets/notifications/fridge_expired.png',
+        _ => null,
+      };
+}

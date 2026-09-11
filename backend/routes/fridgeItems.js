@@ -1,6 +1,7 @@
 const express = require('express');
 const FridgeItem = require('../models/FridgeItem');
 const authMiddleware = require('../middleware/auth');
+const { deleteExpiryNotifications } = require('../utils/notifications');
 
 const router = express.Router();
 
@@ -70,6 +71,10 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     if (!deleted) {
       return res.status(404).json({ message: 'Item not found' });
     }
+
+    // เอาของออกจากตู้เย็นแล้ว ไม่ควรค้างเตือนถึงของที่กินไปแล้ว
+    await deleteExpiryNotifications(req.userId, deleted._id);
+
     res.json({ message: 'Item removed' });
   } catch (err) {
     console.error(err);

@@ -7,6 +7,7 @@ const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 const progression = require('../utils/progression');
 const { syncAchievements } = require('../utils/achievements');
+const { notifyQuestCompleted } = require('../utils/notifications');
 const { startOfToday, todayKey } = require('../utils/questDay');
 const crypto = require('crypto');
 
@@ -182,7 +183,7 @@ router.post('/:id/complete', authMiddleware, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    await QuestHistory.create({
+    const history = await QuestHistory.create({
       userId: user._id,
       questId: quest._id,
       pointsEarned: quest.scorePoints,
@@ -198,6 +199,13 @@ router.post('/:id/complete', authMiddleware, async (req, res) => {
 
     // เช็คเหรียญหลังบันทึกประวัติแล้ว — quest ที่เพิ่งทำต้องถูกนับด้วย
     const newAchievements = await syncAchievements(user._id);
+
+    // แจ้งเตือนว่าทำเควสสำเร็จ — ไม่ทำให้ทั้ง request พังถ้าสร้างแจ้งเตือนไม่สำเร็จ
+    try {
+      await notifyQuestCompleted(user._id, quest, history._id);
+    } catch (notifyErr) {
+      console.error('สร้างแจ้งเตือนทำเควสสำเร็จไม่สำเร็จ:', notifyErr.message);
+    }
 
     res.json({
       message: 'Quest completed',

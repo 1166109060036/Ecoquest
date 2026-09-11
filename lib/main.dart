@@ -5,6 +5,7 @@ import 'providers/quest_provider.dart';
 import 'providers/fridge_provider.dart';
 import 'providers/achievement_provider.dart';
 import 'providers/inventory_provider.dart';
+import 'providers/notification_provider.dart';
 import 'providers/party_provider.dart';
 import 'routes/app_routes.dart';
 import 'services/app_photo_storage.dart';
@@ -30,6 +31,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => FridgeProvider()),
         ChangeNotifierProvider(create: (_) => AchievementProvider()),
         ChangeNotifierProvider(create: (_) => InventoryProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ChangeNotifierProvider(create: (_) => PartyProvider()),
       ],
       child: MaterialApp(

@@ -1,15 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../models/notification_model.dart';
+import '../../providers/notification_provider.dart';
+import '../../utils/date_format.dart';
 
 // หน้า Notification — เข้าจากปุ่มกระดิ่งมุมขวาบนของหน้า Profile
 // push ทับ MainShell เลยไม่มี bottom nav ให้เห็น (เหมือนหน้า Settings)
-// TODO: ต่อกับ backend จริงตอนมี endpoint แจ้งเตือน — ตอนนี้ใช้ mockNotifications
-class NotificationPage extends StatelessWidget {
+// ข้อมูลจริงจาก GET /api/notifications (โหลดไว้แล้วตั้งแต่ MainShell ให้จุดแดงบนกระดิ่งมีเลขทัน)
+class NotificationPage extends StatefulWidget {
   const NotificationPage({super.key});
 
   @override
+  State<NotificationPage> createState() => _NotificationPageState();
+}
+
+class _NotificationPageState extends State<NotificationPage> {
+  @override
+  void initState() {
+    super.initState();
+    // เข้ามาดูหน้านี้แล้วถือว่าอ่านหมด — จุดแดงบนกระดิ่งหายทันที
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<NotificationProvider>().markAllRead();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final notifications = mockNotifications;
+    final provider = context.watch<NotificationProvider>();
+    final notifications = provider.items;
 
     // พื้นหลัง + หัวข้อ + ขนาดการ์ด อิงตามหน้า Inventory/Explore ทั้งหมด ให้หน้าตาเป็นชุดเดียวกัน
     return Scaffold(
@@ -23,16 +41,23 @@ class NotificationPage extends StatelessWidget {
               child: _TopBar(),
             ),
             Expanded(
-              child: notifications.isEmpty
-                  ? const _EmptyState()
-                  : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-                      itemCount: notifications.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 14),
-                      itemBuilder: (context, index) {
-                        return _NotificationCard(notification: notifications[index]);
-                      },
-                    ),
+              child: provider.isLoading && notifications.isEmpty
+                  ? const Center(child: CircularProgressIndicator(color: Colors.green))
+                  : notifications.isEmpty
+                      ? _EmptyState(errorMessage: provider.errorMessage)
+                      : RefreshIndicator(
+                          onRefresh: () => context.read<NotificationProvider>().loadNotifications(),
+                          color: Colors.green,
+                          child: ListView.separated(
+                            padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            itemCount: notifications.length,
+                            separatorBuilder: (_, _) => const SizedBox(height: 14),
+                            itemBuilder: (context, index) {
+                              return _NotificationCard(notification: notifications[index]);
+                            },
+                          ),
+                        ),
             ),
           ],
         ),
@@ -75,7 +100,7 @@ class _TopBar extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// การ์ดแจ้งเตือน 1 ใบ: รูปซ้าย + หัวข้อ/รายละเอียดขวา
+// การ์ดแจ้งเตือน 1 ใบ: รูปซ้าย + หัวข้อ/รายละเอียด/เวลาขวา
 // ขนาดทุกอย่าง (padding 16 / มุมโค้ง 20 / เงา / thumbnail 72 / ตัวอักษร 16+13)
 // อิงตาม InventoryCard เป๊ะๆ เพื่อให้การ์ดสูงเท่ากับไอเทมในหน้า Inventory
 // ต่างกันจุดเดียวคือ thumbnail ที่นี่ไม่มีพื้นหลังสีอ่อนรองและใช้ BoxFit.contain
@@ -102,6 +127,7 @@ class _NotificationCard extends StatelessWidget {
         ],
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
             width: 72,
@@ -135,6 +161,11 @@ class _NotificationCard extends StatelessWidget {
                   notification.message,
                   style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
                 ),
+                const SizedBox(height: 6),
+                Text(
+                  formatRelativeTime(notification.createdAt),
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
+                ),
               ],
             ),
           ),
@@ -145,20 +176,28 @@ class _NotificationCard extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState();
+  final String? errorMessage; // โหลดไม่สำเร็จ (เน็ตหลุด/server ล่ม) — คนละเคสกับ "ยังไม่มีแจ้งเตือน"
+  const _EmptyState({this.errorMessage});
 
   @override
   Widget build(BuildContext context) {
+    final failed = errorMessage != null;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.notifications_none_rounded, size: 48, color: Colors.grey.shade400),
+            Icon(
+              failed ? Icons.cloud_off : Icons.notifications_none_rounded,
+              size: 48,
+              color: Colors.grey.shade400,
+            ),
             const SizedBox(height: 12),
             Text(
-              'No notifications yet',
+              failed ? errorMessage! : 'No notifications yet',
+              textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
             ),
           ],

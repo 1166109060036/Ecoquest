@@ -175,6 +175,20 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
   - โค้ด "หลังทำ quest สำเร็จ" รวมไว้ที่ `lib/utils/quest_completion.dart` ตัวเดียว
     ใช้ร่วมกัน 3 ที่ (Explore / แผ่น Explore ใน Home / Fridge) — แก้ที่เดียวพอ
   - ✅ `Community` ปลดล็อกได้แล้ว เพราะมี party quest หมวด community เปิดใช้งานอยู่
+- **Inventory ใช้ข้อมูลจริงแล้ว** — `GET /api/inventory` แจกไอเทมตั้งต้น Camera/Fridge ให้อัตโนมัติ
+  (แบบ lazy ตอนอ่านครั้งแรก ไม่ใช่ตอนสมัคร — บัญชีเก่าที่มีอยู่ก่อนฟีเจอร์นี้ก็ได้ของไปด้วยโดยไม่ต้อง backfill DB)
+  นิยามไอเทมอยู่ที่ `backend/utils/inventory.js` (แนวเดียวกับ `MEDALS` ใน `utils/achievements.js`)
+  ฝั่งแอพแปลง `itemType` เป็นไอคอน/รูปเองผ่าน `InventoryItemModel` (`lib/models/inventory_item_model.dart`)
+- **ระบบแจ้งเตือนใช้งานได้จริงแล้ว** — `GET /api/notifications` + จุดแดงบนกระดิ่งในหน้า Profile
+  แจ้งเตือน 3 แบบ: ทำเควสสำเร็จ, ของในตู้เย็นใกล้หมดอายุ/หมดอายุแล้ว, ปลดล็อกเหรียญ Achievement
+  - `backend/utils/notifications.js` มี `dedupeKey` กันสร้างซ้ำ (unique index `userId+dedupeKey`)
+    ต้อง `$setOnInsert` เท่านั้น ไม่ใช่ `$set` ไม่งั้นแถวที่อ่านไปแล้วจะโดนรีเซ็ตกลับเป็นยังไม่อ่าน
+  - ⚠️ **แจ้งเตือนของใกล้หมดอายุสร้างแบบ lazy ตอนเรียก `GET /api/notifications`** เพราะ backend
+    ไม่มี scheduler/cron เลยสักตัว และ Render free tier หลับเมื่อไม่มีคนใช้ พึ่ง cron จริงไม่ได้
+  - เควสสำเร็จ (ทั้ง solo และ party fan-out ตอนหัวหน้ากดจบอีเวนต์) กับปลดล็อกเหรียญ สร้างตอนเกิดเหตุการณ์จริง
+    จุดปลดล็อกเหรียญรวมไว้ที่เดียวใน `syncAchievements` ครอบคลุมทั้ง 2 ทางที่ปลดล็อกได้
+  - `NotificationProvider.unreadCount` นับจากลิสต์ในเครื่อง ไม่ได้ให้ backend ส่งเลขมาแยก
+    เข้าหน้า Notification แล้วถือว่าอ่านหมดทันที (`markAllRead`)
 - **Quest History ในหน้า Profile** — การ์ดล่างสุด (ต่อจาก Upgrade your Ability) โชว์ quest ที่ทำสำเร็จ
   แต่ละแถว: ไอคอนตามหมวด + ชื่อ quest + วันที่สำเร็จ + คะแนนที่ได้ (`+10 P`) ข้อมูลจริงจาก `GET /api/quests/history`
   ⚠️ **ยังไม่มี "รูป quest" จริงในระบบ** (`Quest` model ไม่มีฟิลด์รูป, ไม่มีไฟล์ภาพใน assets)
@@ -253,34 +267,37 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
   - party quest สำหรับทดสอบ 3 อัน seed ไว้แล้ว (ไม่มี `eventDate` ในไฟล์ seed แล้ว — อันนั้นเป็นของห้อง):
     Community Cleanup, Tree Planting Day, Neighborhood Recycling Drive
 
-### ยังเป็น placeholder / mock ทั้งหมด (มี `// TODO` กำกับในโค้ดแล้ว)
+### ยังเป็น placeholder / mock (มี `// TODO` กำกับในโค้ดแล้ว)
 - **การ์ด "Upgrade your Ability"** ในหน้า Profile ยัง mock อยู่ — ยังไม่มี model/endpoint ของ upgrade ฝั่ง backend เลย
-- **การแจ้งเตือน** ในหน้า Notification เป็น mock (`mockNotifications` ใน `lib/models/notification_model.dart`) ยังไม่มี endpoint
-- **ไอเทมในกระเป๋า (Camera/Fridge)** ยัง mock อยู่ใน `inventory_item_model.dart` — ยังไม่มี `GET /api/inventory`
-  (ส่วนเหรียญ Achievement ในหน้าเดียวกันใช้ข้อมูลจริงแล้ว)
-  (Camera กับ Fridge คือ **ไอเทมตั้งต้นที่ผู้เล่นทุกคนต้องมี** — ตอนเขียน endpoint จริงต้องแจกให้อัตโนมัติตอนสมัคร ไม่ใช่ของที่ได้จาก quest/reward)
+  (เหลือฟีเจอร์เดียวที่ยัง mock อยู่ ที่เหลือทั้งหมดต่อ backend จริงแล้ว)
 
 **Route ฝั่ง Flutter** (รวมไว้ที่ `lib/routes/app_routes.dart` ไฟล์เดียว — เพิ่มหน้าใหม่มาแก้ที่นี่):
 `/splash`, `/login`, `/register`, `/forgot-password`, `/main` (MainShell + bottom nav),
-`/settings`, `/change-password`, `/upgrade-account`, `/notifications`, `/fridge`
+`/settings`, `/change-password`, `/upgrade-account`, `/notifications`, `/fridge`, `/party/create`
 > 5 แท็บใน bottom nav ไม่ใช่ route แยก — เป็นหน้าที่สลับกันอยู่ใน `IndexedStack` ของ `MainShell`
-> ส่วนหน้าที่ push ทับ (settings / change-password / notifications / fridge) จะไม่มี bottom nav ให้เห็น
+> ส่วนหน้าที่ push ทับ (settings / change-password / notifications / fridge / party/create) จะไม่มี bottom nav ให้เห็น
+> หน้าโปรไฟล์ของผู้เล่นคนอื่น (`player_profile_page.dart`) รับ `userId` เป็น argument เลยไม่ได้ลงทะเบียนที่นี่
+> เปิดผ่าน `MaterialPageRoute` ตรงๆ แทน (แบบเดียวกับ `QuestDetailPage`)
 
 **Backend routes ที่มีแล้ว**
 - `backend/routes/auth.js` → mount ที่ `/api/auth`:
-  `POST /register`, `POST /login`, `POST /guest`, `GET /me`, `POST /upgrade-guest`,
+  `POST /register`, `POST /login`, `POST /guest`, `GET /me`, `POST /upgrade-guest`, `POST /avatar`,
   `POST /verify-password`, `POST /change-password`,
   `POST /forgot-password`, `POST /verify-reset-otp`, `POST /reset-password`
 - `backend/routes/quests.js` → mount ที่ `/api/quests`: `GET /`, `GET /history?limit=` , `POST /:id/complete` (ต้อง login ทั้งหมด)
   (`/history` ต้องประกาศก่อน route ที่มี `:id` ไม่งั้นคำว่า history จะถูกจับเป็น id)
 - `backend/routes/fridgeItems.js` → mount ที่ `/api/fridge-items`: `GET /`, `POST /`, `DELETE /:id` (ต้อง login ทั้งหมด)
 - `backend/routes/achievements.js` → mount ที่ `/api/achievements`: `GET /` (ต้อง login)
+- `backend/routes/party.js` → mount ที่ `/api/party`: `GET /`, `GET /rooms`, `POST /`, `POST /join/:partyId`,
+  `POST /leave`, `POST /complete` (ต้อง login ทั้งหมด)
+- `backend/routes/users.js` → mount ที่ `/api/users`: `GET /:id` (โปรไฟล์สาธารณะของผู้เล่นคนอื่น)
+- `backend/routes/inventory.js` → mount ที่ `/api/inventory`: `GET /` (แจกไอเทมตั้งต้น Camera/Fridge อัตโนมัติถ้ายังไม่มี)
+- `backend/routes/notifications.js` → mount ที่ `/api/notifications`: `GET /`, `POST /read`
+  (สร้างแจ้งเตือนของใกล้หมดอายุแบบ lazy ตอน `GET /` เพราะไม่มี scheduler — ดูหัวข้อ "ระบบแจ้งเตือน" ด้านบน)
 - สคริปต์: `npm run seed:quests` (`backend/scripts/seedQuests.js`)
 
 `GET /api/auth/me` คืน 3 ก้อน: `user` (+ level/xp/points/rank), `progress` (ความคืบหน้า level/rank),
 `stats` (questCompleted / questTotal / co2SavedKg / partiesJoined — คำนวณจริงจาก `QuestHistory` + `Quest`)
-
-**Backend routes ที่ยังไม่มี (ต้องเขียนเพิ่ม)**: `GET /api/inventory`, Party/Event API, endpoint การแจ้งเตือน
 
 ## 6. รายละเอียดปลีกย่อยที่เคยเสียเวลาแก้ปัญหามาก่อน (กันเสียเวลาซ้ำ)
 
@@ -350,7 +367,5 @@ backend พร้อม deploy แล้ว (ทดสอบว่าบูต�
 
 ## 7. งานถัดไปที่แนะนำ (เรียงตามลำดับที่ควรทำ)
 
-1. เขียน backend routes สำหรับ Inventory แล้วต่อเข้ากับหน้า Inventory
-   — Achievement ทำได้แล้วตอนนี้ เพราะ `QuestHistory` เริ่มมีข้อมูลจริงให้เอาไปเช็คเงื่อนไขปลดล็อก medal
-2. endpoint การแจ้งเตือน แทน `mockNotifications` (ยังไม่มี model ฝั่ง backend เลย)
-3. การ์ด "Upgrade your Ability" ในหน้า Profile ยัง mock อยู่ — ยังไม่มี model/endpoint ฝั่ง backend เลย
+1. การ์ด "Upgrade your Ability" ในหน้า Profile ยัง mock อยู่ — ยังไม่มี model/endpoint ฝั่ง backend เลย
+   (เหลือฟีเจอร์ mock เดียวในทั้งแอพ ที่เหลือทั้งหมดต่อ backend จริงแล้ว)

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/notification_provider.dart';
 import '../../providers/quest_provider.dart';
 import '../../services/app_photo_storage.dart';
 import '../../models/profile_model.dart';
@@ -283,6 +284,9 @@ class _TopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // จุดแดง = ยังมีแจ้งเตือนที่ยังไม่ได้อ่าน — หายเองตอนเปิดหน้า Notification (markAllRead)
+    final hasUnread = context.watch<NotificationProvider>().unreadCount > 0;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -300,6 +304,7 @@ class _TopBar extends StatelessWidget {
         ),
         _CircleIconButton(
           icon: Icons.notifications_none_rounded,
+          showBadge: hasUnread,
           onTap: () => Navigator.pushNamed(context, '/notifications'),
         ),
       ],
@@ -310,20 +315,40 @@ class _TopBar extends StatelessWidget {
 class _CircleIconButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
-  const _CircleIconButton({required this.icon, required this.onTap});
+  final bool showBadge;
+  const _CircleIconButton({required this.icon, required this.onTap, this.showBadge = false});
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.3),
-          shape: BoxShape.circle,
-        ),
-        child: Icon(icon, color: Colors.white, size: 20),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.3),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: Colors.white, size: 20),
+          ),
+          if (showBadge)
+            Positioned(
+              right: -1,
+              top: -1,
+              child: Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 1.5),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

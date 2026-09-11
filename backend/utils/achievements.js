@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Achievement = require('../models/Achievement');
 const QuestHistory = require('../models/QuestHistory');
+const { notifyAchievementUnlocked } = require('./notifications');
 
 // รวมนิยามเหรียญทั้งหมดไว้ไฟล์เดียว — อยากเพิ่ม/แก้เงื่อนไขปลดล็อกแก้ที่นี่ที่เดียว
 // (แนวเดียวกับ progression.js ที่รวมสูตร level/rank ไว้ที่เดียว)
@@ -116,11 +117,19 @@ const syncAchievements = async (userId) => {
 
     try {
       await Achievement.create({ userId, medalType: medal.medalType });
-      newlyUnlocked.push({
+      const unlocked = {
         medalType: medal.medalType,
         title: medal.title,
         description: describe(medal),
-      });
+      };
+      newlyUnlocked.push(unlocked);
+      // ใส่ไว้ที่นี่ที่เดียวเพื่อครอบคลุมทั้ง 2 ทางที่ปลดล็อกเหรียญได้ (quest เดี่ยว + party fan-out)
+      // ไม่ทำให้ทั้งฟังก์ชันพังถ้าสร้างแจ้งเตือนไม่สำเร็จ เพราะเหรียญปลดล็อกไปแล้วจริงๆ
+      try {
+        await notifyAchievementUnlocked(userId, unlocked);
+      } catch (notifyErr) {
+        console.error('สร้างแจ้งเตือนปลดล็อกเหรียญไม่สำเร็จ:', notifyErr.message);
+      }
     } catch (err) {
       // ชนกับ unique index = มีอีก request ปลดล็อกไปพร้อมกันพอดี ไม่ถือว่าพัง
       if (err.code !== 11000) throw err;

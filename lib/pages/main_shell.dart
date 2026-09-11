@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/quest_provider.dart';
 import '../providers/achievement_provider.dart';
 import '../providers/inventory_provider.dart';
+import '../providers/notification_provider.dart';
 import '../providers/party_provider.dart';
 import '../widgets/bottom_nav_bar.dart';
 import 'home/home_page.dart';
@@ -36,6 +37,8 @@ class _MainShellState extends State<MainShell> {
       questProvider.loadHistory(); // ประวัติ quest ที่โชว์ในหน้า Profile
       context.read<AchievementProvider>().loadAchievements(); // เหรียญที่โชว์ในหน้า Inventory
       context.read<InventoryProvider>().loadInventory(); // ไอเทม (Camera/Fridge) ที่โชว์ในหน้า Inventory
+      // ต้องโหลดตรงนี้ ไม่ใช่ในหน้า Notification เพราะจุดแดงบนกระดิ่งต้องมีเลขก่อนเปิดหน้านั้น
+      context.read<NotificationProvider>().loadNotifications();
       final partyProvider = context.read<PartyProvider>();
       partyProvider.loadParty(); // ห้องที่ฉันอยู่ตอนนี้ (ถ้ามี)
       partyProvider.loadRooms(); // ลิสต์ห้องให้เลือกเข้าร่วม ตอนยังไม่มีห้อง

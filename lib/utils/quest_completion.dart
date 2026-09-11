@@ -5,13 +5,15 @@ import '../models/achievement_model.dart';
 import '../models/quest_card_model.dart';
 import '../providers/achievement_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/notification_provider.dart';
 
-// สิ่งที่ต้องทำ "หลังทำ quest สำเร็จ" — เหมือนกันทั้ง 3 ที่ที่ทำ quest ได้
-// (หน้า Explore, แผ่น Explore ในหน้า Home, และหน้า Fridge)
-// รวมไว้ที่เดียวจะได้ไม่ต้องแก้ 3 จุดทุกครั้งที่เพิ่มอะไรตอนจบ quest
+// สิ่งที่ต้องทำ "หลังทำ quest สำเร็จ" — เหมือนกันทั้ง 4 ที่ที่ทำ quest ได้
+// (หน้า Explore, แผ่น Explore ในหน้า Home, หน้า Fridge, และหัวหน้าห้องกดจบอีเวนต์ปาร์ตี้)
+// รวมไว้ที่เดียวจะได้ไม่ต้องแก้ 4 จุดทุกครั้งที่เพิ่มอะไรตอนจบ quest
 Future<void> handleQuestCompleted(BuildContext context, QuestReward reward) async {
   final authProvider = context.read<AuthProvider>();
   final achievementProvider = context.read<AchievementProvider>();
+  final notificationProvider = context.read<NotificationProvider>();
 
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(content: Text('Quest complete! +${reward.points} points, +${reward.xp} XP')),
@@ -22,6 +24,8 @@ Future<void> handleQuestCompleted(BuildContext context, QuestReward reward) asyn
     authProvider.refreshProfile(),
     // ความคืบหน้าเหรียญขยับทุกครั้งที่ทำ quest ถึงจะยังไม่ปลดล็อกก็ตาม
     achievementProvider.loadAchievements(),
+    // เควสสำเร็จ (และเหรียญที่เพิ่งปลดล็อกถ้ามี) มีแจ้งเตือนใหม่รอโหลดอยู่เสมอ
+    notificationProvider.loadNotifications(),
   ]);
 
   if (!context.mounted || reward.newAchievements.isEmpty) return;

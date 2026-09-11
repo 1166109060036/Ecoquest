@@ -11,6 +11,7 @@ const achievementRoutes = require('./routes/achievements');
 const partyRoutes = require('./routes/party');
 const userRoutes = require('./routes/users');
 const inventoryRoutes = require('./routes/inventory');
+const notificationRoutes = require('./routes/notifications');
 
 const app = express();
 
@@ -50,6 +51,7 @@ app.use('/api/achievements', achievementRoutes);
 app.use('/api/party', partyRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/inventory', inventoryRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 app.get('/', (req, res) => {
   res.send('EcoQuest API is running 🌱');

@@ -7,6 +7,7 @@ const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 const progression = require('../utils/progression');
 const { syncAchievements } = require('../utils/achievements');
+const { notifyQuestCompleted } = require('../utils/notifications');
 const { startOfToday } = require('../utils/questDay');
 
 const router = express.Router();
@@ -346,7 +347,7 @@ router.post('/complete', authMiddleware, async (req, res) => {
       const user = await User.findById(m.userId);
       if (!user) continue; // user ถูกลบไปแล้ว
 
-      await QuestHistory.create({
+      const history = await QuestHistory.create({
         userId: user._id,
         questId: quest._id,
         pointsEarned: quest.scorePoints,
@@ -360,6 +361,13 @@ router.post('/complete', authMiddleware, async (req, res) => {
 
       const unlocked = await syncAchievements(user._id);
       awardedCount += 1;
+
+      // สมาชิกทุกคนที่ได้คะแนนรอบนี้ ไม่ใช่แค่หัวหน้า ต้องได้แจ้งเตือนของตัวเอง
+      try {
+        await notifyQuestCompleted(user._id, quest, history._id);
+      } catch (notifyErr) {
+        console.error('สร้างแจ้งเตือนทำเควสสำเร็จไม่สำเร็จ:', notifyErr.message);
+      }
 
       if (String(user._id) === String(req.userId)) {
         leaderReward = { points: quest.scorePoints, xp: quest.xpReward };
