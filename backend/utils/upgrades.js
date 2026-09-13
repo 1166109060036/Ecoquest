@@ -59,8 +59,10 @@ const BASE_VISIBLE_QUESTS = 4;
 const findUpgrade = (upgradeType) => UPGRADES.find((u) => u.upgradeType === upgradeType);
 
 // ราคาของ "ระดับถัดไป" ที่กำลังจะซื้อ (currentLevel = ระดับที่มีอยู่ตอนนี้)
-// เช่น baseCost 20: ซื้อระดับ 1 = 20, ระดับ 2 = 40, ... ระดับ 50 = 1000
-const costForNextLevel = (upgrade, currentLevel) => upgrade.baseCost * (currentLevel + 1);
+// แต่ละระดับเพิ่มราคาอีก 20% ของ baseCost (ไม่ใช่ 100% เหมือนเดิม — ของเดิมแพงเกินไป)
+// เช่น baseCost 20: ระดับ 1 = 20, ระดับ 2 = 24, ระดับ 3 = 28, ... ระดับ 50 = 216
+const costForNextLevel = (upgrade, currentLevel) =>
+  Math.round(upgrade.baseCost * (1 + 0.2 * currentLevel));
 
 // แปลงแถว UserUpgrade ที่ query มาแล้วให้เป็นก้อนโบนัสพร้อมใช้
 const bonusesFromRows = (rows) => {
