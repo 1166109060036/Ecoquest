@@ -8,6 +8,7 @@ import '../../providers/upgrade_provider.dart';
 import '../../models/profile_model.dart';
 import '../../models/upgrade_model.dart';
 import '../../widgets/profile_sections.dart';
+import '../../widgets/falling_leaves_overlay.dart';
 
 class ProfilePage extends StatelessWidget {
   // หน้า Home เอา ProfilePage ตัวนี้ไปใช้เป็นพื้นหลังด้วย ตรงนั้นต้องปิด pull-to-refresh
@@ -50,14 +51,16 @@ class ProfilePage extends StatelessWidget {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withValues(alpha: 0.45),
-                    Colors.black.withValues(alpha: 0.25),
-                    Colors.black.withValues(alpha: 0.55),
+                    Colors.black.withValues(alpha: 0.53),
+                    Colors.black.withValues(alpha: 0.33),
+                    Colors.black.withValues(alpha: 0.63),
                   ],
                 ),
               ),
             ),
           ),
+          // ---- ใบไม้ลอยตก ----
+          const Positioned.fill(child: FallingLeavesOverlay()),
           // ---- เนื้อหา ----
           // Positioned.fill ตรงนี้สำคัญมาก: ถ้าไม่ใส่ Stack จะคำนวณขนาดตาม
           // ความสูงของเนื้อหาจริงเท่านั้น (สั้นกว่าจอ) เหลือพื้นที่ว่างสีขาว
@@ -322,7 +325,7 @@ class _CircleIconButton extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.3),
+              color: Colors.black.withValues(alpha: 0.38),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: Colors.white, size: 20),

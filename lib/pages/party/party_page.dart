@@ -6,6 +6,7 @@ import '../../providers/quest_provider.dart';
 import '../../utils/date_format.dart';
 import '../../utils/quest_completion.dart';
 import '../../widgets/profile_sections.dart';
+import '../../widgets/falling_leaves_overlay.dart';
 import '../profile/player_profile_page.dart';
 
 // หน้า Party — โชว์แค่ "ห้องของฉัน" เท่านั้น (ไม่มีลิสต์ห้องให้เลือกเข้าร่วมแล้ว
@@ -163,14 +164,15 @@ class _PartyPageState extends State<PartyPage> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withValues(alpha: 0.45),
-                    Colors.black.withValues(alpha: 0.25),
-                    Colors.black.withValues(alpha: 0.55),
+                    Colors.black.withValues(alpha: 0.53),
+                    Colors.black.withValues(alpha: 0.33),
+                    Colors.black.withValues(alpha: 0.63),
                   ],
                 ),
               ),
             ),
           ),
+          const Positioned.fill(child: FallingLeavesOverlay()),
           Positioned.fill(
             child: SafeArea(
               child: Padding(
@@ -664,7 +666,7 @@ class _GlassCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.38),
+        color: Colors.black.withValues(alpha: 0.46),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
@@ -692,7 +694,7 @@ class _TopBar extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.3),
+              color: Colors.black.withValues(alpha: 0.38),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
@@ -741,7 +743,7 @@ class _MemberRow extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 22,
-              backgroundColor: Colors.black.withValues(alpha: 0.4),
+              backgroundColor: Colors.black.withValues(alpha: 0.48),
               backgroundImage:
                   member.avatarUrl != null ? NetworkImage(member.avatarUrl!) : null,
               // โหลดรูปไม่สำเร็จ (เน็ตหลุด/รูปถูกลบไปแล้ว) -> โชว์ไอคอนคนแทน ไม่ให้หน้าพัง

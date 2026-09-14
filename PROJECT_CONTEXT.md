@@ -107,6 +107,14 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
 - **About** — เมนูในหน้า Settings โชว์ชื่อแอพ + เวอร์ชัน (`AppConstants.appVersion`, ต้องแก้เองให้ตรงกับ
   `pubspec.yaml` ทุกครั้งที่ bump เวอร์ชัน เพราะยังไม่ได้เพิ่ม dependency `package_info_plus`) — เป็น UI
   ล้วนๆ ไม่มี backend
+- **เอฟเฟคใบไม้ลอยตก** — `FallingLeavesOverlay` widget (`lib/widgets/falling_leaves_overlay.dart`) วาด
+  ด้วย `CustomPainter` ตัวเดียว (ไม่ใช่ widget แยกต่อใบ) ผูกกับ `AnimationController` ที่ `repeat()` วนไม่รู้จบ
+  — ใส่ไว้ในทุกหน้าที่มีพื้นหลังธีม (background.png + gradient มืดทับ): Profile (รวม Home เพราะ Home เอา
+  ProfilePage ไปใช้เป็นพื้นหลัง), Player Profile, Party, Create Party, Settings, Change Password,
+  Upgrade Account — วางไว้ระหว่าง gradient กับเนื้อหาจริงใน `Stack` เสมอ (ดูตัวอย่างที่
+  `lib/pages/profile/profile_page.dart`) ให้ใบไม้ลอยอยู่หลังการ์ด/ปุ่ม ไม่บังตัวหนังสือ
+  ⚠️ หน้าที่ธีมสว่าง/ไม่ได้ใช้พื้นหลัง gradient แบบนี้ (เช่น `quest_detail_page.dart`, หน้า auth ทั้งหมด)
+  **ไม่ได้ใส่** ไว้ตั้งใจ เพราะไม่เข้ากับธีมสว่างของหน้านั้น
 - **หน้า Party** — โชว์รายชื่อปาร์ตี้ (Party Leader บนสุดกดดูโปรไฟล์ได้ + สมาชิก) + ปุ่ม Leave Party
   ถ้ายังไม่มีปาร์ตี้จะเป็น empty state ("You're not in a party yet") + ปุ่มพาไปแท็บ Explore (ข้อมูลยัง mock อยู่ใน `lib/models/party_model.dart`)
 - **Quest system ใช้งานได้จริงแล้ว (end-to-end)** — `GET /api/quests` + `POST /api/quests/:id/complete`
@@ -423,4 +431,5 @@ backend พร้อม deploy แล้ว (ทดสอบว่าบูต�
 1.ระบบไอเทมในเกมยังไม่สมบูรณ์มีไอเทม แต่ยังไม่รู้ว่าจะได้รับไอเทมนั้นยังไง และไอเทมในเกมตอนนี้มีแค่2อย่างคือ กล้อง,ตู้เย็น ซึ่งมันสามารถมีมากกว่านี้ได้
 2.✅ ระบบตั้งค่า — เพิ่ม "Edit Display Name", toggle เปิด/ปิดการแจ้งเตือน, และ About แล้ว (ดูหัวข้อ 5)
 3.ระบบเสียงต่างๆ เช่นเสียงพื้นหลัง เสียงกดปุ่ม ให้มันเหมือนเกมมากขึ้น
-4.ต้องการเอฟเฟคให้มันเคลื่อนไหว เช่นมีใบไม้ตกอยู่ที่พื้นหลัง มีอะไรขยับมากกว่านี้ให้เหมือนกับมันเป็นเกม
+4.✅ เอฟเฟคใบไม้ลอยตกในพื้นหลัง — เพิ่มแล้วทุกหน้าที่มีพื้นหลังธีม (`lib/widgets/falling_leaves_overlay.dart`)
+  ยังไม่ได้ทำเอฟเฟคอย่างอื่นเพิ่มเติม (เสียงกดปุ่ม, การเคลื่อนไหวจุดอื่นๆ) ถ้าอยากได้เพิ่มบอกได้เลย

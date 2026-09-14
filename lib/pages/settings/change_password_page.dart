@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/constants.dart';
+import '../../widgets/falling_leaves_overlay.dart';
 
 // หน้าเปลี่ยนรหัสผ่าน — เข้าถึงจากหน้า Settings แบ่งเป็น 2 ขั้นตอน:
 // 1) กรอกรหัสผ่านเดิม กดยืนยัน -> เช็คกับ backend ก่อนว่าถูกไหม
@@ -102,14 +103,15 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withOpacity(0.45),
-                    Colors.black.withOpacity(0.25),
-                    Colors.black.withOpacity(0.55),
+                    Colors.black.withOpacity(0.53),
+                    Colors.black.withOpacity(0.33),
+                    Colors.black.withOpacity(0.63),
                   ],
                 ),
               ),
             ),
           ),
+          const Positioned.fill(child: FallingLeavesOverlay()),
           Positioned.fill(
             child: SafeArea(
               child: Padding(
@@ -132,7 +134,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                       child: SingleChildScrollView(
                         child: Container(
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.38),
+                            color: Colors.black.withOpacity(0.46),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(color: Colors.white.withOpacity(0.08)),
                           ),
@@ -266,7 +268,7 @@ class _TopBar extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withOpacity(0.38),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),

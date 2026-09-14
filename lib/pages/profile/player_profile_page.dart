@@ -3,6 +3,7 @@ import '../../models/achievement_model.dart';
 import '../../models/public_profile_model.dart';
 import '../../services/user_service.dart';
 import '../../widgets/profile_sections.dart';
+import '../../widgets/falling_leaves_overlay.dart';
 
 // โปรไฟล์สาธารณะของผู้เล่นคนอื่น — ดูอย่างเดียว แก้ไขอะไรไม่ได้
 // เข้าได้จากการกดแถวสมาชิกในหน้า Party (ไม่ใช่แถวของตัวเอง)
@@ -68,14 +69,15 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withValues(alpha: 0.45),
-                    Colors.black.withValues(alpha: 0.25),
-                    Colors.black.withValues(alpha: 0.55),
+                    Colors.black.withValues(alpha: 0.53),
+                    Colors.black.withValues(alpha: 0.33),
+                    Colors.black.withValues(alpha: 0.63),
                   ],
                 ),
               ),
             ),
           ),
+          const Positioned.fill(child: FallingLeavesOverlay()),
           Positioned.fill(
             child: SafeArea(
               child: Padding(
@@ -152,7 +154,7 @@ class _TopBar extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.3),
+              color: Colors.black.withValues(alpha: 0.38),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),

@@ -49,7 +49,7 @@ class ProfileGlassCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.38),
+        color: Colors.black.withValues(alpha: 0.46),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
@@ -155,7 +155,7 @@ class _AvatarPicker extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 32,
-              backgroundColor: Colors.black.withValues(alpha: 0.4),
+              backgroundColor: Colors.black.withValues(alpha: 0.48),
               backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl!) : null,
               // ยังไม่มีรูป หรือโหลดรูปไม่สำเร็จ (เน็ตหลุด/รูปถูกลบไปแล้ว) -> โชว์ไอคอนคนแทน
               onBackgroundImageError: avatarUrl != null ? (_, _) {} : null,
@@ -255,7 +255,7 @@ class PointsAndRankCard extends StatelessWidget {
                   children: [
                     CircleAvatar(
                       radius: 16,
-                      backgroundColor: Colors.black.withValues(alpha: 0.4),
+                      backgroundColor: Colors.black.withValues(alpha: 0.48),
                       child: const Icon(Icons.emoji_events, color: Colors.amberAccent, size: 16),
                     ),
                     const SizedBox(width: 6),

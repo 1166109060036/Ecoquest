@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/constants.dart';
 import '../../utils/validators.dart';
+import '../../widgets/falling_leaves_overlay.dart';
 
 // หน้าเปลี่ยนบัญชี Guest -> บัญชีปกติ (ตั้งชื่อ + email + password)
 // เข้าจากเมนูในหน้า Settings ซึ่งจะโชว์เฉพาะตอนที่ล็อกอินอยู่แบบ Guest
@@ -70,14 +71,15 @@ class _UpgradeAccountPageState extends State<UpgradeAccountPage> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withValues(alpha: 0.45),
-                    Colors.black.withValues(alpha: 0.25),
-                    Colors.black.withValues(alpha: 0.55),
+                    Colors.black.withValues(alpha: 0.53),
+                    Colors.black.withValues(alpha: 0.33),
+                    Colors.black.withValues(alpha: 0.63),
                   ],
                 ),
               ),
             ),
           ),
+          const Positioned.fill(child: FallingLeavesOverlay()),
           Positioned.fill(
             child: SafeArea(
               child: Padding(
@@ -91,7 +93,7 @@ class _UpgradeAccountPageState extends State<UpgradeAccountPage> {
                       child: SingleChildScrollView(
                         child: Container(
                           decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.38),
+                            color: Colors.black.withValues(alpha: 0.46),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
                           ),
@@ -219,7 +221,7 @@ class _TopBar extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.3),
+              color: Colors.black.withValues(alpha: 0.38),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),

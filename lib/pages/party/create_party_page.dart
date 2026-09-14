@@ -6,6 +6,7 @@ import '../../providers/party_provider.dart';
 import '../../providers/quest_provider.dart';
 import '../../utils/constants.dart';
 import '../../utils/date_format.dart';
+import '../../widgets/falling_leaves_overlay.dart';
 
 // หน้าสร้างห้อง (Party) จาก party quest ที่มีอยู่แล้ว — เหมือนสร้างห้องในเกมให้คนอื่นกดเข้าร่วม
 // เข้าถึงได้ทางเดียว: กดปุ่ม + (FAB) มุมขวาล่างของหน้า Explore ตอนเลือก chip "Party"
@@ -154,14 +155,15 @@ class _CreatePartyPageState extends State<CreatePartyPage> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withValues(alpha: 0.45),
-                    Colors.black.withValues(alpha: 0.25),
-                    Colors.black.withValues(alpha: 0.55),
+                    Colors.black.withValues(alpha: 0.53),
+                    Colors.black.withValues(alpha: 0.33),
+                    Colors.black.withValues(alpha: 0.63),
                   ],
                 ),
               ),
             ),
           ),
+          const Positioned.fill(child: FallingLeavesOverlay()),
           Positioned.fill(
             child: SafeArea(
               child: Padding(
@@ -279,7 +281,7 @@ class _QuestPickerTile extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.38),
+            color: Colors.black.withValues(alpha: 0.46),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
           ),
@@ -352,7 +354,7 @@ class _DetailsForm extends StatelessWidget {
     return SingleChildScrollView(
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.38),
+          color: Colors.black.withValues(alpha: 0.46),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
         ),
@@ -568,7 +570,7 @@ class _TopBar extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.3),
+              color: Colors.black.withValues(alpha: 0.38),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/constants.dart';
+import '../../widgets/falling_leaves_overlay.dart';
 
 // หน้า Settings — เข้าถึงจากปุ่ม Settings บนหน้า Profile
 // ตอนนี้มีแค่ข้อมูลบัญชี + ปุ่ม Logout (ใช้งานได้จริง) ยังไม่มี toggle/setting อื่น
@@ -120,14 +121,15 @@ class SettingsPage extends StatelessWidget {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withOpacity(0.45),
-                    Colors.black.withOpacity(0.25),
-                    Colors.black.withOpacity(0.55),
+                    Colors.black.withOpacity(0.53),
+                    Colors.black.withOpacity(0.33),
+                    Colors.black.withOpacity(0.63),
                   ],
                 ),
               ),
             ),
           ),
+          const Positioned.fill(child: FallingLeavesOverlay()),
           Positioned.fill(
             child: SafeArea(
               child: Padding(
@@ -241,7 +243,7 @@ class _TopBar extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withOpacity(0.38),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
@@ -286,7 +288,7 @@ class _AccountCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.38),
+        color: Colors.black.withOpacity(0.46),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.white.withOpacity(0.08)),
       ),
@@ -295,7 +297,7 @@ class _AccountCard extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 26,
-            backgroundColor: Colors.black.withOpacity(0.4),
+            backgroundColor: Colors.black.withOpacity(0.48),
             child: const Icon(Icons.person, color: Colors.white70, size: 28),
           ),
           const SizedBox(width: 14),
@@ -355,7 +357,7 @@ class _NotificationToggleItemState extends State<_NotificationToggleItem> {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.38),
+        color: Colors.black.withOpacity(0.46),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.white.withOpacity(0.08)),
       ),
@@ -402,7 +404,7 @@ class _SettingsMenuItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.black.withOpacity(0.38),
+      color: Colors.black.withOpacity(0.46),
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),

@@ -150,7 +150,7 @@ class _CoverImage extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.35),
+                      color: Colors.black.withValues(alpha: 0.43),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.chevron_left, color: Colors.white, size: 24),
