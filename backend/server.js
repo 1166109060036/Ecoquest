@@ -14,6 +14,7 @@ const userRoutes = require('./routes/users');
 const inventoryRoutes = require('./routes/inventory');
 const notificationRoutes = require('./routes/notifications');
 const upgradeRoutes = require('./routes/upgrades');
+const adminRoutes = require('./routes/admin');
 
 const app = express();
 
@@ -67,6 +68,8 @@ app.use('/api/users', userRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/upgrades', upgradeRoutes);
+// dev/QA เท่านั้น — เข้าได้เฉพาะอีเมลใน ADMIN_EMAILS (ดู middleware/admin.js), ปิดโดย default ถ้าไม่ตั้งค่า
+app.use('/api/admin', adminRoutes);
 
 app.get('/', (req, res) => {
   res.send('EcoQuest API is running 🌱');

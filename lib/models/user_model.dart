@@ -17,6 +17,9 @@ class UserModel {
   final String rank;
   // register/login/guest ไม่ส่งค่านี้กลับมาด้วย เลย default เป็น true (ค่าเริ่มต้นฝั่ง backend เหมือนกัน)
   final bool notificationsEnabled;
+  // true เฉพาะบัญชีจริงที่อีเมลอยู่ใน ADMIN_EMAILS ฝั่ง backend — ใช้แค่โชว์/ซ่อนเมนู "Admin Tools"
+  // ในหน้า Settings เท่านั้น ไม่ใช่ตัวเช็คสิทธิ์จริง (ทุก request ไป /api/admin/* ถูกเช็คซ้ำที่ backend เสมอ)
+  final bool isAdmin;
 
   UserModel({
     required this.id,
@@ -29,6 +32,7 @@ class UserModel {
     this.points = 0,
     this.rank = 'Bronze',
     this.notificationsEnabled = true,
+    this.isAdmin = false,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -43,6 +47,7 @@ class UserModel {
       points: json['points'] ?? 0,
       rank: json['rank'] ?? 'Bronze',
       notificationsEnabled: json['notificationsEnabled'] ?? true,
+      isAdmin: json['isAdmin'] ?? false,
     );
   }
 
@@ -58,6 +63,7 @@ class UserModel {
       'points': points,
       'rank': rank,
       'notificationsEnabled': notificationsEnabled,
+      'isAdmin': isAdmin,
     };
   }
 }

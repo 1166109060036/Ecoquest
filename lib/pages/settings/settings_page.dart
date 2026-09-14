@@ -178,6 +178,15 @@ class SettingsPage extends StatelessWidget {
                       label: 'About',
                       onTap: () => _showAbout(context),
                     ),
+                    if (user?.isAdmin ?? false) ...[
+                      // dev/QA เท่านั้น — เห็นเฉพาะบัญชีที่อีเมลอยู่ใน ADMIN_EMAILS ฝั่ง backend
+                      const SizedBox(height: 14),
+                      _SettingsMenuItem(
+                        icon: Icons.admin_panel_settings_outlined,
+                        label: 'Admin Tools',
+                        onTap: () => Navigator.pushNamed(context, '/admin'),
+                      ),
+                    ],
                     const Spacer(),
                     ElevatedButton(
                       onPressed: () => _confirmLogout(context),

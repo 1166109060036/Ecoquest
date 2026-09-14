@@ -6,6 +6,7 @@ const authMiddleware = require('../middleware/auth');
 const { sendOtpEmail } = require('../utils/mailer');
 const { buildProfileStats } = require('../utils/profilePayload');
 const { avatarUrlFor } = require('../utils/avatar');
+const { adminEmails } = require('../middleware/admin');
 
 const router = express.Router();
 
@@ -150,6 +151,9 @@ router.get('/me', authMiddleware, async (req, res) => {
         points: user.points,
         rank: progress.rankTier,
         notificationsEnabled: user.notificationsEnabled,
+        // true เฉพาะบัญชีจริง (มี email) ที่อยู่ใน ADMIN_EMAILS — ใช้ตัดสินใจโชว์เมนู "Admin Tools"
+        // ในหน้า Settings ฝั่งแอพ ไม่ใช่ตัวเช็คสิทธิ์จริง (backend เช็คซ้ำเองทุก route ผ่าน adminMiddleware)
+        isAdmin: Boolean(user.email) && adminEmails().includes(user.email.toLowerCase()),
       },
       progress,
       stats,

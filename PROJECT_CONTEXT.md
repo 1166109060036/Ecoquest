@@ -376,6 +376,23 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
 - `backend/routes/upgrades.js` → mount ที่ `/api/upgrades`: `GET /`, `POST /:upgradeType/buy`
   (ดูหัวข้อ "ร้าน Upgrade Ability" ด้านบน)
 - สคริปต์: `npm run seed:quests` (`backend/scripts/seedQuests.js`)
+- `backend/routes/admin.js` → mount ที่ `/api/admin`: **dev/QA เท่านั้น** ทุก route ต้องผ่าน
+  `authMiddleware` + `adminMiddleware` (`backend/middleware/admin.js`) คู่กันเสมอ — เข้าได้เฉพาะบัญชีจริง
+  (ไม่ใช่ guest) ที่ `email` อยู่ใน env var `ADMIN_EMAILS` (คั่นด้วย `,` หลายอีเมลได้) ไม่ตั้งค่า =
+  ปิดทั้งหมดโดย default (403 เสมอ) **ต้องตั้ง `ADMIN_EMAILS` เองทั้งในเครื่องและบน Render ถึงจะใช้ได้จริง**
+  ดู `.env.example` — `GET /auth/me` คำนวณ `isAdmin` ด้วย logic เดียวกันส่งกลับมาด้วย ใช้แค่โชว์/ซ่อนเมนู
+  "Admin Tools" ในหน้า Settings ฝั่งแอพ (ไม่ใช่ตัวเช็คสิทธิ์จริง — ทุก request ยังถูกเช็คซ้ำที่ backend เสมอ)
+  - ทำงานกับบัญชีของแอดมินเอง (`req.userId`) เสมอ ไม่มี user-picker — ครอบคลุมทุกระบบ: User (set
+    points/xp/level ตรงๆ, เปิด/ปิดบัฟ Energy, reset บัญชีทั้งบัญชี), Quest (force-complete ข้ามทุก
+    เงื่อนไข, reset ประวัติวันนี้/ทั้งหมด), Party (list ทุกห้อง + force-complete ข้ามเช็ค leader),
+    Achievement (unlock/reset), Inventory (grant ไอเทมไหนก็ได้ข้าม cost/reset), Upgrade (set level
+    ตรงๆ ข้าม cost), Season (list + บังคับหมดอายุแล้วเรียก `ensureActiveSeason()` จริงต่อทันที),
+    Notification (ยิงแจ้งเตือนทดสอบ 3 แบบ), Fridge (เพิ่มของทดสอบกำหนด expiry เองได้)
+  - ฝั่งแอพ: `lib/pages/admin/admin_page.dart` (ธีม Material เรียบๆ ไม่ใช้ธีมกระจกมืดของเกมจริง — ตั้งใจ
+    ให้ดูต่างจากเกมชัดๆ) เรียกผ่าน `lib/services/admin_service.dart` + `AdminProvider`
+    (`lib/providers/admin_provider.dart`) — หลังทุก action ที่สำเร็จ หน้าเพจเรียก provider เดิมของระบบ
+    นั้น refresh ต่อเอง (`AuthProvider.refreshProfile()`, `QuestProvider.loadQuests()` ฯลฯ) ไม่เก็บ state
+    ซ้ำเอง
 
 `GET /api/auth/me` คืน 3 ก้อน: `user` (+ level/xp/points/rank), `progress` (ความคืบหน้า level/rank),
 `stats` (questCompleted / questTotal / co2SavedKg / partiesJoined — คำนวณจริงจาก `QuestHistory` + `Quest`)
