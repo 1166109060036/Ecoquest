@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');
 const { seedQuests } = require('./scripts/seedQuests');
+const { ensureActiveSeason } = require('./utils/seasons');
 const PartyMember = require('./models/PartyMember');
 const authRoutes = require('./routes/auth');
 const questRoutes = require('./routes/quests');
@@ -30,6 +31,15 @@ connectDB().then(async () => {
     }
   } catch (err) {
     console.error('⚠️  ล้าง PartyMember รุ่นเก่าไม่สำเร็จ:', err.message);
+  }
+
+  // เช็ค/เปิด season ให้พร้อมใช้ตั้งแต่ deploy ครั้งแรก ไม่ต้องรอให้มีคนเปิดหน้า Profile ก่อน
+  // (ยังเช็คซ้ำทุกครั้งที่เรียก GET /auth/me อยู่ดี ดู utils/seasons.js — ตรงนี้แค่กันไม่ให้ว่างช่วงแรก)
+  try {
+    const season = await ensureActiveSeason();
+    console.log(`📅 Season ${season.seasonNumber} พร้อมใช้งาน (จบ ${season.endDate.toISOString()})`);
+  } catch (err) {
+    console.error('⚠️  เช็ค/เปิด season ตอน boot ไม่สำเร็จ:', err.message);
   }
 
   if (process.env.SEED_QUESTS_ON_BOOT === 'false') return;

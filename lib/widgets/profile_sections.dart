@@ -197,6 +197,9 @@ class PointsAndRankCard extends StatelessWidget {
   final int rankXp; // XP ที่ไต่มาได้แล้วภายใน tier ปัจจุบัน (นับเฉพาะ season นี้)
   final int? rankXpMax; // null = อยู่ tier สูงสุดแล้ว
   final String pointsLabel;
+  // null = ไม่โชว์บรรทัดซีซั่น (เผื่อโปรไฟล์เก่าที่ backend ยังไม่ส่งค่านี้มา)
+  final int? seasonNumber;
+  final int? seasonDaysRemaining;
 
   const PointsAndRankCard({
     super.key,
@@ -205,6 +208,8 @@ class PointsAndRankCard extends StatelessWidget {
     required this.rankXp,
     required this.rankXpMax,
     this.pointsLabel = 'Your Point',
+    this.seasonNumber,
+    this.seasonDaysRemaining,
   });
 
   @override
@@ -292,6 +297,13 @@ class PointsAndRankCard extends StatelessWidget {
                                 : '${formatNumber(rankXp)} / ${formatNumber(rankXpMax!)} XP',
                             style: const TextStyle(color: Colors.white54, fontSize: 9),
                           ),
+                          if (seasonNumber != null) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              'Season $seasonNumber · ${seasonDaysRemaining ?? 0} days left',
+                              style: const TextStyle(color: Colors.white38, fontSize: 8.5),
+                            ),
+                          ],
                         ],
                       ),
                     ),

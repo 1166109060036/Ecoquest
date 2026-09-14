@@ -3,13 +3,15 @@
 // โดยไม่ต้องก๊อปโค้ด aggregate ซ้ำ — ทั้งสอง route คิดเลขแบบเดียวกันเป๊ะๆ
 const Quest = require('../models/Quest');
 const QuestHistory = require('../models/QuestHistory');
-const Season = require('../models/Season');
 const progression = require('./progression');
+const { ensureActiveSeason, daysRemaining } = require('./seasons');
 
 // รับ user document ที่ query มาแล้ว (ต้องการแค่ _id กับ xp) ไม่ใช่ userId string
 // เพราะ aggregate ไม่ cast string -> ObjectId ให้เอง ใช้ user._id ที่เป็น ObjectId จริงตรงๆ ปลอดภัยกว่า
 async function buildProfileStats(user) {
-  const activeSeason = await Season.findOne({ isActive: true });
+  // เช็ค+หมุน season อัตโนมัติทุกครั้งที่มีคนเปิดหน้า Profile — ไม่มี scheduler ในระบบ
+  // เลยต้องเช็คตอนมีคนเรียก API แทน (ดู utils/seasons.js) คืนค่ามาเสมอ ไม่มีทาง null
+  const activeSeason = await ensureActiveSeason();
 
   // ยิงพร้อมกันทีเดียว ไม่ต้องรอทีละ query
   const [questCompleted, questTotal, questAgg, seasonAgg] = await Promise.all([
@@ -37,18 +39,16 @@ async function buildProfileStats(user) {
         },
       },
     ]),
-    // XP เฉพาะที่ได้ภายใน season ปัจจุบัน — ใช้คิด Rank (ไม่มี season active = ยังไม่เริ่มนับ)
-    activeSeason
-      ? QuestHistory.aggregate([
-          {
-            $match: {
-              userId: user._id,
-              completedAt: { $gte: activeSeason.startDate, $lte: activeSeason.endDate },
-            },
-          },
-          { $group: { _id: null, xp: { $sum: '$xpEarned' } } },
-        ])
-      : Promise.resolve([]),
+    // XP เฉพาะที่ได้ภายใน season ปัจจุบัน — ใช้คิด Rank (ensureActiveSeason การันตีว่ามี season เสมอ)
+    QuestHistory.aggregate([
+      {
+        $match: {
+          userId: user._id,
+          completedAt: { $gte: activeSeason.startDate, $lte: activeSeason.endDate },
+        },
+      },
+      { $group: { _id: null, xp: { $sum: '$xpEarned' } } },
+    ]),
   ]);
 
   const { partiesJoined = 0, co2SavedKg = 0 } = questAgg[0] || {};
@@ -58,6 +58,8 @@ async function buildProfileStats(user) {
   const progress = {
     ...progression.levelProgress(user.xp),
     ...progression.rankProgress(seasonXp),
+    seasonNumber: activeSeason.seasonNumber,
+    seasonDaysRemaining: daysRemaining(activeSeason),
   };
 
   return {

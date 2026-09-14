@@ -11,6 +11,8 @@ class UserProgress {
   final int seasonXp; // XP ที่ได้ใน season ปัจจุบัน (ตัวที่ใช้คิด rank)
   final int rankXpIntoTier;
   final int? rankXpForNextTier; // null = อยู่ tier สูงสุดแล้ว
+  final int seasonNumber; // season ปัจจุบัน — backend เปิด/ปิดให้อัตโนมัติเมื่อหมดอายุ
+  final int seasonDaysRemaining;
 
   UserProgress({
     required this.level,
@@ -21,6 +23,8 @@ class UserProgress {
     required this.seasonXp,
     required this.rankXpIntoTier,
     this.rankXpForNextTier,
+    this.seasonNumber = 1,
+    this.seasonDaysRemaining = 0,
   });
 
   factory UserProgress.fromJson(Map<String, dynamic> json) {
@@ -33,6 +37,8 @@ class UserProgress {
       seasonXp: json['seasonXp'] ?? 0,
       rankXpIntoTier: json['rankXpIntoTier'] ?? 0,
       rankXpForNextTier: json['rankXpForNextTier'],
+      seasonNumber: json['seasonNumber'] ?? 1,
+      seasonDaysRemaining: json['seasonDaysRemaining'] ?? 0,
     );
   }
 }

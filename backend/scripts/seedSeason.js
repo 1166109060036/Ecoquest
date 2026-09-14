@@ -1,9 +1,13 @@
-// สร้าง Season ให้ระบบ Rank เริ่มทำงาน
+// ⚠️ ตอนนี้ server จัดการเปิด/ปิด season ให้อัตโนมัติแล้ว (ดู backend/utils/seasons.js
+// เรียกจาก utils/profilePayload.js ทุกครั้งที่มีคนเรียก GET /auth/me และตอน server boot)
+// สคริปต์นี้ **ไม่จำเป็นต้องรันแล้ว** ในการใช้งานปกติ เหลือไว้สำหรับบังคับสร้าง/รีเซ็ต season
+// ตอน dev/debug เท่านั้น
+//
 // รันด้วย: npm run seed:season
 //
-// ทำไมต้องมี: Rank คิดจาก "XP ที่ได้ภายใน season ปัจจุบัน" (ดู GET /api/auth/me)
-// ถ้าไม่มี season ที่ isActive: true สักอัน seasonXp จะเป็น 0 ตลอด
-// แถบ Rank ในหน้า Profile ก็จะค้างที่ Bronze 0/500 ไม่ขยับเลยไม่ว่าจะทำ quest เท่าไหร่
+// ⚠️ ระวัง: สคริปต์นี้ hardcode SEASON_NUMBER = 1 เสมอ ถ้าระบบหมุนไปถึง season 2-3 แล้วมารันสคริปต์นี้
+// จะเป็นการ "ทับ" วันที่ของ season 1 ใหม่ (เพราะ upsert อิง seasonNumber) แล้วปิด season ปัจจุบันทิ้ง
+// ไม่ใช่การเปิด season ถัดไป — ถ้าจะบังคับข้าม season ให้ไปแก้ที่ DB โดยตรงหรือแก้ SEASON_NUMBER ก่อนรัน
 //
 // รันซ้ำได้ ไม่สร้างซ้ำ (upsert อิงจาก seasonNumber)
 require('dotenv').config();

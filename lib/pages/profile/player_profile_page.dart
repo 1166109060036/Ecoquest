@@ -114,6 +114,8 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
                                           rankXp: profile.progress.rankXpIntoTier,
                                           rankXpMax: profile.progress.rankXpForNextTier,
                                           pointsLabel: 'Point',
+                                          seasonNumber: profile.progress.seasonNumber,
+                                          seasonDaysRemaining: profile.progress.seasonDaysRemaining,
                                         ),
                                         const SizedBox(height: 16),
                                         StatsCard(stats: profile.stats),

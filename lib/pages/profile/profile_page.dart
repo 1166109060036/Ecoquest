@@ -92,6 +92,8 @@ class ProfilePage extends StatelessWidget {
                         rankTier: rankTier,
                         rankXp: rankXpIntoTier,
                         rankXpMax: rankXpForNextTier,
+                        seasonNumber: progress?.seasonNumber,
+                        seasonDaysRemaining: progress?.seasonDaysRemaining,
                       ),
                       const SizedBox(height: 16),
                       StatsCard(stats: profileStats),
