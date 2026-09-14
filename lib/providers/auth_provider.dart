@@ -128,6 +128,20 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  // แก้ไขชื่อที่แสดง — เรียก refreshProfile() ต่อให้ทุกหน้าที่ใช้ user เห็นชื่อใหม่ทันที
+  Future<bool> updateDisplayName(String displayName) async {
+    final success = await _runAction(() => _authService.updateDisplayName(displayName));
+    if (success) await refreshProfile();
+    return success;
+  }
+
+  // เปิด/ปิดการแจ้งเตือนในแอพทั้งหมด
+  Future<bool> updateNotificationPreference(bool enabled) async {
+    final success = await _runAction(() => _authService.updateNotificationPreference(enabled));
+    if (success) await refreshProfile();
+    return success;
+  }
+
   Future<bool> verifyCurrentPassword(String password) async {
     return _runAction(() => _authService.verifyCurrentPassword(password));
   }

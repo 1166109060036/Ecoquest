@@ -15,6 +15,8 @@ class UserModel {
   final int xp;
   final int points;
   final String rank;
+  // register/login/guest ไม่ส่งค่านี้กลับมาด้วย เลย default เป็น true (ค่าเริ่มต้นฝั่ง backend เหมือนกัน)
+  final bool notificationsEnabled;
 
   UserModel({
     required this.id,
@@ -26,6 +28,7 @@ class UserModel {
     this.xp = 0,
     this.points = 0,
     this.rank = 'Bronze',
+    this.notificationsEnabled = true,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -39,6 +42,7 @@ class UserModel {
       xp: json['xp'] ?? 0,
       points: json['points'] ?? 0,
       rank: json['rank'] ?? 'Bronze',
+      notificationsEnabled: json['notificationsEnabled'] ?? true,
     );
   }
 
@@ -53,6 +57,7 @@ class UserModel {
       'xp': xp,
       'points': points,
       'rank': rank,
+      'notificationsEnabled': notificationsEnabled,
     };
   }
 }

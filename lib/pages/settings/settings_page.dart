@@ -9,6 +9,71 @@ import '../../utils/constants.dart';
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
 
+  Future<void> _editDisplayName(BuildContext context) async {
+    final authProvider = context.read<AuthProvider>();
+    final controller = TextEditingController(text: authProvider.user?.displayName ?? '');
+
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Edit Display Name'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 20,
+          decoration: const InputDecoration(hintText: 'Your name'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey.shade600)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+
+    if (newName == null || newName.isEmpty || !context.mounted) return;
+
+    final success = await authProvider.updateDisplayName(newName);
+    if (!context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(success ? 'Display name updated' : (authProvider.errorMessage ?? 'Failed to update your name')),
+      ),
+    );
+  }
+
+  void _showAbout(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('About EcoQuest'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Version ${AppConstants.appVersion}', style: TextStyle(color: Colors.grey.shade700)),
+            const SizedBox(height: 10),
+            const Text(
+              'An environmental gamification app that turns everyday eco-friendly actions '
+              'in Ebetsu City into quests, points, and rewards.',
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+        ],
+      ),
+    );
+  }
+
   Future<void> _confirmLogout(BuildContext context) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -77,6 +142,12 @@ class SettingsPage extends StatelessWidget {
                       email: user?.email,
                       isGuest: user?.isGuest ?? false,
                     ),
+                    const SizedBox(height: 14),
+                    _SettingsMenuItem(
+                      icon: Icons.badge_outlined,
+                      label: 'Edit Display Name',
+                      onTap: () => _editDisplayName(context),
+                    ),
                     if (user?.isGuest ?? false) ...[
                       // Guest ล็อกอินกลับเข้าบัญชีเดิมไม่ได้เลยถ้า logout (ไม่มี email/password)
                       // เมนูนี้เลยเน้นให้เห็นชัดกว่าเมนูอื่น
@@ -97,6 +168,14 @@ class SettingsPage extends StatelessWidget {
                         onTap: () => Navigator.pushNamed(context, '/change-password'),
                       ),
                     ],
+                    const SizedBox(height: 14),
+                    _NotificationToggleItem(initialValue: user?.notificationsEnabled ?? true),
+                    const SizedBox(height: 14),
+                    _SettingsMenuItem(
+                      icon: Icons.info_outline,
+                      label: 'About',
+                      onTap: () => _showAbout(context),
+                    ),
                     const Spacer(),
                     ElevatedButton(
                       onPressed: () => _confirmLogout(context),
@@ -235,6 +314,66 @@ class _AccountCard extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// การ์ด toggle เปิด/ปิดการแจ้งเตือน — เก็บ state ไว้เองแบบ optimistic (สลับ UI ทันทีตอนกด
+// ไม่ต้องรอ backend ตอบ) ถ้า backend ตอบว่าพังค่อยสลับกลับ + โชว์ snackbar อธิบาย
+// ---------------------------------------------------------------------------
+class _NotificationToggleItem extends StatefulWidget {
+  final bool initialValue;
+  const _NotificationToggleItem({required this.initialValue});
+
+  @override
+  State<_NotificationToggleItem> createState() => _NotificationToggleItemState();
+}
+
+class _NotificationToggleItemState extends State<_NotificationToggleItem> {
+  late bool _enabled = widget.initialValue;
+
+  Future<void> _handleChanged(bool value) async {
+    setState(() => _enabled = value);
+
+    final authProvider = context.read<AuthProvider>();
+    final success = await authProvider.updateNotificationPreference(value);
+    if (!mounted) return;
+
+    if (!success) {
+      setState(() => _enabled = !value);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(authProvider.errorMessage ?? 'Failed to update notification setting')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.38),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Row(
+        children: [
+          const Icon(Icons.notifications_outlined, color: Colors.white70, size: 20),
+          const SizedBox(width: 14),
+          const Expanded(
+            child: Text(
+              'Notifications',
+              style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+          ),
+          Switch(
+            value: _enabled,
+            activeThumbColor: Colors.green,
+            onChanged: _handleChanged,
           ),
         ],
       ),

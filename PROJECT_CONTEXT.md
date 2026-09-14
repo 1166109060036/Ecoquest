@@ -98,6 +98,15 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
 - **ลืมรหัสผ่าน (OTP ทางอีเมล)** — 3 ขั้นตอนในหน้าเดียว: กรอกอีเมล → OTP 6 หลัก → ตั้งรหัสใหม่
   OTP เก็บใน DB เป็น bcrypt hash (`resetOtpHash`) หมดอายุ 10 นาที ใช้ได้ครั้งเดียว, ยืนยันผ่านแล้วได้ JWT `purpose: 'password_reset'` อายุ 10 นาที ไว้ใช้ตั้งรหัสใหม่
   `POST /auth/forgot-password` **ตอบข้อความเดียวกันเสมอ** ไม่ว่าอีเมลจะมีในระบบหรือไม่ (กันคนไล่เดารายชื่ออีเมลที่สมัครไว้) — อย่าเผลอแก้ให้มันบอกว่า "ไม่พบอีเมลนี้"
+- **แก้ไขชื่อที่แสดง** — เมนู "Edit Display Name" ในหน้า Settings (ใช้ได้ทั้ง guest และบัญชีปกติ) เปิด
+  dialog กรอกชื่อใหม่ → `POST /auth/display-name` จำกัดไม่เกิน 20 ตัวอักษร, ห้ามว่าง
+- **เปิด/ปิดการแจ้งเตือน** — toggle switch ในหน้า Settings → `POST /auth/notification-preference`
+  เก็บที่ `User.notificationsEnabled` (default true) ปิดแล้วแค่หยุด**สร้าง**แจ้งเตือนใหม่ (เควสสำเร็จ/
+  เหรียญปลดล็อก/ของใกล้หมดอายุ) ที่จุดเดียวคือ `backend/utils/notifications.js#createNotification`
+  — ใบที่มีอยู่แล้วในลิสต์ก่อนปิดไม่ถูกลบ ยังโชว์เหมือนเดิม
+- **About** — เมนูในหน้า Settings โชว์ชื่อแอพ + เวอร์ชัน (`AppConstants.appVersion`, ต้องแก้เองให้ตรงกับ
+  `pubspec.yaml` ทุกครั้งที่ bump เวอร์ชัน เพราะยังไม่ได้เพิ่ม dependency `package_info_plus`) — เป็น UI
+  ล้วนๆ ไม่มี backend
 - **หน้า Party** — โชว์รายชื่อปาร์ตี้ (Party Leader บนสุดกดดูโปรไฟล์ได้ + สมาชิก) + ปุ่ม Leave Party
   ถ้ายังไม่มีปาร์ตี้จะเป็น empty state ("You're not in a party yet") + ปุ่มพาไปแท็บ Explore (ข้อมูลยัง mock อยู่ใน `lib/models/party_model.dart`)
 - **Quest system ใช้งานได้จริงแล้ว (end-to-end)** — `GET /api/quests` + `POST /api/quests/:id/complete`
@@ -316,6 +325,7 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
 **Backend routes ที่มีแล้ว**
 - `backend/routes/auth.js` → mount ที่ `/api/auth`:
   `POST /register`, `POST /login`, `POST /guest`, `GET /me`, `POST /upgrade-guest`, `POST /avatar`,
+  `POST /display-name`, `POST /notification-preference`,
   `POST /verify-password`, `POST /change-password`,
   `POST /forgot-password`, `POST /verify-reset-otp`, `POST /reset-password`
 - `backend/routes/quests.js` → mount ที่ `/api/quests`: `GET /`, `GET /history?limit=` , `POST /:id/complete` (ต้อง login ทั้งหมด)
@@ -411,6 +421,6 @@ backend พร้อม deploy แล้ว (ทดสอบว่าบูต�
 
 ## 8. สิ่งที่ฉันคิดออกและต้องการ
 1.ระบบไอเทมในเกมยังไม่สมบูรณ์มีไอเทม แต่ยังไม่รู้ว่าจะได้รับไอเทมนั้นยังไง และไอเทมในเกมตอนนี้มีแค่2อย่างคือ กล้อง,ตู้เย็น ซึ่งมันสามารถมีมากกว่านี้ได้
-2.ระบบตั้งค่า ตอนนี้ในตั้งค่ายังมีแค่เปลี่ยนรหัสผ่าน
+2.✅ ระบบตั้งค่า — เพิ่ม "Edit Display Name", toggle เปิด/ปิดการแจ้งเตือน, และ About แล้ว (ดูหัวข้อ 5)
 3.ระบบเสียงต่างๆ เช่นเสียงพื้นหลัง เสียงกดปุ่ม ให้มันเหมือนเกมมากขึ้น
 4.ต้องการเอฟเฟคให้มันเคลื่อนไหว เช่นมีใบไม้ตกอยู่ที่พื้นหลัง มีอะไรขยับมากกว่านี้ให้เหมือนกับมันเป็นเกม

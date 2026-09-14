@@ -12,6 +12,11 @@ class AppConstants {
     defaultValue: _deployedApiUrl,
   );
 
+  // โชว์ในหน้า Settings > About — ต้องแก้เองให้ตรงกับ `version:` ใน pubspec.yaml ทุกครั้งที่ bump เวอร์ชัน
+  // (ไม่ได้ดึงจาก pubspec.yaml จริงเพราะต้องเพิ่ม dependency package_info_plus ซึ่งยังไม่มีในโปรเจค
+  // สำหรับแค่โชว์เลขเวอร์ชันเฉยๆ เพิ่ม dependency ใหม่ยังไม่คุ้ม)
+  static const String appVersion = '1.0.0';
+
   static const String tokenKey = 'auth_token';
   static const String userKey = 'auth_user';
   // เก็บ path รูปที่ถ่ายจากไอเทม Camera (เก็บแค่ในเครื่อง ไม่ได้อัปขึ้น server)

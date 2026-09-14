@@ -149,6 +149,7 @@ router.get('/me', authMiddleware, async (req, res) => {
         xp: user.xp,
         points: user.points,
         rank: progress.rankTier,
+        notificationsEnabled: user.notificationsEnabled,
       },
       progress,
       stats,
@@ -201,6 +202,66 @@ router.post('/avatar', authMiddleware, async (req, res) => {
     await user.save();
 
     res.json({ message: 'Avatar updated', avatarUrl: avatarUrlFor(user) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// จำกัดความยาวชื่อที่แสดง — กันคนตั้งชื่อยาวจนล้นการ์ด/แถบอันดับในหน้า Profile
+const MAX_DISPLAY_NAME_LENGTH = 20;
+
+// @route   POST /api/auth/display-name
+// @desc    แก้ไขชื่อที่แสดง (ใช้ได้ทั้ง guest และบัญชีปกติ)
+router.post('/display-name', authMiddleware, async (req, res) => {
+  try {
+    const displayName = (req.body.displayName || '').trim();
+
+    if (!displayName) {
+      return res.status(400).json({ message: 'Display name cannot be empty' });
+    }
+    if (displayName.length > MAX_DISPLAY_NAME_LENGTH) {
+      return res.status(400).json({
+        message: `Display name must be ${MAX_DISPLAY_NAME_LENGTH} characters or fewer`,
+      });
+    }
+
+    // -avatarData กัน Buffer รูปโปรไฟล์ถูกดึงมาโดยไม่ได้ใช้ (route นี้ไม่เกี่ยวกับรูปเลย)
+    const user = await User.findById(req.userId).select('-avatarData');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    user.displayName = displayName;
+    await user.save();
+
+    res.json({ message: 'Display name updated', displayName: user.displayName });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   POST /api/auth/notification-preference
+// @desc    เปิด/ปิดการแจ้งเตือนในแอพทั้งหมด (เควสสำเร็จ / เหรียญปลดล็อก / ของใกล้หมดอายุ)
+// ปิดแล้วแค่หยุดสร้างแจ้งเตือนใหม่ — ใบที่มีอยู่แล้วในลิสต์ยังโชว์เหมือนเดิม ไม่ได้ลบทิ้ง
+router.post('/notification-preference', authMiddleware, async (req, res) => {
+  try {
+    const { enabled } = req.body;
+    if (typeof enabled !== 'boolean') {
+      return res.status(400).json({ message: 'enabled must be a boolean' });
+    }
+
+    // -avatarData กัน Buffer รูปโปรไฟล์ถูกดึงมาโดยไม่ได้ใช้ (route นี้ไม่เกี่ยวกับรูปเลย)
+    const user = await User.findById(req.userId).select('-avatarData');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    user.notificationsEnabled = enabled;
+    await user.save();
+
+    res.json({ message: 'Notification preference updated', notificationsEnabled: user.notificationsEnabled });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });

@@ -1,12 +1,19 @@
 const Notification = require('../models/Notification');
 const FridgeItem = require('../models/FridgeItem');
+const User = require('../models/User');
 const { startOfToday } = require('./questDay');
 
 // สร้างแจ้งเตือน 1 ใบแบบ idempotent — ถ้ามี (userId, dedupeKey) นี้อยู่แล้วจะไม่ทำอะไรเลย
 // ต้องใช้ $setOnInsert เท่านั้น (ไม่ใช่ $set) ไม่งั้นแถวเดิมที่ผู้ใช้อ่านไปแล้ว (readAt ไม่ null)
 // จะโดนเขียนทับกลับเป็นข้อมูลใหม่ตอน upsert ซ้ำ ทำให้ readAt หายและจุดแดงขึ้นใหม่ทั้งที่เคยอ่านแล้ว
+//
+// เช็ค notificationsEnabled ตรงนี้จุดเดียว (ทุกที่ที่เรียกแจ้งเตือนผ่าน createNotification หมด) แทนที่จะ
+// เช็คซ้ำทุกจุดที่อยากส่งแจ้งเตือน — ปิดสวิตช์แล้วแค่หยุดสร้างใบใหม่ ใบเก่าที่มีอยู่แล้วไม่ถูกลบ
 const createNotification = async ({ userId, type, title, message, dedupeKey }) => {
   try {
+    const user = await User.findById(userId).select('notificationsEnabled');
+    if (!user || !user.notificationsEnabled) return;
+
     await Notification.updateOne(
       { userId, dedupeKey },
       { $setOnInsert: { userId, type, title, message, dedupeKey } },

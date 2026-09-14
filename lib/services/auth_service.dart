@@ -163,6 +163,42 @@ class AuthService {
     return user;
   }
 
+  // แก้ไขชื่อที่แสดง — ใช้ได้ทั้ง guest และบัญชีปกติ
+  Future<void> updateDisplayName(String displayName) async {
+    final token = await _storage.getToken();
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/auth/display-name'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'displayName': displayName}),
+    );
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode != 200) {
+      throw Exception(data['message'] ?? 'Failed to update your name');
+    }
+  }
+
+  // เปิด/ปิดการแจ้งเตือนในแอพทั้งหมด
+  Future<void> updateNotificationPreference(bool enabled) async {
+    final token = await _storage.getToken();
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/auth/notification-preference'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'enabled': enabled}),
+    );
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode != 200) {
+      throw Exception(data['message'] ?? 'Failed to update notification setting');
+    }
+  }
+
   // เช็ครหัสผ่านปัจจุบันว่าถูกไหม — ใช้ในขั้นตอนแรกของหน้า Change Password
   Future<void> verifyCurrentPassword(String password) async {
     final token = await _storage.getToken();

@@ -40,6 +40,12 @@ const UserSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // ปิดสวิตช์นี้ = ไม่สร้างแจ้งเตือนใหม่ให้คนนี้เลย (เควสสำเร็จ/เหรียญปลดล็อก/ของใกล้หมดอายุ)
+    // เช็คที่ backend/utils/notifications.js#createNotification จุดเดียว ไม่ต้องเช็คซ้ำทุกจุดที่เรียกแจ้งเตือน
+    notificationsEnabled: {
+      type: Boolean,
+      default: true,
+    },
 
     // ---- ฟิลด์ระบบเกม ----
     level: {
