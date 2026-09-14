@@ -53,7 +53,10 @@ connectDB().then(async () => {
 });
 
 app.use(cors());
-app.use(express.json());
+// limit ปกติของ express.json คือ 100kb — รูปโปรไฟล์ที่ส่งมาเป็น base64 ใน body เกินแน่ๆ
+// (base64 กินพื้นที่มากกว่าไฟล์จริง ~33% ยิ่งบวก JSON overhead) เลยขยับเป็น 6mb ให้พอ
+// แต่ไม่ปล่อยไม่จำกัดไปเลย กันคนส่ง payload ใหญ่ผิดปกติมาถล่ม server
+app.use(express.json({ limit: '6mb' }));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/quests', questRoutes);

@@ -1,4 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- แอพเรียก backend API ทุกหน้าจอ (login, quest, party, ฯลฯ) ต้องมีสิทธิ์นี้
+         ⚠️ ต้องประกาศไว้ที่ manifest หลักนี้ ไม่ใช่แค่ src/debug/ หรือ src/profile/
+         เพราะสอง manifest นั้น Flutter สร้างไว้ใช้เฉพาะตอน debug/profile (สำหรับ hot reload)
+         ไม่ได้ merge เข้า release build — ถ้าลืมใส่ตรงนี้ `flutter run` (debug) จะต่อเน็ตได้ปกติ
+         แต่ APK ที่ build ด้วย `flutter build apk` (release) จะต่อ backend ไม่ได้เลย ขึ้น
+         SocketException: Failed host lookup เหมือนไม่มีเน็ตทั้งที่เครื่องต่อเน็ตอยู่ -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <!-- ใช้ตอนบันทึกรูปลงแกลเลอรีของเครื่อง (package gal)
          Android 10 (API 29) ขึ้นไปไม่ต้องขอสิทธิ์นี้แล้วเพราะเขียนผ่าน MediaStore
          เลยจำกัดด้วย maxSdkVersion ไม่ให้ไปขอสิทธิ์เกินจำเป็นบนเครื่องรุ่นใหม่ -->

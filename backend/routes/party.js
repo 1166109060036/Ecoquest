@@ -10,6 +10,7 @@ const { syncAchievements } = require('../utils/achievements');
 const { notifyQuestCompleted } = require('../utils/notifications');
 const { getUserBonusesMap, applyBonuses } = require('../utils/upgrades');
 const { startOfToday } = require('../utils/questDay');
+const { avatarUrlFor } = require('../utils/avatar');
 
 const router = express.Router();
 
@@ -17,7 +18,8 @@ const router = express.Router();
 const toPartyPayload = async (party, userId) => {
   const members = await PartyMember.find({ partyId: party._id })
     .sort({ isLeader: -1, joinedAt: 1 }) // หัวหน้าขึ้นก่อน แล้วเรียงตามลำดับที่เข้าร่วม
-    .populate('userId', 'displayName level rank');
+    // avatarContentType/avatarUpdatedAt เอามาแค่สร้าง avatarUrl ไม่เอา avatarData ตัวจริงมาด้วย
+    .populate('userId', 'displayName level rank avatarContentType avatarUpdatedAt');
 
   const quest = party.questId; // populate ไว้แล้วตอนดึง party มา
 
@@ -51,6 +53,7 @@ const toPartyPayload = async (party, userId) => {
       .map((m) => ({
         userId: m.userId._id,
         displayName: m.userId.displayName,
+        avatarUrl: avatarUrlFor(m.userId),
         level: m.userId.level,
         rank: m.userId.rank,
         isLeader: m.isLeader,
@@ -150,7 +153,8 @@ router.post('/', authMiddleware, async (req, res) => {
         .json({ message: 'You are already in a party. Leave it first.' });
     }
 
-    const user = await User.findById(req.userId);
+    // -avatarData กัน Buffer รูปโปรไฟล์ถูกดึงมาโดยไม่ได้ใช้ (route นี้ไม่เกี่ยวกับรูปเลย)
+    const user = await User.findById(req.userId).select('-avatarData');
     if (!user) return res.status(404).json({ message: 'User not found' });
     if (user.level < quest.minLevelToHost) {
       return res.status(403).json({
@@ -349,7 +353,8 @@ router.post('/complete', authMiddleware, async (req, res) => {
       });
       if (already) continue;
 
-      const user = await User.findById(m.userId);
+      // -avatarData กันดึง Buffer รูปโปรไฟล์มาทุกคนในลูปนี้โดยไม่ได้ใช้ (ยิ่งห้องใหญ่ยิ่งเปลือง)
+      const user = await User.findById(m.userId).select('-avatarData');
       if (!user) continue; // user ถูกลบไปแล้ว
 
       const bonuses = bonusesMap.get(String(user._id)) || {

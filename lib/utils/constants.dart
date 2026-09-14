@@ -21,4 +21,17 @@ class AppConstants {
   // ต้องตรงกับ path ที่ประกาศไว้ใน pubspec.yaml (assets:) เป๊ะๆ ทุกตัวอักษร
   // ถ้ายังไม่มีไฟล์ ระบบจะ fallback เป็นพื้นหลัง gradient ให้อัตโนมัติ
   static const String profileBgAsset = 'lib/utils/assets/background.png';
+
+  // backend ส่ง path รูปโปรไฟล์มาแบบสั้นๆ (เช่น /users/<id>/avatar?v=...) ต้องต่อ baseUrl
+  // ให้เป็น URL เต็มก่อนเอาไปใช้กับ Image.network — ใช้ตัวนี้ร่วมกันทุกโมเดลที่มี avatarUrl
+  // (UserModel, PartyMemberModel, PublicProfileModel) กันโค้ดต่อ URL ซ้ำกันหลายที่
+  //
+  // เช็คว่ามี "http" นำหน้าหรือยังก่อนต่อ เพราะค่าที่ cache ไว้ใน SharedPreferences (ผ่าน
+  // UserModel.toJson) จะเป็น URL เต็มอยู่แล้ว ถ้าต่อซ้ำอีกทีตอนโหลด session เก่าจะได้ URL
+  // ผิดซ้อนกัน 2 ชั้น
+  static String? resolveUrl(String? path) {
+    if (path == null) return null;
+    if (path.startsWith('http')) return path;
+    return '$baseUrl$path';
+  }
 }

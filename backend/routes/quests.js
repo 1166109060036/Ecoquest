@@ -193,7 +193,8 @@ router.post('/:id/complete', authMiddleware, async (req, res) => {
       }
     }
 
-    const user = await User.findById(req.userId);
+    // -avatarData กัน Buffer รูปโปรไฟล์ถูกดึงมาทุกครั้งที่ทำเควสสำเร็จโดยไม่ได้ใช้
+    const user = await User.findById(req.userId).select('-avatarData');
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }

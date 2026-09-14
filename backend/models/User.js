@@ -22,11 +22,22 @@ const UserSchema = new mongoose.Schema(
       type: String,
       default: 'Player',
     },
-    // path รูปโปรไฟล์ — เก็บเป็น path ในเครื่องผู้ใช้เหมือน FridgeItem.photoPath
-    // (โปรเจคยังไม่มี path_provider/cloud storage เลยยังอัปโหลดรูปจริงขึ้น server ไม่ได้
-    // รูปเลยโชว์ได้แค่บนเครื่องที่ตั้งค่าไว้ ข้ามเครื่องจะไม่เห็น — ดู PROJECT_CONTEXT.md)
-    avatarPath: {
-      type: String,
+    // รูปโปรไฟล์ — เก็บไฟล์จริงเป็น Buffer ในเอกสารนี้เลย (ไม่ใช้ cloud storage แยก
+    // เพื่อไม่ต้องพึ่ง service ภายนอก/credential เพิ่ม) เสิร์ฟผ่าน GET /users/:id/avatar
+    // ไม่ query มาโดยไม่ตั้งใจ เพราะ query อื่นๆ ที่ query user ทั้งก้อนต้อง .select('-avatarData')
+    // ไม่งั้นจะลาก Buffer รูปมาด้วยทุกครั้งทั้งที่ไม่ได้ใช้ (ดูตัวอย่างที่ routes/auth.js, routes/users.js)
+    avatarData: {
+      type: Buffer,
+      default: null,
+    },
+    avatarContentType: {
+      type: String, // 'image/jpeg' หรือ 'image/png' เท่านั้น — เช็คที่ routes/auth.js ตอนอัปโหลด
+      default: null,
+    },
+    // ใช้ทำ cache-busting query string (?v=) ตอนสร้าง avatarUrl ให้แอพ ไม่งั้นเปลี่ยนรูปแล้ว
+    // แอพจะยังโชว์รูปเก่าที่ cache ไว้ตาม URL เดิม (ดู utils/avatar.js)
+    avatarUpdatedAt: {
+      type: Date,
       default: null,
     },
 

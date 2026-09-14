@@ -5,11 +5,9 @@
 // สิ่งที่ "ไม่" ย้ายมาไว้ตรงนี้ เพราะผูกกับ "ตัวเอง" เท่านั้น: _TopBar (hard-code route
 // /settings, /notifications ของหน้า Profile), _AvatarSourceSheet (แก้ไขรูปได้เฉพาะตัวเอง),
 // _UpgradeAbilityCard/_UpgradeRow (การ์ดซื้อของ ใช้กับตัวเองเท่านั้น)
-import 'dart:io';
 import 'package:flutter/material.dart';
 import '../models/profile_model.dart';
 import '../models/quest_history_model.dart';
-import '../services/app_photo_storage.dart';
 import '../utils/constants.dart';
 
 // ---------------------------------------------------------------------------
@@ -65,7 +63,7 @@ class ProfileGlassCard extends StatelessWidget {
 // ---------------------------------------------------------------------------
 class UserHeader extends StatelessWidget {
   final String displayName;
-  final String? avatarPath; // path รูปโปรไฟล์ในเครื่อง — null = ยังไม่ได้ตั้ง
+  final String? avatarUrl; // URL เต็มของรูปโปรไฟล์ — null = ยังไม่ได้ตั้ง
   final int level;
   final String rankTier;
   final int xp;
@@ -76,7 +74,7 @@ class UserHeader extends StatelessWidget {
   const UserHeader({
     super.key,
     required this.displayName,
-    this.avatarPath,
+    this.avatarUrl,
     required this.level,
     required this.rankTier,
     required this.xp,
@@ -91,7 +89,7 @@ class UserHeader extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        _AvatarPicker(avatarPath: avatarPath, onTap: onTapAvatar),
+        _AvatarPicker(avatarUrl: avatarUrl, onTap: onTapAvatar),
         const SizedBox(width: 14),
         Expanded(
           child: Column(
@@ -137,10 +135,10 @@ class UserHeader extends StatelessWidget {
 // ป้ายกล้องเล็กๆ มุมล่างขวาโชว์เฉพาะตอนแก้ไขได้ — โปรไฟล์คนอื่นดูอย่างเดียว ไม่มีป้ายนี้
 // โชว์รูปจาก avatarPath ถ้ามี (fallback เป็นไอคอนคนถ้าไฟล์หายหรือยังไม่ได้ตั้งรูป)
 class _AvatarPicker extends StatelessWidget {
-  final String? avatarPath;
+  final String? avatarUrl;
   final VoidCallback? onTap;
 
-  const _AvatarPicker({required this.avatarPath, required this.onTap});
+  const _AvatarPicker({required this.avatarUrl, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -158,12 +156,10 @@ class _AvatarPicker extends StatelessWidget {
             CircleAvatar(
               radius: 32,
               backgroundColor: Colors.black.withValues(alpha: 0.4),
-              backgroundImage: avatarPath != null
-                  ? FileImage(File(AppPhotoStorage.resolve(avatarPath!)))
-                  : null,
-              // ยังไม่มีรูป หรือไฟล์หายไปแล้ว (เช่นระบบเคลียร์ cache) -> โชว์ไอคอนคนแทน
-              onBackgroundImageError: avatarPath != null ? (_, _) {} : null,
-              child: avatarPath == null
+              backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl!) : null,
+              // ยังไม่มีรูป หรือโหลดรูปไม่สำเร็จ (เน็ตหลุด/รูปถูกลบไปแล้ว) -> โชว์ไอคอนคนแทน
+              onBackgroundImageError: avatarUrl != null ? (_, _) {} : null,
+              child: avatarUrl == null
                   ? const Icon(Icons.person, color: Colors.white70, size: 34)
                   : null,
             ),
@@ -251,17 +247,18 @@ class PointsAndRankCard extends StatelessWidget {
             ),
             const VerticalDivider(color: Colors.white24, width: 1),
             Expanded(
-              flex: 2,
+              // เท่ากับฝั่ง Point แล้ว (เดิม flex:2 แคบไป "Bronze Rank" ตัวหนาโดนตัดเหลือ "Bronze R...")
+              flex: 3,
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
                     CircleAvatar(
-                      radius: 18,
+                      radius: 16,
                       backgroundColor: Colors.black.withValues(alpha: 0.4),
-                      child: const Icon(Icons.emoji_events, color: Colors.amberAccent, size: 18),
+                      child: const Icon(Icons.emoji_events, color: Colors.amberAccent, size: 16),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -270,12 +267,15 @@ class PointsAndRankCard extends StatelessWidget {
                               style: TextStyle(color: Colors.white54, fontSize: 10)),
                           Text(
                             '$rankTier Rank',
+                            // ไม่ตัดด้วย ... อีกต่อไป — ยอมให้ขึ้นบรรทัดใหม่แทน กันชื่อยศยาวๆ
+                            // อย่าง "Platinum Rank" โดนตัดหายเหมือนที่ "Bronze Rank" เจอมาก่อน
+                            softWrap: true,
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
+                              height: 1.15,
                             ),
-                            overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 4),
                           ClipRRect(
@@ -300,8 +300,13 @@ class PointsAndRankCard extends StatelessWidget {
                           if (seasonNumber != null) ...[
                             const SizedBox(height: 2),
                             Text(
-                              'Season $seasonNumber · ${seasonDaysRemaining ?? 0} days left',
-                              style: const TextStyle(color: Colors.white38, fontSize: 8.5),
+                              // แยกคนละบรรทัดกัน (เดิมอยู่บรรทัดเดียวคั่นด้วย "·")
+                              'Season $seasonNumber\n${seasonDaysRemaining ?? 0} days left',
+                              style: const TextStyle(
+                                color: Colors.white38,
+                                fontSize: 8.5,
+                                height: 1.3,
+                              ),
                             ),
                           ],
                         ],

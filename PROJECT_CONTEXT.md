@@ -160,16 +160,29 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
     ต้องเรียก `AppPhotoStorage.init()` ก่อน `runApp()` เสมอ (ทำไว้ใน `lib/main.dart` แล้ว)
     รองรับค่าเก่าที่เคยเป็น absolute path เต็มด้วย (`resolve()` เช็คว่ามี `/` ในค่าไหม)
     — `PhotoStorageService.loadPhotos()` ยังเป็นจุด migrate รูปเก่าที่ยังไม่โดนเคลียร์ให้อัตโนมัติด้วย
-- **รูปโปรไฟล์ (avatar) ใส่ได้จริงแล้ว** — แตะที่ avatar ในหน้า Profile (`UserHeader` ใน
+- **รูปโปรไฟล์ (avatar) อัปโหลดขึ้น server จริงแล้ว** — แตะที่ avatar ในหน้า Profile (`UserHeader` ใน
   `lib/widgets/profile_sections.dart`) เปิด bottom sheet ให้ถ่ายรูป / เลือกจากคลังรูป / ลบรูป
-  (ลบโชว์เฉพาะตอนมีรูปอยู่แล้ว) — copy ไฟล์ผ่าน `AppPhotoStorage` เหมือนรูปของในตู้เย็น
-  - `User.avatarPath` (backend) + `POST /api/auth/avatar` (body `{avatarPath}`, ส่ง `null` เพื่อลบ)
-    อัปเดตแล้ว `AuthProvider.updateAvatar()` จะเรียก `refreshProfile()` ต่อให้ทุกหน้าที่ใช้ `user.avatarPath` เห็นค่าใหม่ทันที
-  - ⚠️ **เก็บแค่ path ในเครื่องเหมือน `FridgeItem.photoPath`** ไม่ได้อัปโหลดไฟล์จริงขึ้น server
-    (โปรเจคยังไม่มี multer/cloud storage) เลยเห็นรูปได้แค่บนเครื่องที่ตั้งค่าไว้ — ถ้า login เครื่องอื่นจะไม่เห็นรูป
-    (แต่รูปจะไม่หายจากเครื่องเดิมแล้วต่อให้เคลียร์ cache เพราะเก็บถาวรผ่าน `AppPhotoStorage`)
-  - ยังไม่โชว์ avatar ของ**คนอื่น**ที่ไหนในแอพ (เช่นรายชื่อสมาชิกปาร์ตี้ยังเป็นไอคอนคนทั่วไปเหมือนเดิม)
-    เพราะเป็น path ในเครื่องของเจ้าของรูป เครื่องอื่นเปิดไม่ได้อยู่ดี ต้องทำ upload ขึ้น server ก่อนถึงจะทำได้จริง
+  (ลบโชว์เฉพาะตอนมีรูปอยู่แล้ว)
+  - เก็บเป็น `Buffer` ใน MongoDB โดยตรง (`User.avatarData` + `avatarContentType` + `avatarUpdatedAt`)
+    **ไม่เก็บเป็นไฟล์บน disk ของ server** เพราะ Render free tier เป็น ephemeral filesystem
+    (ไฟล์ที่เขียนไว้หายทุกครั้งที่ deploy/restart ใหม่)
+  - อัปโหลด: อ่านรูปเป็น bytes ฝั่งแอพ (`XFile.readAsBytes()`) แล้ว base64 ส่งเข้า `POST /api/auth/avatar`
+    (body `{avatarBase64, contentType}`, ส่ง `avatarBase64: null` เพื่อลบ) — จำกัดไม่เกิน 4MB และรับแค่
+    `image/jpeg`/`image/png` เท่านั้น (`backend/routes/auth.js`)
+  - ดึงรูป: `GET /api/users/:id/avatar` เสิร์ฟ `avatarData` ตรงๆ เป็น response — เก็บ URL ไว้เป็น
+    `avatarUrl` (path สั้นๆ `/users/:id/avatar?v=<timestamp>`) สร้างจาก **`backend/utils/avatar.js`**
+    (`avatarUrlFor`) ไฟล์เดียว ที่ query string `?v=` ต่อท้ายคือ cache-buster ผูกกับ `avatarUpdatedAt`
+    กัน Flutter cache รูปเก่าค้างหลังเปลี่ยน avatar
+  - ⚠️ **route เสิร์ฟรูปจงใจไม่ใส่ authMiddleware** (public) เพื่อให้ `Image.network()` เรียกตรงได้โดยไม่ต้องแนบ
+    token — ยอมรับความเสี่ยงนี้เพราะเดา URL ได้ยาก (ต้องรู้ ObjectId 24 ตัวอักษร) และไม่มีข้อมูลอ่อนไหวอื่น
+    นอกจากรูปโปรไฟล์
+  - ทุก route ที่ query `User` แบบเต็ม (ไม่เกี่ยวกับรูป) ต้อง `.select('-avatarData')` เสมอ ไม่งั้นจะลาก Buffer
+    รูปเข้า memory โดยไม่จำเป็น (โดยเฉพาะ loop วนหลายคนอย่างตอนปิดปาร์ตี้ควิซ์ใน `routes/party.js`)
+  - ตอนนี้แสดง avatar ของ**คนอื่น**ได้แล้วทุกที่ที่มีรูปคนอื่นโชว์ (หน้ารายชื่อสมาชิกปาร์ตี้ `party_page.dart`,
+    หน้าโปรไฟล์สาธารณะ `player_profile_page.dart`) เพราะ URL ชี้ไปที่ server ไม่ใช่ path ในเครื่องอีกต่อไป
+  - `AppConstants.resolveUrl()` (`lib/utils/constants.dart`) เป็นจุดเดียวที่เติม `baseUrl` นำหน้า
+    `avatarUrl` ที่ backend ส่งมา — เช็ค `startsWith('http')` ก่อนเสมอ กัน URL ถูกเติม `baseUrl` ซ้ำสอง
+    ตอนโหลดค่าที่ cache ไว้ใน `SharedPreferences` กลับมา (`UserModel.toJson()` cache ค่าที่เติม prefix แล้ว)
 - **Achievement system ใช้งานได้จริง** — `GET /api/achievements` + ปลดล็อกอัตโนมัติตอนทำ quest สำเร็จ
   - นิยามเหรียญ + เงื่อนไขปลดล็อกทั้งหมดอยู่ที่ **`backend/utils/achievements.js` ไฟล์เดียว**
     (แนวเดียวกับ `progression.js`) — อยากปรับให้ปลดล็อกง่ายขึ้นตอนเดโมก็ลดเลข `required` ได้เลย
@@ -273,9 +286,10 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
     ทุกแถวกดได้ (ไม่ใช่แค่แถวหัวหน้าเหมือนก่อนหน้านี้) — แถวของ**ตัวเอง** สลับไปแท็บ Profile ของจริง
     ส่วนแถวของ**คนอื่น**เปิด `lib/pages/profile/player_profile_page.dart` (โปรไฟล์แบบดูอย่างเดียว)
     ผ่าน `GET /api/users/:id` (ผู้เล่นที่ login แล้วดูของกันและกันได้ทุกคน ไม่ต้องอยู่ห้องเดียวกัน)
-    - `backend/routes/users.js` คัดฟิลด์แบบ **allow-list** เท่านั้น (`displayName level xp points rank`)
-      ห้ามใช้ `.select('-password')` เพราะยังหลุด `email`/`resetOtpHash`/`resetOtpExpires` ได้ และไม่ส่ง
-      `avatarPath` เพราะเป็น path ในเครื่องคนอื่น เครื่องเราเปิดไม่ได้อยู่ดี
+    - `backend/routes/users.js` คัดฟิลด์แบบ **allow-list** เท่านั้น (`displayName level xp points rank
+      avatarContentType avatarUpdatedAt`) ห้ามใช้ `.select('-password')` เพราะยังหลุด
+      `email`/`resetOtpHash`/`resetOtpExpires` ได้ — ส่ง `avatarUrl` (สร้างจาก `avatarUrlFor()`) กลับไปด้วย
+      เพราะรูปตอนนี้อยู่บน server แล้ว เปิดจากเครื่องไหนก็ได้
     - progress/stats คำนวณผ่าน `backend/utils/profilePayload.js` (`buildProfileStats`) ตัวเดียวที่
       `GET /auth/me` ก็เรียกใช้ ทั้งสอง endpoint เลยคิดเลขตรงกันเป๊ะ
     - ชิ้นส่วน UI ที่ไม่ผูกกับ "ตัวเอง" (หัวข้อ+แถบ XP, การ์ด Point/Rank, การ์ดสถิติ, ประวัติเควส) ถูกยกออกมา
@@ -310,7 +324,8 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
 - `backend/routes/achievements.js` → mount ที่ `/api/achievements`: `GET /` (ต้อง login)
 - `backend/routes/party.js` → mount ที่ `/api/party`: `GET /`, `GET /rooms`, `POST /`, `POST /join/:partyId`,
   `POST /leave`, `POST /complete` (ต้อง login ทั้งหมด)
-- `backend/routes/users.js` → mount ที่ `/api/users`: `GET /:id` (โปรไฟล์สาธารณะของผู้เล่นคนอื่น)
+- `backend/routes/users.js` → mount ที่ `/api/users`: `GET /:id` (โปรไฟล์สาธารณะของผู้เล่นคนอื่น, ต้อง login),
+  `GET /:id/avatar` (เสิร์ฟรูปโปรไฟล์ — **ไม่ต้อง login**, ดูหัวข้อ avatar ด้านบน)
 - `backend/routes/inventory.js` → mount ที่ `/api/inventory`: `GET /` (แจกไอเทมตั้งต้น Camera/Fridge อัตโนมัติถ้ายังไม่มี)
 - `backend/routes/notifications.js` → mount ที่ `/api/notifications`: `GET /`, `POST /read`
   (สร้างแจ้งเตือนของใกล้หมดอายุแบบ lazy ตอน `GET /` เพราะไม่มี scheduler — ดูหัวข้อ "ระบบแจ้งเตือน" ด้านบน)
@@ -393,3 +408,9 @@ backend พร้อม deploy แล้ว (ทดสอบว่าบูต�
 - ทำ upload รูปขึ้น server/cloud storage แทนการเก็บ path ในเครื่อง (รูปโปรไฟล์ + รูปของในตู้เย็น
   เก็บถาวรไม่หายแล้วผ่าน `AppPhotoStorage` แต่ยังเห็นได้แค่บนเครื่องที่ตั้งค่าไว้ ข้ามเครื่องจะไม่เห็น)
 - ปรับสมดุลราคา/ผลของ upgrade ถ้าเทสแล้วรู้สึกไม่ลงตัว (แก้ที่ `backend/utils/upgrades.js` ไฟล์เดียว)
+
+## 8. สิ่งที่ฉันคิดออกและต้องการ
+1.ระบบไอเทมในเกมยังไม่สมบูรณ์มีไอเทม แต่ยังไม่รู้ว่าจะได้รับไอเทมนั้นยังไง และไอเทมในเกมตอนนี้มีแค่2อย่างคือ กล้อง,ตู้เย็น ซึ่งมันสามารถมีมากกว่านี้ได้
+2.ระบบตั้งค่า ตอนนี้ในตั้งค่ายังมีแค่เปลี่ยนรหัสผ่าน
+3.ระบบเสียงต่างๆ เช่นเสียงพื้นหลัง เสียงกดปุ่ม ให้มันเหมือนเกมมากขึ้น
+4.ต้องการเอฟเฟคให้มันเคลื่อนไหว เช่นมีใบไม้ตกอยู่ที่พื้นหลัง มีอะไรขยับมากกว่านี้ให้เหมือนกับมันเป็นเกม

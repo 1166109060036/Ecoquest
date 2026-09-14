@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../models/profile_model.dart';
@@ -78,14 +79,14 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ตั้ง/ลบรูปโปรไฟล์ (null = ลบรูป) — เรียก refreshProfile() ต่อให้ทุกหน้าที่ใช้ user เห็นค่าใหม่ทันที
-  Future<bool> updateAvatar(String? avatarPath) async {
+  // ตั้ง/ลบรูปโปรไฟล์ (bytes: null = ลบรูป) — เรียก refreshProfile() ต่อให้ทุกหน้าที่ใช้ user เห็นค่าใหม่ทันที
+  Future<bool> updateAvatar(Uint8List? bytes, {String? contentType}) async {
     _isUpdatingAvatar = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      await _authService.updateAvatar(avatarPath);
+      await _authService.updateAvatar(bytes, contentType: contentType);
       await refreshProfile();
       _isUpdatingAvatar = false;
       notifyListeners();

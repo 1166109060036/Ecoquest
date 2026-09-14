@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import '../models/user_model.dart';
 import '../models/profile_model.dart';
@@ -106,8 +107,9 @@ class AuthService {
     await _storage.clearSession();
   }
 
-  // ตั้ง/ลบรูปโปรไฟล์ — ส่ง avatarPath: null เพื่อลบรูป
-  Future<void> updateAvatar(String? avatarPath) async {
+  // ตั้งรูปโปรไฟล์จริง — ส่ง bytes ของรูป (encode เป็น base64) + contentType ขึ้น server ตรงๆ
+  // ส่ง bytes: null เพื่อลบรูป
+  Future<void> updateAvatar(Uint8List? bytes, {String? contentType}) async {
     final token = await _storage.getToken();
     final response = await http.post(
       Uri.parse('${AppConstants.baseUrl}/auth/avatar'),
@@ -115,7 +117,10 @@ class AuthService {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       },
-      body: jsonEncode({'avatarPath': avatarPath}),
+      body: jsonEncode({
+        'avatarBase64': bytes != null ? base64Encode(bytes) : null,
+        'contentType': contentType,
+      }),
     );
 
     final data = jsonDecode(response.body);

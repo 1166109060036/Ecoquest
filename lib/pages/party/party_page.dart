@@ -742,7 +742,13 @@ class _MemberRow extends StatelessWidget {
             CircleAvatar(
               radius: 22,
               backgroundColor: Colors.black.withValues(alpha: 0.4),
-              child: const Icon(Icons.person, color: Colors.white70, size: 24),
+              backgroundImage:
+                  member.avatarUrl != null ? NetworkImage(member.avatarUrl!) : null,
+              // โหลดรูปไม่สำเร็จ (เน็ตหลุด/รูปถูกลบไปแล้ว) -> โชว์ไอคอนคนแทน ไม่ให้หน้าพัง
+              onBackgroundImageError: member.avatarUrl != null ? (_, _) {} : null,
+              child: member.avatarUrl == null
+                  ? const Icon(Icons.person, color: Colors.white70, size: 24)
+                  : null,
             ),
             const SizedBox(width: 14),
             Expanded(

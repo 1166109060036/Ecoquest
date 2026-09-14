@@ -5,7 +5,6 @@ import '../../providers/auth_provider.dart';
 import '../../providers/notification_provider.dart';
 import '../../providers/quest_provider.dart';
 import '../../providers/upgrade_provider.dart';
-import '../../services/app_photo_storage.dart';
 import '../../models/profile_model.dart';
 import '../../models/upgrade_model.dart';
 import '../../widgets/profile_sections.dart';
@@ -79,12 +78,12 @@ class ProfilePage extends StatelessWidget {
                       const SizedBox(height: 16),
                       UserHeader(
                         displayName: user?.displayName ?? 'Player',
-                        avatarPath: user?.avatarPath,
+                        avatarUrl: user?.avatarUrl,
                         level: level,
                         rankTier: rankTier,
                         xp: xpIntoLevel,
                         xpToNext: xpForNextLevel,
-                        onTapAvatar: () => _pickAvatar(context, hasAvatar: user?.avatarPath != null),
+                        onTapAvatar: () => _pickAvatar(context, hasAvatar: user?.avatarUrl != null),
                       ),
                       const SizedBox(height: 16),
                       PointsAndRankCard(
@@ -118,8 +117,9 @@ class ProfilePage extends StatelessWidget {
   }
 
   // เปิด bottom sheet ให้เลือกถ่ายรูป/เลือกจากคลังรูป/ลบรูป (ลบโชว์เฉพาะตอนมีรูปอยู่แล้ว)
-  // แล้วอัปเดต avatar ผ่าน AuthProvider — copy ไฟล์ไปเก็บถาวรผ่าน AppPhotoStorage ก่อน
-  // (path ที่ image_picker คืนมาอยู่ใน cache เคลียร์ทิ้งได้ตลอด)
+  // แล้วอัปโหลด bytes ขึ้น server ตรงๆ ผ่าน AuthProvider — ไม่ต้องเก็บไฟล์ไว้ในเครื่องเลย
+  // (ต่างจากรูปของในตู้เย็น/EcoQuest Moment ที่ยังเก็บถาวรในเครื่องผ่าน AppPhotoStorage
+  // เพราะรูปโปรไฟล์อยู่บน server แล้ว ดึงกลับมาโชว์ผ่าน avatarUrl ได้เสมอไม่ว่าเครื่องไหน)
   Future<void> _pickAvatar(BuildContext context, {required bool hasAvatar}) async {
     // ใช้ String action ('camera'/'gallery'/'remove') แทน ImageSource? ตรงๆ
     // เพราะ ImageSource ไม่มีค่าให้แทนความหมาย "ลบรูป" ได้
@@ -131,8 +131,6 @@ class ProfilePage extends StatelessWidget {
 
     if (action == null || !context.mounted) return;
     final authProvider = context.read<AuthProvider>();
-    // จำรูปเก่าไว้ก่อนอัปเดต เพื่อลบไฟล์ทิ้งถ้าเปลี่ยน/ลบสำเร็จ (กันไฟล์ค้าง)
-    final oldAvatarPath = authProvider.user?.avatarPath;
 
     if (action == 'remove') {
       final ok = await authProvider.updateAvatar(null);
@@ -141,9 +139,7 @@ class ProfilePage extends StatelessWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(authProvider.errorMessage ?? 'Failed to remove photo')),
         );
-        return;
       }
-      await AppPhotoStorage.delete(oldAvatarPath);
       return;
     }
 
@@ -156,20 +152,19 @@ class ProfilePage extends StatelessWidget {
       );
       if (shot == null || !context.mounted) return;
 
-      final saved = await AppPhotoStorage.save(shot.path, prefix: 'avatar');
-      if (!context.mounted) return;
+      final bytes = await shot.readAsBytes();
+      // backend รับแค่ image/jpeg กับ image/png — เดาจากนามสกุลไฟล์ ถ้าไม่ชัวร์ให้ตกไปที่ jpeg
+      // (กล้องมือถือส่วนใหญ่ถ่ายเป็น jpeg อยู่แล้ว ที่ต้องกันไว้จริงๆ คือเลือกจากแกลเลอรีที่อาจเป็น png)
+      final contentType = shot.path.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
 
-      final ok = await authProvider.updateAvatar(saved);
+      if (!context.mounted) return;
+      final ok = await authProvider.updateAvatar(bytes, contentType: contentType);
       if (!context.mounted) return;
       if (!ok) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(authProvider.errorMessage ?? 'Failed to update photo')),
         );
-        // อัปโหลดไม่สำเร็จ ไฟล์ที่เพิ่ง copy ไว้ก็ไม่ต้องเก็บไว้เปล่าๆ
-        await AppPhotoStorage.delete(saved);
-        return;
       }
-      await AppPhotoStorage.delete(oldAvatarPath);
     } catch (e) {
       if (!context.mounted) return;
       // เครื่องไม่มีกล้อง / ผู้ใช้ปฏิเสธ permission

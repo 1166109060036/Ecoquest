@@ -1,6 +1,7 @@
 // โปรไฟล์สาธารณะของผู้เล่นคนอื่น — มาจาก GET /api/users/:id
 // ใช้ model UserProgress/ProfileStats/AchievementMedalModel/QuestHistoryEntry เดิมซ้ำ
 // เพราะ backend serialize เหมือน /auth/me กับ /quests/history เป๊ะๆ
+import '../utils/constants.dart';
 import 'achievement_model.dart';
 import 'profile_model.dart';
 import 'quest_history_model.dart';
@@ -8,6 +9,7 @@ import 'quest_history_model.dart';
 class PublicProfileModel {
   final String userId;
   final String displayName;
+  final String? avatarUrl;
   final int level;
   final int points;
   final String rank;
@@ -19,6 +21,7 @@ class PublicProfileModel {
   PublicProfileModel({
     required this.userId,
     required this.displayName,
+    this.avatarUrl,
     required this.level,
     required this.points,
     required this.rank,
@@ -36,6 +39,7 @@ class PublicProfileModel {
     return PublicProfileModel(
       userId: (user['id'] ?? '').toString(),
       displayName: user['displayName'] ?? 'Player',
+      avatarUrl: AppConstants.resolveUrl(user['avatarUrl']),
       level: user['level'] ?? 1,
       points: user['points'] ?? 0,
       rank: user['rank'] ?? 'Bronze',

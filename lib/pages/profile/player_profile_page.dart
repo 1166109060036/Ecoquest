@@ -99,8 +99,7 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
                                       children: [
                                         UserHeader(
                                           displayName: profile.displayName,
-                                          // ไม่ส่ง avatarPath เพราะเป็น path ในเครื่องเจ้าของรูป
-                                          // เครื่องเราเปิดไม่ได้อยู่ดี (ดู backend/models/User.js)
+                                          avatarUrl: profile.avatarUrl,
                                           level: profile.level,
                                           rankTier: profile.rank,
                                           xp: profile.progress.xpIntoLevel,

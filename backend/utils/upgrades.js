@@ -156,11 +156,12 @@ const buyUpgrade = async (userId, upgradeType) => {
 
   const cost = costForNextLevel(upgrade, currentLevel);
 
+  // -avatarData กัน Buffer รูปโปรไฟล์ถูกดึงมาโดยไม่ได้ใช้ (route นี้ไม่เกี่ยวกับรูปเลย)
   const user = await User.findOneAndUpdate(
     { _id: userId, points: { $gte: cost } },
     { $inc: { points: -cost } },
     { new: true }
-  );
+  ).select('-avatarData');
 
   if (!user) {
     return { error: { status: 400, message: 'Not enough points' } };

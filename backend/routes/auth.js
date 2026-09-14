@@ -5,6 +5,7 @@ const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 const { sendOtpEmail } = require('../utils/mailer');
 const { buildProfileStats } = require('../utils/profilePayload');
+const { avatarUrlFor } = require('../utils/avatar');
 
 const router = express.Router();
 
@@ -126,7 +127,9 @@ router.post('/guest', async (req, res) => {
 // @desc    ดึงข้อมูล user ปัจจุบัน + ความคืบหน้า (level/xp/rank) + สถิติ สำหรับหน้า Profile/Home
 router.get('/me', authMiddleware, async (req, res) => {
   try {
-    const user = await User.findById(req.userId).select('-password');
+    // -avatarData กัน Buffer รูปโปรไฟล์ (อาจหนักหลายร้อย KB) ถูกดึงมาด้วยทั้งที่ route นี้
+    // ไม่ได้ใช้ตัวไฟล์เลย ใช้แค่ avatarContentType/avatarUpdatedAt ไปสร้าง avatarUrl พอ
+    const user = await User.findById(req.userId).select('-password -avatarData');
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -141,7 +144,7 @@ router.get('/me', authMiddleware, async (req, res) => {
         email: user.email,
         displayName: user.displayName,
         isGuest: user.isGuest,
-        avatarPath: user.avatarPath,
+        avatarUrl: avatarUrlFor(user),
         level: progress.level,
         xp: user.xp,
         points: user.points,
@@ -156,26 +159,48 @@ router.get('/me', authMiddleware, async (req, res) => {
   }
 });
 
+// รูปที่ยอมรับ — จำกัดแค่ 2 แบบนี้พอ ไม่ต้องรองรับทุก mime type ที่มือถือส่งมาได้
+const ALLOWED_AVATAR_TYPES = ['image/jpeg', 'image/png'];
+// กันไฟล์ใหญ่ผิดปกติ (image_picker ฝั่งแอพย่อเหลือ maxWidth 800 อยู่แล้ว ปกติไม่เกินนี้)
+const MAX_AVATAR_BYTES = 4 * 1024 * 1024;
+
 // @route   POST /api/auth/avatar
-// @desc    ตั้ง/ลบรูปโปรไฟล์ — ส่ง avatarPath: null มาเพื่อลบรูป
-// (แค่บันทึก path ในเครื่อง ไม่ได้อัปโหลดไฟล์จริงขึ้น server — ดูหมายเหตุที่ models/User.js)
+// @desc    ตั้ง/ลบรูปโปรไฟล์จริง — ส่ง { avatarBase64, contentType } มาเพื่อตั้ง
+//          หรือส่ง { avatarBase64: null } มาเพื่อลบ
+// เก็บไฟล์เป็น Buffer ในเอกสาร User ตรงๆ (ไม่ใช้ cloud storage แยก ไม่ต้องพึ่ง
+// credential/บริการภายนอกเพิ่ม) เสิร์ฟกลับผ่าน GET /api/users/:id/avatar
 router.post('/avatar', authMiddleware, async (req, res) => {
   try {
-    const { avatarPath } = req.body;
+    const { avatarBase64, contentType } = req.body;
 
-    if (avatarPath != null && (typeof avatarPath !== 'string' || avatarPath.length > 500)) {
-      return res.status(400).json({ message: 'Invalid avatar path' });
-    }
-
-    const user = await User.findById(req.userId);
+    const user = await User.findById(req.userId).select('-password -avatarData');
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    user.avatarPath = avatarPath || null;
+    if (avatarBase64 == null) {
+      user.avatarData = null;
+      user.avatarContentType = null;
+      user.avatarUpdatedAt = null;
+      await user.save();
+      return res.json({ message: 'Avatar removed', avatarUrl: null });
+    }
+
+    if (typeof avatarBase64 !== 'string' || !ALLOWED_AVATAR_TYPES.includes(contentType)) {
+      return res.status(400).json({ message: 'Invalid avatar data' });
+    }
+
+    const buffer = Buffer.from(avatarBase64, 'base64');
+    if (buffer.length === 0 || buffer.length > MAX_AVATAR_BYTES) {
+      return res.status(400).json({ message: 'Avatar image is too large' });
+    }
+
+    user.avatarData = buffer;
+    user.avatarContentType = contentType;
+    user.avatarUpdatedAt = new Date();
     await user.save();
 
-    res.json({ message: 'Avatar updated', avatarPath: user.avatarPath });
+    res.json({ message: 'Avatar updated', avatarUrl: avatarUrlFor(user) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
@@ -197,7 +222,8 @@ router.post('/upgrade-guest', authMiddleware, async (req, res) => {
       return res.status(400).json({ message: 'Password must be at least 6 characters' });
     }
 
-    const user = await User.findById(req.userId);
+    // -avatarData กัน Buffer รูปโปรไฟล์ถูกดึงมาโดยไม่ได้ใช้ (route นี้ไม่เกี่ยวกับรูปเลย)
+    const user = await User.findById(req.userId).select('-avatarData');
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -253,7 +279,8 @@ router.post('/verify-password', authMiddleware, async (req, res) => {
       return res.status(400).json({ message: 'Please enter your password' });
     }
 
-    const user = await User.findById(req.userId);
+    // -avatarData กัน Buffer รูปโปรไฟล์ถูกดึงมาโดยไม่ได้ใช้ (route นี้ไม่เกี่ยวกับรูปเลย)
+    const user = await User.findById(req.userId).select('-avatarData');
     if (!user || user.isGuest) {
       return res.status(400).json({ message: 'Guest accounts do not have a password' });
     }
@@ -283,7 +310,8 @@ router.post('/change-password', authMiddleware, async (req, res) => {
       return res.status(400).json({ message: 'New password must be at least 6 characters' });
     }
 
-    const user = await User.findById(req.userId);
+    // -avatarData กัน Buffer รูปโปรไฟล์ถูกดึงมาโดยไม่ได้ใช้ (route นี้ไม่เกี่ยวกับรูปเลย)
+    const user = await User.findById(req.userId).select('-avatarData');
     if (!user || user.isGuest) {
       return res.status(400).json({ message: 'Guest accounts have no password to change' });
     }
@@ -396,7 +424,8 @@ router.post('/reset-password', async (req, res) => {
       return res.status(401).json({ message: 'Invalid token' });
     }
 
-    const user = await User.findById(decoded.userId);
+    // -avatarData กัน Buffer รูปโปรไฟล์ถูกดึงมาโดยไม่ได้ใช้ (route นี้ไม่เกี่ยวกับรูปเลย)
+    const user = await User.findById(decoded.userId).select('-avatarData');
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
