@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../models/inventory_item_model.dart';
 import '../../providers/achievement_provider.dart';
 import '../../providers/inventory_provider.dart';
+import '../../providers/quest_provider.dart';
 import '../../widgets/inventory_card.dart';
 
-// หน้า Inventory — ไอเทม (Camera, Fridge) และเหรียญ Achievement ที่ปลดล็อกแล้ว
+// หน้า Inventory — ไอเทม (Camera, Fridge, ไอเทม Energy ที่มีอยู่) และเหรียญ Achievement ที่ปลดล็อกแล้ว
 // อยู่ในลิสต์เดียวกันทั้งหมด ไม่แยก section ตามดีไซน์
 // สูงสุด 100 ช่อง (capacity) ตามดีไซน์
+// ⚠️ ไอเทมที่ซื้อได้แต่ยังไม่เคยซื้อ (quantity 0) ไม่โชว์ที่นี่ — ไปโชว์เป็นการ์ดร้านค้าในหน้า Profile แทน
+// (ดู _EnergyShopCard ใน profile_page.dart) หน้านี้โชว์แค่ "ของที่มีอยู่จริง" เท่านั้น
 class InventoryPage extends StatelessWidget {
   // MainShell ส่ง callback นี้เข้ามา ใช้ตอนกดปุ่ม back เพื่อกลับไปแท็บ Home
   final ValueChanged<int>? onNavigateToTab;
@@ -21,9 +25,69 @@ class InventoryPage extends StatelessWidget {
         context.read<AchievementProvider>().loadAchievements(),
       ]);
 
+  // ใช้ไอเทม Energy 1 ชิ้น — Super Energy ลบประวัติเควสวันนี้ทิ้ง (ทำใหม่ได้ แต่ต้องระวังกดพลาด)
+  // เลยขึ้น confirm ก่อน ส่วน Red/Blue/Green แค่ตั้งบัฟชั่วคราว ไม่มีอะไรเสียหาย กดใช้ได้เลยไม่ต้อง confirm
+  Future<void> _useItem(BuildContext context, InventoryItemModel item) async {
+    if (item.itemType == 'super_energy') {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Use Super Energy?'),
+          content: const Text(
+            "This resets all quests you've completed today so you can complete them again. "
+            'Points/XP already earned stay — this just re-opens today\'s quests.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text('Cancel', style: TextStyle(color: Colors.grey.shade600)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Use'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !context.mounted) return;
+    }
+
+    final inventoryProvider = context.read<InventoryProvider>();
+    final success = await inventoryProvider.useItem(item.itemType);
+    if (!context.mounted) return;
+
+    if (!success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(inventoryProvider.errorMessage ?? 'Failed to use this item')),
+      );
+      return;
+    }
+
+    // Super Energy เปลี่ยนสถานะ completedToday ของเควส -> ต้องโหลดลิสต์เควสใหม่ให้การ์ดอัปเดตตาม
+    if (item.itemType == 'super_energy') {
+      await context.read<QuestProvider>().loadQuests();
+    }
+    if (!context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(_successMessage(item.itemType))),
+    );
+  }
+
+  String _successMessage(String itemType) => switch (itemType) {
+        'red_energy' => '2x Points activated for 30 minutes!',
+        'blue_energy' => '2x XP activated for 30 minutes!',
+        'green_energy' => '2x Party Points activated for 30 minutes!',
+        'super_energy' => "Today's quests were reset — go complete them again!",
+        _ => 'Item used',
+      };
+
   @override
   Widget build(BuildContext context) {
     final inventoryProvider = context.watch<InventoryProvider>();
+    // ไอเทมที่ซื้อได้แต่ยังไม่เคยซื้อ (quantity 0) ไม่โชว์ในกระเป๋า — โชว์แค่ของที่มีอยู่จริง
+    final ownedItems = inventoryProvider.items.where((item) => item.quantity > 0);
     // เหรียญมาจาก backend จริง (โหลดไว้แล้วตั้งแต่ MainShell) — เรียงให้อันที่ปลดล็อกแล้วขึ้นก่อน
     final medals = [...context.watch<AchievementProvider>().achievements]
       ..sort((a, b) {
@@ -34,16 +98,19 @@ class InventoryPage extends StatelessWidget {
 
     // รวมไอเทมปกติ + achievement medal เป็นลิสต์เดียวกัน
     final allEntries = <_InventoryEntry>[
-      for (final item in inventoryProvider.items)
+      for (final item in ownedItems)
         _InventoryEntry(
+          itemType: item.itemType,
           icon: item.icon,
-          iconColor: Colors.black87,
+          iconColor: item.isUsable ? item.accentColor : Colors.black87,
           imageAsset: item.imageAsset,
           title: item.title,
           description: item.description,
           quantity: item.quantity,
-          // itemType ที่ไม่รู้จัก (ยังไม่มีหน้าให้ไป) ไม่ต้องกดได้ — ไม่งั้นการ์ดจะขึ้นลูกศรเปล่าๆ
-          onTap: _routeFor(item.itemType) == null
+          actionColor: item.accentColor,
+          // ไอเทม Energy กดใช้ได้ (ปุ่ม Use) — Camera/Fridge กดทั้งการ์ดเพื่อไปหน้าฟีเจอร์ของมันแทน
+          onUse: item.isUsable ? () => _useItem(context, item) : null,
+          onTap: item.isUsable || _routeFor(item.itemType) == null
               ? null
               : () => Navigator.pushNamed(context, _routeFor(item.itemType)!),
         ),
@@ -120,6 +187,11 @@ class InventoryPage extends StatelessWidget {
                                 description: entry.description,
                                 quantity: entry.quantity,
                                 onTap: entry.onTap,
+                                actionLabel: 'Use',
+                                actionColor: entry.actionColor,
+                                onAction: entry.onUse,
+                                actionBusy: entry.onUse != null &&
+                                    inventoryProvider.busyItemType == entry.itemType,
                               );
                             },
                           ),
@@ -141,6 +213,7 @@ class InventoryPage extends StatelessWidget {
 
 // helper ภายในไฟล์นี้ ใช้รวมไอเทม+medal ให้อยู่ในรูปแบบเดียวกันก่อน render
 class _InventoryEntry {
+  final String itemType; // '' สำหรับ medal (ไม่มี itemType จริง แต่ medal ไม่มี onUse อยู่แล้วเลยไม่ใช้ค่านี้)
   final IconData icon;
   final Color iconColor;
   final String? imageAsset;
@@ -148,8 +221,11 @@ class _InventoryEntry {
   final String description;
   final int? quantity;
   final VoidCallback? onTap;
+  final VoidCallback? onUse;
+  final Color actionColor;
 
   _InventoryEntry({
+    this.itemType = '',
     required this.icon,
     required this.iconColor,
     this.imageAsset,
@@ -157,6 +233,8 @@ class _InventoryEntry {
     required this.description,
     this.quantity,
     this.onTap,
+    this.onUse,
+    this.actionColor = Colors.green,
   });
 }
 

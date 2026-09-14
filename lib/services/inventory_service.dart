@@ -25,4 +25,32 @@ class InventoryService {
         .map((i) => InventoryItemModel.fromJson(i as Map<String, dynamic>))
         .toList();
   }
+
+  // ซื้อไอเทม 1 ชิ้นด้วย Points (ตอนนี้มีแค่ไอเทม Energy ที่ซื้อได้)
+  Future<void> buyItem(String itemType) async {
+    final token = await _storage.getToken();
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/inventory/$itemType/buy'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode != 200) {
+      throw Exception(data['message'] ?? 'Failed to buy this item');
+    }
+  }
+
+  // ใช้ไอเทม 1 ชิ้น — หักจาก inventory แล้วใส่ผลทันทีฝั่ง backend
+  Future<void> useItem(String itemType) async {
+    final token = await _storage.getToken();
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/inventory/$itemType/use'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode != 200) {
+      throw Exception(data['message'] ?? 'Failed to use this item');
+    }
+  }
 }

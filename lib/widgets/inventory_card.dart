@@ -16,6 +16,12 @@ class InventoryCard extends StatelessWidget {
   final int? quantity;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress; // เช่น กดค้างเพื่อลบของในตู้เย็น
+  // ปุ่มเล็กๆ ทางขวา (เช่น "Use" สำหรับไอเทม Energy) — มาแทนลูกศร chevron ถ้าใส่มา
+  // ไม่ใช้ onTap เพราะ onTap ของการ์ดนี้หมายถึง "กดทั้งการ์ดเพื่อไปหน้าอื่น" คนละความหมายกับ "ใช้ไอเทม"
+  final String? actionLabel;
+  final VoidCallback? onAction;
+  final bool actionBusy; // true = ปุ่มกดไม่ได้ + โชว์ spinner เล็กๆ แทน (กำลังรอ backend ตอบ)
+  final Color actionColor;
 
   const InventoryCard({
     super.key,
@@ -29,6 +35,10 @@ class InventoryCard extends StatelessWidget {
     this.quantity,
     this.onTap,
     this.onLongPress,
+    this.actionLabel,
+    this.onAction,
+    this.actionBusy = false,
+    this.actionColor = Colors.green,
   });
 
   // รูปจริงจะลอยอยู่บนพื้นโปร่งใสพร้อมเงา ส่วน "ไม่มีรูป" ถึงจะใช้กล่องสีอ่อนรอง icon ไว้
@@ -143,7 +153,27 @@ class InventoryCard extends StatelessWidget {
                   ],
                 ),
               ),
-              if (onTap != null)
+              if (onAction != null) ...[
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: actionBusy ? null : onAction,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: actionColor,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.grey.shade300,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  ),
+                  child: actionBusy
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : Text(actionLabel ?? 'Use', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                ),
+              ] else if (onTap != null)
                 Icon(Icons.chevron_right, color: Colors.grey.shade400),
             ],
           ),

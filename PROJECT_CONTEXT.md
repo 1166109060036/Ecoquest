@@ -215,7 +215,31 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
 - **Inventory ใช้ข้อมูลจริงแล้ว** — `GET /api/inventory` แจกไอเทมตั้งต้น Camera/Fridge ให้อัตโนมัติ
   (แบบ lazy ตอนอ่านครั้งแรก ไม่ใช่ตอนสมัคร — บัญชีเก่าที่มีอยู่ก่อนฟีเจอร์นี้ก็ได้ของไปด้วยโดยไม่ต้อง backfill DB)
   นิยามไอเทมอยู่ที่ `backend/utils/inventory.js` (แนวเดียวกับ `MEDALS` ใน `utils/achievements.js`)
-  ฝั่งแอพแปลง `itemType` เป็นไอคอน/รูปเองผ่าน `InventoryItemModel` (`lib/models/inventory_item_model.dart`)
+  ฝั่งแอพแปลง `itemType` เป็นไอคอน/สีเองผ่าน `InventoryItemModel` (`lib/models/inventory_item_model.dart`)
+  - **ไอเทม Energy (ซื้อได้/ใช้ได้จริง)** — Red/Blue/Green/Super Energy ต่างจาก Camera/Fridge ตรงที่มี
+    `cost` (ซื้อด้วย Points) และ `effect` (ใช้แล้วได้ผลจริง) ใน `ITEMS` catalogue:
+    - **Red Energy** (40P) — 2x Points จากทุกเควส นาน 30 นาที
+    - **Blue Energy** (40P) — 2x XP จากทุกเควส นาน 30 นาที
+    - **Green Energy** (40P) — 2x Points จากเควส Party เท่านั้น นาน 30 นาที
+    - **Super Energy** (100P) — ลบประวัติเควสที่ทำวันนี้ทั้งหมด (`QuestHistory` ที่ `completedAt >= startOfToday()`)
+      ทำให้ `completedToday`/gate เควสรายวันกลับมาทำได้อีกรอบทันที — แต้ม/XP ที่ได้ไปแล้วไม่ถูกหักคืน
+    ⚠️ ราคา/ตัวคูณยังไม่ผ่านการเทสสมดุลเกมจริง ปรับได้ที่เดียวที่ `ITEMS` ใน `utils/inventory.js`
+  - `POST /api/inventory/:itemType/buy` — ซื้อ 1 ชิ้นด้วย Points (atomic compare-and-swap แบบเดียวกับ
+    `buyUpgrade` ใน `utils/upgrades.js`) — ไม่จำกัดจำนวนซื้อซ้ำ (ต่างจาก upgrade ที่มี `maxLevel`)
+  - `POST /api/inventory/:itemType/use` — ใช้ 1 ชิ้น หักจำนวนแบบ atomic ก่อนเสมอแล้วค่อยใส่ผล (กันกดรัวๆ
+    ได้ผลฟรีโดยไม่เสียของจริง) — Red/Blue/Green ตั้งค่า `redEnergyExpiresAt`/`blueEnergyExpiresAt`/
+    `greenEnergyExpiresAt` บน `User` (`backend/models/User.js`) เป็นตอนนี้ + 30 นาที
+  - **`withEnergyBoosts(bonuses, user)`** (`utils/inventory.js`) — จุดเชื่อมกับระบบ upgrade เดิม: เติม
+    เปอร์เซ็นต์โบนัสจากบัฟ Energy ที่ยังไม่หมดอายุเข้าไปใน `bonuses` (จาก `getUserBonuses`/`getUserBonusesMap`
+    ใน `utils/upgrades.js`) ก่อนส่งเข้า `applyBonuses` ตามปกติ — ไม่ต้องแก้ `applyBonuses` เลยเพราะมันรับแค่
+    ตัวเลขเปอร์เซ็นต์อยู่แล้ว (บวก 100 = คูณ 2 เท่า) เรียกที่ 3 จุด: `GET /api/quests` (preview การ์ดเควส),
+    `POST /api/quests/:id/complete` (เควสเดี่ยว), `POST /api/party/complete` (เควส party ในลูปแจกรางวัล
+    ต่อสมาชิก — ใช้ `user` ที่โหลดสดในลูปอยู่แล้ว ไม่ query ซ้ำ)
+  - ฝั่งแอพ: ปุ่ม **"Use"** อยู่ในการ์ดไอเทมที่หน้า **Inventory** (เฉพาะไอเทมที่มีอยู่จริง `quantity > 0`
+    เท่านั้น — ไอเทมซื้อได้ที่ยังไม่เคยซื้อไม่โชว์ที่นี่) ส่วนการ์ด **"Energy Shop"** อยู่ในหน้า **Profile**
+    (`_EnergyShopCard` ต่อจาก `_UpgradeAbilityCard`) ใช้ `InventoryProvider.items` ชุดเดียวกัน กรองเอาแค่
+    ไอเทมที่มี `cost` — ไม่มี endpoint แยกสำหรับร้านค้า เพราะ `GET /api/inventory` ส่งไอเทมซื้อได้ทุกอันมา
+    เสมอ (แม้ `quantity: 0`) อยู่แล้ว
 - **ระบบแจ้งเตือนใช้งานได้จริงแล้ว** — `GET /api/notifications` + จุดแดงบนกระดิ่งในหน้า Profile
   แจ้งเตือน 3 แบบ: ทำเควสสำเร็จ, ของในตู้เย็นใกล้หมดอายุ/หมดอายุแล้ว, ปลดล็อกเหรียญ Achievement
   - `backend/utils/notifications.js` มี `dedupeKey` กันสร้างซ้ำ (unique index `userId+dedupeKey`)
@@ -344,7 +368,9 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
   `POST /leave`, `POST /complete` (ต้อง login ทั้งหมด)
 - `backend/routes/users.js` → mount ที่ `/api/users`: `GET /:id` (โปรไฟล์สาธารณะของผู้เล่นคนอื่น, ต้อง login),
   `GET /:id/avatar` (เสิร์ฟรูปโปรไฟล์ — **ไม่ต้อง login**, ดูหัวข้อ avatar ด้านบน)
-- `backend/routes/inventory.js` → mount ที่ `/api/inventory`: `GET /` (แจกไอเทมตั้งต้น Camera/Fridge อัตโนมัติถ้ายังไม่มี)
+- `backend/routes/inventory.js` → mount ที่ `/api/inventory`: `GET /` (แจกไอเทมตั้งต้น Camera/Fridge
+  อัตโนมัติถ้ายังไม่มี, ส่งไอเทม Energy ที่ซื้อได้มาด้วยเสมอแม้ยังไม่เคยซื้อ), `POST /:itemType/buy`,
+  `POST /:itemType/use` (ดูหัวข้อ "ไอเทม Energy" ด้านบน)
 - `backend/routes/notifications.js` → mount ที่ `/api/notifications`: `GET /`, `POST /read`
   (สร้างแจ้งเตือนของใกล้หมดอายุแบบ lazy ตอน `GET /` เพราะไม่มี scheduler — ดูหัวข้อ "ระบบแจ้งเตือน" ด้านบน)
 - `backend/routes/upgrades.js` → mount ที่ `/api/upgrades`: `GET /`, `POST /:upgradeType/buy`
@@ -428,7 +454,10 @@ backend พร้อม deploy แล้ว (ทดสอบว่าบูต�
 - ปรับสมดุลราคา/ผลของ upgrade ถ้าเทสแล้วรู้สึกไม่ลงตัว (แก้ที่ `backend/utils/upgrades.js` ไฟล์เดียว)
 
 ## 8. สิ่งที่ฉันคิดออกและต้องการ
-1.ระบบไอเทมในเกมยังไม่สมบูรณ์มีไอเทม แต่ยังไม่รู้ว่าจะได้รับไอเทมนั้นยังไง และไอเทมในเกมตอนนี้มีแค่2อย่างคือ กล้อง,ตู้เย็น ซึ่งมันสามารถมีมากกว่านี้ได้
+1.✅ ระบบไอเทม — เพิ่มไอเทม Energy 4 อย่างที่ซื้อได้ด้วย Points (หน้า Profile) และใช้ได้จริง (ปุ่ม Use ที่หน้า
+  Inventory) แล้ว: Red/Blue/Green Energy คูณ Points/XP/Party Points 2 เท่านาน 30 นาที, Super Energy
+  รีเซ็ทเควสที่ทำวันนี้ให้ทำใหม่ได้ (ดูหัวข้อ 5 "ไอเทม Energy") — เดิมเคยลองทำเป็นไอเทมสะสม/badge ผูกกับ
+  เหรียญ Achievement ไปรอบนึงแต่ถูกยกเลิกแล้วเปลี่ยนมาทำแบบนี้แทนตามที่ขอ
 2.✅ ระบบตั้งค่า — เพิ่ม "Edit Display Name", toggle เปิด/ปิดการแจ้งเตือน, และ About แล้ว (ดูหัวข้อ 5)
 3.ระบบเสียงต่างๆ เช่นเสียงพื้นหลัง เสียงกดปุ่ม ให้มันเหมือนเกมมากขึ้น
 4.✅ เอฟเฟคใบไม้ลอยตกในพื้นหลัง — เพิ่มแล้วทุกหน้าที่มีพื้นหลังธีม (`lib/widgets/falling_leaves_overlay.dart`)

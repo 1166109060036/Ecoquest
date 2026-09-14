@@ -9,6 +9,7 @@ const progression = require('../utils/progression');
 const { syncAchievements } = require('../utils/achievements');
 const { notifyQuestCompleted } = require('../utils/notifications');
 const { getUserBonuses, applyBonuses, BASE_VISIBLE_QUESTS } = require('../utils/upgrades');
+const { withEnergyBoosts } = require('../utils/inventory');
 const { startOfToday, todayKey } = require('../utils/questDay');
 const crypto = require('crypto');
 
@@ -50,7 +51,14 @@ router.get('/', authMiddleware, async (req, res) => {
     // upgrade "Quest Unlock" จำกัดจำนวน solo quest ที่เห็นได้ (เริ่มต้น 4 อัน + 1 ต่อระดับ)
     // ห้ามจำกัด party quest เด็ดขาด เพราะหน้าสร้างห้องปาร์ตี้เลือกเควสจากลิสต์นี้เหมือนกัน
     // ถ้าโดนตัดไปด้วยจะสร้างห้องไม่ได้เลย — เรียงตามลำดับเดิม (createdAt) ก่อนตัด ให้ผลคงที่
-    const bonuses = await getUserBonuses(req.userId);
+    //
+    // ดึงมาแค่ 3 ฟิลด์ boost expiry ก็พอ ไม่ใช่ user ทั้งก้อน (กัน avatarData Buffer ด้วยในตัว
+    // เพราะไม่ได้ select มันมา) — ใส่ withEnergyBoosts ตรงนี้เพื่อให้การ์ดเควสโชว์ตัวเลขหลังคูณบัฟ
+    // Energy ที่ยังไม่หมดอายุด้วย ไม่งั้นการ์ดโชว์ตัวเลขนึง แต่กดทำจริงได้อีกตัวเลข ดูเหมือนบั๊ก
+    const boostUser = await User.findById(req.userId).select(
+      'redEnergyExpiresAt blueEnergyExpiresAt greenEnergyExpiresAt'
+    );
+    const bonuses = withEnergyBoosts(await getUserBonuses(req.userId), boostUser);
     const soloLimit = BASE_VISIBLE_QUESTS + bonuses.questSlots;
     let soloSeen = 0;
     const visibleQuests = quests.filter((q) => {
@@ -201,7 +209,8 @@ router.post('/:id/complete', authMiddleware, async (req, res) => {
 
     // คำนวณครั้งเดียวแล้วใช้ค่าเดิมทุกจุดด้านล่าง (ประวัติ, ยอดผู้ใช้, response, แจ้งเตือน)
     // ไม่งั้นตัวเลขที่บันทึกกับที่โชว์จะไม่ตรงกัน
-    const bonuses = await getUserBonuses(user._id);
+    // withEnergyBoosts เติมตัวคูณจากไอเทม Red/Blue/Green Energy ที่ยังไม่หมดอายุ (ถ้ามี) เข้าไปด้วย
+    const bonuses = withEnergyBoosts(await getUserBonuses(user._id), user);
     const reward = applyBonuses(bonuses, quest);
 
     const history = await QuestHistory.create({

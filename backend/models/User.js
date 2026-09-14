@@ -71,8 +71,14 @@ const UserSchema = new mongoose.Schema(
       ref: 'Season',
       default: null,
     },
-    // หมายเหตุ: เคยมีฟิลด์ energy / lastEnergyUpdate อยู่ตรงนี้
-    // แต่ระบบ Energy ถูกตัดออกจากดีไซน์แล้ว (quest ทำได้โดยไม่เสียพลังงาน) จึงลบทิ้ง
+    // หมายเหตุ: เคยมีฟิลด์ energy / lastEnergyUpdate อยู่ตรงนี้ (ระบบ stamina ที่ใช้แล้วหมดต้องรอเติม
+    // ก่อนทำเควสได้อีก) แต่ถูกตัดออกจากดีไซน์แล้ว (quest ทำได้โดยไม่เสียพลังงาน) จึงลบทิ้ง
+    //
+    // 3 ฟิลด์ข้างล่างนี้เป็นคนละเรื่องกัน: เวลาหมดอายุของบัฟชั่วคราวจากไอเทม Energy ใน Inventory
+    // (Red/Blue/Green Energy — ดู utils/inventory.js) เช็คแค่ "expiresAt > ตอนนี้ไหม" ไม่ใช่ stamina gate
+    redEnergyExpiresAt: { type: Date, default: null },
+    blueEnergyExpiresAt: { type: Date, default: null },
+    greenEnergyExpiresAt: { type: Date, default: null },
 
     // ---- ฟิลด์สำหรับ flow ลืมรหัสผ่าน (OTP ทางอีเมล) ----
     // เก็บแค่ hash ของ OTP (เหมือน password) ไม่เก็บ OTP ตัวจริงไว้ในฐานข้อมูล

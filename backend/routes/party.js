@@ -9,6 +9,7 @@ const progression = require('../utils/progression');
 const { syncAchievements } = require('../utils/achievements');
 const { notifyQuestCompleted } = require('../utils/notifications');
 const { getUserBonusesMap, applyBonuses } = require('../utils/upgrades');
+const { withEnergyBoosts } = require('../utils/inventory');
 const { startOfToday } = require('../utils/questDay');
 const { avatarUrlFor } = require('../utils/avatar');
 
@@ -357,13 +358,16 @@ router.post('/complete', authMiddleware, async (req, res) => {
       const user = await User.findById(m.userId).select('-avatarData');
       if (!user) continue; // user ถูกลบไปแล้ว
 
-      const bonuses = bonusesMap.get(String(user._id)) || {
+      const baseBonuses = bonusesMap.get(String(user._id)) || {
         pointPct: 0,
         xpPct: 0,
         rankPct: 0,
         partyPct: 0,
         questSlots: 0,
       };
+      // withEnergyBoosts เติมตัวคูณจากไอเทม Energy ที่ยังไม่หมดอายุ (ถ้ามี) — ใช้ user ที่โหลดสดแล้วด้านบน
+      // ไม่ query ซ้ำ (Green Energy คือตัวที่มีผลตรงนี้จริงๆ เพราะเควสในลูปนี้เป็น party เสมอ)
+      const bonuses = withEnergyBoosts(baseBonuses, user);
       const reward = applyBonuses(bonuses, quest);
 
       const history = await QuestHistory.create({

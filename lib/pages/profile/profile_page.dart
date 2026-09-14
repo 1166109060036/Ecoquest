@@ -5,8 +5,10 @@ import '../../providers/auth_provider.dart';
 import '../../providers/notification_provider.dart';
 import '../../providers/quest_provider.dart';
 import '../../providers/upgrade_provider.dart';
+import '../../providers/inventory_provider.dart';
 import '../../models/profile_model.dart';
 import '../../models/upgrade_model.dart';
+import '../../models/inventory_item_model.dart';
 import '../../widgets/profile_sections.dart';
 import '../../widgets/falling_leaves_overlay.dart';
 
@@ -26,6 +28,9 @@ class ProfilePage extends StatelessWidget {
     // ประวัติ quest มาจาก QuestProvider (โหลดไว้แล้วตั้งแต่ MainShell) ไม่ได้ fetch ซ้ำที่นี่
     final questHistory = context.watch<QuestProvider>().history;
     final upgradeProvider = context.watch<UpgradeProvider>();
+    final inventoryProvider = context.watch<InventoryProvider>();
+    // การ์ดร้านค้าโชว์แค่ไอเทมที่ตั้งราคาไว้ (cost != null) — starter item อย่าง Camera/Fridge ไม่ใช่ของขาย
+    final shopItems = inventoryProvider.items.where((item) => item.cost != null).toList();
 
     // ค่าจริงจาก GET /auth/me — ระหว่างที่ยังโหลดไม่เสร็จ ใช้ค่าที่ cache ไว้ใน user ไปก่อน
     final level = progress?.level ?? user?.level ?? 1;
@@ -105,6 +110,13 @@ class ProfilePage extends StatelessWidget {
                         isBusy: upgradeProvider.isBusy,
                         points: points,
                         onBuy: (upgrade) => _buyUpgrade(context, upgrade),
+                      ),
+                      const SizedBox(height: 16),
+                      _EnergyShopCard(
+                        items: shopItems,
+                        busyItemType: inventoryProvider.busyItemType,
+                        points: points,
+                        onBuy: (item) => _buyEnergyItem(context, item),
                       ),
                       const SizedBox(height: 16),
                       QuestHistoryCard(history: questHistory),
@@ -195,6 +207,23 @@ class ProfilePage extends StatelessWidget {
       context.read<AuthProvider>().refreshProfile(),
       context.read<QuestProvider>().loadQuests(),
     ]);
+  }
+
+  // ซื้อไอเทม Energy 1 ชิ้นด้วย Points — สำเร็จแล้วต้องรีเฟรชยอดแต้ม (อยู่ใน AuthProvider คนละตัว)
+  // ไอเทมที่ซื้อไปจะไปโชว์ (พร้อมปุ่ม Use) ที่หน้า Inventory แทน ไม่ใช้ที่นี่เลย
+  Future<void> _buyEnergyItem(BuildContext context, InventoryItemModel item) async {
+    final inventoryProvider = context.read<InventoryProvider>();
+    final ok = await inventoryProvider.buyItem(item.itemType);
+    if (!context.mounted) return;
+
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(inventoryProvider.errorMessage ?? 'Failed to buy this item')),
+      );
+      return;
+    }
+
+    await context.read<AuthProvider>().refreshProfile();
   }
 }
 
@@ -469,6 +498,134 @@ class _UpgradeRow extends StatelessWidget {
                     Icon(Icons.bolt, size: 13, color: canAfford ? Colors.greenAccent : Colors.white38),
                     const SizedBox(width: 3),
                     Text('${upgrade.nextCost} P', style: const TextStyle(fontSize: 11)),
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// การ์ดร้านค้าไอเทม Energy — ซื้อได้ด้วย Points ไม่จำกัดจำนวน (ต่างจาก upgrade ที่มี maxLevel)
+// ข้อมูลจริงจาก GET /api/inventory (กรองเอาแค่ไอเทมที่มี cost) ใช้ provider เดียวกับหน้า Inventory
+// ---------------------------------------------------------------------------
+class _EnergyShopCard extends StatelessWidget {
+  final List<InventoryItemModel> items;
+  final String? busyItemType;
+  final int points;
+  final ValueChanged<InventoryItemModel> onBuy;
+
+  const _EnergyShopCard({
+    required this.items,
+    required this.busyItemType,
+    required this.points,
+    required this.onBuy,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ProfileGlassCard(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Energy Shop',
+                style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 12),
+            if (items.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Text('No items available',
+                    style: TextStyle(color: Colors.white54, fontSize: 12)),
+              )
+            else
+              for (final item in items) ...[
+                _EnergyShopRow(
+                  item: item,
+                  isBusy: busyItemType == item.itemType,
+                  canAfford: points >= (item.cost ?? 0),
+                  onBuy: () => onBuy(item),
+                ),
+                if (item != items.last) const SizedBox(height: 10),
+              ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EnergyShopRow extends StatelessWidget {
+  final InventoryItemModel item;
+  final bool isBusy;
+  final bool canAfford;
+  final VoidCallback onBuy;
+
+  const _EnergyShopRow({
+    required this.item,
+    required this.isBusy,
+    required this.canAfford,
+    required this.onBuy,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        CircleAvatar(
+          radius: 16,
+          backgroundColor: Colors.white.withValues(alpha: 0.12),
+          child: Icon(item.icon, color: item.accentColor, size: 16),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                item.title,
+                style: const TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w600),
+              ),
+              Text(
+                item.description,
+                style: const TextStyle(color: Colors.white54, fontSize: 10.5),
+              ),
+              if (item.quantity > 0) ...[
+                const SizedBox(height: 2),
+                Text(
+                  'You have ${item.quantity}',
+                  style: const TextStyle(color: Colors.white38, fontSize: 9.5),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        ElevatedButton(
+          onPressed: (isBusy || !canAfford) ? null : onBuy,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.white.withValues(alpha: 0.15),
+            foregroundColor: Colors.white,
+            disabledBackgroundColor: Colors.white.withValues(alpha: 0.08),
+            disabledForegroundColor: Colors.white38,
+            elevation: 0,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          ),
+          child: isBusy
+              ? const SizedBox(
+                  width: 12,
+                  height: 12,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white54),
+                )
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.bolt, size: 13, color: canAfford ? Colors.greenAccent : Colors.white38),
+                    const SizedBox(width: 3),
+                    Text('${item.cost} P', style: const TextStyle(fontSize: 11)),
                   ],
                 ),
         ),
