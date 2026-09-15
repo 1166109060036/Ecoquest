@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/achievement_model.dart';
 import '../services/achievement_service.dart';
 
-// ถือรายการเหรียญไว้ให้หน้า Inventory ใช้
+// ถือรายการเหรียญไว้ให้หน้า EcoBadgePage ใช้ (เปิดจากไอเทม Eco Badge ในหน้า Inventory)
 // โหลดครั้งเดียวตอนเข้าแอพ แล้วโหลดใหม่ทุกครั้งที่ทำ quest สำเร็จ (ความคืบหน้าอาจขยับ)
 class AchievementProvider extends ChangeNotifier {
   final AchievementService _service = AchievementService();

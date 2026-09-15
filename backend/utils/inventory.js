@@ -30,6 +30,12 @@ const ITEMS = [
     starter: true,
   },
   {
+    itemType: 'eco_badge',
+    title: 'Eco Badge',
+    description: 'Collect the Achievement medals you have unlocked.',
+    starter: true,
+  },
+  {
     itemType: 'red_energy',
     title: 'Red Energy',
     description: 'Use to earn 2x Points from every quest for 30 minutes.',

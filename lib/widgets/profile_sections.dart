@@ -418,10 +418,18 @@ class StatItem extends StatelessWidget {
 // ---------------------------------------------------------------------------
 class QuestHistoryCard extends StatelessWidget {
   final List<QuestHistoryEntry> history;
+  // จำนวนแถวที่เห็นพร้อมกันโดยไม่ต้องเลื่อน — เกินจากนี้เลื่อนดูต่อได้ในกรอบเดิม ไม่ดันให้หน้า Profile
+  // ยาวขึ้นเรื่อยๆ ตามจำนวนประวัติ (ก่อนหน้านี้การ์ดนี้สูงไม่จำกัด ยิ่งทำเควสเยอะหน้ายิ่งยาว)
+  static const int _visibleRows = 5;
+  static const double _rowHeight = 40; // เท่ากับความสูงไอคอนสี่เหลี่ยมใน QuestHistoryRow
+  static const double _rowSpacing = 12;
+
   const QuestHistoryCard({super.key, required this.history});
 
   @override
   Widget build(BuildContext context) {
+    final maxHeight = _visibleRows * _rowHeight + (_visibleRows - 1) * _rowSpacing;
+
     return ProfileGlassCard(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -441,10 +449,18 @@ class QuestHistoryCard extends StatelessWidget {
                 ),
               )
             else
-              for (final entry in history) ...[
-                QuestHistoryRow(entry: entry),
-                if (entry != history.last) const SizedBox(height: 12),
-              ],
+              // ConstrainedBox จำกัดความสูงไว้แค่ ~5 แถว + ListView(shrinkWrap: true) ทำให้พอดีตัว
+              // ถ้ามีน้อยกว่านั้น (ไม่มีที่ว่างเหลือ) และเลื่อนดูของที่เหลือได้เองถ้าเกิน
+              ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: maxHeight),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  physics: const ClampingScrollPhysics(),
+                  itemCount: history.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: _rowSpacing),
+                  itemBuilder: (context, index) => QuestHistoryRow(entry: history[index]),
+                ),
+              ),
           ],
         ),
       ),

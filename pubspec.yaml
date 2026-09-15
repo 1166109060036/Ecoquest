@@ -72,7 +72,9 @@ flutter:
   # เขียนเป็น lib/utils/assets เฉยๆ Flutter จะมองว่าเป็นชื่อไฟล์ แล้ว build fail ทั้งแอพ
   assets:
      - lib/utils/assets/background.png
-     - lib/utils/assets/items/camera.png
+     # ประกาศเป็นโฟลเดอร์ (ต้องมี / ปิดท้าย) เพราะเผื่อไว้ใส่รูปไอเทม Energy (red/blue/green/super)
+     # เพิ่มเติมทีหลัง — วางไฟล์ตรงชื่อที่ InventoryItemModel.imageAsset คาดไว้แล้วไม่ต้องแก้ pubspec
+     - lib/utils/assets/items/
      - lib/utils/assets/notifications/trophy.png
      - lib/utils/assets/notifications/fridge_expired.png
      - lib/utils/assets/inventory/fridge.png

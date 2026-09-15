@@ -41,6 +41,7 @@ class InventoryItemModel {
   IconData get icon => switch (itemType) {
         'camera' => Icons.camera_alt,
         'fridge' => Icons.kitchen,
+        'eco_badge' => Icons.military_tech,
         'red_energy' || 'blue_energy' || 'green_energy' => Icons.bolt,
         'super_energy' => Icons.auto_awesome,
         _ => Icons.inventory_2,
@@ -48,6 +49,7 @@ class InventoryItemModel {
 
   // สีไอคอน/พื้นหลังของไอเทม Energy แต่ละสี — ใช้ทั้งการ์ดใน Inventory และการ์ดร้านค้าในหน้า Profile
   Color get accentColor => switch (itemType) {
+        'eco_badge' => Colors.amber.shade800,
         'red_energy' => Colors.redAccent,
         'blue_energy' => Colors.blueAccent,
         'green_energy' => Colors.greenAccent.shade700,
@@ -56,9 +58,17 @@ class InventoryItemModel {
       };
 
   // path รูปจริงของไอเทม ถ้ามี — ใช้แทน icon
+  // ⚠️ Eco Badge + ไอเทม Energy ทั้ง 4 เว้นชื่อไฟล์ไว้ล่วงหน้าแล้ว (ยังไม่มีไฟล์รูปจริง) — วางไฟล์ชื่อตรงกัน
+  // นี้ลงใน lib/utils/assets/items/ ได้เลยไม่ต้องแก้โค้ด/pubspec เพิ่ม (ประกาศเป็นโฟลเดอร์ไว้แล้ว) ระหว่างที่
+  // ยังไม่มีไฟล์ Image.errorBuilder ใน InventoryCard จะ fallback ไปโชว์ icon/accentColor ด้านบนแทนเอง
   String? get imageAsset => switch (itemType) {
         'camera' => 'lib/utils/assets/items/camera.png',
         'fridge' => 'lib/utils/assets/inventory/fridge.png',
+        'eco_badge' => 'lib/utils/assets/items/eco_badge.png',
+        'red_energy' => 'lib/utils/assets/items/red_energy.png',
+        'blue_energy' => 'lib/utils/assets/items/blue_energy.png',
+        'green_energy' => 'lib/utils/assets/items/green_energy.png',
+        'super_energy' => 'lib/utils/assets/items/super_energy.png',
         _ => null,
       };
 }

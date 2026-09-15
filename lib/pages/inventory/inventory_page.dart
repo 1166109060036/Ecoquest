@@ -6,11 +6,12 @@ import '../../providers/inventory_provider.dart';
 import '../../providers/quest_provider.dart';
 import '../../widgets/inventory_card.dart';
 
-// หน้า Inventory — ไอเทม (Camera, Fridge, ไอเทม Energy ที่มีอยู่) และเหรียญ Achievement ที่ปลดล็อกแล้ว
-// อยู่ในลิสต์เดียวกันทั้งหมด ไม่แยก section ตามดีไซน์
+// หน้า Inventory — ไอเทมที่มีอยู่จริงเท่านั้น (Camera, Fridge, Eco Badge, ไอเทม Energy ที่ซื้อไว้)
 // สูงสุด 100 ช่อง (capacity) ตามดีไซน์
 // ⚠️ ไอเทมที่ซื้อได้แต่ยังไม่เคยซื้อ (quantity 0) ไม่โชว์ที่นี่ — ไปโชว์เป็นการ์ดร้านค้าในหน้า Profile แทน
-// (ดู _EnergyShopCard ใน profile_page.dart) หน้านี้โชว์แค่ "ของที่มีอยู่จริง" เท่านั้น
+// (ดู _ItemShopCard ใน profile_page.dart) หน้านี้โชว์แค่ "ของที่มีอยู่จริง" เท่านั้น
+// ⚠️ เหรียญ Achievement ไม่ได้อยู่ในลิสต์นี้แล้ว — ย้ายไปอยู่หลังไอเทม Eco Badge แทน (กดเข้าไปดู
+// เหรียญที่ปลดล็อกแล้วได้ที่ EcoBadgePage เหมือนที่ไอเทม Fridge เปิดไป FridgePage)
 class InventoryPage extends StatelessWidget {
   // MainShell ส่ง callback นี้เข้ามา ใช้ตอนกดปุ่ม back เพื่อกลับไปแท็บ Home
   final ValueChanged<int>? onNavigateToTab;
@@ -88,15 +89,7 @@ class InventoryPage extends StatelessWidget {
     final inventoryProvider = context.watch<InventoryProvider>();
     // ไอเทมที่ซื้อได้แต่ยังไม่เคยซื้อ (quantity 0) ไม่โชว์ในกระเป๋า — โชว์แค่ของที่มีอยู่จริง
     final ownedItems = inventoryProvider.items.where((item) => item.quantity > 0);
-    // เหรียญมาจาก backend จริง (โหลดไว้แล้วตั้งแต่ MainShell) — เรียงให้อันที่ปลดล็อกแล้วขึ้นก่อน
-    final medals = [...context.watch<AchievementProvider>().achievements]
-      ..sort((a, b) {
-        if (a.unlocked != b.unlocked) return a.unlocked ? -1 : 1;
-        // ยังไม่ปลดล็อกเหมือนกัน -> อันที่ใกล้ได้ขึ้นก่อน
-        return (b.progress / b.required).compareTo(a.progress / a.required);
-      });
 
-    // รวมไอเทมปกติ + achievement medal เป็นลิสต์เดียวกัน
     final allEntries = <_InventoryEntry>[
       for (final item in ownedItems)
         _InventoryEntry(
@@ -108,27 +101,15 @@ class InventoryPage extends StatelessWidget {
           description: item.description,
           quantity: item.quantity,
           actionColor: item.accentColor,
-          // ไอเทม Energy กดใช้ได้ (ปุ่ม Use) — Camera/Fridge กดทั้งการ์ดเพื่อไปหน้าฟีเจอร์ของมันแทน
+          // ไอเทม Energy กดใช้ได้ (ปุ่ม Use) — Camera/Fridge/Eco Badge กดทั้งการ์ดเพื่อไปหน้าฟีเจอร์ของมันแทน
           onUse: item.isUsable ? () => _useItem(context, item) : null,
           onTap: item.isUsable || _routeFor(item.itemType) == null
               ? null
               : () => Navigator.pushNamed(context, _routeFor(item.itemType)!),
         ),
-      for (final medal in medals)
-        _InventoryEntry(
-          icon: medal.icon,
-          // เหรียญที่ยังไม่ปลดล็อกทำเป็นสีเทา ให้แยกออกจากอันที่ได้แล้วชัดๆ
-          iconColor: medal.unlocked ? medal.color : Colors.grey.shade400,
-          title: medal.unlocked ? '${medal.title} Medal' : medal.title,
-          description: medal.unlocked
-              ? medal.description
-              : '${medal.description}  (${medal.progress}/${medal.required})',
-          // นับช่องเฉพาะเหรียญที่ได้จริงแล้ว อันที่ยังล็อกไม่ควรกินช่องกระเป๋า
-          quantity: medal.unlocked ? 1 : null,
-        ),
     ];
 
-    // นับจำนวนช่องที่ใช้ไปทั้งหมด (ไอเทม + เหรียญที่ปลดล็อกแล้ว)
+    // นับจำนวนช่องที่ใช้ไปทั้งหมด
     final usedCapacity = allEntries.fold<int>(0, (sum, e) => sum + (e.quantity ?? 0));
 
     return Scaffold(
@@ -207,6 +188,7 @@ class InventoryPage extends StatelessWidget {
   String? _routeFor(String itemType) => switch (itemType) {
         'fridge' => '/fridge',
         'camera' => '/camera',
+        'eco_badge' => '/eco-badge',
         _ => null,
       };
 }
@@ -259,7 +241,7 @@ class _CircleBackButton extends StatelessWidget {
   }
 }
 
-// ลิสต์ว่างจริงๆ ไม่ควรเกิดขึ้น (Camera/Fridge เป็นไอเทมตั้งต้นที่ทุกคนต้องมี) แต่โหลดไม่ติด
+// ลิสต์ว่างจริงๆ ไม่ควรเกิดขึ้น (Camera/Fridge/Eco Badge เป็นไอเทมตั้งต้นที่ทุกคนต้องมี) แต่โหลดไม่ติด
 // ตอนเปิดแอพครั้งแรกก็เป็นไปได้ — โชว์ข้อความนี้กันหน้าว่างเปล่าไปเลย
 class _EmptyState extends StatelessWidget {
   final String? errorMessage;

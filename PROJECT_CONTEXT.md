@@ -236,10 +236,25 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
     `POST /api/quests/:id/complete` (เควสเดี่ยว), `POST /api/party/complete` (เควส party ในลูปแจกรางวัล
     ต่อสมาชิก — ใช้ `user` ที่โหลดสดในลูปอยู่แล้ว ไม่ query ซ้ำ)
   - ฝั่งแอพ: ปุ่ม **"Use"** อยู่ในการ์ดไอเทมที่หน้า **Inventory** (เฉพาะไอเทมที่มีอยู่จริง `quantity > 0`
-    เท่านั้น — ไอเทมซื้อได้ที่ยังไม่เคยซื้อไม่โชว์ที่นี่) ส่วนการ์ด **"Energy Shop"** อยู่ในหน้า **Profile**
-    (`_EnergyShopCard` ต่อจาก `_UpgradeAbilityCard`) ใช้ `InventoryProvider.items` ชุดเดียวกัน กรองเอาแค่
-    ไอเทมที่มี `cost` — ไม่มี endpoint แยกสำหรับร้านค้า เพราะ `GET /api/inventory` ส่งไอเทมซื้อได้ทุกอันมา
-    เสมอ (แม้ `quantity: 0`) อยู่แล้ว
+    เท่านั้น — ไอเทมซื้อได้ที่ยังไม่เคยซื้อไม่โชว์ที่นี่) ส่วนซื้อของอยู่ที่หน้า **Item Shop แยกต่างหาก**
+    (`lib/pages/shop/shop_page.dart`) เข้าจากปุ่มร้านค้า (`Icons.storefront`) ข้างปุ่มกระดิ่งแจ้งเตือนมุมขวาบน
+    ของหน้า Profile — หน้าตาอิงตาม Inventory ทั้งหมด (พื้นหลังเทาอ่อน, การ์ดแบบเดียวกัน) ต่างกันแค่ปุ่มขวา
+    เป็น "Buy · [ราคา] P" แทน "Use" (ใช้ `InventoryCard` ตัวเดิม, ปุ่ม disable เองถ้าแต้มไม่พอ) ใช้
+    `InventoryProvider.items` ชุดเดียวกับ Inventory กรองเอาแค่ไอเทมที่มี `cost` — ไม่มี endpoint แยกสำหรับ
+    ร้านค้า เพราะ `GET /api/inventory` ส่งไอเทมซื้อได้ทุกอันมาเสมอ (แม้ `quantity: 0`) อยู่แล้ว
+    (**เดิมเคยฝังเป็นการ์ด "Energy Shop" อยู่ในหน้า Profile โดยตรง แต่ย้ายออกมาเป็นหน้าแยกแล้วตามที่ขอ**)
+  - **ช่องรูปไอเทม Energy/Eco Badge** — `InventoryItemModel.imageAsset` เว้นชื่อไฟล์ไว้ล่วงหน้าแล้วสำหรับ
+    ทั้ง 4 สี Energy (`lib/utils/assets/items/red_energy.png` ฯลฯ) และ `eco_badge.png` แม้ยังไม่มีไฟล์จริง
+    — `pubspec.yaml` ประกาศ `lib/utils/assets/items/` เป็นโฟลเดอร์ไว้แล้ว (แนวเดียวกับ `questimg/`) วางไฟล์
+    รูปชื่อตรงกันได้เลยไม่ต้องแก้โค้ด/pubspec เพิ่ม ระหว่างที่ยังไม่มีไฟล์ `InventoryCard` จะ fallback ไปโชว์
+    icon/สีเดิมแทนเองอัตโนมัติ
+- **Eco Badge — ที่เก็บเหรียญ Achievement** — ไอเทมตั้งต้นอันที่ 3 (starter, คู่กับ Camera/Fridge) ใน
+  `ITEMS` (`backend/utils/inventory.js`) กดไอเทมนี้ในหน้า Inventory แล้วเปิดไป **`EcoBadgePage`**
+  (`lib/pages/inventory/eco_badge_page.dart`, route `/eco-badge`) เหมือนที่ไอเทม Fridge เปิดไป
+  `FridgePage` — โชว์เฉพาะเหรียญที่ **ปลดล็อกแล้ว** เท่านั้น (`AchievementProvider.unlocked`) เรียงล่าสุด
+  ขึ้นก่อนตาม `unlockedAt` ไม่โชว์เหรียญที่ยังล็อกอยู่ (ไอเทมนี้เป็น "ที่เก็บ" ของที่ทำสำเร็จแล้วเท่านั้น
+  ไม่ใช่หน้ารวมความคืบหน้าทั้งหมด) ⚠️ ย้ายเหรียญออกจากลิสต์รวมในหน้า Inventory เดิมมาไว้ที่นี่ทั้งหมดแล้ว
+  (ก่อนหน้านี้ Inventory โชว์ไอเทม+เหรียญปนกันในลิสต์เดียว ตอนนี้ Inventory โชว์แค่ไอเทมอย่างเดียว)
 - **ระบบแจ้งเตือนใช้งานได้จริงแล้ว** — `GET /api/notifications` + จุดแดงบนกระดิ่งในหน้า Profile
   แจ้งเตือน 3 แบบ: ทำเควสสำเร็จ, ของในตู้เย็นใกล้หมดอายุ/หมดอายุแล้ว, ปลดล็อกเหรียญ Achievement
   - `backend/utils/notifications.js` มี `dedupeKey` กันสร้างซ้ำ (unique index `userId+dedupeKey`)
