@@ -337,17 +337,33 @@ class _AdminPageState extends State<AdminPage> {
                     dense: true,
                     title: Text('${p['name']} — ${p['questTitle']}'),
                     subtitle: Text('${p['status']} · ${p['memberCount']} member(s)'),
-                    trailing: p['status'] == 'open'
-                        ? TextButton(
-                            onPressed: () => _run(
-                              context,
-                              () => admin.service.forceCompleteParty(p['id']),
-                              successMessage: 'Party force-completed',
-                              onSuccess: [() => _loadParties(context)],
-                            ),
-                            child: const Text('Complete'),
-                          )
-                        : null,
+                    // 'completed' เท่านั้นที่ทำอะไรต่อไม่ได้แล้ว — 'open'/'started' ยังกด force ต่อได้
+                    trailing: p['status'] == 'completed'
+                        ? null
+                        : Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (p['status'] == 'open')
+                                TextButton(
+                                  onPressed: () => _run(
+                                    context,
+                                    () => admin.service.forceStartParty(p['id']),
+                                    successMessage: 'Party force-started',
+                                    onSuccess: [() => _loadParties(context)],
+                                  ),
+                                  child: const Text('Start'),
+                                ),
+                              TextButton(
+                                onPressed: () => _run(
+                                  context,
+                                  () => admin.service.forceCompleteParty(p['id']),
+                                  successMessage: 'Party force-completed',
+                                  onSuccess: [() => _loadParties(context)],
+                                ),
+                                child: const Text('Complete'),
+                              ),
+                            ],
+                          ),
                   ),
                 ),
             ],

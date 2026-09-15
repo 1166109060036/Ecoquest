@@ -12,6 +12,7 @@ const { getUserBonusesMap, applyBonuses } = require('../utils/upgrades');
 const { withEnergyBoosts } = require('../utils/inventory');
 const { startOfToday } = require('../utils/questDay');
 const { avatarUrlFor } = require('../utils/avatar');
+const { requiredMembers, canStart, canComplete } = require('../utils/partyGate');
 
 const router = express.Router();
 
@@ -23,16 +24,28 @@ const toPartyPayload = async (party, userId) => {
     .populate('userId', 'displayName level rank avatarContentType avatarUpdatedAt');
 
   const quest = party.questId; // populate ไว้แล้วตอนดึง party มา
+  // กันกรณี user ถูกลบไปแล้วแต่ record ยังค้าง — นับเฉพาะสมาชิกที่ยังมีบัญชีอยู่จริง (ตรงกับที่โชว์ในลิสต์)
+  const validMembers = members.filter((m) => m.userId);
+  const memberCount = validMembers.length;
 
   return {
     id: party._id,
     name: party.name,
     status: party.status,
+    startedAt: party.startedAt,
     completedAt: party.completedAt,
     eventDate: party.eventDate,
     location: party.location,
     capacity: party.capacity,
     isLeader: party.leaderId.toString() === String(userId),
+    memberCount,
+    requiredMembers: requiredMembers(party),
+    // canStart/canComplete ให้แอพโชว์/ซ่อนปุ่มได้เลยโดยไม่ต้อง mirror กฎเอง — backend ยังเช็คซ้ำทุก
+    // request จริงอยู่ดี ไม่ได้เชื่อค่าพวกนี้จาก client ตอนกด action
+    canStart: canStart(party, memberCount).ok,
+    startBlockedReason: canStart(party, memberCount).reason,
+    canComplete: canComplete(party).ok,
+    completeBlockedReason: canComplete(party).reason,
     quest: quest
       ? {
           id: quest._id,
@@ -48,9 +61,7 @@ const toPartyPayload = async (party, userId) => {
           co2SavedKg: quest.co2SavedKg,
         }
       : null,
-    members: members
-      // กันกรณี user ถูกลบไปแล้วแต่ record ยังค้าง — ไม่ให้ทั้งหน้าพัง
-      .filter((m) => m.userId)
+    members: validMembers
       .map((m) => ({
         userId: m.userId._id,
         displayName: m.userId.displayName,
@@ -177,12 +188,15 @@ router.post('/', authMiddleware, async (req, res) => {
       return res.status(400).json({ message: 'Event date must be in the future' });
     }
 
-    // capacity เป็น optional — ไม่ใส่มาก็ใช้ค่า default ของ quest (0 = ไม่จำกัด)
+    // capacity เป็น optional — ไม่ใส่มาก็ใช้ค่า default ของ quest
+    // ⚠️ บังคับต้องระบุอย่างน้อย 2 คนเสมอสำหรับห้องใหม่ (เลิกรองรับ "ไม่จำกัดคน" ผ่าน capacity: 0)
+    // เพราะเงื่อนไข "สมาชิกครบ" ก่อนเริ่มอีเวนต์ (utils/partyGate.js#canStart) นิยามไม่ได้ถ้าไม่จำกัด —
+    // ห้องเก่าที่ยังมี capacity: 0 ค้างอยู่ใน DB ไม่กระทบ ยังใช้ MIN_PARTY_MEMBERS แทนได้ตามปกติ
     let parsedCapacity = capacity === undefined || capacity === null ? quest.capacity : Number(capacity);
-    if (!Number.isInteger(parsedCapacity) || parsedCapacity < 0) {
+    if (!Number.isInteger(parsedCapacity)) {
       return res.status(400).json({ message: 'Capacity must be a whole number' });
     }
-    if (parsedCapacity > 0 && parsedCapacity < 2) {
+    if (parsedCapacity < 2) {
       return res.status(400).json({ message: 'Capacity must allow at least 2 members' });
     }
 
@@ -212,6 +226,51 @@ router.post('/', authMiddleware, async (req, res) => {
   }
 });
 
+// @route   POST /api/party/start
+// @desc    หัวหน้าห้องกด "เริ่มภารกิจ" — ด่านที่ต้องผ่านก่อนกด Complete ได้ (กันปั๊มคะแนน สร้างห้อง
+//          แล้วกดจบทันที) กดได้ต่อเมื่อถึงเวลานัด (eventDate) แล้ว และสมาชิกครบตาม requiredMembers
+router.post('/start', authMiddleware, async (req, res) => {
+  try {
+    const membership = await PartyMember.findOne({ userId: req.userId });
+    if (!membership) {
+      return res.status(400).json({ message: 'You are not in a party' });
+    }
+
+    const current = await Party.findById(membership.partyId);
+    if (!current) return res.status(404).json({ message: 'Party not found' });
+    if (current.leaderId.toString() !== String(req.userId)) {
+      return res.status(403).json({ message: 'Only the party leader can start this event' });
+    }
+
+    // เช็คเงื่อนไขทั้งหมด "ก่อน" latch เสมอ — ถ้าเช็คทีหลังจะได้ห้องที่ status ถูก flip ไปแล้วแต่ไม่ผ่าน
+    // เงื่อนไขจริง (บั๊กแบบเดียวกับที่เคยมีตอนเช็ค quest.isActive หลัง latch ใน /complete)
+    const memberCount = await PartyMember.countDocuments({ partyId: current._id });
+    const check = canStart(current, memberCount);
+    if (!check.ok) {
+      return res.status(409).json({ message: check.reason });
+    }
+
+    // latch เปลี่ยนสถานะแบบ atomic (compare-and-swap) — กันกดซ้อน/กดซ้ำเหมือนที่ /complete ใช้อยู่แล้ว
+    const party = await Party.findOneAndUpdate(
+      { _id: current._id, leaderId: req.userId, status: 'open' },
+      { status: 'started', startedAt: new Date() },
+      { new: true }
+    ).populate('questId');
+
+    if (!party) {
+      return res.status(409).json({ message: 'This event is not open anymore' });
+    }
+
+    res.json({
+      message: 'Event started',
+      party: await toPartyPayload(party, req.userId),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // @route   POST /api/party/join/:partyId
 // @desc    เข้าร่วมห้องที่มีคนสร้างไว้แล้ว
 router.post('/join/:partyId', authMiddleware, async (req, res) => {
@@ -219,6 +278,9 @@ router.post('/join/:partyId', authMiddleware, async (req, res) => {
     const party = await Party.findById(req.params.partyId).populate('questId');
     if (!party) {
       return res.status(404).json({ message: 'Party not found' });
+    }
+    if (party.status === 'started') {
+      return res.status(409).json({ message: 'This event has already started' });
     }
     if (party.status !== 'open') {
       return res.status(409).json({ message: 'This event has already finished' });
@@ -311,27 +373,34 @@ router.post('/complete', authMiddleware, async (req, res) => {
       return res.status(400).json({ message: 'You are not in a party' });
     }
 
+    const current = await Party.findById(membership.partyId).populate('questId');
+    if (!current) return res.status(404).json({ message: 'Party not found' });
+    if (current.leaderId.toString() !== String(req.userId)) {
+      return res.status(403).json({ message: 'Only the party leader can complete this event' });
+    }
+
+    // เช็คเงื่อนไข (ต้องผ่าน /start มาก่อน + รอครบ 15 นาที) กับเช็ค quest ยังเปิดใช้งานอยู่ไหม "ก่อน" latch
+    // เสมอ — ถ้าเช็คทีหลัง (โค้ดเดิมเคยเช็ค quest.isActive หลัง latch) ห้องจะถูก flip เป็น completed ทิ้ง
+    // ไปโดยไม่มีใครได้คะแนนเลยถ้าเงื่อนไขไม่ผ่าน
+    const check = canComplete(current);
+    if (!check.ok) {
+      return res.status(409).json({ message: check.reason });
+    }
+    const quest = current.questId;
+    if (!quest || !quest.isActive) {
+      return res.status(409).json({ message: 'This quest is no longer available' });
+    }
+
     // ล็อกสถานะเป็น completed ใน query เดียว (findOneAndUpdate) — ถ้ามีคนกดซ้อนหรือกดซ้ำ
-    // request รอบถัดไปจะหา party ที่ status ยังเป็น 'open' ไม่เจอแล้ว กันคะแนนซ้ำได้แน่นอน
+    // request รอบถัดไปจะหา party ที่ status ยังเป็น 'started' ไม่เจอแล้ว กันคะแนนซ้ำได้แน่นอน
     const party = await Party.findOneAndUpdate(
-      { _id: membership.partyId, leaderId: req.userId, status: 'open' },
+      { _id: current._id, leaderId: req.userId, status: 'started' },
       { status: 'completed', completedAt: new Date() },
       { new: true }
     ).populate('questId');
 
     if (!party) {
-      // แยกสาเหตุให้ชัดว่าทำไม latch ไม่ผ่าน
-      const current = await Party.findById(membership.partyId);
-      if (!current) return res.status(404).json({ message: 'Party not found' });
-      if (current.leaderId.toString() !== String(req.userId)) {
-        return res.status(403).json({ message: 'Only the party leader can complete this event' });
-      }
       return res.status(409).json({ message: 'This event is already completed' });
-    }
-
-    const quest = party.questId;
-    if (!quest || !quest.isActive) {
-      return res.status(409).json({ message: 'This quest is no longer available' });
     }
 
     const members = await PartyMember.find({ partyId: party._id });

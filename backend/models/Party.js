@@ -39,12 +39,18 @@ const PartySchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-    // open = ยังรับสมาชิก/รอทำอีเวนต์อยู่, completed = หัวหน้ากดจบแล้ว รอสมาชิกกดออกเอง
+    // open = ยังรับสมาชิก/รอถึงเวลานัด, started = หัวหน้ากดเริ่มแล้ว (ครบเงื่อนไขวันที่+จำนวนคนแล้ว
+    // ตอนกด) กำลังทำอีเวนต์จริงอยู่, completed = หัวหน้ากดจบแล้ว รอสมาชิกกดออกเอง
+    // ⚠️ เพิ่ม state 'started' เพื่อกันปั๊มคะแนน (สร้างห้อง->กดจบทันที) — ดู utils/partyGate.js
     status: {
       type: String,
-      enum: ['open', 'completed'],
+      enum: ['open', 'started', 'completed'],
       default: 'open',
       index: true,
+    },
+    startedAt: {
+      type: Date,
+      default: null,
     },
     completedAt: {
       type: Date,

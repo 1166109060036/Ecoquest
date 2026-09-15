@@ -102,12 +102,21 @@ class PartyQuestModel {
 class PartyModel {
   final String id;
   final String name; // ชื่อห้องที่ผู้สร้างตั้งเอง
-  final String status; // 'open' | 'completed'
+  final String status; // 'open' | 'started' | 'completed'
+  final DateTime? startedAt;
   final DateTime? completedAt;
   final DateTime eventDate;
   final String location;
-  final int capacity; // 0 = ไม่จำกัด
-  final bool isLeader; // ฉันเป็นหัวหน้าห้องนี้ไหม — ใช้ตัดสินใจโชว์ปุ่ม Complete
+  final int capacity; // ห้องใหม่บังคับ >= 2 เสมอ — 0 เหลือแค่ห้องเก่าก่อนหน้านี้
+  final bool isLeader; // ฉันเป็นหัวหน้าห้องนี้ไหม — ใช้ตัดสินใจโชว์ปุ่ม Start/Complete
+  final int memberCount; // จาก backend ตรงๆ (แทนที่จะนับจาก members.length เอง)
+  final int requiredMembers; // ต้องมีกี่คนถึงจะกด Start ได้ (ดู utils/partyGate.js#requiredMembers)
+  // canStart/canComplete มาจาก backend ตรงๆ — ใช้แค่โชว์/ซ่อนปุ่มเฉยๆ backend ยังเช็คซ้ำทุก request จริง
+  // อยู่ดี ไม่ได้เชื่อค่าพวกนี้ตอนกด action (เผื่อเวลาเครื่อง client ไม่ตรง หรือ payload เก่าค้าง cache)
+  final bool canStart;
+  final String? startBlockedReason;
+  final bool canComplete;
+  final String? completeBlockedReason;
   final PartyQuestModel quest;
   final List<PartyMemberModel> members;
 
@@ -115,18 +124,46 @@ class PartyModel {
     required this.id,
     required this.name,
     required this.status,
+    this.startedAt,
     this.completedAt,
     required this.eventDate,
     required this.location,
     required this.capacity,
     required this.isLeader,
+    required this.memberCount,
+    required this.requiredMembers,
+    required this.canStart,
+    this.startBlockedReason,
+    required this.canComplete,
+    this.completeBlockedReason,
     required this.quest,
     required this.members,
   });
 
   bool get isOpen => status == 'open';
+  bool get isStarted => status == 'started';
   bool get isCompleted => status == 'completed';
-  bool get isFull => capacity > 0 && members.length >= capacity;
+  bool get isFull => memberCount >= requiredMembers;
+
+  // ⚠️ ต้องตรงกับ START_TO_COMPLETE_MS ใน backend/utils/partyGate.js เสมอ — ใช้แค่คำนวณนับถอยหลัง/
+  // เปิด-ปิดปุ่มแบบ live ฝั่งแอพเท่านั้น (canStart/canComplete จาก backend คือค่าที่เชื่อถือได้จริง
+  // ทุก request ยังถูกเช็คซ้ำที่ server เสมอ ไม่ได้เชื่อค่าที่คำนวณสดตรงนี้)
+  static const _startToCompleteDuration = Duration(minutes: 15);
+
+  // คำนวณสดด้วย `now` ที่ส่งเข้ามา (ไม่ใช้ DateTime.now() ตรงๆ ในนี้ เพื่อให้ทดสอบ/นับถอยหลังจาก
+  // Timer.periodic เดียวกันได้ ไม่ต้อง query เวลาซ้ำหลายจุด)
+  bool isReadyToStartAt(DateTime now) =>
+      isOpen && !now.isBefore(eventDate) && memberCount >= requiredMembers;
+
+  // เวลาที่เหลือก่อนจะกด Complete ได้ — null ถ้ายังไม่ได้ start หรือ start ไปนานพอแล้ว
+  Duration? completeCountdownAt(DateTime now) {
+    if (!isStarted || startedAt == null) return null;
+    final readyAt = startedAt!.add(_startToCompleteDuration);
+    if (!now.isBefore(readyAt)) return null;
+    return readyAt.difference(now);
+  }
+
+  bool isReadyToCompleteAt(DateTime now) => isStarted && completeCountdownAt(now) == null;
 
   // หัวหน้าปาร์ตี้ (backend เรียงมาให้ขึ้นก่อนแล้ว)
   PartyMemberModel? get leader {
@@ -141,12 +178,19 @@ class PartyModel {
       id: (json['id'] ?? '').toString(),
       name: json['name'] ?? '',
       status: json['status'] ?? 'open',
+      startedAt: DateTime.tryParse(json['startedAt']?.toString() ?? '')?.toLocal(),
       completedAt: DateTime.tryParse(json['completedAt']?.toString() ?? '')?.toLocal(),
       // เก็บใน DB เป็น UTC — แปลงเป็นเวลาเครื่องก่อนโชว์
       eventDate: DateTime.tryParse(json['eventDate']?.toString() ?? '')?.toLocal() ?? DateTime.now(),
       location: json['location'] ?? '',
       capacity: json['capacity'] ?? 0,
       isLeader: json['isLeader'] ?? false,
+      memberCount: json['memberCount'] ?? 0,
+      requiredMembers: json['requiredMembers'] ?? 2,
+      canStart: json['canStart'] ?? false,
+      startBlockedReason: json['startBlockedReason'],
+      canComplete: json['canComplete'] ?? false,
+      completeBlockedReason: json['completeBlockedReason'],
       quest: PartyQuestModel.fromJson(json['quest'] ?? {}),
       members: ((json['members'] ?? []) as List)
           .map((m) => PartyMemberModel.fromJson(m as Map<String, dynamic>))

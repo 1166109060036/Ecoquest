@@ -105,6 +105,25 @@ class PartyProvider extends ChangeNotifier {
     }
   }
 
+  // หัวหน้าห้องกดเริ่มภารกิจ — ต้องผ่านก่อนถึงจะเรียก complete() ได้ (ดูเหตุผลที่ backend/utils/partyGate.js)
+  Future<bool> start() async {
+    _isBusy = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      _party = await _service.startParty();
+      _isBusy = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _isBusy = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<bool> leave() async {
     _isBusy = true;
     _errorMessage = null;

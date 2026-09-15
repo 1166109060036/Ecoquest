@@ -305,17 +305,35 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
   แนวคิดใหม่ (เดิม party quest = ปาร์ตี้ไปในตัว, ตอนนี้แยกออกจากกันแล้ว): **party quest เป็นแค่ "แม่แบบ"**
   ผู้เล่นต้อง**กดสร้างห้อง (Party)** จาก quest นั้นก่อน ตั้งชื่อห้อง/วันเวลา/สถานที่/จำนวนคนรับเอง
   แล้วคนอื่นค่อยมากดเข้าร่วมห้องที่มีอยู่ — เหมือนห้องในเกมที่มีลิสต์ให้เลือก ไม่ใช่กด Join ที่ตัว quest ตรงๆ
-  - `backend/models/Party.js` (**collection ใหม่**) — `{ questId, leaderId, name, eventDate, location, capacity, status: 'open'|'completed', completedAt }`
+  - `backend/models/Party.js` (**collection ใหม่**) — `{ questId, leaderId, name, eventDate, location, capacity, status: 'open'|'started'|'completed', startedAt, completedAt }`
     1 quest template สร้างได้หลายห้อง คนละเวลา/สถานที่กัน
   - `backend/models/PartyMember.js` — ผูกกับ `partyId` (เดิมผูกกับ `questId` ตรงๆ) + unique index `(partyId, userId)`
     คนสร้างห้องเป็น leader ทันที; ถ้า leader ออกก่อนอีเวนต์จบ ตำแหน่งจะตกไปคนถัดไปตาม `joinedAt`
+  - **⚠️ ด่าน Start กันปั๊มคะแนน** (`backend/utils/partyGate.js`) — เดิมสร้างห้องแล้วกด Complete ได้ทันที
+    ไม่ต้องทำอะไรจริงเลย ตอนนี้ต้องผ่าน `open → started → completed` เท่านั้น:
+    - **บังคับตั้ง `capacity` อย่างน้อย 2 คนเสมอ** สำหรับห้องใหม่ (เลิกรองรับ "ไม่จำกัดคน") เพราะเงื่อนไข
+      "สมาชิกครบ" นิยามไม่ได้ถ้าไม่จำกัด — ห้องเก่าที่ยังมี `capacity: 0` ค้างใน DB ใช้ `MIN_PARTY_MEMBERS = 2`
+      แทนผ่าน `requiredMembers(party)`
+    - `POST /api/party/start` (หัวหน้าเท่านั้น) — กดได้ต่อเมื่อ **ถึง `eventDate`** แล้ว **และสมาชิกครบ**
+      (`canStart()`) เช็คก่อน latch เสมอ แล้วค่อย `findOneAndUpdate` เปลี่ยน `open→started` + ตั้ง `startedAt`
+    - `POST /api/party/complete` เปลี่ยน latch จาก `status:'open'` เป็น **`status:'started'`** และเพิ่มเงื่อนไข
+      **ต้องผ่านมาแล้วอย่างน้อย 15 นาทีนับจาก `startedAt`** (`canComplete()`, `START_TO_COMPLETE_MS`)
+      ก่อน latch เช่นกัน — กันกด Start แล้วกด Complete รัวๆ ต่อกันทันที
+    - `toPartyPayload()` ส่ง `memberCount`, `requiredMembers`, `canStart`, `startBlockedReason`,
+      `canComplete`, `completeBlockedReason` มาด้วย ให้แอพโชว์/ซ่อนปุ่มได้เลยไม่ต้อง mirror สูตรเอง
+      (ฝั่งแอพยัง mirror คร่าวๆ ไว้ที่ `PartyModel.isReadyToStartAt`/`completeCountdownAt` เพื่อนับถอยหลัง
+      แบบ live ด้วย `Timer.periodic` โดยไม่ต้องรอ backend ตอบ — **backend เป็นคนตัดสินจริงเสมอ** ทุก request
+      ยังเช็คซ้ำที่ server หมด ไม่เชื่อค่าที่แอพคำนวณเอง)
   - `backend/routes/party.js` (mount ที่ `/api/party`)
     - `GET /api/party` → ห้องที่ฉันอยู่ตอนนี้ (`{ party: null }` ถ้ายังไม่ได้เข้าห้องไหน)
-    - `GET /api/party/rooms` → ลิสต์ห้องที่ยังเปิดรับสมาชิกอยู่ (`status: 'open'`) ให้เลือกเข้าร่วม
+    - `GET /api/party/rooms` → ลิสต์ห้องที่ยังเปิดรับสมาชิกอยู่ (`status: 'open'`) ให้เลือกเข้าร่วม — ห้องที่
+      `started` แล้วหายจากลิสต์นี้อัตโนมัติ (เต็มคนแล้วเข้าร่วมไม่ได้อยู่ดี)
     - `POST /api/party` → สร้างห้องใหม่จาก party quest — เช็ค `quest.minLevelToHost` ด้วย (ใช้จริงแล้ว ไม่ใช่ dead field)
-    - `POST /api/party/join/:partyId`, `POST /api/party/leave` (leave ตอนห้อง completed = แค่ dismiss)
+    - `POST /api/party/start` → ดูหัวข้อด่านกันปั๊มคะแนนด้านบน
+    - `POST /api/party/join/:partyId` (บล็อกห้องที่ `started`/`completed` แล้ว), `POST /api/party/leave`
+      (leave ตอนห้อง completed = แค่ dismiss)
     - **`POST /api/party/complete`** — **เฉพาะหัวหน้าห้องกดได้** ทุกคนในห้อง (รวมหัวหน้า) ได้ P/XP พร้อมกัน
-      ล็อกสถานะเป็น `completed` แบบ atomic (`findOneAndUpdate` เช็ค `status: 'open'` ไปด้วย) กันกดซ้ำได้คะแนนซ้ำ
+      ล็อกสถานะเป็น `completed` แบบ atomic (`findOneAndUpdate` เช็ค `status: 'started'` ไปด้วย) กันกดซ้ำได้คะแนนซ้ำ
   - **party quest ทำซ้ำได้วันละครั้งต่อคน** (เหมือน quest รายวัน ใช้ตัดเที่ยงคืน JST เดียวกัน) — ใครทำไปแล้ววันนี้
     (ไม่ว่าจะผ่านห้องไหน) จะไม่ได้คะแนนซ้ำถ้าหัวหน้าห้องอื่นกด complete ซ้อน
   - เวลาตัดวันแยกออกมาเป็น `backend/utils/questDay.js` ให้ `routes/quests.js` และ `routes/party.js` เรียกใช้ร่วมกัน
@@ -332,12 +350,18 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
     กด + สร้างห้องเท่านั้น ปุ่ม **Create Party (FAB มุมขวาล่าง)** โผล่เฉพาะตอนเลือก chip "Party"
     แผ่น Explore ที่ลากขึ้นจากหน้า Home (`_ExploreSheet` ใน `home_page.dart`) แสดงห้องแบบเดียวกัน แต่ไม่มี FAB
     (ไม่ใช่ `Scaffold` เลยใส่ FAB ไม่ได้ — สร้างห้องได้จากแท็บ Explore เต็มจอเท่านั้น)
-  - **หน้า Party เหลือแค่ "ห้องของฉัน"** (`lib/pages/party/party_page.dart`) มี 2 สถานะ:
+  - **หน้า Party เหลือแค่ "ห้องของฉัน"** (`lib/pages/party/party_page.dart`) มี `Timer.periodic` 1 วินาที
+    ทั้งหน้า (แพทเทิร์นเดียวกับตัวนับถอยหลังของหมดอายุใน `fridge_page.dart`) ให้ปุ่ม Start/Complete
+    enable เองพอถึงเวลา ไม่ต้องกด pull-to-refresh — 3 สถานะ:
     1. ยังไม่อยู่ห้องไหน → ป้ายว่าง + ปุ่ม "Browse Parties" พาไปแท็บ Explore
-    2. อยู่ห้องที่ `status: open` → การ์ดรายละเอียดห้อง + รายชื่อสมาชิก + **หัวหน้าเห็นปุ่ม "Complete Event"
-       ส่วนสมาชิกทั่วไปเห็นแค่ป้าย "Waiting for the leader..."** (ตรงนี้คือจุดที่ `isLeader` เริ่มมีผลกับ UI จริงๆ)
-       ทั้งคู่กด "Leave Party" ได้เสมอ; ห้อง `status: completed` → แบนเนอร์สรุปรางวัลค้างไว้ให้เห็นก่อน แล้วกด
-       "Back to Parties" (= dismiss ผ่าน `POST /party/leave` ตัวเดิม) ถึงจะไปสร้าง/เข้าร่วมห้องใหม่ได้
+    2. อยู่ห้องที่ `status: open` → **หัวหน้าเห็นปุ่ม "Start Event"** (disable + โชว์เหตุผลถ้ายังไม่ถึงเวลานัด
+       หรือคนไม่ครบ เช่น "Waiting for members (1/2)") **สมาชิกทั่วไปเห็นป้ายรอ** เหมือนกัน
+    3. อยู่ห้องที่ `status: started` → **หัวหน้าเห็นปุ่ม "Complete Event"** (disable พร้อมนับถอยหลัง
+       "Available in 08:24" จนกว่าจะครบ 15 นาทีนับจาก `startedAt`) สมาชิกเห็นป้าย "Event in progress..."
+       ทั้งหมดกด "Leave Party" ได้เสมอทุกสถานะ; ห้อง `status: completed` → แบนเนอร์สรุปรางวัลค้างไว้ให้เห็นก่อน
+       แล้วกด "Back to Parties" (= dismiss ผ่าน `POST /party/leave` ตัวเดิม) ถึงจะไปสร้าง/เข้าร่วมห้องใหม่ได้
+    - หน้าสร้างห้อง (`create_party_page.dart`) ตัด option "Unlimited" ออกจาก capacity stepper แล้ว
+      ปุ่มลบหยุดที่ 2 เสมอ (ดูหัวข้อด่านกันปั๊มคะแนนด้านบน)
   - ✅ **กดชื่อสมาชิกในหน้า Party เปิดโปรไฟล์ได้จริงแล้ว** ไม่ใช่ SnackBar "coming soon" อีกต่อไป
     ทุกแถวกดได้ (ไม่ใช่แค่แถวหัวหน้าเหมือนก่อนหน้านี้) — แถวของ**ตัวเอง** สลับไปแท็บ Profile ของจริง
     ส่วนแถวของ**คนอื่น**เปิด `lib/pages/profile/player_profile_page.dart` (โปรไฟล์แบบดูอย่างเดียว)
@@ -399,7 +423,8 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
   "Admin Tools" ในหน้า Settings ฝั่งแอพ (ไม่ใช่ตัวเช็คสิทธิ์จริง — ทุก request ยังถูกเช็คซ้ำที่ backend เสมอ)
   - ทำงานกับบัญชีของแอดมินเอง (`req.userId`) เสมอ ไม่มี user-picker — ครอบคลุมทุกระบบ: User (set
     points/xp/level ตรงๆ, เปิด/ปิดบัฟ Energy, reset บัญชีทั้งบัญชี), Quest (force-complete ข้ามทุก
-    เงื่อนไข, reset ประวัติวันนี้/ทั้งหมด), Party (list ทุกห้อง + force-complete ข้ามเช็ค leader),
+    เงื่อนไข, reset ประวัติวันนี้/ทั้งหมด), Party (list ทุกห้อง + force-start/force-complete ข้ามเช็ค
+    leader/เวลานัด/15 นาทีหลัง start — force-complete รับได้ทั้งห้อง `open` และ `started`),
     Achievement (unlock/reset), Inventory (grant ไอเทมไหนก็ได้ข้าม cost/reset), Upgrade (set level
     ตรงๆ ข้าม cost), Season (list + บังคับหมดอายุแล้วเรียก `ensureActiveSeason()` จริงต่อทันที),
     Notification (ยิงแจ้งเตือนทดสอบ 3 แบบ), Fridge (เพิ่มของทดสอบกำหนด expiry เองได้)

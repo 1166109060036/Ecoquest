@@ -12,6 +12,12 @@ import '../../widgets/falling_leaves_overlay.dart';
 // เข้าถึงได้ทางเดียว: กดปุ่ม + (FAB) มุมขวาล่างของหน้า Explore ตอนเลือก chip "Party"
 // (เดิมกด "Create Party" บนการ์ด quest ได้เลย แต่ตอนนี้การ์ด quest หายไปจาก Explore แล้ว —
 // เควส party จะเจอได้เฉพาะในขั้นตอนเลือกเควสของหน้านี้เท่านั้น)
+
+// บังคับอย่างน้อย 2 คนเสมอ (เลิกรองรับ "ไม่จำกัดคน") เพราะเงื่อนไข "สมาชิกครบก่อนเริ่มอีเวนต์"
+// (backend/utils/partyGate.js#canStart) นิยามไม่ได้ถ้าไม่จำกัดจำนวนคน — เป็น top-level const เพราะ
+// ทั้ง _CreatePartyPageState และ _DetailsForm (widget แยก) ต้องใช้ค่าเดียวกัน
+const _minPartyCapacity = 2;
+
 class CreatePartyPage extends StatefulWidget {
   const CreatePartyPage({super.key});
 
@@ -28,7 +34,7 @@ class _CreatePartyPageState extends State<CreatePartyPage> {
   final _nameController = TextEditingController();
   final _locationController = TextEditingController();
   DateTime? _eventDate;
-  int _capacity = 0;
+  int _capacity = _minPartyCapacity;
 
   @override
   void dispose() {
@@ -38,11 +44,12 @@ class _CreatePartyPageState extends State<CreatePartyPage> {
   }
 
   // เติมค่า default ของฟอร์มจากเควสที่เลือก — ผู้ใช้แก้ต่อได้ทุกช่อง
+  // quest template เก่าบางอันยังมี capacity: 0 (ไม่จำกัด) ค้างอยู่ -> clamp ขึ้นมาที่ขั้นต่ำเสมอ
   void _applyQuest(QuestCardModel quest) {
     _selectedQuest = quest;
     _nameController.text = '${quest.title} Party';
     _locationController.text = quest.location;
-    _capacity = quest.capacity;
+    _capacity = quest.capacity > _minPartyCapacity ? quest.capacity : _minPartyCapacity;
   }
 
   void _selectQuest(QuestCardModel quest) {
@@ -109,7 +116,7 @@ class _CreatePartyPageState extends State<CreatePartyPage> {
       );
       return;
     }
-    if (_capacity > 0 && _capacity < 2) {
+    if (_capacity < _minPartyCapacity) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Capacity must allow at least 2 members')),
       );
@@ -423,12 +430,12 @@ class _DetailsForm extends StatelessWidget {
             Row(
               children: [
                 Text(
-                  capacity == 0 ? 'Unlimited' : '$capacity members',
+                  '$capacity members',
                   style: const TextStyle(color: Colors.white, fontSize: 14),
                 ),
                 const Spacer(),
                 IconButton(
-                  onPressed: capacity > 0 ? () => onCapacityChanged(capacity - 1) : null,
+                  onPressed: capacity > _minPartyCapacity ? () => onCapacityChanged(capacity - 1) : null,
                   icon: const Icon(Icons.remove_circle_outline),
                   color: Colors.green,
                 ),
@@ -438,6 +445,10 @@ class _DetailsForm extends StatelessWidget {
                   color: Colors.green,
                 ),
               ],
+            ),
+            Text(
+              'The room must be full before the leader can start the event',
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 11.5),
             ),
             const SizedBox(height: 20),
             ElevatedButton(

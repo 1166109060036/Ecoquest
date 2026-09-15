@@ -67,6 +67,8 @@ class AdminService {
     return List<Map<String, dynamic>>.from(data['parties']);
   }
 
+  Future<void> forceStartParty(String partyId) => _post('/parties/$partyId/force-start');
+
   Future<void> forceCompleteParty(String partyId) => _post('/parties/$partyId/force-complete');
 
   // ---- Achievement ----

@@ -96,6 +96,22 @@ class PartyService {
     return PartyModel.fromJson(data['party'] as Map<String, dynamic>);
   }
 
+  // หัวหน้าห้องกดเริ่มภารกิจ — ต้องผ่านก่อนถึงจะกด completeParty() ได้ (กันปั๊มคะแนน)
+  Future<PartyModel> startParty() async {
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/party/start'),
+      headers: await _headers(),
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode != 200) {
+      throw Exception(data['message'] ?? 'Failed to start this event');
+    }
+
+    return PartyModel.fromJson(data['party'] as Map<String, dynamic>);
+  }
+
   Future<void> leaveParty() async {
     final response = await http.post(
       Uri.parse('${AppConstants.baseUrl}/party/leave'),

@@ -12,9 +12,11 @@ import '../../services/app_photo_storage.dart';
 import '../../widgets/inventory_card.dart';
 
 // หน้าดูของในตู้เย็น + บันทึกของใหม่ — เข้าได้ 2 ทาง:
-//   1) กดไอเทม Fridge ในหน้า Inventory -> ดูของอย่างเดียว ไม่มีปุ่ม Add Item
+//   1) กดไอเทม Fridge ในหน้า Inventory -> ดูของอย่างเดียว ไม่มีปุ่ม Add Item/Remove
+//      (ลบได้แค่กดค้าง (long-press) เอาไว้เผื่อจำเป็นจริงๆ แต่ไม่ชวนให้ทำในโหมดนี้)
 //   2) กด Start บน quest "Check Your Food & Expiration Dates" (quest ที่มี actionKey = fridge_check)
-//      -> ทางนี้เท่านั้นที่มีปุ่ม Add Item เพราะการบันทึกของที่นี่ *คือ* ตัว Mini Quest จริงๆ
+//      -> ทางนี้เท่านั้นที่มีปุ่ม Add Item **และปุ่ม Remove ที่เห็นชัดๆ บนการ์ดแต่ละใบ**
+//      เพราะการบันทึก/แก้ไขของที่นี่ *คือ* ตัว Mini Quest จริงๆ ควรแก้ของผิดๆ ที่เคยบันทึกไว้ได้ด้วย
 //
 // พอกด Save สำเร็จจะไปกดจบ quest ให้อัตโนมัติ
 // (backend ก็เช็คซ้ำอีกชั้นว่าต้องมีของที่บันทึกวันนี้จริงถึงจะให้คะแนน กดปุ่มเฉยๆ ไม่ผ่าน)
@@ -241,6 +243,12 @@ class _FridgePageState extends State<FridgePage> {
                                       item.isExpiredAt(now) ? Colors.red : null,
                                   quantity: item.quantity,
                                   onLongPress: () => _confirmDelete(item),
+                                  // ปุ่ม Remove โผล่ให้เห็นชัดๆ เฉพาะตอนเปิดผ่านเควส (แก้ไขของได้เต็มที่)
+                                  // ส่วนโหมดดูอย่างเดียวจากหน้า Inventory ยังต้องกดค้างเหมือนเดิม
+                                  // (long-press ยังใช้ได้ทั้งสองโหมด เผื่อใครถนัดกดค้างมากกว่า)
+                                  actionLabel: widget.forQuest ? 'Remove' : null,
+                                  actionColor: Colors.redAccent,
+                                  onAction: widget.forQuest ? () => _confirmDelete(item) : null,
                                 ),
                                 const SizedBox(height: 14),
                               ],

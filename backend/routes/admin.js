@@ -245,13 +245,34 @@ router.get('/parties', async (req, res) => {
   }
 });
 
-// @route   POST /api/admin/parties/:id/force-complete
-// @desc    เหมือน POST /api/party/complete ทุกอย่าง (fan-out รางวัลให้สมาชิกทุกคนจริง) แต่ข้ามเช็ค
-//          "ต้องเป็น leader" — ยังคง latch สถานะ open->completed กันกดซ้ำ
-router.post('/parties/:id/force-complete', async (req, res) => {
+// @route   POST /api/admin/parties/:id/force-start
+// @desc    ข้ามเงื่อนไขวันที่นัด/จำนวนคนครบ ไว้ทดสอบ flow start->complete โดยไม่ต้องรอจริง
+router.post('/parties/:id/force-start', async (req, res) => {
   try {
     const party = await Party.findOneAndUpdate(
       { _id: req.params.id, status: 'open' },
+      { status: 'started', startedAt: new Date() },
+      { new: true }
+    );
+
+    if (!party) {
+      return res.status(409).json({ message: 'Party not found or not open' });
+    }
+    res.json({ message: 'Party force-started', status: party.status });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   POST /api/admin/parties/:id/force-complete
+// @desc    เหมือน POST /api/party/complete ทุกอย่าง (fan-out รางวัลให้สมาชิกทุกคนจริง) แต่ข้ามเช็ค
+//          "ต้องเป็น leader" + ข้ามเงื่อนไขเรื่องเวลา 15 นาทีหลัง start — ยังคง latch สถานะกันกดซ้ำ
+// รับได้ทั้งห้องที่ยัง 'open' (ข้ามขั้น start ไปเลย) และห้องที่ 'started' อยู่แล้ว
+router.post('/parties/:id/force-complete', async (req, res) => {
+  try {
+    const party = await Party.findOneAndUpdate(
+      { _id: req.params.id, status: { $in: ['open', 'started'] } },
       { status: 'completed', completedAt: new Date() },
       { new: true }
     ).populate('questId');

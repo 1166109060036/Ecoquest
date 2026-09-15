@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/party_model.dart';
@@ -32,13 +33,27 @@ class _PartyPageState extends State<PartyPage> {
   static const int _exploreTabIndex = 2;
   static const int _profileTabIndex = 4;
 
+  Timer? _ticker;
+
   @override
   void initState() {
     super.initState();
+    // เดินนาฬิกาทุก 1 วินาที — ปุ่ม Start/Complete ต้อง enable เองพอถึงเวลานัด/ครบ 15 นาที
+    // โดยไม่ต้องให้ผู้ใช้ pull-to-refresh เอง (แพทเทิร์นเดียวกับ fridge_page.dart ที่นับถอยหลังของหมดอายุ)
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<PartyProvider>().loadParty();
     });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
   }
 
   Future<void> _confirmLeaveParty() async {
@@ -85,6 +100,20 @@ class _PartyPageState extends State<PartyPage> {
       partyProvider.loadRooms(),
       context.read<QuestProvider>().loadQuests(),
     ]);
+  }
+
+  // ไม่ต้องมี dialog ยืนยันเหมือน Complete เพราะ Start ไม่ได้ให้รางวัล/ย้อนกลับไม่ได้อะไร
+  // แค่ปลดล็อกให้กด Complete ได้ต่อ (ยังไปต่อไม่ได้ทันทีอยู่ดี ต้องรออีก 15 นาที)
+  Future<void> _startEvent() async {
+    final partyProvider = context.read<PartyProvider>();
+    final ok = await partyProvider.start();
+    if (!mounted) return;
+
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(partyProvider.errorMessage ?? 'Failed to start this event')),
+      );
+    }
   }
 
   Future<void> _confirmCompleteEvent() async {
@@ -198,8 +227,10 @@ class _PartyPageState extends State<PartyPage> {
                                   : _PartyView(
                                       party: party,
                                       isBusy: partyProvider.isBusy,
+                                      now: DateTime.now(),
                                       onTapMember: _viewMemberProfile,
                                       onLeave: _confirmLeaveParty,
+                                      onStart: _startEvent,
                                       onComplete: _confirmCompleteEvent,
                                     ),
                     ),
@@ -274,15 +305,19 @@ class _NoPartyState extends StatelessWidget {
 class _PartyView extends StatelessWidget {
   final PartyModel party;
   final bool isBusy;
+  final DateTime now; // ส่งเข้ามาจาก Timer.periodic ของหน้าแม่ ให้ปุ่ม/นับถอยหลัง live โดยไม่ query เวลาซ้ำ
   final ValueChanged<PartyMemberModel> onTapMember;
   final VoidCallback onLeave;
+  final VoidCallback onStart;
   final VoidCallback onComplete;
 
   const _PartyView({
     required this.party,
     required this.isBusy,
+    required this.now,
     required this.onTapMember,
     required this.onLeave,
+    required this.onStart,
     required this.onComplete,
   });
 
@@ -331,43 +366,8 @@ class _PartyView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
-        // ---- ปุ่มด้านล่าง — เฉพาะหัวหน้ากดจบอีเวนต์ได้ สมาชิกทั่วไปแค่รอ ----
-        if (party.isLeader)
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: isBusy ? null : onComplete,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-              ),
-              child: const Text('Complete Event', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-            ),
-          )
-        else
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 13),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(28),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-            ),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.hourglass_top, color: Colors.white70, size: 16),
-                SizedBox(width: 8),
-                Text(
-                  'Waiting for the leader to complete this event',
-                  style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600),
-                ),
-              ],
-            ),
-          ),
+        // ---- ปุ่มด้านล่าง — ต้องกด Start ก่อนถึงจะกด Complete ได้ (กันปั๊มคะแนน สร้างห้องแล้วกดจบทันที) ----
+        _PartyActionArea(party: party, isBusy: isBusy, now: now, onStart: onStart, onComplete: onComplete),
         const SizedBox(height: 8),
         SizedBox(
           width: double.infinity,
@@ -377,6 +377,131 @@ class _PartyView extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// แถบปุ่มด้านล่างของ _PartyView — สลับตาม status: open (โชว์ปุ่ม Start ให้หัวหน้า) หรือ started
+// (โชว์ปุ่ม Complete ให้หัวหน้า) เปิด/ปิดปุ่มเองตาม `now` ที่ Timer.periodic ของหน้าแม่ส่งเข้ามาสด
+// (ค่า enable ที่แท้จริงยังเช็คซ้ำที่ backend ทุกครั้งที่กด — ตรงนี้แค่ให้ UI ตอบสนองทันทีไม่ต้องรีเฟรช)
+// ---------------------------------------------------------------------------
+class _PartyActionArea extends StatelessWidget {
+  final PartyModel party;
+  final bool isBusy;
+  final DateTime now;
+  final VoidCallback onStart;
+  final VoidCallback onComplete;
+
+  const _PartyActionArea({
+    required this.party,
+    required this.isBusy,
+    required this.now,
+    required this.onStart,
+    required this.onComplete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (party.isStarted) {
+      final countdown = party.completeCountdownAt(now);
+      final ready = countdown == null;
+
+      if (!party.isLeader) {
+        return const _WaitingPill(text: 'Event in progress — waiting for the leader to complete it');
+      }
+      return _GateButton(
+        label: ready ? 'Complete Event' : 'Available in ${formatCountdown(countdown)}',
+        enabled: ready,
+        isBusy: isBusy,
+        onPressed: onComplete,
+      );
+    }
+
+    // party.isOpen
+    final ready = party.isReadyToStartAt(now);
+    if (!party.isLeader) {
+      return _WaitingPill(
+        text: party.memberCount < party.requiredMembers
+            ? 'Waiting for more members (${party.memberCount}/${party.requiredMembers})'
+            : 'Waiting for the leader to start this event',
+      );
+    }
+    return _GateButton(
+      label: ready
+          ? 'Start Event'
+          : party.memberCount < party.requiredMembers
+              ? 'Waiting for members (${party.memberCount}/${party.requiredMembers})'
+              : 'Starts ${formatEventDateTime(party.eventDate)}',
+      enabled: ready,
+      isBusy: isBusy,
+      onPressed: onStart,
+    );
+  }
+}
+
+class _GateButton extends StatelessWidget {
+  final String label;
+  final bool enabled;
+  final bool isBusy;
+  final VoidCallback onPressed;
+
+  const _GateButton({
+    required this.label,
+    required this.enabled,
+    required this.isBusy,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: (enabled && !isBusy) ? onPressed : null,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.green,
+          foregroundColor: Colors.white,
+          disabledBackgroundColor: Colors.white.withValues(alpha: 0.12),
+          disabledForegroundColor: Colors.white60,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        ),
+        child: Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+      ),
+    );
+  }
+}
+
+class _WaitingPill extends StatelessWidget {
+  final String text;
+  const _WaitingPill({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 12),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.hourglass_top, color: Colors.white70, size: 16),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              text,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -545,9 +670,7 @@ class _EventCard extends StatelessWidget {
                 const SizedBox(height: 6),
                 _InfoLine(
                   icon: Icons.groups_outlined,
-                  text: party.capacity > 0
-                      ? '${party.members.length} / ${party.capacity} joined'
-                      : '${party.members.length} joined',
+                  text: '${party.memberCount} / ${party.requiredMembers} joined',
                 ),
                 if (quest.detail.isNotEmpty) ...[
                   const SizedBox(height: 12),

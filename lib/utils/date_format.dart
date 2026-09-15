@@ -16,6 +16,13 @@ String formatEventDateTime(DateTime date) =>
 String formatEventDate(DateTime date) =>
     '${_monthNames[date.month - 1]} ${date.day}, ${date.year}';
 
+/// เช่น "08:24" (mm:ss) — ใช้นับถอยหลังก่อนกด Complete Event ได้ (ดู PartyModel.completeCountdownAt)
+String formatCountdown(Duration remaining) {
+  final minutes = remaining.inMinutes;
+  final seconds = remaining.inSeconds % 60;
+  return '${_pad(minutes)}:${_pad(seconds)}';
+}
+
 /// เช่น "2 hours ago" / "Yesterday" — ใช้กับเวลาของแจ้งเตือน
 /// เกินประมาณ 7 วันแล้ว fallback ไปโชว์วันที่เต็มแทน (formatEventDate) เพราะ "N days ago" ที่นานมากอ่านยาก
 String formatRelativeTime(DateTime date) {
