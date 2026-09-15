@@ -8,6 +8,7 @@ import '../../utils/date_format.dart';
 import '../../utils/quest_completion.dart';
 import '../../widgets/profile_sections.dart';
 import '../../widgets/falling_leaves_overlay.dart';
+import '../../widgets/liquid_glass_dialog.dart';
 import '../profile/player_profile_page.dart';
 
 // หน้า Party — โชว์แค่ "ห้องของฉัน" เท่านั้น (ไม่มีลิสต์ห้องให้เลือกเข้าร่วมแล้ว
@@ -57,25 +58,23 @@ class _PartyPageState extends State<PartyPage> {
   }
 
   Future<void> _confirmLeaveParty() async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await LiquidGlassDialog.show<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Leave party?'),
-        content: const Text(
-          'You will leave this event and will have to join again if you change your mind',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel', style: TextStyle(color: Colors.grey.shade600)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Leave Party', style: TextStyle(color: Colors.red)),
-          ),
-        ],
+      icon: const Icon(Icons.logout_rounded, color: Colors.redAccent, size: 28),
+      title: 'Leave party?',
+      content: const Text(
+        'You will leave this event and will have to join again if you change your mind',
+        textAlign: TextAlign.center,
+        style: LiquidGlassDialog.messageStyle,
       ),
+      actions: [
+        LiquidGlassAction(label: 'Cancel', onPressed: () => Navigator.pop(context, false)),
+        LiquidGlassAction(
+          label: 'Leave Party',
+          color: Colors.redAccent,
+          onPressed: () => Navigator.pop(context, true),
+        ),
+      ],
     );
 
     if (confirmed != true || !mounted) return;
@@ -117,26 +116,24 @@ class _PartyPageState extends State<PartyPage> {
   }
 
   Future<void> _confirmCompleteEvent() async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await LiquidGlassDialog.show<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Complete this event?'),
-        content: const Text(
-          'Every member in this party (including you) will receive the reward. '
-          'This cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel', style: TextStyle(color: Colors.grey.shade600)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Complete', style: TextStyle(color: Colors.green)),
-          ),
-        ],
+      icon: const Icon(Icons.task_alt_rounded, color: Colors.green, size: 30),
+      title: 'Complete this event?',
+      content: const Text(
+        'Every member in this party (including you) will receive the reward. '
+        'This cannot be undone.',
+        textAlign: TextAlign.center,
+        style: LiquidGlassDialog.messageStyle,
       ),
+      actions: [
+        LiquidGlassAction(label: 'Cancel', onPressed: () => Navigator.pop(context, false)),
+        LiquidGlassAction(
+          label: 'Complete',
+          color: Colors.green,
+          onPressed: () => Navigator.pop(context, true),
+        ),
+      ],
     );
 
     if (confirmed != true || !mounted) return;

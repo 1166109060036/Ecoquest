@@ -43,6 +43,8 @@ dependencies:
   # ใช้ขอ path ของ documents directory เพื่อเก็บรูปที่ผู้ใช้ถ่ายแบบถาวร
   # (image_picker คืน path ใน cache ซึ่งระบบเคลียร์ทิ้งเมื่อไหร่ก็ได้ ดู AppPhotoStorage)
   path_provider: ^2.1.4
+  # เล่นเสียงพื้นหลัง/เสียงกดปุ่ม — ดู lib/services/sound_service.dart
+  audioplayers: ^6.1.0
 
 
 dev_dependencies:
@@ -81,6 +83,9 @@ flutter:
      # ประกาศเป็นโฟลเดอร์ (ต้องมี / ปิดท้าย) เพราะรูปปก quest จะเพิ่มเรื่อยๆ
      # เพิ่มรูปใหม่แค่วางไฟล์ลงโฟลเดอร์นี้ ไม่ต้องมาแก้ pubspec ทุกครั้ง
      - lib/utils/assets/questimg/
+     # เผื่อไว้ใส่เสียงพื้นหลัง (background_music.mp3) + เสียงกดปุ่ม (button_click.mp3)
+     # ดู lib/services/sound_service.dart และ lib/utils/assets/sounds/README.md
+     - lib/utils/assets/sounds/
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

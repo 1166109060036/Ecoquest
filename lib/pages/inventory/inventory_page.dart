@@ -5,6 +5,7 @@ import '../../providers/achievement_provider.dart';
 import '../../providers/inventory_provider.dart';
 import '../../providers/quest_provider.dart';
 import '../../widgets/inventory_card.dart';
+import '../../widgets/liquid_glass_dialog.dart';
 
 // หน้า Inventory — ไอเทมที่มีอยู่จริงเท่านั้น (Camera, Fridge, Eco Badge, ไอเทม Energy ที่ซื้อไว้)
 // สูงสุด 100 ช่อง (capacity) ตามดีไซน์
@@ -30,26 +31,20 @@ class InventoryPage extends StatelessWidget {
   // เลยขึ้น confirm ก่อน ส่วน Red/Blue/Green แค่ตั้งบัฟชั่วคราว ไม่มีอะไรเสียหาย กดใช้ได้เลยไม่ต้อง confirm
   Future<void> _useItem(BuildContext context, InventoryItemModel item) async {
     if (item.itemType == 'super_energy') {
-      final confirmed = await showDialog<bool>(
+      final confirmed = await LiquidGlassDialog.show<bool>(
         context: context,
-        builder: (context) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Use Super Energy?'),
-          content: const Text(
-            "This resets all quests you've completed today so you can complete them again. "
-            'Points/XP already earned stay — this just re-opens today\'s quests.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: Text('Cancel', style: TextStyle(color: Colors.grey.shade600)),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Use'),
-            ),
-          ],
+        icon: const Icon(Icons.bolt_rounded, color: Colors.amber, size: 30),
+        title: 'Use Super Energy?',
+        content: const Text(
+          "This resets all quests you've completed today so you can complete them again. "
+          'Points/XP already earned stay — this just re-opens today\'s quests.',
+          textAlign: TextAlign.center,
+          style: LiquidGlassDialog.messageStyle,
         ),
+        actions: [
+          LiquidGlassAction(label: 'Cancel', onPressed: () => Navigator.pop(context, false)),
+          LiquidGlassAction(label: 'Use', color: Colors.green, onPressed: () => Navigator.pop(context, true)),
+        ],
       );
       if (confirmed != true || !context.mounted) return;
     }

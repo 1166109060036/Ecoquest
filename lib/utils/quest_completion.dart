@@ -6,6 +6,7 @@ import '../models/quest_card_model.dart';
 import '../providers/achievement_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/notification_provider.dart';
+import '../widgets/liquid_glass_dialog.dart';
 
 // สิ่งที่ต้องทำ "หลังทำ quest สำเร็จ" — เหมือนกันทั้ง 4 ที่ที่ทำ quest ได้
 // (หน้า Explore, แผ่น Explore ในหน้า Home, หน้า Fridge, และหัวหน้าห้องกดจบอีเวนต์ปาร์ตี้)
@@ -36,51 +37,53 @@ Future<void> handleQuestCompleted(BuildContext context, QuestReward reward) asyn
 
 // เด้งแสดงความยินดีตอนได้เหรียญใหม่ — รองรับกรณีได้หลายเหรียญพร้อมกันด้วย
 Future<void> _showMedalDialog(BuildContext context, List<UnlockedMedal> medals) {
-  return showDialog<void>(
+  return LiquidGlassDialog.show<void>(
     context: context,
-    builder: (context) => AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      title: Row(
-        children: [
-          const Icon(Icons.emoji_events, color: Colors.amber, size: 26),
-          const SizedBox(width: 10),
-          Text(medals.length > 1 ? 'New medals!' : 'New medal!'),
-        ],
-      ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          for (final medal in medals)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    medal.title,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+    icon: const Icon(Icons.emoji_events, color: Colors.amber, size: 32),
+    title: medals.length > 1 ? 'New medals!' : 'New medal!',
+    content: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final medal in medals)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  medal.title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    color: Colors.white,
+                    shadows: [Shadow(color: Colors.black45, blurRadius: 6)],
                   ),
-                  Text(
-                    medal.description,
-                    style: TextStyle(color: Colors.grey.shade600, fontSize: 12.5),
+                ),
+                Text(
+                  medal.description,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12.5,
+                    shadows: [Shadow(color: Colors.black45, blurRadius: 6)],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          const SizedBox(height: 4),
-          Text(
-            'Check it in your Inventory.',
-            style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
           ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Nice', style: TextStyle(color: Colors.green)),
+        const SizedBox(height: 4),
+        const Text(
+          'Check it in your Inventory.',
+          style: TextStyle(
+            color: Colors.white60,
+            fontSize: 12,
+            shadows: [Shadow(color: Colors.black45, blurRadius: 6)],
+          ),
         ),
       ],
     ),
+    actions: [
+      LiquidGlassAction(label: 'Nice', color: Colors.green, onPressed: () => Navigator.pop(context)),
+    ],
   );
 }

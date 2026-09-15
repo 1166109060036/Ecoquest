@@ -115,6 +115,58 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
   `lib/pages/profile/profile_page.dart`) ให้ใบไม้ลอยอยู่หลังการ์ด/ปุ่ม ไม่บังตัวหนังสือ
   ⚠️ หน้าที่ธีมสว่าง/ไม่ได้ใช้พื้นหลัง gradient แบบนี้ (เช่น `quest_detail_page.dart`, หน้า auth ทั้งหมด)
   **ไม่ได้ใส่** ไว้ตั้งใจ เพราะไม่เข้ากับธีมสว่างของหน้านั้น
+- **ระบบเสียง — ใช้งานได้จริงแล้ว** (ผู้ใช้อัปโหลดไฟล์เสียงเข้ามาเองแล้ว ไม่ใช่แค่ช่องเปล่าอีกต่อไป) —
+  `lib/services/sound_service.dart` เป็นเจ้าของการเล่นเสียงทั้งหมด: `playBackgroundMusic()` (เล่นวนตั้งแต่
+  เปิดแอพ เรียกใน `main()`), `playClick()` (เล่นเฉพาะตอนแตะ widget ที่กดได้จริงๆ เช่นปุ่ม/`InkWell`/
+  `ListTile` ผ่าน `SoundSplashFactory` — คลาสท้ายไฟล์ `sound_service.dart` ที่ override
+  `ThemeData.splashFactory` ใน `lib/main.dart` (`splashFactory: SoundSplashFactory(InkRipple.splashFactory)`)
+  แทนที่จะเป็น `Listener` ครอบทั้งแอพแบบเดิม — widget ที่กดได้แทบทุกตัวในแอพสร้าง ink splash ผ่าน
+  `Theme.splashFactory` ตัวเดียวกันเสมอ ครอบตรงนี้ที่เดียวเลยดักได้ทุกปุ่มทั่วแอพโดยไม่ต้องแก้ทีละไฟล์
+  ส่วนพื้นที่ว่าง/การลาก scroll (ไม่มี ink splash) จะไม่มีเสียง ตรงตามที่ต้องการ
+  ⚠️ **ข้อจำกัด**: widget ที่ทำปุ่มเองด้วย `GestureDetector` ตรงๆ โดยไม่ผ่าน `InkWell`/`Material` จะไม่มี
+  ink splash เลยไม่มีเสียงตามไปด้วย — ถ้าเจอจุดแบบนี้ที่ควรมีเสียงแต่ไม่มี ต้องเพิ่มเรียก `playClick()`
+  ตรงๆ เฉพาะจุดนั้นแทน)
+  - ไฟล์เสียงอยู่ที่ `lib/utils/assets/sounds/background_music.mp3` และ `button_click.mp3` (ดู README.md
+    ในโฟลเดอร์นั้น) ประกาศเป็นโฟลเดอร์ไว้ใน `pubspec.yaml` แล้ว (แนวเดียวกับ `items/`/`questimg/`)
+  - **ปรับระดับเสียงแยกกันได้ในหน้า Settings** — สไลเดอร์ "Background Music" กับ "Sound Effects" คนละใบ
+    (`_VolumeSliderItem` ใน `lib/pages/settings/settings_page.dart`) เก็บค่าไว้ผ่าน `SharedPreferences`
+    เอง (`sound_music_volume`/`sound_click_volume`) ไม่ผูกกับ backend/User model เพราะเป็นการตั้งค่าของ
+    เครื่องล้วนๆ ไม่ต้อง sync ข้ามเครื่อง — โหลดค่าที่เคยตั้งไว้กลับมาใช้ตอนเปิดแอพผ่าน
+    `SoundService.loadSavedVolumes()` (ต้องเรียก**ก่อน** `playBackgroundMusic()` ใน `main()` เสมอ ไม่งั้น
+    เพลงจะดังสุดวูบนึงก่อนค่อยปรับลง) — ลากสไลเดอร์ตอนอยู่ระหว่างลาก (`onChanged`) ใช้ `persist: false`
+    ปรับเสียงสดให้ได้ยินทันทีแต่ไม่เขียนดิสก์ทุกเฟรม ค่อยเขียนจริงตอนปล่อยนิ้ว (`onChangeEnd`)
+  - ⚠️ **ข้อควรรู้ตอนแก้ไฟล์นี้ต่อ**:
+    - `AudioPlayer` แต่ละตัวจับค่า `AudioCache.instance` ไปเก็บเป็นของตัวเองตอนสร้างออบเจกต์ (field
+      initializer รันก่อน constructor body เสมอ) — ห้ามแก้ `AudioCache.instance` ตรงๆ ใน constructor
+      ของ `SoundService` เพราะจะช้าไปแล้ว ต้อง assign `.audioCache` ให้แต่ละ `AudioPlayer` ตรงๆ แทน
+      (ดูคอมเมนต์ในไฟล์) — ใช้ `AudioCache(prefix: '')` เพราะ asset ของโปรเจคนี้ไม่ได้อยู่ใต้โฟลเดอร์
+      `assets/` (default prefix ของ audioplayers) แต่อยู่ใต้ `lib/utils/assets/` ตามที่ `pubspec.yaml`
+      ประกาศไว้จริง
+    - เดิมเคยลองใช้ `PlayerMode.lowLatency` (SoundPool) กับเสียงคลิก แต่ SoundPool บน Android decode
+      mp3 ที่มี ID3 tag (เช่นไฟล์ export จาก LAME) ไม่ผ่านแบบเงียบๆ ไม่มี error เลย — เปลี่ยนกลับมาใช้
+      `PlayerMode.mediaPlayer` (ค่า default) แทนแล้ว รองรับฟอร์แมตได้กว้างกว่ามาก
+    - ค่า default ของ audioplayers คือขอ Android audio focus แบบ `gain` (ผูกขาด) ทุกครั้งที่ `play()`
+      ถูกเรียก — ทำให้ player อีกตัวในแอพเดียวกัน (เช่นเพลงพื้นหลังตอนกดปุ่ม) โดน pause ไปเงียบๆ ต้องตั้ง
+      `AudioContextConfig(focus: AudioContextConfigFocus.mixWithOthers)` ให้ทั้งคู่เสมอ ถึงจะเล่นซ้อนกัน
+      ได้โดยไม่แย่งกันเอง (ดู `_mixContext` ในไฟล์)
+  - ทุกเมธอดใน `SoundService` ดัก error เงียบๆ (ไม่ throw ต่อ, มี `debugPrint` ให้เห็นตอนรัน `flutter run`
+    เท่านั้น) — ไม่มีไฟล์เสียงก็รันแอพได้ปกติทุกอย่างเหมือนเดิม แค่ไม่มีเสียง (แนวเดียวกับ `errorBuilder`
+    ที่ `InventoryCard` ใช้ตอนหารูปไอเทมไม่เจอ)
+- **Popup ยืนยัน/แจ้งเตือนทั้งแอพ — ธีม "Liquid Glass" แบบ macOS** — `LiquidGlassDialog` +
+  `LiquidGlassAction` (`lib/widgets/liquid_glass_dialog.dart`) เป็น widget กลางที่ใช้แทน `AlertDialog`
+  ธรรมดาทุกจุดในแอพที่ผู้เล่นเจอ ให้หน้าตาเหมือนกันหมด: กระจกฝ้าโปร่งแสง (`BackdropFilter` เบลอพื้นหลัง
+  จริงๆ ไม่ใช่แค่สีขาวโปร่งแสงเฉยๆ), ขอบมน 28px, เส้นไฮไลท์บางๆ พาดขอบบนจำลองแสงสะท้อนบนผิวกระจก, ปุ่ม
+  action ทรงแคปซูล (`LiquidGlassAction` — ไม่ใส่สี = ปุ่มรอง/กระจกใสจางๆ, ใส่สี = ปุ่มหลัก/อันตราย fill เต็ม)
+  - เปิดผ่าน `LiquidGlassDialog.show<T>(context: ..., title: ..., content: ..., actions: [...])`
+    (คืนค่าเหมือน `showDialog` ปกติทุกอย่าง — เอา build จุดเดิมออก เปลี่ยนแค่ตัวเรียก)
+  - ใช้อยู่ที่: ลบของในตู้เย็น (`fridge_page.dart`), Edit Display Name/About/Log out
+    (`settings_page.dart`), Leave Party/Complete Event (`party_page.dart`), Use Super Energy confirm
+    (`inventory_page.dart`), ลบรูป EcoQuest Moment (`camera_page.dart`), popup ยินดีได้เหรียญใหม่
+    (`utils/quest_completion.dart`)
+  - ⚠️ **ไม่ได้ใส่ที่หน้า Admin** (`admin_page.dart`) — ตั้งใจให้หน้านั้นใช้ธีม Material เรียบๆ แยกจาก
+    เกมจริงอยู่แล้ว (ดูคอมเมนต์บนสุดของไฟล์) ใส่ liquid glass เข้าไปจะขัดกับการตั้งใจนั้น
+  - ⚠️ ไม่ได้ใส่ที่ popup ดูรูปเต็มจอใน `camera_page.dart` (`_openPhoto`) เพราะเป็นตัวโชว์รูปเต็มจอ
+    ไม่ใช่ popup ยืนยัน/แจ้งเตือนแบบเดียวกัน
 - **หน้า Party** — โชว์รายชื่อปาร์ตี้ (Party Leader บนสุดกดดูโปรไฟล์ได้ + สมาชิก) + ปุ่ม Leave Party
   ถ้ายังไม่มีปาร์ตี้จะเป็น empty state ("You're not in a party yet") + ปุ่มพาไปแท็บ Explore (ข้อมูลยัง mock อยู่ใน `lib/models/party_model.dart`)
 - **Quest system ใช้งานได้จริงแล้ว (end-to-end)** — `GET /api/quests` + `POST /api/quests/:id/complete`
@@ -516,6 +568,7 @@ backend พร้อม deploy แล้ว (ทดสอบว่าบูต�
   รีเซ็ทเควสที่ทำวันนี้ให้ทำใหม่ได้ (ดูหัวข้อ 5 "ไอเทม Energy") — เดิมเคยลองทำเป็นไอเทมสะสม/badge ผูกกับ
   เหรียญ Achievement ไปรอบนึงแต่ถูกยกเลิกแล้วเปลี่ยนมาทำแบบนี้แทนตามที่ขอ
 2.✅ ระบบตั้งค่า — เพิ่ม "Edit Display Name", toggle เปิด/ปิดการแจ้งเตือน, และ About แล้ว (ดูหัวข้อ 5)
-3.ระบบเสียงต่างๆ เช่นเสียงพื้นหลัง เสียงกดปุ่ม ให้มันเหมือนเกมมากขึ้น
+3.✅ ระบบเสียง — เล่นเพลงพื้นหลัง + เสียงกดปุ่มจริงแล้ว (ผู้ใช้อัปโหลดไฟล์เสียงเข้ามาแล้ว) ปรับระดับเสียง
+  แยกกันได้ในหน้า Settings (Background Music / Sound Effects คนละสไลเดอร์ เหมือนเกม) — ดูหัวข้อ 5
 4.✅ เอฟเฟคใบไม้ลอยตกในพื้นหลัง — เพิ่มแล้วทุกหน้าที่มีพื้นหลังธีม (`lib/widgets/falling_leaves_overlay.dart`)
   ยังไม่ได้ทำเอฟเฟคอย่างอื่นเพิ่มเติม (เสียงกดปุ่ม, การเคลื่อนไหวจุดอื่นๆ) ถ้าอยากได้เพิ่มบอกได้เลย

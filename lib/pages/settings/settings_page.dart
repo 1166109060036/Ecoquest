@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/sound_service.dart';
 import '../../utils/constants.dart';
 import '../../widgets/falling_leaves_overlay.dart';
+import '../../widgets/liquid_glass_dialog.dart';
 
 // หน้า Settings — เข้าถึงจากปุ่ม Settings บนหน้า Profile
 // ตอนนี้มีแค่ข้อมูลบัญชี + ปุ่ม Logout (ใช้งานได้จริง) ยังไม่มี toggle/setting อื่น
@@ -14,28 +16,32 @@ class SettingsPage extends StatelessWidget {
     final authProvider = context.read<AuthProvider>();
     final controller = TextEditingController(text: authProvider.user?.displayName ?? '');
 
-    final newName = await showDialog<String>(
+    final newName = await LiquidGlassDialog.show<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Edit Display Name'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          maxLength: 20,
-          decoration: const InputDecoration(hintText: 'Your name'),
+      title: 'Edit Display Name',
+      content: TextField(
+        controller: controller,
+        autofocus: true,
+        maxLength: 20,
+        textAlign: TextAlign.center,
+        style: const TextStyle(color: Colors.white),
+        cursorColor: Colors.white,
+        decoration: InputDecoration(
+          hintText: 'Your name',
+          hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+          counterStyle: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+          enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.4))),
+          focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.white)),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel', style: TextStyle(color: Colors.grey.shade600)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const Text('Save'),
-          ),
-        ],
       ),
+      actions: [
+        LiquidGlassAction(label: 'Cancel', onPressed: () => Navigator.pop(context)),
+        LiquidGlassAction(
+          label: 'Save',
+          color: Colors.green,
+          onPressed: () => Navigator.pop(context, controller.text.trim()),
+        ),
+      ],
     );
 
     if (newName == null || newName.isEmpty || !context.mounted) return;
@@ -51,48 +57,53 @@ class SettingsPage extends StatelessWidget {
   }
 
   void _showAbout(BuildContext context) {
-    showDialog(
+    LiquidGlassDialog.show<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('About EcoQuest'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Version ${AppConstants.appVersion}', style: TextStyle(color: Colors.grey.shade700)),
-            const SizedBox(height: 10),
-            const Text(
-              'An environmental gamification app that turns everyday eco-friendly actions '
-              'in Ebetsu City into quests, points, and rewards.',
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+      icon: const Icon(Icons.eco_rounded, color: Colors.green, size: 30),
+      title: 'About EcoQuest',
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('Version ${AppConstants.appVersion}',
+              style: const TextStyle(
+                color: Colors.white70,
+                fontWeight: FontWeight.w600,
+                fontSize: 12.5,
+                shadows: [Shadow(color: Colors.black45, blurRadius: 6)],
+              )),
+          const SizedBox(height: 10),
+          const Text(
+            'An environmental gamification app that turns everyday eco-friendly actions '
+            'in Ebetsu City into quests, points, and rewards.',
+            textAlign: TextAlign.center,
+            style: LiquidGlassDialog.messageStyle,
+          ),
         ],
       ),
+      actions: [
+        LiquidGlassAction(label: 'Close', color: Colors.green, onPressed: () => Navigator.pop(context)),
+      ],
     );
   }
 
   Future<void> _confirmLogout(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await LiquidGlassDialog.show<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Log out?'),
-        content: const Text('You will need to sign in again to continue'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel', style: TextStyle(color: Colors.grey.shade600)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Log Out', style: TextStyle(color: Colors.red)),
-          ),
-        ],
+      icon: const Icon(Icons.logout_rounded, color: Colors.redAccent, size: 28),
+      title: 'Log out?',
+      content: const Text(
+        'You will need to sign in again to continue',
+        textAlign: TextAlign.center,
+        style: LiquidGlassDialog.messageStyle,
       ),
+      actions: [
+        LiquidGlassAction(label: 'Cancel', onPressed: () => Navigator.pop(context, false)),
+        LiquidGlassAction(
+          label: 'Log Out',
+          color: Colors.redAccent,
+          onPressed: () => Navigator.pop(context, true),
+        ),
+      ],
     );
 
     if (confirmed != true || !context.mounted) return;
@@ -172,6 +183,22 @@ class SettingsPage extends StatelessWidget {
                     ],
                     const SizedBox(height: 14),
                     _NotificationToggleItem(initialValue: user?.notificationsEnabled ?? true),
+                    const SizedBox(height: 14),
+                    _VolumeSliderItem(
+                      icon: Icons.music_note_outlined,
+                      label: 'Background Music',
+                      initialValue: SoundService.instance.musicVolume,
+                      onChanged: (v) => SoundService.instance.setMusicVolume(v, persist: false),
+                      onChangeEnd: (v) => SoundService.instance.setMusicVolume(v),
+                    ),
+                    const SizedBox(height: 14),
+                    _VolumeSliderItem(
+                      icon: Icons.volume_up_outlined,
+                      label: 'Sound Effects',
+                      initialValue: SoundService.instance.clickVolume,
+                      onChanged: (v) => SoundService.instance.setClickVolume(v, persist: false),
+                      onChangeEnd: (v) => SoundService.instance.setClickVolume(v),
+                    ),
                     const SizedBox(height: 14),
                     _SettingsMenuItem(
                       icon: Icons.info_outline,
@@ -385,6 +412,85 @@ class _NotificationToggleItemState extends State<_NotificationToggleItem> {
             value: _enabled,
             activeThumbColor: Colors.green,
             onChanged: _handleChanged,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// การ์ดสไลเดอร์ปรับระดับเสียง — ใช้กับทั้งเพลงพื้นหลังและเสียงระบบ (ปุ่มกด) แยกกันคนละใบ
+// เก็บ state ไว้เองแบบ optimistic เหมือน _NotificationToggleItem: ลากแล้วเห็น/ได้ยินผลทันที
+// (onChanged เรียก SoundService แบบ persist: false ปรับเสียงสดๆ ไม่เขียนดิสก์ทุกเฟรมที่ลาก)
+// ค่อยเขียนดิสก์จริงตอนปล่อยนิ้ว (onChangeEnd)
+// ---------------------------------------------------------------------------
+class _VolumeSliderItem extends StatefulWidget {
+  final IconData icon;
+  final String label;
+  final double initialValue;
+  final ValueChanged<double> onChanged;
+  final ValueChanged<double> onChangeEnd;
+
+  const _VolumeSliderItem({
+    required this.icon,
+    required this.label,
+    required this.initialValue,
+    required this.onChanged,
+    required this.onChangeEnd,
+  });
+
+  @override
+  State<_VolumeSliderItem> createState() => _VolumeSliderItemState();
+}
+
+class _VolumeSliderItemState extends State<_VolumeSliderItem> {
+  late double _value = widget.initialValue;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.46),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.08)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Icon(_value == 0 ? Icons.volume_off : widget.icon, color: Colors.white70, size: 20),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  widget.label,
+                  style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+              ),
+              Text(
+                '${(_value * 100).round()}%',
+                style: const TextStyle(color: Colors.white54, fontSize: 12),
+              ),
+            ],
+          ),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              activeTrackColor: Colors.green,
+              thumbColor: Colors.green,
+              inactiveTrackColor: Colors.white.withOpacity(0.15),
+              overlayColor: Colors.green.withOpacity(0.2),
+              trackHeight: 3,
+            ),
+            child: Slider(
+              value: _value,
+              onChanged: (v) {
+                setState(() => _value = v);
+                widget.onChanged(v);
+              },
+              onChangeEnd: widget.onChangeEnd,
+            ),
           ),
         ],
       ),

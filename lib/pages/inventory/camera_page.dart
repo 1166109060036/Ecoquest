@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/photo_storage_service.dart';
+import '../../widgets/liquid_glass_dialog.dart';
 
 // ไอเทม Camera — ถ่ายรูปแล้วได้ "EcoQuest Moment" การ์ดที่มีกรอบเฉพาะของแอพ
 // ต่างจากถ่ายรูปธรรมดาตรงที่แปะข้อมูลผู้เล่นจริง (ชื่อ / Lv. / Rank / วันที่) ลงไปในรูปเลย
@@ -145,23 +146,23 @@ class _CameraPageState extends State<CameraPage> {
   }
 
   Future<void> _confirmDelete(String path) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await LiquidGlassDialog.show<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Delete moment?'),
-        content: const Text('This photo will be removed from your collection.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel', style: TextStyle(color: Colors.grey.shade600)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
-          ),
-        ],
+      icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 30),
+      title: 'Delete moment?',
+      content: const Text(
+        'This photo will be removed from your collection.',
+        textAlign: TextAlign.center,
+        style: LiquidGlassDialog.messageStyle,
       ),
+      actions: [
+        LiquidGlassAction(label: 'Cancel', onPressed: () => Navigator.pop(context, false)),
+        LiquidGlassAction(
+          label: 'Delete',
+          color: Colors.redAccent,
+          onPressed: () => Navigator.pop(context, true),
+        ),
+      ],
     );
 
     if (confirmed != true) return;

@@ -10,6 +10,7 @@ import '../../providers/fridge_provider.dart';
 import '../../providers/quest_provider.dart';
 import '../../services/app_photo_storage.dart';
 import '../../widgets/inventory_card.dart';
+import '../../widgets/liquid_glass_dialog.dart';
 
 // หน้าดูของในตู้เย็น + บันทึกของใหม่ — เข้าได้ 2 ทาง:
 //   1) กดไอเทม Fridge ในหน้า Inventory -> ดูของอย่างเดียว ไม่มีปุ่ม Add Item/Remove
@@ -108,23 +109,23 @@ class _FridgePageState extends State<FridgePage> {
   }
 
   Future<void> _confirmDelete(FridgeItemModel item) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await LiquidGlassDialog.show<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Remove item?'),
-        content: Text('"${item.name}" will be removed from your fridge.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel', style: TextStyle(color: Colors.grey.shade600)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Remove', style: TextStyle(color: Colors.red)),
-          ),
-        ],
+      icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 30),
+      title: 'Remove item?',
+      content: Text(
+        '"${item.name}" will be removed from your fridge.',
+        textAlign: TextAlign.center,
+        style: LiquidGlassDialog.messageStyle,
       ),
+      actions: [
+        LiquidGlassAction(label: 'Cancel', onPressed: () => Navigator.pop(context, false)),
+        LiquidGlassAction(
+          label: 'Remove',
+          color: Colors.redAccent,
+          onPressed: () => Navigator.pop(context, true),
+        ),
+      ],
     );
 
     if (confirmed != true || !mounted) return;
