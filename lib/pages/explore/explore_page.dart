@@ -6,8 +6,10 @@ import '../../providers/party_provider.dart';
 import '../../providers/quest_provider.dart';
 import '../../utils/party_actions.dart';
 import '../../utils/quest_completion.dart';
+import '../../widgets/breathing_icon.dart';
 import '../../widgets/party_room_card.dart';
 import '../../widgets/quest_card.dart';
+import '../../widgets/staggered_fade_in.dart';
 import '../inventory/fridge_page.dart';
 import 'quest_detail_page.dart';
 
@@ -263,18 +265,30 @@ class _ExplorePageState extends State<ExplorePage> {
                             separatorBuilder: (_, __) => const SizedBox(height: 12),
                             itemBuilder: (context, index) {
                               final item = items[index];
+                              final Widget card;
+                              final String id;
                               if (item is PartyRoomModel) {
-                                return PartyRoomCard(
+                                id = item.id;
+                                card = PartyRoomCard(
                                   room: item,
                                   isJoined: item.id == myPartyId,
                                   onJoin: () => _joinRoom(item),
                                 );
+                              } else {
+                                final quest = item as QuestCardModel;
+                                id = quest.id;
+                                card = QuestCard(
+                                  quest: quest,
+                                  onAction: () => _onStartQuest(quest),
+                                  onTap: () => _openQuestDetail(quest),
+                                );
                               }
-                              final quest = item as QuestCardModel;
-                              return QuestCard(
-                                quest: quest,
-                                onAction: () => _onStartQuest(quest),
-                                onTap: () => _openQuestDetail(quest),
+                              // key ด้วย id ที่เสถียร ไม่ใช่ index — กัน animation เล่นผิดจังหวะตอนลิสต์
+                              // เรียงลำดับใหม่ (เช่น quest.completedToday เปลี่ยน) หรือลิสต์ยาวขึ้น/สั้นลง
+                              return FadeSlideIn(
+                                key: ValueKey(id),
+                                delay: Duration(milliseconds: 40 * index.clamp(0, 10)),
+                                child: card,
                               );
                             },
                           ),
@@ -320,10 +334,12 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              failed ? Icons.cloud_off : (isPartyFilter ? Icons.groups_outlined : Icons.search_off),
-              size: 48,
-              color: Colors.grey.shade400,
+            BreathingIcon(
+              child: Icon(
+                failed ? Icons.cloud_off : (isPartyFilter ? Icons.groups_outlined : Icons.search_off),
+                size: 48,
+                color: Colors.grey.shade400,
+              ),
             ),
             const SizedBox(height: 12),
             Text(

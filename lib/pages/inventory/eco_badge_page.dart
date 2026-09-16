@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/achievement_provider.dart';
+import '../../widgets/breathing_icon.dart';
 import '../../widgets/inventory_card.dart';
+import '../../widgets/leaf_refresh_indicator.dart';
+import '../../widgets/skeleton_box.dart';
 
 // หน้าดูเหรียญ Achievement ที่ปลดล็อกแล้ว — เข้าจากไอเทม Eco Badge ในหน้า Inventory
 // (แนวเดียวกับที่ไอเทม Fridge เปิดไป FridgePage) ดูอย่างเดียว ไม่มีปุ่มทำอะไรในนี้
@@ -43,11 +46,15 @@ class EcoBadgePage extends StatelessWidget {
             ),
             Expanded(
               child: provider.isLoading && provider.achievements.isEmpty
-                  ? const Center(child: CircularProgressIndicator(color: Colors.green))
+                  ? ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+                      itemCount: 5,
+                      separatorBuilder: (_, _) => const SizedBox(height: 14),
+                      itemBuilder: (_, _) => const InventoryCardSkeleton(),
+                    )
                   : unlocked.isEmpty
-                      ? RefreshIndicator(
+                      ? LeafRefreshIndicator(
                           onRefresh: () => context.read<AchievementProvider>().loadAchievements(),
-                          color: Colors.green,
                           child: ListView(
                             physics: const AlwaysScrollableScrollPhysics(),
                             children: [
@@ -56,9 +63,8 @@ class EcoBadgePage extends StatelessWidget {
                             ],
                           ),
                         )
-                      : RefreshIndicator(
+                      : LeafRefreshIndicator(
                           onRefresh: () => context.read<AchievementProvider>().loadAchievements(),
-                          color: Colors.green,
                           child: ListView.separated(
                             padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
                             itemCount: unlocked.length,
@@ -117,10 +123,12 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              failed ? Icons.cloud_off : Icons.military_tech_outlined,
-              size: 48,
-              color: Colors.grey.shade400,
+            BreathingIcon(
+              child: Icon(
+                failed ? Icons.cloud_off : Icons.military_tech_outlined,
+                size: 48,
+                color: Colors.grey.shade400,
+              ),
             ),
             const SizedBox(height: 12),
             Text(

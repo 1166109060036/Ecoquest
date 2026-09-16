@@ -3,6 +3,10 @@ import 'package:provider/provider.dart';
 import '../../models/notification_model.dart';
 import '../../providers/notification_provider.dart';
 import '../../utils/date_format.dart';
+import '../../widgets/breathing_icon.dart';
+import '../../widgets/leaf_refresh_indicator.dart';
+import '../../widgets/skeleton_box.dart';
+import '../../widgets/staggered_fade_in.dart';
 
 // หน้า Notification — เข้าจากปุ่มกระดิ่งมุมขวาบนของหน้า Profile
 // push ทับ MainShell เลยไม่มี bottom nav ให้เห็น (เหมือนหน้า Settings)
@@ -42,19 +46,28 @@ class _NotificationPageState extends State<NotificationPage> {
             ),
             Expanded(
               child: provider.isLoading && notifications.isEmpty
-                  ? const Center(child: CircularProgressIndicator(color: Colors.green))
+                  ? ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+                      itemCount: 5,
+                      separatorBuilder: (_, _) => const SizedBox(height: 14),
+                      itemBuilder: (_, _) => const InventoryCardSkeleton(),
+                    )
                   : notifications.isEmpty
                       ? _EmptyState(errorMessage: provider.errorMessage)
-                      : RefreshIndicator(
+                      : LeafRefreshIndicator(
                           onRefresh: () => context.read<NotificationProvider>().loadNotifications(),
-                          color: Colors.green,
                           child: ListView.separated(
                             padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
                             physics: const AlwaysScrollableScrollPhysics(),
                             itemCount: notifications.length,
                             separatorBuilder: (_, _) => const SizedBox(height: 14),
                             itemBuilder: (context, index) {
-                              return _NotificationCard(notification: notifications[index]);
+                              final notification = notifications[index];
+                              return FadeSlideIn(
+                                key: ValueKey(notification.id),
+                                delay: Duration(milliseconds: 40 * index.clamp(0, 10)),
+                                child: _NotificationCard(notification: notification),
+                              );
                             },
                           ),
                         ),
@@ -189,10 +202,12 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              failed ? Icons.cloud_off : Icons.notifications_none_rounded,
-              size: 48,
-              color: Colors.grey.shade400,
+            BreathingIcon(
+              child: Icon(
+                failed ? Icons.cloud_off : Icons.notifications_none_rounded,
+                size: 48,
+                color: Colors.grey.shade400,
+              ),
             ),
             const SizedBox(height: 12),
             Text(

@@ -4,8 +4,12 @@ import '../../models/inventory_item_model.dart';
 import '../../providers/achievement_provider.dart';
 import '../../providers/inventory_provider.dart';
 import '../../providers/quest_provider.dart';
+import '../../widgets/breathing_icon.dart';
 import '../../widgets/inventory_card.dart';
+import '../../widgets/leaf_refresh_indicator.dart';
 import '../../widgets/liquid_glass_dialog.dart';
+import '../../widgets/skeleton_box.dart';
+import '../../widgets/staggered_fade_in.dart';
 
 // หน้า Inventory — ไอเทมที่มีอยู่จริงเท่านั้น (Camera, Fridge, Eco Badge, ไอเทม Energy ที่ซื้อไว้)
 // สูงสุด 100 ช่อง (capacity) ตามดีไซน์
@@ -132,11 +136,15 @@ class InventoryPage extends StatelessWidget {
             ),
             Expanded(
               child: inventoryProvider.isLoading && allEntries.isEmpty
-                  ? const Center(child: CircularProgressIndicator(color: Colors.green))
+                  ? ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+                      itemCount: 5,
+                      separatorBuilder: (_, _) => const SizedBox(height: 14),
+                      itemBuilder: (_, _) => const InventoryCardSkeleton(),
+                    )
                   : allEntries.isEmpty
-                      ? RefreshIndicator(
+                      ? LeafRefreshIndicator(
                           onRefresh: () => _onRefresh(context),
-                          color: Colors.green,
                           // ต้อง scrollable เสมอ ไม่งั้นตอนลิสต์ว่างจะดึงลง refresh ไม่ได้
                           child: ListView(
                             physics: const AlwaysScrollableScrollPhysics(),
@@ -146,28 +154,31 @@ class InventoryPage extends StatelessWidget {
                             ],
                           ),
                         )
-                      : RefreshIndicator(
+                      : LeafRefreshIndicator(
                           onRefresh: () => _onRefresh(context),
-                          color: Colors.green,
                           child: ListView.separated(
                             padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
                             itemCount: allEntries.length,
                             separatorBuilder: (_, __) => const SizedBox(height: 14),
                             itemBuilder: (context, index) {
                               final entry = allEntries[index];
-                              return InventoryCard(
-                                icon: entry.icon,
-                                iconColor: entry.iconColor,
-                                imageAsset: entry.imageAsset,
-                                title: entry.title,
-                                description: entry.description,
-                                quantity: entry.quantity,
-                                onTap: entry.onTap,
-                                actionLabel: 'Use',
-                                actionColor: entry.actionColor,
-                                onAction: entry.onUse,
-                                actionBusy: entry.onUse != null &&
-                                    inventoryProvider.busyItemType == entry.itemType,
+                              return FadeSlideIn(
+                                key: ValueKey('${entry.itemType}-${entry.title}'),
+                                delay: Duration(milliseconds: 40 * index.clamp(0, 10)),
+                                child: InventoryCard(
+                                  icon: entry.icon,
+                                  iconColor: entry.iconColor,
+                                  imageAsset: entry.imageAsset,
+                                  title: entry.title,
+                                  description: entry.description,
+                                  quantity: entry.quantity,
+                                  onTap: entry.onTap,
+                                  actionLabel: 'Use',
+                                  actionColor: entry.actionColor,
+                                  onAction: entry.onUse,
+                                  actionBusy: entry.onUse != null &&
+                                      inventoryProvider.busyItemType == entry.itemType,
+                                ),
                               );
                             },
                           ),
@@ -252,10 +263,12 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              failed ? Icons.cloud_off : Icons.inventory_2_outlined,
-              size: 48,
-              color: Colors.grey.shade400,
+            BreathingIcon(
+              child: Icon(
+                failed ? Icons.cloud_off : Icons.inventory_2_outlined,
+                size: 48,
+                color: Colors.grey.shade400,
+              ),
             ),
             const SizedBox(height: 12),
             Text(

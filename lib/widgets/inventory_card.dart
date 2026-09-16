@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'pressable_scale.dart';
+import 'pulse_glow.dart';
 
 // การ์ดแถวเดียวใช้ได้ทั้งไอเทม, achievement medal และของในตู้เย็น
 // thumbnail ซ้าย + ชื่อ/คำอธิบายขวา
@@ -22,6 +24,9 @@ class InventoryCard extends StatelessWidget {
   final VoidCallback? onAction;
   final bool actionBusy; // true = ปุ่มกดไม่ได้ + โชว์ spinner เล็กๆ แทน (กำลังรอ backend ตอบ)
   final Color actionColor;
+  // true ชั่วคราวทันทีหลังซื้อ/ใช้ไอเทมสำเร็จ — เรืองแสงรอบ thumbnail สั้นๆ ให้เห็นชัดว่าการ์ดนี้เพิ่งมีการ
+  // เปลี่ยนแปลง (ดู PulseGlow) ผู้เรียกมีหน้าที่เคลียร์กลับเป็น false เองหลังผ่านไปสักพัก
+  final bool celebrate;
 
   const InventoryCard({
     super.key,
@@ -39,6 +44,7 @@ class InventoryCard extends StatelessWidget {
     this.onAction,
     this.actionBusy = false,
     this.actionColor = Colors.green,
+    this.celebrate = false,
   });
 
   // รูปจริงจะลอยอยู่บนพื้นโปร่งใสพร้อมเงา ส่วน "ไม่มีรูป" ถึงจะใช้กล่องสีอ่อนรอง icon ไว้
@@ -91,7 +97,12 @@ class InventoryCard extends StatelessWidget {
               Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  SizedBox(width: 72, height: 72, child: _buildThumbnail()),
+                  PulseGlow(
+                    active: celebrate,
+                    color: actionColor,
+                    borderRadius: 16,
+                    child: SizedBox(width: 72, height: 72, child: _buildThumbnail()),
+                  ),
                   if (quantity != null)
                     Positioned(
                       left: -6,
@@ -155,23 +166,25 @@ class InventoryCard extends StatelessWidget {
               ),
               if (onAction != null) ...[
                 const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: actionBusy ? null : onAction,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: actionColor,
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor: Colors.grey.shade300,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                PressableScale(
+                  child: ElevatedButton(
+                    onPressed: actionBusy ? null : onAction,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: actionColor,
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: Colors.grey.shade300,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    ),
+                    child: actionBusy
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : Text(actionLabel ?? 'Use', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                   ),
-                  child: actionBusy
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : Text(actionLabel ?? 'Use', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                 ),
               ] else if (onTap != null)
                 Icon(Icons.chevron_right, color: Colors.grey.shade400),

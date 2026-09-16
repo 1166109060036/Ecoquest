@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/party_model.dart';
 import '../utils/date_format.dart';
 import 'quest_card.dart'; // ใช้ DifficultyChip ตัวเดียวกับ QuestCard
+import 'pressable_scale.dart';
 
 // การ์ดห้องปาร์ตี้ที่เปิดให้เข้าร่วมได้ ใช้ในลิสต์ Explore (โทนสว่าง)
 // ตั้งใจให้หน้าตาเหมือน QuestCard เป๊ะๆ เพราะโชว์ปนกันอยู่ในลิสต์เดียวกันตอนเลือก chip "All"
@@ -86,19 +87,21 @@ class PartyRoomCard extends StatelessWidget {
                     const SizedBox(width: 6),
                     Expanded(child: _RoomInfoColumn(room: room)),
                     const SizedBox(width: 8),
-                    ElevatedButton(
-                      onPressed: _actionEnabled ? onJoin : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                        disabledBackgroundColor: Colors.grey.shade300,
-                        disabledForegroundColor: Colors.grey.shade600,
-                        elevation: 0,
-                        minimumSize: const Size(0, 30),
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    PressableScale(
+                      child: ElevatedButton(
+                        onPressed: _actionEnabled ? onJoin : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor: Colors.grey.shade300,
+                          disabledForegroundColor: Colors.grey.shade600,
+                          elevation: 0,
+                          minimumSize: const Size(0, 30),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        ),
+                        child: Text(_actionLabel, style: const TextStyle(fontSize: 12)),
                       ),
-                      child: Text(_actionLabel, style: const TextStyle(fontSize: 12)),
                     ),
                   ],
                 ),

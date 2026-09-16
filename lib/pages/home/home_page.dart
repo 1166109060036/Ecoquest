@@ -10,6 +10,7 @@ import '../../utils/party_actions.dart';
 import '../../utils/quest_completion.dart';
 import '../../widgets/party_room_card.dart';
 import '../../widgets/quest_card.dart';
+import '../../widgets/skeleton_box.dart';
 import '../explore/quest_detail_page.dart';
 import '../inventory/fridge_page.dart';
 import '../profile/profile_page.dart';
@@ -384,7 +385,12 @@ class _ExploreSheetState extends State<_ExploreSheet> {
           const SizedBox(height: 8),
           Expanded(
             child: (questProvider.isLoading || partyProvider.isLoadingRooms) && items.isEmpty
-                ? const Center(child: CircularProgressIndicator(color: Colors.green))
+                ? ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    itemCount: 5,
+                    separatorBuilder: (_, _) => const SizedBox(height: 12),
+                    itemBuilder: (_, _) => const QuestCardSkeleton(),
+                  )
                 : items.isEmpty
                     ? Center(
                         child: Padding(

@@ -167,6 +167,61 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
     เกมจริงอยู่แล้ว (ดูคอมเมนต์บนสุดของไฟล์) ใส่ liquid glass เข้าไปจะขัดกับการตั้งใจนั้น
   - ⚠️ ไม่ได้ใส่ที่ popup ดูรูปเต็มจอใน `camera_page.dart` (`_openPhoto`) เพราะเป็นตัวโชว์รูปเต็มจอ
     ไม่ใช่ popup ยืนยัน/แจ้งเตือนแบบเดียวกัน
+- **ระบบเคลื่อนไหว/เอฟเฟคทั่วแอพ — ✅ ทำครบทั้ง 4 Phase แล้ว** (แผนเต็มอยู่ที่
+  `C:\Users\parto\.claude\plans\wild-knitting-nova.md`) ผู้ใช้เลือกมา 11 อย่างจากเมนูที่เสนอไป
+  - **widget กลางใหม่ใต้ `lib/widgets/`** (Phase 1): `staggered_fade_in.dart` (`FadeSlideIn` — ยกมาจาก
+    `_FadeSlideIn` เดิมใน `fridge_page.dart` เพิ่ม `delay` ให้ใช้กับลิสต์ได้), `pressable_scale.dart`
+    (`PressableScale` — ใช้ `Listener` ไม่ใช่ `GestureDetector` ตั้งใจ กันแย่ง gesture arena กับ
+    `InkWell`/เสียงคลิก), `particle_burst.dart` (`ParticleBurstOverlay`/`showParticleBurst()` — burst
+    อนุภาคแบบ one-shot ทำเองด้วย `CustomPainter` ตามแพทเทิร์นเดียวกับ `falling_leaves_overlay.dart`
+    ไม่ใช้ package `confetti`), `count_up_text.dart` (`CountUpNumber` — ใช้ `formatNumber()` เดิมจาก
+    `profile_sections.dart`), `pulse_glow.dart` (`PulseGlow`), `skeleton_box.dart` (`SkeletonBox` +
+    `InventoryCardSkeleton`/`QuestCardSkeleton`), `leaf_refresh_indicator.dart` (`LeafRefreshIndicator`
+    — ใช้ package `custom_refresh_indicator` ที่เพิ่มใน `pubspec.yaml`, ยังไม่ได้เอาไปแทน `RefreshIndicator`
+    จุดไหนจริง รอ Phase 4), `breathing_icon.dart` (`BreathingIcon`)
+  - **`LiquidGlassDialog` เพิ่ม param `backgroundEffect`** (optional, วาดเป็นชั้นแรกสุดใน Stack หลังไอคอน/
+    ข้อความ แต่ยังโดน `ClipRRect(28)` ตัดขอบเหมือนเดิม) — ใช้ใส่ `ParticleBurstOverlay` ตอนฉลอง
+  - **เอฟเฟคฉลอง (Phase 2)** ทั้งหมดอยู่ใน `handleQuestCompleted()` (`utils/quest_completion.dart`):
+    ยิง `showParticleBurst()` ทุกครั้งที่จบเควส/อีเวนต์ปาร์ตี้ (คู่กับ SnackBar เดิม), เช็คเลเวลอัพโดยเก็บ
+    `levelBefore` **ก่อน** เรียก `authProvider.refreshProfile()` เสมอ (สำคัญ — `refreshProfile()` แทนที่
+    `_profile` ทั้งก้อน อ่านทีหลังจะเจอค่าใหม่ทั้งคู่) ถ้าเลเวลขึ้นจริงเปิด popup ใหม่ `_showLevelUpDialog`
+    (คนละหน้าตากับ popup เหรียญ — สีเขียว/อนุภาคเยอะกว่า) เรียง**เหรียญก่อนเลเวลอัพ**ถ้าเกิดพร้อมกัน —
+    popup เหรียญเดิมก็เพิ่ม `backgroundEffect` (ประกายเบาๆ) และห่อไอคอนถ้วยรางวัลด้วย `_BounceIn`
+    (`Curves.elasticOut`) ให้เด้งเข้ามาแทนโผล่มาเฉยๆ
+  - **ตัวเลข Points/XP นับไล่ขึ้น** — `CountUpNumber` แทน `Text` ธรรมดาใน `UserHeader`/`PointsAndRankCard`
+    (`profile_sections.dart`) นับขึ้นเองอัตโนมัติทุกครั้งที่ provider รีเฟรชค่าใหม่ ไม่ต้อง wiring เพิ่ม
+  - **เอฟเฟคซื้อของสำเร็จ** — `InventoryCard` เพิ่ม param `celebrate: bool` (ห่อ thumbnail ด้วย
+    `PulseGlow`) `ShopPage` แปลงเป็น `StatefulWidget` เก็บ `_celebratingItemType` เคลียร์เองหลัง 600ms;
+    `_UpgradeAbilityCard` ใน `profile_page.dart` ก็แปลงเป็น `StatefulWidget` แบบเดียวกัน (เก็บ
+    `_celebratingUpgradeType`) ห่อไอคอน upgrade ที่เพิ่งซื้อด้วย `PulseGlow`
+  - **การเคลื่อนไหวพื้นฐานทั่วแอพ (Phase 3)** เสร็จแล้ว:
+    - **ลิสต์ไล่โผล่ทีละใบ** — ห่อแต่ละ item ด้วย `FadeSlideIn(key: ValueKey(id เสถียร), delay: 40ms*index)`
+      ที่: ลิสต์เควส/ห้องปาร์ตี้ผสมกันใน `explore_page.dart`, ลิสต์ไอเทมใน `inventory_page.dart`/
+      `shop_page.dart`, ลิสต์แจ้งเตือนใน `notification_page.dart`, แถวสมาชิกปาร์ตี้ใน `party_page.dart`
+      (ทั้ง `_PartyView` และ `_CompletedView`) — ⚠️ ต้อง key ด้วย id จริง (ไม่ใช่ index) เสมอ ไม่งั้น
+      Flutter อาจ reuse state ผิดตัวตอนลิสต์เรียงลำดับใหม่/สั้นลง
+    - **แถบเมนูล่างมีเอฟเฟคสลับแท็บ** — `AppBottomNavBar` (`bottom_nav_bar.dart`) ห่อไอคอนด้วย
+      `AnimatedScale` (ใหญ่ขึ้นเบาๆ ตอน active) และไล่สีไอคอน/ตัวหนังสือด้วย `TweenAnimationBuilder<Color?>`
+      แทนสลับสีวูบเดียว — ⚠️ ใช้ `TweenAnimationBuilder` ไม่ใช่ `AnimatedDefaultTextStyle` กับตัว `Icon`
+      เพราะ `AnimatedDefaultTextStyle` มีผลแค่ widget ที่อ่านค่าจาก `DefaultTextStyle` เท่านั้น (ข้อความ)
+      ไม่มีผลกับสี icon เลย
+    - **ปุ่มยุบตัวตอนกด** — ห่อด้วย `PressableScale` (Phase 1) ที่ปุ่มหลักเกือบทั้งหมด: `_GateButton`/
+      "Back to Parties" ใน `party_page.dart`, `LiquidGlassAction`, ปุ่มซื้อ upgrade ใน `profile_page.dart`,
+      ปุ่ม action ใน `quest_card.dart`/`inventory_card.dart`, ปุ่ม Join ใน `party_room_card.dart`
+  - **ฟีดแบ็กแบบเรียลไทม์/สถานะ (Phase 4)** เสร็จแล้ว:
+    - **ปุ่ม Complete/Start ปาร์ตี้กระพริบตอนพร้อมกด** — `_GateButton` (`party_page.dart`) แปลงจาก
+      `StatelessWidget` เป็น `StatefulWidget` เทียบ `enabled` เก่า/ใหม่ใน `didUpdateWidget` (ทำงานได้
+      เพราะไม่มี Key และถูก rebuild ทุกวินาทีจาก `_ticker` เดิม) ตอน false→true เล่น `PulseGlow` รอบปุ่ม
+    - **หน้า Loading เป็น skeleton แทนวงกลมหมุน** — ที่: `inventory_page.dart`, `shop_page.dart`,
+      `notification_page.dart`, `eco_badge_page.dart` (ใช้ `InventoryCardSkeleton`), explore sheet ใน
+      `home_page.dart` (ใช้ `QuestCardSkeleton`), `party_page.dart` (widget ใหม่ `_PartyLoadingSkeleton`
+      ในไฟล์เดียวกัน — การ์ดอีเวนต์ + แถวสมาชิกคร่าวๆ)
+    - **Pull-to-refresh ใบไม้หมุน** — สลับ `RefreshIndicator` ปกติเป็น `LeafRefreshIndicator` (Phase 1,
+      สร้างบน package `custom_refresh_indicator`) ที่: `profile_page.dart` (`_MaybeRefreshable`),
+      `inventory_page.dart`, `shop_page.dart`, `eco_badge_page.dart`, `notification_page.dart`
+    - **Empty state หายใจเบาๆ** — ห่อไอคอนด้วย `BreathingIcon` ที่: `inventory_page.dart`,
+      `shop_page.dart`, `notification_page.dart`, `eco_badge_page.dart`, `explore_page.dart`,
+      `party_page.dart` (`_NoPartyState`)
 - **หน้า Party** — โชว์รายชื่อปาร์ตี้ (Party Leader บนสุดกดดูโปรไฟล์ได้ + สมาชิก) + ปุ่ม Leave Party
   ถ้ายังไม่มีปาร์ตี้จะเป็น empty state ("You're not in a party yet") + ปุ่มพาไปแท็บ Explore (ข้อมูลยัง mock อยู่ใน `lib/models/party_model.dart`)
 - **Quest system ใช้งานได้จริงแล้ว (end-to-end)** — `GET /api/quests` + `POST /api/quests/:id/complete`
@@ -500,8 +555,18 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
 - รูป Camera ใน Inventory: `lib/utils/assets/items/camera.png`
 - รูป Fridge ใน Inventory: `lib/utils/assets/inventory/fridge.png`
 - รูปแจ้งเตือน: `lib/utils/assets/notifications/trophy.png`, `lib/utils/assets/notifications/fridge_expired.png`
-- 📦 ไฟล์รูปตอนนี้**ใหญ่มาก (~2 MB ต่อไฟล์)** ทั้งที่แสดงจริงแค่ 72×72 px — ถ้าจะลดขนาดแอพ ย่อเหลือ ~216×216 px ได้เลย
-  (เอาไฟล์ที่ย่อแล้วไปทับชื่อเดิม ไม่ต้องแก้โค้ด) ยังไม่ได้ทำ
+- ✅ **ย่อขนาดไฟล์รูปแล้ว** (เอาไฟล์ที่ย่อแล้วทับชื่อเดิม ไม่ได้แก้โค้ด/pubspec.yaml เลย) — ย่อตามจุดที่
+  รูปนั้นแสดงจริงจริงๆ ไม่ได้ย่อเป็น 216×216 ทุกไฟล์แบบเดียวกันหมด เพราะบางไฟล์ (พื้นหลัง/ปกเควส) ใช้ใหญ่กว่านั้นมาก:
+  - `camera.png` / `fridge.png` (Inventory) และ `trophy.png` / `fridge_expired.png` (แจ้งเตือน) — โชว์จริง
+    แค่ 72×72 logical px เท่านั้น → ย่อเหลือ **216×216** (3x ของ 72 พอสำหรับจอความหนาแน่นสูงสุด)
+    ไฟล์ละ ~2MB เหลือแค่ **~25-43KB** (ลดลง ~98%)
+  - รูปปกเควส `lib/utils/assets/questimg/*.png` (checkfridge/finishyourmeal/useleftoveringredients) —
+    ⚠️ **ไม่ได้ย่อเหลือ 216 เหมือนกลุ่มบน** เพราะใช้ 2 ที่: thumbnail 64×64 ในลิสต์เควส **และ**
+    แบนเนอร์เต็มความกว้างจอสูง 260dp ในหน้ารายละเอียดเควส (`quest_detail_page.dart` `_CoverImage`)
+    ย่อ 216 จะเบลอมากตอนโชว์เป็นแบนเนอร์ — ย่อเป็น **900×900** แทน (พอสำหรับ cover แต่ลดขนาดไฟล์ลงได้เกินครึ่ง)
+  - `background.png` — **ไม่ได้ย่อขนาดพิกเซล** (941×1672 เหมาะสมกับพื้นหลังเต็มจอ BoxFit.cover อยู่แล้ว
+    ที่ใช้กันหลายหน้า เช่น Profile/Settings/Party) แค่บีบอัด PNG ใหม่ให้เบาลงเล็กน้อยเท่านั้น
+  - ถ้าจะเพิ่มรูปใหม่ในกลุ่ม 72×72 (ไอเทม/แจ้งเตือน) ในอนาคต ควรย่อเหลือ ~216×216 ตั้งแต่ต้นเช่นกัน
 - **Quantity badge สไตล์ liquid-glass** (ใน `widgets/inventory_card.dart`): 39×16px, สี `#D9D9D9` โปร่งใส 80% (opacity 0.2), มุมโค้ง 20px, drop shadow (Y=4, blur=10, ดำ 50%) — shadow ต้องอยู่คนละ widget layer กับตัวที่ถูก `ClipRRect` ไม่งั้น shadow จะโดนตัดหายไปด้วย
 - **กฎ thumbnail ของ `InventoryCard`** (ตั้งใจให้ต่างกัน 2 แบบ อย่าเผลอรวมเป็นแบบเดียว):
   - **มีรูปจริง** (`imageAsset` / `imageFile`) → พื้นโปร่งใส ไม่มีกล่องสีรอง, `BoxFit.contain`,
@@ -572,3 +637,4 @@ backend พร้อม deploy แล้ว (ทดสอบว่าบูต�
   แยกกันได้ในหน้า Settings (Background Music / Sound Effects คนละสไลเดอร์ เหมือนเกม) — ดูหัวข้อ 5
 4.✅ เอฟเฟคใบไม้ลอยตกในพื้นหลัง — เพิ่มแล้วทุกหน้าที่มีพื้นหลังธีม (`lib/widgets/falling_leaves_overlay.dart`)
   ยังไม่ได้ทำเอฟเฟคอย่างอื่นเพิ่มเติม (เสียงกดปุ่ม, การเคลื่อนไหวจุดอื่นๆ) ถ้าอยากได้เพิ่มบอกได้เลย
+5.ฉันอยากแก้หน้า Party เปลี่ยนเป็น Community โดยจะมีหน้าแยกคือ Friend เพื่อให้คนเพิ่มเพื่อนค้นหาเพื่อนได้ , Party เพื่อแสดงว่าตัวเองอยู่ Party อะไรถ้ายังไม่มีก็จะแสดง Party ที่ว่างและให้คนเข้าร่วมได้อยู่ , Chat จะเป็นหน้าที่คนสามารถพูดคุยได้ เป็น Chatโลก Chatปาร์ตี Chatเพื่อน

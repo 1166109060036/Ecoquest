@@ -9,6 +9,9 @@ import '../../models/profile_model.dart';
 import '../../models/upgrade_model.dart';
 import '../../widgets/profile_sections.dart';
 import '../../widgets/falling_leaves_overlay.dart';
+import '../../widgets/leaf_refresh_indicator.dart';
+import '../../widgets/pressable_scale.dart';
+import '../../widgets/pulse_glow.dart';
 
 class ProfilePage extends StatelessWidget {
   // หน้า Home เอา ProfilePage ตัวนี้ไปใช้เป็นพื้นหลังด้วย ตรงนั้นต้องปิด pull-to-refresh
@@ -269,7 +272,7 @@ class _MaybeRefreshable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!enabled) return child;
-    return RefreshIndicator(onRefresh: onRefresh, color: Colors.green, child: child);
+    return LeafRefreshIndicator(onRefresh: onRefresh, child: child);
   }
 }
 
@@ -365,7 +368,7 @@ class _CircleIconButton extends StatelessWidget {
 // การ์ด Upgrade Your Ability — list ของ upgrade พร้อมปุ่มราคา (ใช้กับตัวเองเท่านั้น
 // เพราะเป็น UI ซื้อของ — โปรไฟล์ของผู้เล่นคนอื่นไม่มีการ์ดนี้) ข้อมูลจริงจาก GET /api/upgrades
 // ---------------------------------------------------------------------------
-class _UpgradeAbilityCard extends StatelessWidget {
+class _UpgradeAbilityCard extends StatefulWidget {
   final List<UpgradeModel> upgrades;
   final bool isBusy;
   final int points; // ยอดแต้มปัจจุบัน — ใช้เช็คว่าซื้อไหวไหม
@@ -379,6 +382,22 @@ class _UpgradeAbilityCard extends StatelessWidget {
   });
 
   @override
+  State<_UpgradeAbilityCard> createState() => _UpgradeAbilityCardState();
+}
+
+class _UpgradeAbilityCardState extends State<_UpgradeAbilityCard> {
+  // upgrade ที่เพิ่งกดซื้อ — เอาไว้ให้ไอคอนนั้นเรืองแสงสั้นๆ (ดู celebrate/PulseGlow ใน _UpgradeRow)
+  String? _celebratingUpgradeType;
+
+  void _handleBuy(UpgradeModel upgrade) {
+    widget.onBuy(upgrade);
+    setState(() => _celebratingUpgradeType = upgrade.upgradeType);
+    Future.delayed(const Duration(milliseconds: 600), () {
+      if (mounted) setState(() => _celebratingUpgradeType = null);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return ProfileGlassCard(
       child: Padding(
@@ -390,22 +409,23 @@ class _UpgradeAbilityCard extends StatelessWidget {
                 style: TextStyle(
                     color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
             const SizedBox(height: 12),
-            if (upgrades.isEmpty)
+            if (widget.upgrades.isEmpty)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 8),
                 child: Text('No upgrades available',
                     style: TextStyle(color: Colors.white54, fontSize: 12)),
               )
             else
-              for (final upgrade in upgrades) ...[
+              for (final upgrade in widget.upgrades) ...[
                 _UpgradeRow(
                   upgrade: upgrade,
                   // แต้มไม่พอ หรือกำลังซื้ออยู่ หรือเต็มระดับแล้ว = กดไม่ได้
-                  isBusy: isBusy,
-                  canAfford: upgrade.nextCost != null && points >= upgrade.nextCost!,
-                  onBuy: () => onBuy(upgrade),
+                  isBusy: widget.isBusy,
+                  canAfford: upgrade.nextCost != null && widget.points >= upgrade.nextCost!,
+                  celebrate: _celebratingUpgradeType == upgrade.upgradeType,
+                  onBuy: () => _handleBuy(upgrade),
                 ),
-                if (upgrade != upgrades.last) const SizedBox(height: 10),
+                if (upgrade != widget.upgrades.last) const SizedBox(height: 10),
               ],
           ],
         ),
@@ -418,12 +438,14 @@ class _UpgradeRow extends StatelessWidget {
   final UpgradeModel upgrade;
   final bool isBusy;
   final bool canAfford;
+  final bool celebrate;
   final VoidCallback onBuy;
 
   const _UpgradeRow({
     required this.upgrade,
     required this.isBusy,
     required this.canAfford,
+    required this.celebrate,
     required this.onBuy,
   });
 
@@ -433,10 +455,15 @@ class _UpgradeRow extends StatelessWidget {
 
     return Row(
       children: [
-        CircleAvatar(
-          radius: 16,
-          backgroundColor: Colors.white.withValues(alpha: 0.12),
-          child: Icon(upgrade.icon, color: upgrade.color, size: 16),
+        PulseGlow(
+          active: celebrate,
+          color: upgrade.color,
+          borderRadius: 20,
+          child: CircleAvatar(
+            radius: 16,
+            backgroundColor: Colors.white.withValues(alpha: 0.12),
+            child: Icon(upgrade.icon, color: upgrade.color, size: 16),
+          ),
         ),
         const SizedBox(width: 10),
         Expanded(
@@ -461,27 +488,29 @@ class _UpgradeRow extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 8),
-        ElevatedButton(
-          onPressed: (isBusy || maxed || !canAfford) ? null : onBuy,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.white.withValues(alpha: 0.15),
-            foregroundColor: Colors.white,
-            disabledBackgroundColor: Colors.white.withValues(alpha: 0.08),
-            disabledForegroundColor: Colors.white38,
-            elevation: 0,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        PressableScale(
+          child: ElevatedButton(
+            onPressed: (isBusy || maxed || !canAfford) ? null : onBuy,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white.withValues(alpha: 0.15),
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: Colors.white.withValues(alpha: 0.08),
+              disabledForegroundColor: Colors.white38,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            ),
+            child: maxed
+                ? const Text('MAX', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700))
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.bolt, size: 13, color: canAfford ? Colors.greenAccent : Colors.white38),
+                      const SizedBox(width: 3),
+                      Text('${upgrade.nextCost} P', style: const TextStyle(fontSize: 11)),
+                    ],
+                  ),
           ),
-          child: maxed
-              ? const Text('MAX', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700))
-              : Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.bolt, size: 13, color: canAfford ? Colors.greenAccent : Colors.white38),
-                    const SizedBox(width: 3),
-                    Text('${upgrade.nextCost} P', style: const TextStyle(fontSize: 11)),
-                  ],
-                ),
         ),
       ],
     );

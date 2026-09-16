@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/quest_card_model.dart';
+import 'pressable_scale.dart';
 
 class QuestCard extends StatelessWidget {
   final QuestCardModel quest;
@@ -143,22 +144,24 @@ class QuestCard extends StatelessWidget {
                             ),
                     ),
                     const SizedBox(width: 8),
-                    ElevatedButton(
-                      // quest รายวันที่ทำไปแล้ววันนี้ -> กดซ้ำไม่ได้จนกว่าจะข้ามวัน
-                      onPressed: _actionEnabled ? onAction : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: style.actionColor,
-                        foregroundColor: Colors.white,
-                        disabledBackgroundColor: Colors.grey.shade300,
-                        disabledForegroundColor: Colors.grey.shade600,
-                        elevation: 0,
-                        minimumSize: const Size(0, 30),
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      ),
-                      child: Text(
-                        _actionLabel(style),
-                        style: const TextStyle(fontSize: 12),
+                    PressableScale(
+                      child: ElevatedButton(
+                        // quest รายวันที่ทำไปแล้ววันนี้ -> กดซ้ำไม่ได้จนกว่าจะข้ามวัน
+                        onPressed: _actionEnabled ? onAction : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: style.actionColor,
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor: Colors.grey.shade300,
+                          disabledForegroundColor: Colors.grey.shade600,
+                          elevation: 0,
+                          minimumSize: const Size(0, 30),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        ),
+                        child: Text(
+                          _actionLabel(style),
+                          style: const TextStyle(fontSize: 12),
+                        ),
                       ),
                     ),
                     ],

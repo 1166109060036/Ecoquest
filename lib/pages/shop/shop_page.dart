@@ -3,14 +3,27 @@ import 'package:provider/provider.dart';
 import '../../models/inventory_item_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/inventory_provider.dart';
+import '../../widgets/breathing_icon.dart';
 import '../../widgets/inventory_card.dart';
+import '../../widgets/leaf_refresh_indicator.dart';
+import '../../widgets/skeleton_box.dart';
+import '../../widgets/staggered_fade_in.dart';
 
 // หน้า Item Shop — เข้าจากปุ่มร้านค้าข้างปุ่มกระดิ่งมุมขวาบนของหน้า Profile
 // push ทับ MainShell เลยไม่มี bottom nav ให้เห็น (เหมือนหน้า Notification/Settings)
 // หน้าตาอิงตามหน้า Inventory ทั้งหมด (พื้นหลัง/หัวข้อ/การ์ด) ต่างกันแค่ปุ่มขวาเป็น "ซื้อ" แทน "ใช้"
 // ข้อมูลไอเทม+ราคาจริงจาก GET /api/inventory ตัวเดียวกับหน้า Inventory (คนละ view ของข้อมูลชุดเดียวกัน)
-class ShopPage extends StatelessWidget {
+class ShopPage extends StatefulWidget {
   const ShopPage({super.key});
+
+  @override
+  State<ShopPage> createState() => _ShopPageState();
+}
+
+class _ShopPageState extends State<ShopPage> {
+  // ไอเทมที่เพิ่งซื้อสำเร็จ — เอาไว้ให้การ์ดนั้นเรืองแสงสั้นๆ (ดู celebrate ใน InventoryCard)
+  // เคลียร์กลับเป็น null เองหลังผ่านไปสักพัก ไม่ต้องรอ user ทำอะไรต่อ
+  String? _celebratingItemType;
 
   Future<void> _onRefresh(BuildContext context) => Future.wait([
         context.read<InventoryProvider>().loadInventory(),
@@ -35,6 +48,11 @@ class ShopPage extends StatelessWidget {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('${item.title} purchased')),
     );
+
+    setState(() => _celebratingItemType = item.itemType);
+    Future.delayed(const Duration(milliseconds: 600), () {
+      if (mounted) setState(() => _celebratingItemType = null);
+    });
   }
 
   @override
@@ -69,11 +87,15 @@ class ShopPage extends StatelessWidget {
             ),
             Expanded(
               child: inventoryProvider.isLoading && shopItems.isEmpty
-                  ? const Center(child: CircularProgressIndicator(color: Colors.green))
+                  ? ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+                      itemCount: 5,
+                      separatorBuilder: (_, _) => const SizedBox(height: 14),
+                      itemBuilder: (_, _) => const InventoryCardSkeleton(),
+                    )
                   : shopItems.isEmpty
-                      ? RefreshIndicator(
+                      ? LeafRefreshIndicator(
                           onRefresh: () => _onRefresh(context),
-                          color: Colors.green,
                           child: ListView(
                             physics: const AlwaysScrollableScrollPhysics(),
                             children: [
@@ -82,9 +104,8 @@ class ShopPage extends StatelessWidget {
                             ],
                           ),
                         )
-                      : RefreshIndicator(
+                      : LeafRefreshIndicator(
                           onRefresh: () => _onRefresh(context),
-                          color: Colors.green,
                           child: ListView.separated(
                             padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
                             itemCount: shopItems.length,
@@ -92,20 +113,25 @@ class ShopPage extends StatelessWidget {
                             itemBuilder: (context, index) {
                               final item = shopItems[index];
                               final canAfford = points >= (item.cost ?? 0);
-                              return InventoryCard(
-                                icon: item.icon,
-                                iconColor: item.accentColor,
-                                // ยังไม่มีไฟล์รูปจริงของไอเทม Energy — วางไฟล์ตามชื่อที่
-                                // InventoryItemModel.imageAsset คาดไว้ได้เลย การ์ดจะเปลี่ยนมาโชว์รูปแทน
-                                // icon เองอัตโนมัติ (ไม่มีไฟล์ก็ fallback กลับมาเป็น icon เหมือนเดิม)
-                                imageAsset: item.imageAsset,
-                                title: item.title,
-                                description: item.description,
-                                quantity: item.quantity > 0 ? item.quantity : null,
-                                actionLabel: 'Buy · ${item.cost} P',
-                                actionColor: item.accentColor,
-                                onAction: canAfford ? () => _buyItem(context, item) : null,
-                                actionBusy: inventoryProvider.busyItemType == item.itemType,
+                              return FadeSlideIn(
+                                key: ValueKey(item.itemType),
+                                delay: Duration(milliseconds: 40 * index.clamp(0, 10)),
+                                child: InventoryCard(
+                                  icon: item.icon,
+                                  iconColor: item.accentColor,
+                                  // ยังไม่มีไฟล์รูปจริงของไอเทม Energy — วางไฟล์ตามชื่อที่
+                                  // InventoryItemModel.imageAsset คาดไว้ได้เลย การ์ดจะเปลี่ยนมาโชว์รูปแทน
+                                  // icon เองอัตโนมัติ (ไม่มีไฟล์ก็ fallback กลับมาเป็น icon เหมือนเดิม)
+                                  imageAsset: item.imageAsset,
+                                  title: item.title,
+                                  description: item.description,
+                                  quantity: item.quantity > 0 ? item.quantity : null,
+                                  actionLabel: 'Buy · ${item.cost} P',
+                                  actionColor: item.accentColor,
+                                  onAction: canAfford ? () => _buyItem(context, item) : null,
+                                  actionBusy: inventoryProvider.busyItemType == item.itemType,
+                                  celebrate: _celebratingItemType == item.itemType,
+                                ),
                               );
                             },
                           ),
@@ -153,10 +179,12 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              failed ? Icons.cloud_off : Icons.storefront_outlined,
-              size: 48,
-              color: Colors.grey.shade400,
+            BreathingIcon(
+              child: Icon(
+                failed ? Icons.cloud_off : Icons.storefront_outlined,
+                size: 48,
+                color: Colors.grey.shade400,
+              ),
             ),
             const SizedBox(height: 12),
             Text(

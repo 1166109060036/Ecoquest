@@ -6,9 +6,14 @@ import '../../providers/party_provider.dart';
 import '../../providers/quest_provider.dart';
 import '../../utils/date_format.dart';
 import '../../utils/quest_completion.dart';
+import '../../widgets/breathing_icon.dart';
 import '../../widgets/profile_sections.dart';
 import '../../widgets/falling_leaves_overlay.dart';
 import '../../widgets/liquid_glass_dialog.dart';
+import '../../widgets/pressable_scale.dart';
+import '../../widgets/pulse_glow.dart';
+import '../../widgets/skeleton_box.dart';
+import '../../widgets/staggered_fade_in.dart';
 import '../profile/player_profile_page.dart';
 
 // หน้า Party — โชว์แค่ "ห้องของฉัน" เท่านั้น (ไม่มีลิสต์ห้องให้เลือกเข้าร่วมแล้ว
@@ -209,7 +214,7 @@ class _PartyPageState extends State<PartyPage> {
                     const SizedBox(height: 20),
                     Expanded(
                       child: partyProvider.isLoading && party == null
-                          ? const Center(child: CircularProgressIndicator(color: Colors.white70))
+                          ? const _PartyLoadingSkeleton()
                           : party == null
                               ? _NoPartyState(
                                   errorMessage: partyProvider.errorMessage,
@@ -260,10 +265,12 @@ class _NoPartyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              failed ? Icons.cloud_off : Icons.groups_outlined,
-              size: 56,
-              color: Colors.white.withValues(alpha: 0.6),
+            BreathingIcon(
+              child: Icon(
+                failed ? Icons.cloud_off : Icons.groups_outlined,
+                size: 56,
+                color: Colors.white.withValues(alpha: 0.6),
+              ),
             ),
             const SizedBox(height: 16),
             Text(
@@ -336,24 +343,31 @@ class _PartyView extends StatelessWidget {
                   child: Column(
                     children: [
                       if (leader != null) ...[
-                        _MemberRow(
-                          member: leader,
-                          roleLabel: 'Party Leader',
-                          showArrow: true,
-                          onTap: () => onTapMember(leader),
+                        FadeSlideIn(
+                          key: ValueKey(leader.userId),
+                          child: _MemberRow(
+                            member: leader,
+                            roleLabel: 'Party Leader',
+                            showArrow: true,
+                            onTap: () => onTapMember(leader),
+                          ),
                         ),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Divider(color: Colors.white.withValues(alpha: 0.15), height: 1),
                         ),
                       ],
-                      for (final member in party.others)
-                        _MemberRow(
-                          member: member,
-                          roleLabel: 'Party Member',
-                          // ทุกแถวกดได้เหมือนกัน ไม่ใช่แค่แถวหัวหน้า
-                          showArrow: true,
-                          onTap: () => onTapMember(member),
+                      for (final entry in party.others.asMap().entries)
+                        FadeSlideIn(
+                          key: ValueKey(entry.value.userId),
+                          delay: Duration(milliseconds: 40 * entry.key.clamp(0, 10)),
+                          child: _MemberRow(
+                            member: entry.value,
+                            roleLabel: 'Party Member',
+                            // ทุกแถวกดได้เหมือนกัน ไม่ใช่แค่แถวหัวหน้า
+                            showArrow: true,
+                            onTap: () => onTapMember(entry.value),
+                          ),
                         ),
                     ],
                   ),
@@ -437,7 +451,11 @@ class _PartyActionArea extends StatelessWidget {
   }
 }
 
-class _GateButton extends StatelessWidget {
+// ⚠️ ต้องเป็น StatefulWidget (ไม่ใช่ StatelessWidget เหมือนเดิม) เพื่อให้ didUpdateWidget เทียบ
+// enabled เก่า/ใหม่ได้ — ปุ่มนี้ไม่มี Key และถูก rebuild ใหม่ทุกวินาทีจาก Timer.periodic ของหน้าแม่
+// (ผ่าน _PartyActionArea) ซึ่ง Flutter จะ reuse State เดิมตัวเดียวกันไปเรื่อยๆ (ตำแหน่งเดิมใน widget
+// tree ไม่มี Key เปลี่ยน) ทำให้ didUpdateWidget เรียกได้ถูกต้องทุกครั้งที่ enabled พลิกค่า
+class _GateButton extends StatefulWidget {
   final String label;
   final bool enabled;
   final bool isBusy;
@@ -451,21 +469,41 @@ class _GateButton extends StatelessWidget {
   });
 
   @override
+  State<_GateButton> createState() => _GateButtonState();
+}
+
+class _GateButtonState extends State<_GateButton> {
+  bool _justBecameReady = false;
+
+  @override
+  void didUpdateWidget(covariant _GateButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!oldWidget.enabled && widget.enabled) setState(() => _justBecameReady = true);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: (enabled && !isBusy) ? onPressed : null,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.green,
-          foregroundColor: Colors.white,
-          disabledBackgroundColor: Colors.white.withValues(alpha: 0.12),
-          disabledForegroundColor: Colors.white60,
-          elevation: 0,
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+    return PulseGlow(
+      active: _justBecameReady,
+      color: Colors.greenAccent,
+      borderRadius: 28,
+      child: PressableScale(
+        child: SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: (widget.enabled && !widget.isBusy) ? widget.onPressed : null,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: Colors.white.withValues(alpha: 0.12),
+              disabledForegroundColor: Colors.white60,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+            ),
+            child: Text(widget.label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+          ),
         ),
-        child: Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
       ),
     );
   }
@@ -566,12 +604,18 @@ class _CompletedView extends StatelessWidget {
                 _GlassCard(
                   child: Column(
                     children: [
-                      for (final member in [if (party.leader != null) party.leader!, ...party.others])
-                        _MemberRow(
-                          member: member,
-                          roleLabel: member.isLeader ? 'Party Leader' : 'Party Member',
-                          showArrow: true,
-                          onTap: () => onTapMember(member),
+                      for (final entry in [if (party.leader != null) party.leader!, ...party.others]
+                          .asMap()
+                          .entries)
+                        FadeSlideIn(
+                          key: ValueKey(entry.value.userId),
+                          delay: Duration(milliseconds: 40 * entry.key.clamp(0, 10)),
+                          child: _MemberRow(
+                            member: entry.value,
+                            roleLabel: entry.value.isLeader ? 'Party Leader' : 'Party Member',
+                            showArrow: true,
+                            onTap: () => onTapMember(entry.value),
+                          ),
                         ),
                     ],
                   ),
@@ -583,16 +627,18 @@ class _CompletedView extends StatelessWidget {
         const SizedBox(height: 16),
         SizedBox(
           width: double.infinity,
-          child: ElevatedButton(
-            onPressed: onDismiss,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+          child: PressableScale(
+            child: ElevatedButton(
+              onPressed: onDismiss,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+              ),
+              child: const Text('Back to Parties', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
             ),
-            child: const Text('Back to Parties', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
           ),
         ),
       ],
@@ -796,6 +842,29 @@ class _GlassCard extends StatelessWidget {
   }
 }
 
+
+// โครงหน้าตาคร่าวๆ ตอนกำลังโหลดข้อมูลปาร์ตี้ครั้งแรก — การ์ดอีเวนต์ + แถวสมาชิกคร่าวๆ
+// แทนวงกลมหมุนเฉยๆ (SkeletonBox/InventoryCardSkeleton ตัวเดียวกับที่ใช้ในหน้า Inventory/Shop)
+class _PartyLoadingSkeleton extends StatelessWidget {
+  const _PartyLoadingSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SingleChildScrollView(
+      physics: NeverScrollableScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SkeletonBox(height: 140, borderRadius: 20),
+          SizedBox(height: 14),
+          InventoryCardSkeleton(),
+          SizedBox(height: 14),
+          InventoryCardSkeleton(),
+        ],
+      ),
+    );
+  }
+}
 
 // ---------------------------------------------------------------------------
 // แถบบนสุด: ปุ่มย้อนกลับ (ไป Home) + หัวข้อ "PARTY"

@@ -42,15 +42,28 @@ class AppBottomNavBar extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(item.icon, color: color, size: 24),
+                    AnimatedScale(
+                      scale: isActive ? 1.15 : 1.0,
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeOutBack,
+                      // Icon ไม่ใช่ Text เลยใช้ AnimatedDefaultTextStyle ไล่สีให้ไม่ได้ (มันมีผลแค่กับ
+                      // widget ที่อ่านค่าจาก DefaultTextStyle เท่านั้น) ต้องไล่สีด้วย TweenAnimationBuilder
+                      // ตรงๆ แทน — มันจำค่าสีล่าสุดเป็นจุดเริ่มของทุกครั้งที่ color เปลี่ยนให้อัตโนมัติ
+                      child: TweenAnimationBuilder<Color?>(
+                        tween: ColorTween(end: color),
+                        duration: const Duration(milliseconds: 200),
+                        builder: (context, animatedColor, _) => Icon(item.icon, color: animatedColor, size: 24),
+                      ),
+                    ),
                     const SizedBox(height: 2),
-                    Text(
-                      item.label,
+                    AnimatedDefaultTextStyle(
+                      duration: const Duration(milliseconds: 200),
                       style: TextStyle(
                         color: color,
                         fontSize: 11,
                         fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
                       ),
+                      child: Text(item.label),
                     ),
                   ],
                 ),

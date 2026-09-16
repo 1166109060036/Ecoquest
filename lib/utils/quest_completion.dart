@@ -7,6 +7,7 @@ import '../providers/achievement_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/notification_provider.dart';
 import '../widgets/liquid_glass_dialog.dart';
+import '../widgets/particle_burst.dart';
 
 // สิ่งที่ต้องทำ "หลังทำ quest สำเร็จ" — เหมือนกันทั้ง 4 ที่ที่ทำ quest ได้
 // (หน้า Explore, แผ่น Explore ในหน้า Home, หน้า Fridge, และหัวหน้าห้องกดจบอีเวนต์ปาร์ตี้)
@@ -16,9 +17,15 @@ Future<void> handleQuestCompleted(BuildContext context, QuestReward reward) asyn
   final achievementProvider = context.read<AchievementProvider>();
   final notificationProvider = context.read<NotificationProvider>();
 
+  // ⚠️ ต้องอ่าน level ปัจจุบันไว้ "ก่อน" เรียก refreshProfile() เท่านั้น เพราะ refreshProfile()
+  // แทนที่ _profile ทั้งก้อนด้วยของใหม่ — ถ้าอ่านหลัง await จะเจอค่าใหม่ทั้งคู่ เทียบแล้วไม่มีทางเห็นว่า
+  // เลเวลอัพจริงๆ
+  final levelBefore = authProvider.profile?.progress.level ?? 1;
+
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(content: Text('Quest complete! +${reward.points} points, +${reward.xp} XP')),
   );
+  showParticleBurst(context, color: Colors.amber);
 
   await Future.wait([
     // points/XP เปลี่ยนแล้ว ต้องโหลดโปรไฟล์ใหม่ให้หน้า Profile/Home โชว์เลขล่าสุด
@@ -29,17 +36,32 @@ Future<void> handleQuestCompleted(BuildContext context, QuestReward reward) asyn
     notificationProvider.loadNotifications(),
   ]);
 
-  if (!context.mounted || reward.newAchievements.isEmpty) return;
+  if (!context.mounted) return;
 
-  HapticFeedback.mediumImpact();
-  await _showMedalDialog(context, reward.newAchievements);
+  // เหรียญก่อน แล้วค่อยเลเวลอัพ ถ้าเกิดพร้อมกันทั้งคู่ (เช่น ทำเควสยากได้คะแนนเยอะจนเลเวลขึ้นพอดี)
+  if (reward.newAchievements.isNotEmpty) {
+    HapticFeedback.mediumImpact();
+    await _showMedalDialog(context, reward.newAchievements);
+    if (!context.mounted) return;
+  }
+
+  final levelAfter = authProvider.profile?.progress.level ?? levelBefore;
+  if (levelAfter > levelBefore) {
+    HapticFeedback.heavyImpact();
+    await _showLevelUpDialog(context, levelAfter);
+  }
 }
 
 // เด้งแสดงความยินดีตอนได้เหรียญใหม่ — รองรับกรณีได้หลายเหรียญพร้อมกันด้วย
 Future<void> _showMedalDialog(BuildContext context, List<UnlockedMedal> medals) {
   return LiquidGlassDialog.show<void>(
     context: context,
-    icon: const Icon(Icons.emoji_events, color: Colors.amber, size: 32),
+    icon: const _BounceIn(child: Icon(Icons.emoji_events, color: Colors.amber, size: 32)),
+    backgroundEffect: const ParticleBurstOverlay(
+      color: Colors.amber,
+      particleCount: 14,
+      duration: Duration(milliseconds: 700),
+    ),
     title: medals.length > 1 ? 'New medals!' : 'New medal!',
     content: Column(
       mainAxisSize: MainAxisSize.min,
@@ -86,4 +108,44 @@ Future<void> _showMedalDialog(BuildContext context, List<UnlockedMedal> medals) 
       LiquidGlassAction(label: 'Nice', color: Colors.green, onPressed: () => Navigator.pop(context)),
     ],
   );
+}
+
+// เด้งฉลองตอนเลเวลอัพ — คนละหน้าตากับ popup เหรียญ (อนุภาคเยอะกว่า/สีเขียวแทนสีทอง) ให้รู้สึกแยกกันชัดเจน
+Future<void> _showLevelUpDialog(BuildContext context, int newLevel) {
+  return LiquidGlassDialog.show<void>(
+    context: context,
+    icon: const _BounceIn(child: Icon(Icons.military_tech, color: Colors.greenAccent, size: 40)),
+    backgroundEffect: const ParticleBurstOverlay(
+      color: Colors.greenAccent,
+      particleCount: 26,
+      duration: Duration(milliseconds: 1000),
+    ),
+    title: 'Level Up!',
+    content: Text(
+      "You've reached Level $newLevel",
+      textAlign: TextAlign.center,
+      style: LiquidGlassDialog.messageStyle,
+    ),
+    actions: [
+      LiquidGlassAction(label: 'Awesome', color: Colors.green, onPressed: () => Navigator.pop(context)),
+    ],
+  );
+}
+
+// เด้งเข้ามาแบบยืดหยุ่น (elasticOut) ใช้กับไอคอนใน dialog ฉลอง — ตอน t เกิน 1 ชั่วครู่ (จังหวะเด้งเกินเป้า
+// ของ elasticOut) ไม่ scale ติดลบ/เกินจริงจนดูแปลก เพราะ Transform.scale รับค่าได้ตรงๆ อยู่แล้ว
+class _BounceIn extends StatelessWidget {
+  final Widget child;
+  const _BounceIn({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 500),
+      curve: Curves.elasticOut,
+      builder: (context, t, child) => Transform.scale(scale: t, child: child),
+      child: child,
+    );
+  }
 }

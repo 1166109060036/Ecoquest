@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import '../models/profile_model.dart';
 import '../models/quest_history_model.dart';
 import '../utils/constants.dart';
+import 'count_up_text.dart';
 
 // ---------------------------------------------------------------------------
 // พื้นหลัง — ใส่รูปเองได้ทีหลังผ่าน AppConstants.profileBgAsset
@@ -119,9 +120,15 @@ class UserHeader extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 4),
-              Text(
-                '$xp / $xpToNext XP',
-                style: const TextStyle(color: Colors.white54, fontSize: 11),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CountUpNumber(
+                    value: xp,
+                    style: const TextStyle(color: Colors.white54, fontSize: 11),
+                  ),
+                  Text(' / $xpToNext XP', style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                ],
               ),
             ],
           ),
@@ -223,23 +230,17 @@ class PointsAndRankCard extends StatelessWidget {
                   children: [
                     Text(pointsLabel, style: const TextStyle(color: Colors.white70, fontSize: 13)),
                     const SizedBox(height: 6),
-                    Text.rich(
-                      TextSpan(
-                        children: [
-                          TextSpan(
-                            text: formatNumber(points),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 26,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const TextSpan(
-                            text: ' P',
-                            style: TextStyle(color: Colors.white70, fontSize: 16),
-                          ),
-                        ],
-                      ),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CountUpNumber(
+                          value: points,
+                          style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
+                        ),
+                        const Text(' P', style: TextStyle(color: Colors.white70, fontSize: 16)),
+                      ],
                     ),
                   ],
                 ),

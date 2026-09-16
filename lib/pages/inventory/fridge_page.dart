@@ -11,6 +11,7 @@ import '../../providers/quest_provider.dart';
 import '../../services/app_photo_storage.dart';
 import '../../widgets/inventory_card.dart';
 import '../../widgets/liquid_glass_dialog.dart';
+import '../../widgets/staggered_fade_in.dart';
 
 // หน้าดูของในตู้เย็น + บันทึกของใหม่ — เข้าได้ 2 ทาง:
 //   1) กดไอเทม Fridge ในหน้า Inventory -> ดูของอย่างเดียว ไม่มีปุ่ม Add Item/Remove
@@ -204,7 +205,7 @@ class _FridgePageState extends State<FridgePage> {
                               const _SectionLabel('Not saved yet'),
                               const SizedBox(height: 8),
                               for (int i = 0; i < drafts.length; i++) ...[
-                                _FadeSlideIn(
+                                FadeSlideIn(
                                   // key ผูกกับชื่อ+ลำดับ เพื่อให้ animate เฉพาะใบที่เพิ่งเพิ่มจริงๆ
                                   key: ValueKey('draft-$i-${drafts[i].name}'),
                                   child: _DraftCard(
@@ -660,26 +661,6 @@ class _QuickDateChip extends StatelessWidget {
         ),
         child: Text(label, style: const TextStyle(fontSize: 12)),
       ),
-    );
-  }
-}
-
-// ค่อยๆ เลื่อนขึ้น + จางเข้า ตอนการ์ดใบใหม่โผล่มา ให้ไม่กระตุกตาเวลาเพิ่มของ
-class _FadeSlideIn extends StatelessWidget {
-  final Widget child;
-  const _FadeSlideIn({super.key, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 260),
-      curve: Curves.easeOutCubic,
-      builder: (context, t, child) => Opacity(
-        opacity: t,
-        child: Transform.translate(offset: Offset(0, 12 * (1 - t)), child: child),
-      ),
-      child: child,
     );
   }
 }
