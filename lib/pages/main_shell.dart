@@ -10,7 +10,7 @@ import '../widgets/bottom_nav_bar.dart';
 import 'home/home_page.dart';
 import 'inventory/inventory_page.dart';
 import 'explore/explore_page.dart';
-import 'party/party_page.dart';
+import 'community/community_page.dart';
 import 'profile/profile_page.dart';
 
 // Shell กลางที่ถือ bottom nav ไว้ตัวเดียว แล้วสลับเนื้อหาข้างในด้วย IndexedStack
@@ -49,14 +49,14 @@ class _MainShellState extends State<MainShell> {
 
   void _navigateToTab(int index) => setState(() => _currentIndex = index);
 
-  // ลำดับต้องตรงกับลำดับปุ่มใน AppBottomNavBar (Home, Inventory, Explore, Party, Profile)
-  // HomePage/ExplorePage/PartyPage ต้อง build ใหม่ทุกครั้ง (ไม่ใช่ static const) เพราะต้องส่ง
-  // callback _navigateToTab เข้าไปให้ใช้สลับ tab (ลากสุดขอบ / สร้าง-เข้าร่วมห้องแล้วพาไปแท็บ Party)
+  // ลำดับต้องตรงกับลำดับปุ่มใน AppBottomNavBar (Home, Inventory, Explore, Community, Profile)
+  // HomePage/ExplorePage/CommunityPage ต้อง build ใหม่ทุกครั้ง (ไม่ใช่ static const) เพราะต้องส่ง
+  // callback _navigateToTab เข้าไปให้ใช้สลับ tab (ลากสุดขอบ / สร้าง-เข้าร่วมห้องแล้วพาไปแท็บ Community)
   List<Widget> get _pages => [
         HomePage(onNavigateToTab: _navigateToTab),
         InventoryPage(onNavigateToTab: _navigateToTab),
         ExplorePage(onNavigateToTab: _navigateToTab),
-        PartyPage(onNavigateToTab: _navigateToTab),
+        CommunityPage(onNavigateToTab: _navigateToTab),
         const ProfilePage(),
       ];
 

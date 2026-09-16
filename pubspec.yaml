@@ -46,6 +46,7 @@ dependencies:
   # เล่นเสียงพื้นหลัง/เสียงกดปุ่ม — ดู lib/services/sound_service.dart
   audioplayers: ^6.1.0
   custom_refresh_indicator: ^4.0.2
+  socket_io_client: 3.1.6
 
 
 dev_dependencies:

@@ -13,6 +13,7 @@ const { withEnergyBoosts } = require('../utils/inventory');
 const { startOfToday } = require('../utils/questDay');
 const { avatarUrlFor } = require('../utils/avatar');
 const { requiredMembers, canStart, canComplete } = require('../utils/partyGate');
+const { syncPartyRoomForUser } = require('../sockets');
 
 const router = express.Router();
 
@@ -214,6 +215,8 @@ router.post('/', authMiddleware, async (req, res) => {
       userId: req.userId,
       isLeader: true,
     });
+    // ให้ session ที่เปิดค้างอยู่ (ถ้ามี) join ห้องแชทปาร์ตี้ทันที ไม่ต้องรอ reconnect
+    syncPartyRoomForUser(req.userId, party._id, 'join');
 
     const populated = await Party.findById(party._id).populate('questId');
     res.status(201).json({
@@ -319,6 +322,7 @@ router.post('/join/:partyId', authMiddleware, async (req, res) => {
       }
       throw err;
     }
+    syncPartyRoomForUser(req.userId, party._id, 'join');
 
     res.status(201).json({
       message: 'Joined the party',
@@ -343,6 +347,7 @@ router.post('/leave', authMiddleware, async (req, res) => {
 
     const { partyId, isLeader } = membership;
     await PartyMember.deleteOne({ _id: membership._id });
+    syncPartyRoomForUser(req.userId, partyId, 'leave');
 
     const remaining = await PartyMember.findOne({ partyId }).sort({ joinedAt: 1 });
 

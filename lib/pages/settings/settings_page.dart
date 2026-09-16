@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/chat_provider.dart';
 import '../../services/sound_service.dart';
 import '../../utils/constants.dart';
 import '../../widgets/falling_leaves_overlay.dart';
@@ -108,6 +109,9 @@ class SettingsPage extends StatelessWidget {
 
     if (confirmed != true || !context.mounted) return;
 
+    // ตัด WebSocket ของแชทก่อน logout เสมอ — กัน session ใหม่ (login คนละบัญชี) แอบได้รับ
+    // event แชทของบัญชีเก่าที่ยังต่อค้างอยู่
+    context.read<ChatProvider>().disconnect();
     final authProvider = context.read<AuthProvider>();
     await authProvider.logout();
     if (!context.mounted) return;

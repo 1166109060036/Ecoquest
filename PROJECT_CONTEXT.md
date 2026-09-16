@@ -637,4 +637,129 @@ backend พร้อม deploy แล้ว (ทดสอบว่าบูต�
   แยกกันได้ในหน้า Settings (Background Music / Sound Effects คนละสไลเดอร์ เหมือนเกม) — ดูหัวข้อ 5
 4.✅ เอฟเฟคใบไม้ลอยตกในพื้นหลัง — เพิ่มแล้วทุกหน้าที่มีพื้นหลังธีม (`lib/widgets/falling_leaves_overlay.dart`)
   ยังไม่ได้ทำเอฟเฟคอย่างอื่นเพิ่มเติม (เสียงกดปุ่ม, การเคลื่อนไหวจุดอื่นๆ) ถ้าอยากได้เพิ่มบอกได้เลย
-5.ฉันอยากแก้หน้า Party เปลี่ยนเป็น Community โดยจะมีหน้าแยกคือ Friend เพื่อให้คนเพิ่มเพื่อนค้นหาเพื่อนได้ , Party เพื่อแสดงว่าตัวเองอยู่ Party อะไรถ้ายังไม่มีก็จะแสดง Party ที่ว่างและให้คนเข้าร่วมได้อยู่ , Chat จะเป็นหน้าที่คนสามารถพูดคุยได้ เป็น Chatโลก Chatปาร์ตี Chatเพื่อน
+5.✅ **ทำครบทั้ง 8 Phase แล้ว (Phase 0-7) — แผนเต็มที่ `C:\Users\parto\.claude\plans\wild-knitting-nova.md`** เดิม: "ฉันอยากแก้หน้า
+  Party เปลี่ยนเป็น Community โดยจะมีหน้าแยกคือ Friend เพื่อให้คนเพิ่มเพื่อนค้นหาเพื่อนได้ , Party เพื่อ
+  แสดงว่าตัวเองอยู่ Party อะไรถ้ายังไม่มีก็จะแสดง Party ที่ว่างและให้คนเข้าร่วมได้อยู่ , Chat จะเป็นหน้า
+  ที่คนสามารถพูดคุยได้ เป็น Chatโลก Chatปาร์ตี Chatเพื่อน" — ตัดสินใจแล้ว: Chat = real-time ผ่าน
+  WebSocket (ไม่ใช่ poll แม้ backend อยู่ Render free tier ที่ sleep ~15 นาที), 3 ส่วนย่อยเป็น
+  **`TabBar`** (⚠️ ตัวแรกในโปรเจคนี้ ไม่เคยมีมาก่อน), ค้นหาเพื่อนด้วย `displayName` เดิม (ไม่เพิ่ม
+  username ใหม่) แบ่งทำ 8 Phase (0-7) — **Phase 0 (แยก verifyToken.js) + Phase 1 (ย้าย Party มาเป็น
+  แท็บย่อยใน Community + เปลี่ยนชื่อ bottom nav) เสร็จแล้ว**:
+  - `lib/pages/party/party_page.dart` → ย้ายเป็น `lib/pages/community/party_tab.dart` (คลาส `PartyPage`
+    → `PartyTab`) ตัด `Scaffold`/พื้นหลัง/`_TopBar` ("PARTY" title + ปุ่มย้อนกลับ Home) ออก — logic/UI
+    ภายในเหมือนเดิมทุกอย่าง (`_PartyView`/`_CompletedView`/`_NoPartyState`/`_GateButton` ฯลฯ)
+  - `lib/pages/community/community_page.dart` (ใหม่) — `CommunityPage` มี `TabController` 3 แท็บ
+    (Friend/Party/Chat) พื้นหลังธีม (รูป Profile + gradient + ใบไม้ลอยตก) ย้ายมาไว้ที่นี่ที่เดียว
+    ให้ทั้ง 3 แท็บย่อยได้ธีมเดียวกันฟรี — `FriendTab`/`ChatTab` ตอนนี้เป็นแค่ placeholder "coming soon"
+    รอ Phase 3/5
+  - `lib/widgets/bottom_nav_bar.dart` — index 3 เปลี่ยนจาก `Icons.groups_rounded`/'Party' เป็น
+    `Icons.diversity_3_rounded`/'Community' (ไม่ใช้ไอคอนเดียวกับแท็บย่อย Party ข้างในกันดูซ้ำ)
+  - ✅ **เปลี่ยนธีมหน้า Community เป็นพื้นสว่างแบบ Explore/Inventory แล้ว** (`Colors.grey.shade50`) —
+    เดิมใช้ธีมเข้ม (รูป Profile + gradient + ใบไม้ลอยตก) มาก่อน ตัดออกทั้งหมดจาก `community_page.dart`
+    เพราะเปลี่ยนพื้นหลังอย่างเดียวจะทำให้การ์ด/ตัวหนังสือสีขาวในแท็บ Party อ่านไม่ออก เลยรีสไตล์
+    `party_tab.dart` ทั้งไฟล์ไปด้วย (การ์ดกระจกดำ → การ์ดขาวมีเงา แบบ `InventoryCard`/`QuestCard`,
+    ตัวหนังสือ white/white70/white60 → black87/grey.shade600/grey.shade700, reward chip
+    amberAccent/greenAccent/lightBlueAccent → amber.shade800/green.shade700/blue.shade700 เพราะสี accent
+    จางเกินไปตัดกับพื้นขาวไม่พอ) `FriendTab`/`ChatTab` placeholder ก็ปรับสีให้เข้ากันแล้ว
+  - ✅ **Phase 2 (Backend ระบบเพื่อน) เสร็จแล้ว** — ยังไม่มีหน้า UI ให้กด (รอ Phase 3):
+    - `backend/models/Friendship.js` (ใหม่) — เอกสารเดียวต่อคู่เพื่อน 1 คู่ (ไม่ใช่ log คำขอ)
+      `requesterId`/`recipientId`/`pairKey`(unique index — กันขอซ้ำ/ขอสวนกันพร้อมกัน)/
+      `status`(`pending`|`accepted`)/`respondedAt` — ปฏิเสธ/ยกเลิก = deleteOne ทิ้งเลย ไม่เก็บ log
+      (แนวเดียวกับที่ `/party/leave` ลบ `PartyMember` ทิ้งตรงๆ)
+    - `backend/utils/friendKey.js` (ใหม่) — `pairKey(idA, idB)` ใช้ร่วมกันทั้ง `Friendship.pairKey`
+      และจะใช้กับ `ChatMessage.channelId` ของแชทเพื่อนใน Phase 4/7 ด้วย (implementation เดียว)
+    - `backend/routes/friends.js` (ใหม่ mount ที่ `/api/friends`): `GET /search?q=` (ค้นหาด้วย
+      `displayName` แบบ regex ไม่สนตัวพิมพ์ ตัดตัวเองออก escape ตัวอักษรพิเศษของ regex ก่อนเสมอ กัน
+      query พัง/ช้าผิดปกติ — แนบสถานะความสัมพันธ์ `none`/`pending_outgoing`/`pending_incoming`/`friends`
+      ต่อผลลัพธ์แต่ละคน), `POST /requests` (ส่งคำขอ — ชน unique index (err 11000) เพราะมีคำขอย้อนกลับ
+      รออยู่ก่อน → **auto-accept แทน error** กันเคส 2 คนกดขอกันพร้อมกันพอดี), `GET /requests?direction=`,
+      `POST /requests/:id/accept` (atomic CAS แบบเดียวกับ `party.js`'s `/start`/`/complete`),
+      `POST /requests/:id/reject`/`cancel` (deleteOne), `GET /` (ลิสต์เพื่อน), `DELETE /:friendUserId`
+    - เพิ่ม `'friend_request'`/`'friend_accepted'` เข้า enum `type` ของ `backend/models/Notification.js`
+      + `notifyFriendRequest`/`notifyFriendAccepted` ใน `backend/utils/notifications.js` (รูปแบบเดียวกับ
+      `notifyQuestCompleted` เดิม) เรียกจาก `friends.js` ตอนส่งคำขอ/ตอบรับ (รวม auto-accept)
+    - mount ที่ `backend/server.js` แล้ว (`app.use('/api/friends', friendRoutes)`)
+    - ⚠️ **ยังไม่ได้ทดสอบผ่าน HTTP จริงแบบ end-to-end** — ตอนลงมือทำ MongoDB Atlas connect ไม่ติดจาก
+      เครื่อง dev (ปัญหา IP whitelist ที่เจอมาก่อนแล้วในโปรเจคนี้ ดูหัวข้อ 6) ทำได้แค่ `node --check`
+      ทุกไฟล์ + boot server จริงเช็คว่าไม่ crash + ยืนยันว่า `authMiddleware` reject request ไม่มี token
+      ถูกต้อง (401) ส่วน logic ที่พึ่ง DB (ค้นหา/ส่งคำขอ/accept ฯลฯ) ตรวจสอบด้วยการอ่านโค้ดทวนซ้ำเทียบกับ
+      pattern ที่พิสูจน์แล้วใน `party.js` เท่านั้น — **ควรทดสอบผ่าน Postman/curl จริงอีกทีตอน deploy**
+  - ✅ **Phase 3 (Frontend หน้า Friend) เสร็จแล้ว** — เห็นผลจริงในแอพแล้ว:
+    - `lib/models/friend_model.dart` (ใหม่) — `FriendModel`, `FriendSearchResultModel` (มี
+      `FriendRelationship` enum: none/pendingOutgoing/pendingIncoming/friends), `FriendRequestModel`
+    - `lib/services/friend_service.dart` + `lib/providers/friend_provider.dart` (ใหม่) — รูปแบบ HTTP/
+      state เดียวกับ `party_service.dart`/`party_provider.dart` เป๊ะๆ
+    - `lib/pages/community/friend_tab.dart` แทนที่ placeholder เดิม — ช่องค้นหา (debounce 400ms กัน
+      ยิง API รัวทุกตัวอักษร) สลับ 2 โหมดตามว่ามีคำค้นหาหรือไม่: **โหมดค้นหา** โชว์ผลลัพธ์ + ปุ่ม
+      Add/Pending/Friends ตาม relationship, **โหมดปกติ** โชว์คำขอเข้า (Accept/Reject) → คำขอออก
+      (Cancel) → ลิสต์เพื่อน (ลบเพื่อนผ่าน `LiquidGlassDialog` confirm) กดแถวไหนก็เปิด
+      `PlayerProfilePage` ได้เหมือนแถวสมาชิกปาร์ตี้
+    - เพิ่ม `FriendProvider` ใน `lib/main.dart`'s `MultiProvider` แล้ว
+    - ⚠️ **ยังไม่ได้ทดสอบ end-to-end จริง** เหตุผลเดียวกับ Phase 2 (MongoDB Atlas connect จากเครื่อง dev
+      ไม่ติด + backend/friends.js ยังไม่ได้ deploy ขึ้น Render) ตรวจสอบได้แค่ `flutter analyze` +
+      `flutter build apk --debug` ผ่าน — **ต้องทดสอบจริงอีกทีหลัง deploy backend ขึ้น Render แล้ว**
+  - ✅ **Phase 4 (Backend WebSocket + World Chat) เสร็จแล้ว**:
+    - `backend/models/ChatMessage.js` (ใหม่) — คอลเลกชันเดียวแยกด้วย `channelType`
+      (`world`|`party`|`friend`) เหมือน `Notification.js` แยกด้วย `type` — ส่งข้อความทำได้ทาง
+      socket เท่านั้น (`chat:send`) REST มีไว้แค่ดึงประวัติ (ทางเขียนทางเดียว ไม่ต้องกังวล sync)
+    - `backend/server.js` refactor — เปลี่ยนจาก `app.listen(...)` เป็น `http.createServer(app)` +
+      แนบ `socket.io` (`new Server(server, {cors:{origin:'*'}})`) เข้าไป แล้ว `initSocket(io)`
+    - `backend/sockets/index.js` (ใหม่) — auth ตอน handshake ผ่าน `verifyToken()` (Phase 0) ทาง
+      `socket.handshake.auth.token`, เก็บ `Map<userId, Set<socketId>>` ใน memory (`getSocketsForUser`
+      export ไว้ให้ Phase 6 ใช้) — ⚠️ ใช้ได้เพราะ Render free tier รันอินสแตนซ์เดียว, ทุก socket
+      join ห้อง `'world'` อัตโนมัติ, `chat:send` รองรับแค่ `channelType: 'world'` ใน Phase นี้
+    - `backend/routes/chat.js` (ใหม่ mount ที่ `/api/chat`) — `GET /world/messages?before=&limit=`
+    - **⚠️ เวอร์ชัน `socket.io` สำคัญมาก**: README ของ package `socket_io_client` (Dart) ระบุตาราง
+      compatibility เอาไว้ชัดเจน — client `v3.*` (ที่ติดตั้งฝั่ง Flutter) ต้องใช้ server **`v4.7.*~v4.*`**
+      เท่านั้น (ไม่ใช่ `v4.6.*` ตามที่ pub.dev's หน้าเว็บสรุปไว้ผิด ตอนแรกติดตั้ง `4.6.2` ไปตามหน้าเว็บ
+      ก่อนเจอ README จริงในแพ็กเกจแล้วแก้เป็น `4.8.3` — ต้องอ่าน README ที่ติดมากับตัวแพ็กเกจจริง
+      อย่าเชื่อสรุปจากหน้าเว็บอย่างเดียว) ปัจจุบัน backend ใช้ `socket.io@4.8.3` (exact pin ไม่ใช่ `^`)
+      ซึ่งบังเอิญแก้ CVE เรื่อง `ws`/`engine.io` (DoS) ไปด้วยในตัว (`npm audit` ลดจาก 8 เหลือ 4 ช่อง
+      ที่เหลือเป็นของ `nodemailer`/`qs`/`express` เดิมที่ไม่เกี่ยวกับ socket.io เลย)
+    - ✅ **ทดสอบจริงแล้วบางส่วน** (ต่างจาก Phase 2-3 ที่ทดสอบ HTTP จริงไม่ได้เลย): boot server local
+      แล้วต่อด้วย `socket.io-client` (npm, ใช้ทดสอบเฉยๆ ไม่ได้ติดตั้งจริงในโปรเจค) ยืนยันว่า WebSocket
+      handshake + JWT auth ผ่านจริง, `chat:send` validate แล้วพยายามเขียน DB จริง (fail ตาม
+      คาดเพราะ MongoDB Atlas connect จากเครื่อง dev ไม่ติด — error ถูก catch ส่ง ack กลับมาถูกต้อง
+      ไม่ทำ server crash) — **ยังไม่เคยทดสอบกับ Dart client จริงและยังไม่เคยเห็นข้อความ persist ลง DB
+      จริงเพราะ Atlas connect ไม่ติด** ต้องทดสอบอีกทีหลัง deploy ขึ้น Render
+  - ✅ **Phase 5 (Frontend โครง Chat + World Chat) เสร็จแล้ว** — เห็นผลจริงในแอพแล้ว (แท็บ Chat ไม่ใช่
+    placeholder แล้ว):
+    - เพิ่ม `socket_io_client: 3.1.6` ใน `pubspec.yaml` (ตรงกับเวอร์ชัน server ที่ปรับแล้วด้านบน)
+    - `lib/models/chat_message_model.dart`, `lib/services/chat_service.dart` (REST ดึงประวัติ),
+      `lib/services/chat_socket_service.dart` (ห่อ `IO.Socket` — ใช้ `enableForceNew()` ตอน connect
+      กัน package cache Manager เก่าข้ามบัญชี, ใช้ `dispose()` ไม่ใช่ `disconnect()`/`close()` ตามที่
+      README เตือนเรื่อง memory leak บน iOS), `lib/providers/chat_provider.dart` (enum
+      `ChatConnectionStatus`, เก็บข้อความเป็น map คีย์ด้วย message id กันซ้ำตอน reconnect)
+    - `lib/pages/community/chat_tab.dart` แทนที่ placeholder — เปิดใช้ได้แค่ chip "World" (Party/
+      Friend chip โชว์ไว้แต่ disabled รอ Phase 6/7), banner "Connecting.../Reconnecting..." แบบไม่
+      บล็อก UI ตอนเชื่อมต่อ, เชื่อมต่อ socket แบบ lazy ตอนเปิดแท็บ Chat ครั้งแรกเท่านั้น (ไม่ใช่ตอน
+      `main_shell.dart` เปิดแอพ)
+    - เพิ่มเรียก `context.read<ChatProvider>().disconnect()` ใน `settings_page.dart`'s
+      `_confirmLogout` **ก่อน** `authProvider.logout()` เสมอ กัน session ใหม่ (login คนละบัญชี)
+      แอบได้รับ event แชทของบัญชีเก่าที่ยังต่อ socket ค้างอยู่
+    - เพิ่ม `ChatProvider` ใน `lib/main.dart`'s `MultiProvider` แล้ว
+  - ✅ **Phase 6 (Chat ปาร์ตี้) + Phase 7 (Chat เพื่อน/DM) เสร็จแล้ว** — ครบทุก Phase ของแผนนี้:
+    - `backend/sockets/index.js` — ตอน socket connect เช็ค `PartyMember` ของ `socket.userId` ทันที
+      ถ้าอยู่ปาร์ตี้อยู่แล้ว join ห้อง `party:<id>` ให้เลย (รองรับ reconnect หลัง backend sleep)
+      `chat:send` เพิ่ม 2 branch: `party` (หา partyId จาก membership จริงเสมอ ไม่เชื่อ client),
+      `friend` (เช็ค `Friendship` accepted จริงก่อนด้วย `pairKey()` แล้วส่งตรงไปที่ socket ของทั้ง
+      สองฝ่ายทุก session/อุปกรณ์ที่เปิดอยู่ — ไม่มี "ห้อง" ตายตัวสำหรับ DM)
+    - เพิ่ม `syncPartyRoomForUser(userId, partyId, action)` ใน `sockets/index.js` (export ใหม่) —
+      `backend/routes/party.js` เรียกใช้ตอน `POST /` (create), `POST /join/:partyId`, `POST /leave`
+      ให้ session ที่เปิดค้างอยู่ join/leave ห้องแชทปาร์ตี้แบบสดทันที ไม่ต้องรอ reconnect ใหม่
+      (⚠️ ตัดขอบเขตจากแผนเดิมเล็กน้อย: ไม่ hook เข้า `/start`/`/complete` เพราะ 2 route นั้นไม่ได้
+      เปลี่ยน `PartyMember` — ไม่มี room membership ให้ sync)
+    - `backend/routes/chat.js` เพิ่ม `GET /party/messages` (หา partyId จาก membership เอง) และ
+      `GET /friend/:friendUserId/messages` (เช็ค Friendship accepted ก่อนเสมอ)
+    - Frontend: `chat_service.dart` เพิ่ม `fetchPartyHistory()`/`fetchFriendHistory(friendUserId)`,
+      `chat_provider.dart` เก็บข้อความแยกคีย์ต่อ channel (`'world'`/`'party'`/`'friend:<userId>'` —
+      แชทเพื่อนต้องแยกคีย์ต่อคนคุย เพราะคุยได้หลายคน) เพิ่ม `sendPartyMessage`/`sendFriendMessage`/
+      `loadPartyHistory`/`loadFriendHistory`
+    - `lib/pages/community/chat_tab.dart` — เปิดใช้ครบทั้ง 3 chip แล้ว: Party enable เฉพาะตอน
+      `PartyProvider.hasParty`, Friend enable เฉพาะตอนมีเพื่อนอย่างน้อย 1 คน (กดแล้วเปิด bottom
+      sheet เลือกว่าจะคุยกับเพื่อนคนไหน) — ออกจากปาร์ตี้ระหว่างอยู่แท็บ Party chat จะเด้งกลับ World
+      เองอัตโนมัติ
+    - ✅ ทดสอบ boot server + WebSocket handshake ผ่าน socket client จริงอีกรอบ ยืนยันว่า `chat:send`
+      channelType `party` ทำงานตามลอจิก (query DB แล้ว fail อย่างสุภาพเพราะ Atlas connect ไม่ติด
+      เหมือนทุก Phase ก่อนหน้า ไม่ crash) — **ยังไม่เคยทดสอบกับ Dart client จริงและยังไม่เคยเห็น
+      ข้อความ persist ลง DB จริงเลยทั้งโปรเจค Chat** ต้องทดสอบเต็มรูปแบบอีกทีหลัง deploy ขึ้น Render

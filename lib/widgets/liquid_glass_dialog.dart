@@ -5,7 +5,7 @@ import 'pressable_scale.dart';
 // Dialog ทรง "Liquid Glass" แบบ macOS — กระจกฝ้าโปร่งแสงที่เบลอทุกอย่างข้างหลังตัวมันเองจริงๆ
 // (BackdropFilter) ไม่ใช่แค่พื้นหลังสีขาวโปร่งแสงเฉยๆ ขอบมีเส้นไฮไลท์บางๆ พาดด้านบนจำลองแสงสะท้อนบนผิวกระจก
 // ใช้แทน AlertDialog ธรรมดาทุกจุดในแอพที่เป็น popup ยืนยัน/แจ้งเตือน ให้หน้าตาเหมือนกันทั้งแอพ
-// (ดูตัวอย่างการใช้งานใน fridge_page.dart, settings_page.dart, party_page.dart, inventory_page.dart,
+// (ดูตัวอย่างการใช้งานใน fridge_page.dart, settings_page.dart, community/party_tab.dart, inventory_page.dart,
 // camera_page.dart, utils/quest_completion.dart)
 class LiquidGlassDialog extends StatelessWidget {
   final Widget? icon;

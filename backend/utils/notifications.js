@@ -52,6 +52,29 @@ const notifyAchievementUnlocked = async (userId, medal) => {
   });
 };
 
+// มีคนส่งคำขอเพื่อนมา — dedupeKey อิง friendshipId (เอกสารเดียวต่อคู่เพื่อน 1 คู่ ดู
+// models/Friendship.js) กันแจ้งเตือนซ้ำถ้ามีคนกดขอซ้ำๆ ตอนคำขอเดิมยัง pending อยู่
+const notifyFriendRequest = async (recipientId, fromUser, friendshipId) => {
+  await createNotification({
+    userId: recipientId,
+    type: 'friend_request',
+    title: 'New Friend Request',
+    message: `${fromUser.displayName} sent you a friend request`,
+    dedupeKey: `friend_request:${friendshipId}`,
+  });
+};
+
+// คำขอเพื่อนที่เราส่งไปถูกตอบรับแล้ว — แจ้งฝั่ง requester (recipient เป็นคนกด accept เอง ไม่ต้องแจ้งตัวเอง)
+const notifyFriendAccepted = async (requesterId, byUser, friendshipId) => {
+  await createNotification({
+    userId: requesterId,
+    type: 'friend_accepted',
+    title: 'Friend Request Accepted',
+    message: `${byUser.displayName} accepted your friend request`,
+    dedupeKey: `friend_accepted:${friendshipId}`,
+  });
+};
+
 // ของในตู้เย็นที่เหลือไม่เกิน 24 ชม. หรือหมดอายุไปแล้ว — สร้างตอนอ่าน (lazy) เพราะ backend ไม่มี
 // scheduler/cron และ Render free tier หลับเมื่อไม่มีคนใช้ เลยพึ่ง cron จริงไม่ได้
 // bucket 'soon'/'expired' แยกกัน เลยได้แจ้งเตือนคนละใบตอนของเลยกำหนดจากที่เคยเตือนไว้ก่อนหน้า
@@ -110,6 +133,8 @@ module.exports = {
   createNotification,
   notifyQuestCompleted,
   notifyAchievementUnlocked,
+  notifyFriendRequest,
+  notifyFriendAccepted,
   ensureExpiryNotifications,
   getNotifications,
   markAllRead,

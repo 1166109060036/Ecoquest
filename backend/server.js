@@ -1,5 +1,7 @@
 require('dotenv').config();
 const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
 const cors = require('cors');
 const connectDB = require('./config/db');
 const { seedQuests } = require('./scripts/seedQuests');
@@ -13,10 +15,20 @@ const partyRoutes = require('./routes/party');
 const userRoutes = require('./routes/users');
 const inventoryRoutes = require('./routes/inventory');
 const notificationRoutes = require('./routes/notifications');
+const friendRoutes = require('./routes/friends');
+const chatRoutes = require('./routes/chat');
 const upgradeRoutes = require('./routes/upgrades');
 const adminRoutes = require('./routes/admin');
+const { initSocket } = require('./sockets');
 
 const app = express();
+// ต้องมี http.createServer(app) แยกออกมาจาก app เอง เพื่อให้ socket.io attach ตัวเองเข้ากับ
+// HTTP server ตัวเดียวกันได้ (แต่ก่อนใช้ app.listen(...) ตรงๆ ซึ่งไม่มี handle ให้ socket.io เกาะ)
+const server = http.createServer(app);
+// cors: origin: '*' ให้ตรงกับ app.use(cors()) ของ REST ด้านล่าง (permissive เหมือนกัน ไม่ได้เข้มกว่า/
+// หลวมกว่ากัน)
+const io = new Server(server, { cors: { origin: '*' } });
+initSocket(io);
 
 // seed quest ตอน boot — upsert อิง title เลยรันซ้ำได้ ไม่สร้างของซ้ำ
 // มีไว้เพราะบางเน็ต (เช่น wifi มหาลัย) ต่อ Atlas จากเครื่อง dev ไม่ได้ เลยรัน
@@ -67,6 +79,8 @@ app.use('/api/party', partyRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/friends', friendRoutes);
+app.use('/api/chat', chatRoutes);
 app.use('/api/upgrades', upgradeRoutes);
 // dev/QA เท่านั้น — เข้าได้เฉพาะอีเมลใน ADMIN_EMAILS (ดู middleware/admin.js), ปิดโดย default ถ้าไม่ตั้งค่า
 app.use('/api/admin', adminRoutes);
@@ -76,4 +90,4 @@ app.get('/', (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+server.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

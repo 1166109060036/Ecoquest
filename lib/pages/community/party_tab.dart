@@ -7,8 +7,6 @@ import '../../providers/quest_provider.dart';
 import '../../utils/date_format.dart';
 import '../../utils/quest_completion.dart';
 import '../../widgets/breathing_icon.dart';
-import '../../widgets/profile_sections.dart';
-import '../../widgets/falling_leaves_overlay.dart';
 import '../../widgets/liquid_glass_dialog.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/pulse_glow.dart';
@@ -16,26 +14,28 @@ import '../../widgets/skeleton_box.dart';
 import '../../widgets/staggered_fade_in.dart';
 import '../profile/player_profile_page.dart';
 
-// หน้า Party — โชว์แค่ "ห้องของฉัน" เท่านั้น (ไม่มีลิสต์ห้องให้เลือกเข้าร่วมแล้ว
+// แท็บย่อย "Party" ของหน้า Community — โชว์แค่ "ห้องของฉัน" เท่านั้น (ไม่มีลิสต์ห้องให้เลือกเข้าร่วมแล้ว
 // ย้ายไปอยู่หน้า Explore ตอนเลือก chip "Party" แทน ดู explore_page.dart + party_room_card.dart)
 // มี 2 สถานะ:
 //  1) ยังไม่อยู่ห้องไหน -> _NoPartyState (พาไปหน้า Explore เพื่อหา/สร้างห้อง)
 //  2) อยู่ในห้อง -> _PartyView (ยัง open) หรือ _CompletedView (หัวหน้ากดจบแล้ว)
 //
 // ข้อมูลจริงจาก GET /api/party
-class PartyPage extends StatefulWidget {
-  // MainShell ส่ง callback นี้เข้ามาเพื่อสลับ tab ของ bottom nav (ปุ่มย้อนกลับ / ไป Explore)
+// ⚠️ เดิมเคยเป็นหน้าเต็มจอของตัวเอง (PartyPage) มี Scaffold/พื้นหลัง/_TopBar เป็นของตัวเอง —
+// ย้ายมาเป็นแท็บย่อยใน CommunityPage แล้ว widget นี้เลยคืนแค่เนื้อหา (body-only) ไม่มี Scaffold/
+// พื้นหลังของตัวเองอีกต่อไป (CommunityPage เป็นคนจัดพื้นหลังธีมให้ทั้ง 3 แท็บย่อยแทน)
+class PartyTab extends StatefulWidget {
+  // MainShell/Explore ส่ง callback นี้ต่อกันมาเพื่อสลับ tab ของ bottom nav (เช่น ไป Explore/Profile)
   final ValueChanged<int>? onNavigateToTab;
 
-  const PartyPage({super.key, this.onNavigateToTab});
+  const PartyTab({super.key, this.onNavigateToTab});
 
   @override
-  State<PartyPage> createState() => _PartyPageState();
+  State<PartyTab> createState() => _PartyTabState();
 }
 
-class _PartyPageState extends State<PartyPage> {
-  // ลำดับ index ต้องตรงกับ AppBottomNavBar (Home=0, Inventory=1, Explore=2, Party=3, Profile=4)
-  static const int _homeTabIndex = 0;
+class _PartyTabState extends State<PartyTab> {
+  // ลำดับ index ต้องตรงกับ AppBottomNavBar (Home=0, Inventory=1, Explore=2, Community=3, Profile=4)
   static const int _exploreTabIndex = 2;
   static const int _profileTabIndex = 4;
 
@@ -183,67 +183,28 @@ class _PartyPageState extends State<PartyPage> {
     final partyProvider = context.watch<PartyProvider>();
     final party = partyProvider.party;
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          // ---- พื้นหลัง: ใช้รูปเดียวกับหน้า Profile ให้ธีมไปด้วยกัน ----
-          const Positioned.fill(child: ProfileBackground()),
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.black.withValues(alpha: 0.53),
-                    Colors.black.withValues(alpha: 0.33),
-                    Colors.black.withValues(alpha: 0.63),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          const Positioned.fill(child: FallingLeavesOverlay()),
-          Positioned.fill(
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
-                child: Column(
-                  children: [
-                    _TopBar(onBack: () => widget.onNavigateToTab?.call(_homeTabIndex)),
-                    const SizedBox(height: 20),
-                    Expanded(
-                      child: partyProvider.isLoading && party == null
-                          ? const _PartyLoadingSkeleton()
-                          : party == null
-                              ? _NoPartyState(
-                                  errorMessage: partyProvider.errorMessage,
-                                  onBrowse: () => widget.onNavigateToTab?.call(_exploreTabIndex),
-                                )
-                              : party.isCompleted
-                                  ? _CompletedView(
-                                      party: party,
-                                      onTapMember: _viewMemberProfile,
-                                      onDismiss: _leaveParty,
-                                    )
-                                  : _PartyView(
-                                      party: party,
-                                      isBusy: partyProvider.isBusy,
-                                      now: DateTime.now(),
-                                      onTapMember: _viewMemberProfile,
-                                      onLeave: _confirmLeaveParty,
-                                      onStart: _startEvent,
-                                      onComplete: _confirmCompleteEvent,
-                                    ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+    return partyProvider.isLoading && party == null
+        ? const _PartyLoadingSkeleton()
+        : party == null
+            ? _NoPartyState(
+                errorMessage: partyProvider.errorMessage,
+                onBrowse: () => widget.onNavigateToTab?.call(_exploreTabIndex),
+              )
+            : party.isCompleted
+                ? _CompletedView(
+                    party: party,
+                    onTapMember: _viewMemberProfile,
+                    onDismiss: _leaveParty,
+                  )
+                : _PartyView(
+                    party: party,
+                    isBusy: partyProvider.isBusy,
+                    now: DateTime.now(),
+                    onTapMember: _viewMemberProfile,
+                    onLeave: _confirmLeaveParty,
+                    onStart: _startEvent,
+                    onComplete: _confirmCompleteEvent,
+                  );
   }
 }
 
@@ -269,20 +230,20 @@ class _NoPartyState extends StatelessWidget {
               child: Icon(
                 failed ? Icons.cloud_off : Icons.groups_outlined,
                 size: 56,
-                color: Colors.white.withValues(alpha: 0.6),
+                color: Colors.grey.shade400,
               ),
             ),
             const SizedBox(height: 16),
             Text(
               failed ? errorMessage! : "You're not in a party yet",
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+              style: const TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 6),
             Text(
               failed ? 'Pull down to try again' : 'Browse open parties in the Explore tab',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13),
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
             ),
             const SizedBox(height: 20),
             ElevatedButton(
@@ -354,7 +315,7 @@ class _PartyView extends StatelessWidget {
                         ),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Divider(color: Colors.white.withValues(alpha: 0.15), height: 1),
+                          child: Divider(color: Colors.grey.shade200, height: 1),
                         ),
                       ],
                       for (final entry in party.others.asMap().entries)
@@ -495,8 +456,8 @@ class _GateButtonState extends State<_GateButton> {
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green,
               foregroundColor: Colors.white,
-              disabledBackgroundColor: Colors.white.withValues(alpha: 0.12),
-              disabledForegroundColor: Colors.white60,
+              disabledBackgroundColor: Colors.grey.shade300,
+              disabledForegroundColor: Colors.grey.shade600,
               elevation: 0,
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
@@ -519,20 +480,20 @@ class _WaitingPill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 12),
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
+        color: Colors.grey.shade100,
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+        border: Border.all(color: Colors.grey.shade300),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.hourglass_top, color: Colors.white70, size: 16),
+          Icon(Icons.hourglass_top, color: Colors.grey.shade600, size: 16),
           const SizedBox(width: 8),
           Flexible(
             child: Text(
               text,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600),
+              style: TextStyle(color: Colors.grey.shade700, fontSize: 13, fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -571,29 +532,29 @@ class _CompletedView extends StatelessWidget {
                   ),
                   child: Column(
                     children: [
-                      const Icon(Icons.emoji_events, color: Colors.amberAccent, size: 40),
+                      const Icon(Icons.emoji_events, color: Colors.amber, size: 40),
                       const SizedBox(height: 10),
                       const Text(
                         'Event completed!',
-                        style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                        style: TextStyle(color: Colors.black87, fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         party.name,
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 13),
+                        style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
                       ),
                       const SizedBox(height: 14),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          _RewardChip(label: '+${quest.scorePoints} P', color: Colors.amberAccent),
+                          _RewardChip(label: '+${quest.scorePoints} P', color: Colors.amber.shade800),
                           const SizedBox(width: 8),
-                          _RewardChip(label: '+${quest.xpReward} XP', color: Colors.greenAccent),
+                          _RewardChip(label: '+${quest.xpReward} XP', color: Colors.green.shade700),
                           const SizedBox(width: 8),
                           _RewardChip(
                             label: '${quest.co2SavedKg.toStringAsFixed(1)} kg CO₂',
-                            color: Colors.lightBlueAccent,
+                            color: Colors.blue.shade700,
                           ),
                         ],
                       ),
@@ -659,16 +620,13 @@ class _EventCard extends StatelessWidget {
     final quest = party.quest;
     final asset = quest.coverImageAsset;
 
-    // การ์ดนี้เป็น "รายละเอียดเควส" ต้องอ่านง่ายเป็นหลัก เลยใช้พื้นหลังทึบแทน
-    // การ์ดกระจกโปร่งใสแบบ _GlassCard ที่เหลือในหน้านี้ (ตัวนั้นลอยทับรูปพื้นหลัง
-    // ก็เลยทำให้ตัวหนังสือยาวๆ แบบ quest.detail อ่านยากถ้าพื้นหลังเป็นรูปสว่าง)
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF16261F),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 12, offset: const Offset(0, 4)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 12, offset: const Offset(0, 4)),
         ],
       ),
       clipBehavior: Clip.antiAlias,
@@ -686,7 +644,7 @@ class _EventCard extends StatelessWidget {
                     asset,
                     fit: BoxFit.cover,
                     // ใส่ชื่อไฟล์ผิด/ไฟล์หาย -> โชว์ placeholder แทน ไม่ให้หน้าพัง
-                    errorBuilder: (_, __, ___) => _CoverImagePlaceholder(category: quest.category),
+                    errorBuilder: (_, _, _) => _CoverImagePlaceholder(category: quest.category),
                   ),
           ),
           Padding(
@@ -696,12 +654,12 @@ class _EventCard extends StatelessWidget {
               children: [
                 Text(
                   party.name,
-                  style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold),
+                  style: const TextStyle(color: Colors.black87, fontSize: 17, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   quest.title,
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12.5),
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12.5),
                 ),
                 const SizedBox(height: 10),
                 _InfoLine(
@@ -719,20 +677,20 @@ class _EventCard extends StatelessWidget {
                   const SizedBox(height: 12),
                   Text(
                     quest.detail,
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 12, height: 1.5),
+                    style: TextStyle(color: Colors.grey.shade700, fontSize: 12, height: 1.5),
                   ),
                 ],
                 const SizedBox(height: 14),
                 // ---- รางวัลที่จะได้ ----
                 Row(
                   children: [
-                    _RewardChip(label: '+${quest.scorePoints} P', color: Colors.amberAccent),
+                    _RewardChip(label: '+${quest.scorePoints} P', color: Colors.amber.shade800),
                     const SizedBox(width: 8),
-                    _RewardChip(label: '+${quest.xpReward} XP', color: Colors.greenAccent),
+                    _RewardChip(label: '+${quest.xpReward} XP', color: Colors.green.shade700),
                     const SizedBox(width: 8),
                     _RewardChip(
                       label: '${quest.co2SavedKg.toStringAsFixed(1)} kg CO₂',
-                      color: Colors.lightBlueAccent,
+                      color: Colors.blue.shade700,
                     ),
                   ],
                 ),
@@ -770,15 +728,9 @@ class _CoverImagePlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Colors.green.shade900, const Color(0xFF16261F)],
-        ),
-      ),
+      color: Colors.green.withValues(alpha: 0.08),
       alignment: Alignment.center,
-      child: Icon(_icon, size: 40, color: Colors.white.withValues(alpha: 0.35)),
+      child: Icon(_icon, size: 40, color: Colors.green.withValues(alpha: 0.4)),
     );
   }
 }
@@ -793,10 +745,10 @@ class _InfoLine extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 15, color: Colors.white54),
+        Icon(icon, size: 15, color: Colors.grey.shade600),
         const SizedBox(width: 8),
         Expanded(
-          child: Text(text, style: const TextStyle(color: Colors.white70, fontSize: 12.5)),
+          child: Text(text, style: TextStyle(color: Colors.grey.shade700, fontSize: 12.5)),
         ),
       ],
     );
@@ -823,7 +775,8 @@ class _RewardChip extends StatelessWidget {
   }
 }
 
-// การ์ดกระจกโปร่งใส ใช้ซ้ำทั้งหน้า (สไตล์เดียวกับหน้า Profile/Settings)
+// การ์ดสีขาว ใช้ซ้ำทั้งหน้า (สไตล์เดียวกับหน้า Explore/Inventory) — เดิมเป็นการ์ดกระจกโปร่งใสสีเข้ม
+// ตอนแท็บ Party ยังใช้ธีมพื้นหลังเข้ม เปลี่ยนเป็นการ์ดขาวพร้อมกับพื้นหลังหน้า Community ที่เปลี่ยนไป
 class _GlassCard extends StatelessWidget {
   final Widget child;
   const _GlassCard({required this.child});
@@ -832,16 +785,18 @@ class _GlassCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.46),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 3)),
+        ],
       ),
       clipBehavior: Clip.antiAlias,
       child: child,
     );
   }
 }
-
 
 // โครงหน้าตาคร่าวๆ ตอนกำลังโหลดข้อมูลปาร์ตี้ครั้งแรก — การ์ดอีเวนต์ + แถวสมาชิกคร่าวๆ
 // แทนวงกลมหมุนเฉยๆ (SkeletonBox/InventoryCardSkeleton ตัวเดียวกับที่ใช้ในหน้า Inventory/Shop)
@@ -862,49 +817,6 @@ class _PartyLoadingSkeleton extends StatelessWidget {
           InventoryCardSkeleton(),
         ],
       ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// แถบบนสุด: ปุ่มย้อนกลับ (ไป Home) + หัวข้อ "PARTY"
-// ---------------------------------------------------------------------------
-class _TopBar extends StatelessWidget {
-  final VoidCallback onBack;
-  const _TopBar({required this.onBack});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        InkWell(
-          onTap: onBack,
-          borderRadius: BorderRadius.circular(20),
-          child: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.38),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
-          ),
-        ),
-        const Expanded(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.groups_rounded, color: Colors.white, size: 20),
-              SizedBox(width: 8),
-              Text(
-                'PARTY',
-                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.2),
-              ),
-            ],
-          ),
-        ),
-        // เว้นที่ว่างเท่าปุ่มย้อนกลับฝั่งซ้าย เพื่อให้หัวข้อ "PARTY" อยู่กึ่งกลางจอจริงๆ
-        const SizedBox(width: 36),
-      ],
     );
   }
 }
@@ -932,13 +844,13 @@ class _MemberRow extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 22,
-              backgroundColor: Colors.black.withValues(alpha: 0.48),
+              backgroundColor: Colors.grey.shade200,
               backgroundImage:
                   member.avatarUrl != null ? NetworkImage(member.avatarUrl!) : null,
               // โหลดรูปไม่สำเร็จ (เน็ตหลุด/รูปถูกลบไปแล้ว) -> โชว์ไอคอนคนแทน ไม่ให้หน้าพัง
               onBackgroundImageError: member.avatarUrl != null ? (_, _) {} : null,
               child: member.avatarUrl == null
-                  ? const Icon(Icons.person, color: Colors.white70, size: 24)
+                  ? Icon(Icons.person, color: Colors.grey.shade500, size: 24)
                   : null,
             ),
             const SizedBox(width: 14),
@@ -951,7 +863,7 @@ class _MemberRow extends StatelessWidget {
                       Flexible(
                         child: Text(
                           member.name,
-                          style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                          style: const TextStyle(color: Colors.black87, fontSize: 15, fontWeight: FontWeight.bold),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -961,12 +873,12 @@ class _MemberRow extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                           decoration: BoxDecoration(
-                            color: Colors.green.withValues(alpha: 0.25),
+                            color: Colors.green.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: const Text(
+                          child: Text(
                             'You',
-                            style: TextStyle(color: Colors.greenAccent, fontSize: 9, fontWeight: FontWeight.bold),
+                            style: TextStyle(color: Colors.green.shade800, fontSize: 9, fontWeight: FontWeight.bold),
                           ),
                         ),
                       ],
@@ -975,12 +887,12 @@ class _MemberRow extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     '$roleLabel  ·  Lv. ${member.level.toString().padLeft(2, '0')}  ·  ${member.rank}',
-                    style: const TextStyle(color: Colors.white60, fontSize: 12),
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                   ),
                 ],
               ),
             ),
-            if (showArrow) const Icon(Icons.chevron_right, color: Colors.white54),
+            if (showArrow) Icon(Icons.chevron_right, color: Colors.grey.shade400),
           ],
         ),
       ),
