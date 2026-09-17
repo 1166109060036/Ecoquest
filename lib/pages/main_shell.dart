@@ -36,6 +36,7 @@ class _MainShellState extends State<MainShell> {
       final questProvider = context.read<QuestProvider>();
       questProvider.loadQuests();
       questProvider.loadHistory(); // ประวัติ quest ที่โชว์ในหน้า Profile
+      questProvider.loadProgress(); // เควสที่กด Start ค้างไว้ — โชว์ badge เลขที่ปุ่ม Progress
       context.read<AchievementProvider>().loadAchievements(); // เหรียญที่โชว์ในหน้า Inventory
       context.read<InventoryProvider>().loadInventory(); // ไอเทม (Camera/Fridge) ที่โชว์ในหน้า Inventory
       // ต้องโหลดตรงนี้ ไม่ใช่ในหน้า Notification เพราะจุดแดงบนกระดิ่งต้องมีเลขก่อนเปิดหน้านั้น

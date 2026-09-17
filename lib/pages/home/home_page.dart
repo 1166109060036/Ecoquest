@@ -7,7 +7,6 @@ import '../../models/quest_card_model.dart';
 import '../../providers/party_provider.dart';
 import '../../providers/quest_provider.dart';
 import '../../utils/party_actions.dart';
-import '../../utils/quest_completion.dart';
 import '../../widgets/bubble_toast.dart';
 import '../../widgets/party_room_card.dart';
 import '../../widgets/quest_card.dart';
@@ -15,6 +14,7 @@ import '../../widgets/skeleton_box.dart';
 import '../explore/quest_detail_page.dart';
 import '../inventory/fridge_page.dart';
 import '../profile/profile_page.dart';
+import '../progress/progress_page.dart';
 
 // Home = หน้า Profile จริง (เต็มจอ) เป็นพื้นหลัง + แผ่น "Explore" ลอยทับด้านล่าง
 // ใช้หน้า Profile ตัวจริงเป็นพื้นหลังเลย (ไม่ใช่เวอร์ชันย่อ) เพื่อให้ขนาด/หน้าตา
@@ -246,8 +246,23 @@ class _ExploreSheetState extends State<_ExploreSheet> {
     );
   }
 
+  // กด Start เควส — แค่บันทึกว่ากำลังทำอยู่ ยังไม่ได้คะแนน ต้องไปกด Complete ที่หน้า Progress อีกที
+  // (ตรงนี้เป็นสำเนาของ _onStartQuest ใน explore_page.dart — ตั้งใจไม่รวมเป็น widget เดียวกัน
+  // เพราะ 2 หน้านี้มีชีวิตอยู่พร้อมกันใน IndexedStack และ UI ต่างกันมากพอที่รวมแล้วไม่คุ้ม
+  // ดูรายละเอียดเหตุผลที่ explore_page.dart — แก้ flow เควสครั้งหน้าต้องแก้ทั้ง 2 ที่)
   Future<void> _onStartQuest(QuestCardModel quest) async {
-    // quest ที่ต้องทำ action จริงก่อน — พาไปหน้านั้นแทนการกดจบ quest ทันที
+    final questProvider = context.read<QuestProvider>();
+
+    final started = await questProvider.startQuest(quest.id);
+
+    if (!mounted) return;
+
+    if (!started) {
+      showBubbleToast(context, questProvider.errorMessage ?? 'Failed to start quest');
+      return;
+    }
+
+    // quest ที่ต้องทำ action จริงก่อน — พาไปหน้านั้นต่อ (quest ถูก start ไปแล้วข้างบน)
     if (quest.actionKey == 'fridge_check') {
       // forQuest: true เพื่อให้โชว์ปุ่ม Add Item — ทางเข้านี้คือการทำเควสจริงๆ
       // (เข้าจากหน้า Inventory จะใช้ named route '/fridge' ซึ่ง forQuest = false ดูอย่างเดียว)
@@ -258,19 +273,16 @@ class _ExploreSheetState extends State<_ExploreSheet> {
       return;
     }
 
-    final questProvider = context.read<QuestProvider>();
+    showBubbleToast(context, 'Quest started — complete it on the Progress page');
+  }
 
-    final reward = await questProvider.completeQuest(quest.id);
-
-    if (!mounted) return;
-
-    if (reward == null) {
-      showBubbleToast(context, questProvider.errorMessage ?? 'Failed to complete quest');
-      return;
-    }
-
-    // โชว์รางวัล + รีเฟรชโปรไฟล์/เหรียญ + เด้งแสดงความยินดีถ้าได้เหรียญใหม่
-    await handleQuestCompleted(context, reward);
+  void _openProgress() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProgressPage(onNavigateToTab: widget.onNavigateToTab),
+      ),
+    );
   }
 
   @override
@@ -334,18 +346,35 @@ class _ExploreSheetState extends State<_ExploreSheet> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Explore',
-                  style: TextStyle(
-                    color: Colors.green,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Explore The Quests',
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Explore',
+                            style: TextStyle(
+                              color: Colors.green,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Explore The Quests',
+                            style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // เข้าหน้า Progress — เควสที่กด Start ไว้แล้วแต่ยังไม่กด Complete
+                    _ProgressButton(
+                      count: context.watch<QuestProvider>().inProgress.length,
+                      onTap: _openProgress,
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 10),
                 SizedBox(
@@ -428,6 +457,52 @@ class _ExploreSheetState extends State<_ExploreSheet> {
                         },
                       ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// ปุ่มวงกลมมุมขวาบน เข้าหน้า Progress — สำเนาของตัวในหน้า Explore (ดูเหตุผลที่ _onStartQuest
+// ด้านบน — 2 หน้านี้จงใจไม่รวม widget กัน)
+class _ProgressButton extends StatelessWidget {
+  final int count;
+  final VoidCallback onTap;
+
+  const _ProgressButton({required this.count, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: Colors.grey.shade200, shape: BoxShape.circle),
+            child: const Icon(Icons.checklist_rounded, color: Colors.black54, size: 20),
+          ),
+          if (count > 0)
+            Positioned(
+              right: -2,
+              top: -2,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                decoration: BoxDecoration(
+                  color: Colors.green,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.white, width: 1.5),
+                ),
+                child: Text(
+                  count > 9 ? '9+' : '$count',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
         ],
       ),
     );

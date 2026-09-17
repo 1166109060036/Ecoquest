@@ -1,6 +1,7 @@
 const express = require('express');
 const Quest = require('../models/Quest');
 const QuestHistory = require('../models/QuestHistory');
+const QuestProgress = require('../models/QuestProgress');
 const FridgeItem = require('../models/FridgeItem');
 const Party = require('../models/Party');
 const User = require('../models/User');
@@ -28,8 +29,42 @@ const pickFromPool = (pool, userId, poolName) => {
   return pool[hash.readUInt32BE(0) % pool.length];
 };
 
+// แปลง quest template + bonus ของ user เป็น payload ที่ส่งให้แอพ — ใช้ร่วมกันทั้ง GET / และ
+// GET /progress เพื่อให้ scorePoints/xpReward ที่โชว์ผ่าน applyBonuses ตรงกันเป๊ะทั้ง 2 หน้า
+const toQuestPayload = (quest, bonuses, { completedToday, inProgress, startedAt, openPartyCount } = {}) => {
+  const reward = applyBonuses(bonuses, quest);
+  return {
+    id: quest._id,
+    title: quest.title,
+    description: quest.description,
+    detail: quest.detail,
+    imageKey: quest.imageKey,
+    category: quest.category,
+    type: quest.type,
+    difficulty: quest.difficulty,
+    impact: quest.impact,
+    scorePoints: reward.points,
+    xpReward: reward.xp,
+    co2SavedKg: quest.co2SavedKg,
+    isDaily: quest.isDaily,
+    actionKey: quest.actionKey,
+    randomPool: quest.randomPool,
+    completedToday: Boolean(completedToday),
+    // เควสที่ user กด Start ไว้แต่ยังไม่ Complete — ดู models/QuestProgress.js
+    inProgress: Boolean(inProgress),
+    startedAt: startedAt || null,
+    // ---- เฉพาะ party quest ----
+    // location/capacity ตรงนี้เป็นแค่ค่า default ให้ฟอร์มสร้างห้องดึงไปเติม
+    // (ห้องจริงแต่ละห้องนัดคนละเวลา/สถานที่กันได้ ดูรายละเอียดที่ Party model)
+    location: quest.location,
+    capacity: quest.capacity,
+    minLevelToHost: quest.minLevelToHost,
+    openPartyCount: openPartyCount || 0,
+  };
+};
+
 // @route   GET /api/quests
-// @desc    ลิสต์ quest ที่เปิดใช้งานอยู่ + บอกด้วยว่า quest รายวันอันไหนวันนี้ทำไปแล้ว
+// @desc    ลิสต์ quest ที่เปิดใช้งานอยู่ + บอกด้วยว่า quest รายวันอันไหนวันนี้ทำไปแล้ว/กำลังทำอยู่
 router.get('/', authMiddleware, async (req, res) => {
   try {
     const allQuests = await Quest.find({ isActive: true }).sort({ createdAt: 1 });
@@ -68,13 +103,17 @@ router.get('/', authMiddleware, async (req, res) => {
       return soloSeen <= soloLimit;
     });
 
-    // ดึงประวัติของวันนี้มาทีเดียว แล้วค่อย map ว่า quest ไหนทำไปแล้ว (ไม่ query ทีละ quest)
-    const todayHistory = await QuestHistory.find({
-      userId: req.userId,
-      completedAt: { $gte: startOfToday() },
-    }).select('questId');
+    // ดึงประวัติของวันนี้ + เควสที่กำลัง Start ค้างอยู่มาทีเดียว แล้วค่อย map (ไม่ query ทีละ quest)
+    const [todayHistory, progressRows] = await Promise.all([
+      QuestHistory.find({
+        userId: req.userId,
+        completedAt: { $gte: startOfToday() },
+      }).select('questId'),
+      QuestProgress.find({ userId: req.userId }).select('questId'),
+    ]);
 
     const doneToday = new Set(todayHistory.map((h) => h.questId.toString()));
+    const inProgressIds = new Set(progressRows.map((p) => p.questId.toString()));
 
     // party quest ตอนนี้ไม่มี "เข้าร่วม/ยังไม่เข้าร่วม" ต่อ quest แล้ว — เปลี่ยนเป็นสร้าง/เข้าร่วม
     // "ห้อง" (Party) แทน เลยแค่บอกว่ามีกี่ห้องที่ยังเปิดรับอยู่ (openPartyCount) ให้การ์ดโชว์เฉยๆ
@@ -93,33 +132,11 @@ router.get('/', authMiddleware, async (req, res) => {
     res.json({
       quests: visibleQuests.map((q) => {
         const id = q._id.toString();
-        // การ์ดต้องโชว์ตัวเลขหลังคูณ upgrade แล้ว ไม่งั้นจะดูเหมือนบั๊กตอนได้จริงมากกว่าที่การ์ดบอก
-        const reward = applyBonuses(bonuses, q);
-        return {
-          id: q._id,
-          title: q.title,
-          description: q.description,
-          detail: q.detail,
-          imageKey: q.imageKey,
-          category: q.category,
-          type: q.type,
-          difficulty: q.difficulty,
-          impact: q.impact,
-          scorePoints: reward.points,
-          xpReward: reward.xp,
-          co2SavedKg: q.co2SavedKg,
-          isDaily: q.isDaily,
-          actionKey: q.actionKey,
-          randomPool: q.randomPool,
+        return toQuestPayload(q, bonuses, {
           completedToday: doneToday.has(id),
-          // ---- เฉพาะ party quest ----
-          // location/capacity ตรงนี้เป็นแค่ค่า default ให้ฟอร์มสร้างห้องดึงไปเติม
-          // (ห้องจริงแต่ละห้องนัดคนละเวลา/สถานที่กันได้ ดูรายละเอียดที่ Party model)
-          location: q.location,
-          capacity: q.capacity,
-          minLevelToHost: q.minLevelToHost,
+          inProgress: inProgressIds.has(id),
           openPartyCount: openPartyCounts.get(id) || 0,
-        };
+        });
       }),
     });
   } catch (err) {
@@ -153,6 +170,120 @@ router.get('/history', authMiddleware, async (req, res) => {
         completedAt: h.completedAt,
       })),
     });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   GET /api/quests/progress
+// @desc    เควสที่กด Start ไว้แล้วแต่ยังไม่กด Complete (หน้า Progress) — ค้างได้ไม่จำกัดวัน
+// ต้องประกาศไว้ก่อน route ที่มี :id เหมือน /history
+router.get('/progress', authMiddleware, async (req, res) => {
+  try {
+    const progressRows = await QuestProgress.find({ userId: req.userId })
+      .sort({ startedAt: -1 })
+      .populate('questId');
+
+    // quest ถูกลบ/ปิดใช้งานไปหลังจาก start แล้ว — ตัดออก ไม่ให้การ์ดพัง (แถวนี้จะค้างเป็น
+    // orphan ไปเรื่อยๆ ก็ไม่มีผลอะไรเพราะไม่โผล่ให้เห็นและ complete ก็ทำไม่ได้อยู่ดีเพราะ quest หาไม่เจอ)
+    const activeRows = progressRows.filter((p) => p.questId && p.questId.isActive);
+
+    const boostUser = await User.findById(req.userId).select(
+      'redEnergyExpiresAt blueEnergyExpiresAt greenEnergyExpiresAt'
+    );
+    const bonuses = withEnergyBoosts(await getUserBonuses(req.userId), boostUser);
+
+    res.json({
+      // ⚠️ จงใจไม่ใช้ pickFromPool และไม่จำกัดด้วย BASE_VISIBLE_QUESTS/questSlots แบบ GET / —
+      // เควสที่ start ไปแล้วต้องโผล่ในหน้านี้เสมอ ไม่ว่าจะโดนสุ่มไม่ติดหรือโดนลิมิตตัดในวันถัดไป
+      // ไม่งั้นผู้ใช้จะค้างเควสที่ทำต่อไม่ได้เลย
+      progress: activeRows.map((p) =>
+        toQuestPayload(p.questId, bonuses, {
+          // แถว progress มีอยู่ได้เฉพาะตอนยังไม่ complete เท่านั้น (ดู models/QuestProgress.js)
+          completedToday: false,
+          inProgress: true,
+          startedAt: p.startedAt,
+        })
+      ),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   POST /api/quests/:id/start
+// @desc    กด Start เควส — บันทึกว่ากำลังทำอยู่ ยังไม่ได้คะแนน ต้องไปกด Complete ที่หน้า Progress อีกที
+router.post('/:id/start', authMiddleware, async (req, res) => {
+  try {
+    const quest = await Quest.findById(req.params.id);
+    if (!quest || !quest.isActive) {
+      return res.status(404).json({ message: 'Quest not found' });
+    }
+
+    // party quest เริ่ม/จบผ่านห้อง (Party) ที่แท็บ Community เท่านั้น ไม่มี Start รายคนตรงนี้
+    if (quest.type === 'party') {
+      return res.status(400).json({
+        message: 'Party quests are started from the Party tab',
+      });
+    }
+
+    // quest รายวันที่ทำไปแล้ววันนี้ — start ใหม่ไม่ได้ (สม่ำเสมอกับ gate ของ /complete)
+    if (quest.isDaily) {
+      const alreadyDone = await QuestHistory.findOne({
+        userId: req.userId,
+        questId: quest._id,
+        completedAt: { $gte: startOfToday() },
+      });
+      if (alreadyDone) {
+        return res.status(409).json({ message: 'You have already completed this quest today' });
+      }
+    }
+
+    // upsert แบบกันแข่ง — กด Start ซ้ำเควสเดิม (หรือกดรัวๆพร้อมกันจากหลาย request) ไม่พัง
+    // ได้แถวเดิมกลับไปเฉยๆ ไม่ได้สร้างซ้ำ (unique index กันไว้อีกชั้น เผื่อ race จริง)
+    let progress;
+    try {
+      progress = await QuestProgress.findOneAndUpdate(
+        { userId: req.userId, questId: quest._id },
+        { $setOnInsert: { startedAt: new Date() } },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
+    } catch (err) {
+      if (err.code === 11000) {
+        progress = await QuestProgress.findOne({ userId: req.userId, questId: quest._id });
+      } else {
+        throw err;
+      }
+    }
+
+    res.json({
+      message: 'Quest started',
+      progress: {
+        id: progress._id,
+        questId: progress.questId,
+        startedAt: progress.startedAt,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   DELETE /api/quests/:id/start
+// @desc    ยกเลิกเควสที่กด Start ไว้ (เอาออกจากหน้า Progress โดยไม่ได้คะแนน)
+router.delete('/:id/start', authMiddleware, async (req, res) => {
+  try {
+    const removed = await QuestProgress.findOneAndDelete({
+      userId: req.userId,
+      questId: req.params.id,
+    });
+    if (!removed) {
+      return res.status(404).json({ message: 'Quest is not in progress' });
+    }
+    res.json({ message: 'Quest cancelled' });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
@@ -200,6 +331,17 @@ router.post('/:id/complete', authMiddleware, async (req, res) => {
           message: 'Save your fridge items first to complete this quest',
         });
       }
+    }
+
+    // ต้องกด Start ไว้ก่อนแล้วเท่านั้นถึง Complete ได้ — findOneAndDelete เป็น atomic ในตัว
+    // ถ้ากด Complete รัวๆพร้อมกันหลาย request มีแค่อันเดียวที่ชิงแถวไปได้ อีกอันได้ 409 กันแจก
+    // รางวัลซ้ำโดยไม่ต้องมี lock เพิ่ม (หลักการเดียวกับ compare-and-swap ของ Party)
+    const claimed = await QuestProgress.findOneAndDelete({
+      userId: req.userId,
+      questId: quest._id,
+    });
+    if (!claimed) {
+      return res.status(409).json({ message: 'Start this quest first' });
     }
 
     // -avatarData กัน Buffer รูปโปรไฟล์ถูกดึงมาทุกครั้งที่ทำเควสสำเร็จโดยไม่ได้ใช้

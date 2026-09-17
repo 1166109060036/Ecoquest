@@ -5,13 +5,13 @@ import '../../models/quest_card_model.dart';
 import '../../providers/party_provider.dart';
 import '../../providers/quest_provider.dart';
 import '../../utils/party_actions.dart';
-import '../../utils/quest_completion.dart';
 import '../../widgets/breathing_icon.dart';
 import '../../widgets/bubble_toast.dart';
 import '../../widgets/party_room_card.dart';
 import '../../widgets/quest_card.dart';
 import '../../widgets/staggered_fade_in.dart';
 import '../inventory/fridge_page.dart';
+import '../progress/progress_page.dart';
 import 'quest_detail_page.dart';
 
 // หน้า Explore เต็มจอ — เจอได้ 2 ทาง: กด "Explore" ที่ bottom nav ตรงๆ
@@ -96,9 +96,20 @@ class _ExplorePageState extends State<ExplorePage> {
     );
   }
 
+  // กด Start เควส — แค่บันทึกว่ากำลังทำอยู่ ยังไม่ได้คะแนน ต้องไปกด Complete ที่หน้า Progress อีกที
   Future<void> _onStartQuest(QuestCardModel quest) async {
-    // quest ที่ต้องทำ action จริงก่อน — พาไปหน้านั้นแทนการกดจบ quest ทันที
-    // (ถ้าเรียก complete ตรงนี้เลย backend จะปฏิเสธอยู่ดีเพราะยังไม่ได้ทำ action)
+    final questProvider = context.read<QuestProvider>();
+
+    final started = await questProvider.startQuest(quest.id);
+
+    if (!mounted) return;
+
+    if (!started) {
+      showBubbleToast(context, questProvider.errorMessage ?? 'Failed to start quest');
+      return;
+    }
+
+    // quest ที่ต้องทำ action จริงก่อน — พาไปหน้านั้นต่อ (quest ถูก start ไปแล้วข้างบน)
     if (quest.actionKey == 'fridge_check') {
       // forQuest: true เพื่อให้โชว์ปุ่ม Add Item — ทางเข้านี้คือการทำเควสจริงๆ
       // (เข้าจากหน้า Inventory จะใช้ named route '/fridge' ซึ่ง forQuest = false ดูอย่างเดียว)
@@ -109,19 +120,16 @@ class _ExplorePageState extends State<ExplorePage> {
       return;
     }
 
-    final questProvider = context.read<QuestProvider>();
+    showBubbleToast(context, 'Quest started — complete it on the Progress page');
+  }
 
-    final reward = await questProvider.completeQuest(quest.id);
-
-    if (!mounted) return;
-
-    if (reward == null) {
-      showBubbleToast(context, questProvider.errorMessage ?? 'Failed to complete quest');
-      return;
-    }
-
-    // โชว์รางวัล + รีเฟรชโปรไฟล์/เหรียญ + เด้งแสดงความยินดีถ้าได้เหรียญใหม่
-    await handleQuestCompleted(context, reward);
+  void _openProgress() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProgressPage(onNavigateToTab: widget.onNavigateToTab),
+      ),
+    );
   }
 
   Future<void> _joinRoom(PartyRoomModel room) async {
@@ -169,10 +177,29 @@ class _ExplorePageState extends State<ExplorePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Explore',
-                      style: TextStyle(color: Colors.green, fontSize: 26, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 2),
-                  Text('Explore The Quests', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Explore',
+                                style: TextStyle(
+                                    color: Colors.green, fontSize: 26, fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 2),
+                            Text('Explore The Quests',
+                                style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                          ],
+                        ),
+                      ),
+                      // เข้าหน้า Progress — เควสที่กด Start ไว้แล้วแต่ยังไม่กด Complete
+                      _ProgressButton(
+                        count: context.watch<QuestProvider>().inProgress.length,
+                        onTap: _openProgress,
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 14),
                   // ---- ช่องค้นหา — เพิ่มเข้ามาเพราะหน้าเต็มจอมีพื้นที่พอ ----
                   TextField(
@@ -295,6 +322,52 @@ class _ExplorePageState extends State<ExplorePage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ปุ่มวงกลมมุมขวาบน เข้าหน้า Progress — โทนสว่างให้เข้ากับพื้นหลังของหน้านี้ (ต่างจาก
+// _CircleIconButton ในหน้า Profile ที่เป็นโทนมืด เพราะพื้นหลังคนละแบบกัน)
+class _ProgressButton extends StatelessWidget {
+  final int count;
+  final VoidCallback onTap;
+
+  const _ProgressButton({required this.count, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: Colors.grey.shade200, shape: BoxShape.circle),
+            child: const Icon(Icons.checklist_rounded, color: Colors.black54, size: 20),
+          ),
+          if (count > 0)
+            Positioned(
+              right: -2,
+              top: -2,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                decoration: BoxDecoration(
+                  color: Colors.green,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade50, width: 1.5),
+                ),
+                child: Text(
+                  count > 9 ? '9+' : '$count',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

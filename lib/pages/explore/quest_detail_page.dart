@@ -3,13 +3,26 @@ import '../../models/quest_card_model.dart';
 import '../../widgets/quest_card.dart';
 
 // หน้ารายละเอียด quest — เข้าโดยกดที่ตัวการ์ด quest (ปุ่ม Start บนการ์ดยังทำงานเหมือนเดิม)
-// โครงตามดีไซน์: รูปปกเต็มความกว้างด้านบน -> การ์ดขาวคร่อมขึ้นมาทับรูป -> ปุ่ม Start ล่างสุด
+// โครงตามดีไซน์: รูปปกเต็มความกว้างด้านบน -> การ์ดขาวคร่อมขึ้นมาทับรูป -> ปุ่มล่างสุด
+//
+// ใช้ 2 โหมด: โหมดปกติ (จากหน้า Explore/Home) ปุ่มล่างเป็น Start — กดแล้วแค่บันทึกว่ากำลังทำ
+// ยังไม่ได้คะแนน ต้องไปกด Complete ที่หน้า Progress อีกที; โหมด completeMode (จากหน้า Progress
+// เท่านั้น) ปุ่มล่างเปลี่ยนเป็น Complete แทน — ตรงนี้ถึงได้คะแนนจริง
 class QuestDetailPage extends StatelessWidget {
   final QuestCardModel quest;
   // ให้หน้าที่เรียกเป็นคนจัดการว่ากด Start แล้วทำอะไร (หน้า Explore/Home มี logic นี้อยู่แล้ว)
   final Future<void> Function(QuestCardModel quest) onStart;
+  final bool completeMode;
+  // จำเป็นเฉพาะตอน completeMode: true (หน้า Progress เป็นคนส่งเข้ามา)
+  final Future<void> Function(QuestCardModel quest)? onComplete;
 
-  const QuestDetailPage({super.key, required this.quest, required this.onStart});
+  const QuestDetailPage({
+    super.key,
+    required this.quest,
+    required this.onStart,
+    this.completeMode = false,
+    this.onComplete,
+  });
 
   _CategoryStyle get _style {
     switch (quest.category) {
@@ -27,6 +40,30 @@ class QuestDetailPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final style = _style;
     final done = quest.completedToday;
+
+    // ตัดสินใจ label + สถานะปุ่มตามลำดับ: ทำไปแล้ววันนี้ปิดเสมอ -> โหมด complete ใช้ปุ่ม Complete
+    // -> กำลังทำอยู่แล้ว (มาจากหน้า Explore เอง) ปิดรอไปกดที่ Progress -> ปกติใช้ปุ่ม Start เดิม
+    final String label;
+    final VoidCallback? onPressed;
+    if (done) {
+      label = 'Completed today';
+      onPressed = null;
+    } else if (completeMode) {
+      label = 'Complete';
+      onPressed = () async {
+        Navigator.pop(context);
+        await onComplete?.call(quest);
+      };
+    } else if (quest.inProgress) {
+      label = 'In progress';
+      onPressed = null;
+    } else {
+      label = style.actionLabel;
+      onPressed = () async {
+        Navigator.pop(context);
+        await onStart(quest);
+      };
+    }
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
@@ -68,13 +105,7 @@ class QuestDetailPage extends StatelessWidget {
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  // quest รายวันที่ทำไปแล้ววันนี้ -> กดซ้ำไม่ได้จนกว่าจะข้ามเที่ยงคืน
-                  onPressed: done
-                      ? null
-                      : () async {
-                          Navigator.pop(context);
-                          await onStart(quest);
-                        },
+                  onPressed: onPressed,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.teal,
                     foregroundColor: Colors.white,
@@ -85,7 +116,7 @@ class QuestDetailPage extends StatelessWidget {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
                   ),
                   child: Text(
-                    done ? 'Completed today' : style.actionLabel,
+                    label,
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                 ),

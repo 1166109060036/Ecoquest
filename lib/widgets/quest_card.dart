@@ -6,8 +6,17 @@ class QuestCard extends StatelessWidget {
   final QuestCardModel quest;
   final VoidCallback? onAction;
   final VoidCallback? onTap; // กดที่ตัวการ์ด = เปิดหน้ารายละเอียด (คนละอันกับปุ่ม Start/Join)
+  // true เฉพาะตอนใช้ในหน้า Progress — การ์ดในหน้านั้น inProgress เป็น true ทุกใบอยู่แล้วโดยดีไซน์
+  // (ไม่ใช่สถานะ "กดซ้ำไม่ได้" แบบตอนอยู่ในหน้า Explore) ปุ่มเลยต้องกดได้และเปลี่ยนเป็น Complete แทน
+  final bool progressMode;
 
-  const QuestCard({super.key, required this.quest, this.onAction, this.onTap});
+  const QuestCard({
+    super.key,
+    required this.quest,
+    this.onAction,
+    this.onTap,
+    this.progressMode = false,
+  });
 
   _CategoryStyle get _style {
     switch (quest.category) {
@@ -41,9 +50,20 @@ class QuestCard extends StatelessWidget {
 
   // ป้ายบนปุ่ม — เควส party ทำซ้ำได้วันละครั้งเหมือน quest รายวัน (เช็คจาก QuestHistory
   // ของวันนี้ ไม่ว่าจะทำผ่านห้องไหนก็ตาม) ถ้าวันนี้ทำไปแล้วก็สร้าง/เข้าร่วมห้องใหม่ไปก็ไม่ได้คะแนนซ้ำ
-  String _actionLabel(_CategoryStyle style) => quest.completedToday ? 'Done' : style.actionLabel;
+  // กำลังทำอยู่ (กด Start ไว้แล้วแต่ยังไม่ Complete) ก็กดปุ่มนี้ซ้ำไม่ได้เหมือนกัน — ต้องไปกด
+  // Complete ที่หน้า Progress แทน
+  String _actionLabel(_CategoryStyle style) {
+    if (quest.completedToday) return 'Done';
+    if (progressMode) return 'Complete';
+    if (quest.inProgress) return 'In progress';
+    return style.actionLabel;
+  }
 
-  bool get _actionEnabled => !quest.completedToday;
+  bool get _actionEnabled {
+    if (quest.completedToday) return false;
+    if (progressMode) return true;
+    return !quest.inProgress;
+  }
 
   @override
   Widget build(BuildContext context) {

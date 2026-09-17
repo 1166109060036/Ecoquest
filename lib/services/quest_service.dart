@@ -66,4 +66,56 @@ class QuestService {
 
     return QuestReward.fromResponse(data);
   }
+
+  // กด Start เควส — แค่บันทึกว่ากำลังทำอยู่ ยังไม่ได้คะแนน ต้องไปกด Complete ที่หน้า Progress อีกที
+  Future<void> startQuest(String questId) async {
+    final token = await _storage.getToken();
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/quests/$questId/start'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode != 200) {
+      throw Exception(data['message'] ?? 'Failed to start quest');
+    }
+  }
+
+  // ยกเลิกเควสที่กด Start ไว้ (เอาออกจากหน้า Progress โดยไม่ได้คะแนน)
+  Future<void> cancelQuest(String questId) async {
+    final token = await _storage.getToken();
+    final response = await http.delete(
+      Uri.parse('${AppConstants.baseUrl}/quests/$questId/start'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode != 200) {
+      throw Exception(data['message'] ?? 'Failed to cancel quest');
+    }
+  }
+
+  // เควสที่กด Start ไว้แล้วแต่ยังไม่กด Complete — โชว์ในหน้า Progress
+  Future<List<QuestCardModel>> fetchProgress() async {
+    final token = await _storage.getToken();
+    final response = await http.get(
+      Uri.parse('${AppConstants.baseUrl}/quests/progress'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode != 200) {
+      throw Exception(data['message'] ?? 'Failed to load quest progress');
+    }
+
+    return (data['progress'] as List)
+        .map((q) => QuestCardModel.fromJson(q as Map<String, dynamic>))
+        .toList();
+  }
 }

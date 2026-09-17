@@ -6,9 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../models/fridge_item_model.dart';
 import '../../utils/constants.dart';
-import '../../utils/quest_completion.dart';
 import '../../providers/fridge_provider.dart';
-import '../../providers/quest_provider.dart';
 import '../../services/app_photo_storage.dart';
 import '../../widgets/bubble_toast.dart';
 import '../../widgets/inventory_card.dart';
@@ -22,8 +20,8 @@ import '../../widgets/staggered_fade_in.dart';
 //      -> ทางนี้เท่านั้นที่มีปุ่ม Add Item **และปุ่ม Remove ที่เห็นชัดๆ บนการ์ดแต่ละใบ**
 //      เพราะการบันทึก/แก้ไขของที่นี่ *คือ* ตัว Mini Quest จริงๆ ควรแก้ของผิดๆ ที่เคยบันทึกไว้ได้ด้วย
 //
-// พอกด Save สำเร็จจะไปกดจบ quest ให้อัตโนมัติ
-// (backend ก็เช็คซ้ำอีกชั้นว่าต้องมีของที่บันทึกวันนี้จริงถึงจะให้คะแนน กดปุ่มเฉยๆ ไม่ผ่าน)
+// กด Save แค่บันทึกของเฉยๆ ไม่จบ quest ให้อัตโนมัติ — ต้องไปกด Complete ที่หน้า Progress เอง
+// (backend เช็คอยู่ว่าต้องมีของที่บันทึกวันนี้จริงถึงจะกด Complete ผ่าน)
 const IconData _foodFallbackIcon = Icons.restaurant;
 
 class FridgePage extends StatefulWidget {
@@ -67,10 +65,11 @@ class _FridgePageState extends State<FridgePage> {
     );
   }
 
-  // Save ของที่กรอกไว้ แล้วถ้ามี quest เช็คตู้เย็นที่ยังไม่ได้ทำวันนี้ ก็กดจบ quest ให้เลย
-  Future<void> _saveAndCompleteQuest() async {
+  // Save ของที่กรอกไว้เฉยๆ — ไม่จบ quest ให้อัตโนมัติอีกต่อไป (เควสนี้ถูก start ไปแล้วตั้งแต่ตอน
+  // กด Start ที่หน้า Explore/Home ก่อนเด้งมาที่นี่ — ต้องไปกด Complete ที่หน้า Progress เอง
+  // เหมือนเควสอื่นทุกใบ, backend ยังเช็คอยู่ว่าต้องมีของที่บันทึกวันนี้จริงถึงจะกด Complete ผ่าน)
+  Future<void> _saveFridgeItems() async {
     final fridgeProvider = context.read<FridgeProvider>();
-    final questProvider = context.read<QuestProvider>();
 
     final saved = await fridgeProvider.saveDrafts();
     if (!mounted) return;
@@ -81,28 +80,10 @@ class _FridgePageState extends State<FridgePage> {
     }
 
     HapticFeedback.mediumImpact();
-
-    // หา quest เช็คตู้เย็นที่ยังทำได้อยู่ (ถ้าวันนี้ทำไปแล้วก็แค่บันทึกของเฉยๆ ไม่ได้คะแนนซ้ำ)
-    final pending = questProvider.quests
-        .where((q) => q.actionKey == 'fridge_check' && !q.completedToday)
-        .toList();
-    final fridgeQuest = pending.isEmpty ? null : pending.first;
-
-    if (fridgeQuest == null) {
-      showBubbleToast(context, 'Fridge items saved');
-      return;
-    }
-
-    final reward = await questProvider.completeQuest(fridgeQuest.id);
-    if (!mounted) return;
-
-    if (reward == null) {
-      showBubbleToast(context, questProvider.errorMessage ?? 'Items saved, but the quest failed');
-      return;
-    }
-
-    // โชว์รางวัล + รีเฟรชโปรไฟล์/เหรียญ + เด้งแสดงความยินดีถ้าได้เหรียญใหม่
-    await handleQuestCompleted(context, reward);
+    showBubbleToast(
+      context,
+      widget.forQuest ? 'Fridge items saved — complete the quest on the Progress page' : 'Fridge items saved',
+    );
   }
 
   Future<void> _confirmDelete(FridgeItemModel item) async {
@@ -183,7 +164,7 @@ class _FridgePageState extends State<FridgePage> {
                         : _SaveButton(
                             count: drafts.length,
                             isSaving: fridgeProvider.isSaving,
-                            onSave: _saveAndCompleteQuest,
+                            onSave: _saveFridgeItems,
                           ),
                   ),
                 ],

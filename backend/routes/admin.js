@@ -4,6 +4,7 @@ const Party = require('../models/Party');
 const PartyMember = require('../models/PartyMember');
 const Quest = require('../models/Quest');
 const QuestHistory = require('../models/QuestHistory');
+const QuestProgress = require('../models/QuestProgress');
 const Achievement = require('../models/Achievement');
 const InventoryItem = require('../models/InventoryItem');
 const UserUpgrade = require('../models/UserUpgrade');
@@ -115,6 +116,7 @@ router.post('/user/reset', async (req, res) => {
   try {
     await Promise.all([
       QuestHistory.deleteMany({ userId: req.userId }),
+      QuestProgress.deleteMany({ userId: req.userId }),
       Achievement.deleteMany({ userId: req.userId }),
       InventoryItem.deleteMany({ userId: req.userId }),
       UserUpgrade.deleteMany({ userId: req.userId }),
@@ -161,6 +163,10 @@ router.post('/quests/:id/force-complete', async (req, res) => {
     const user = await User.findById(req.userId).select('-avatarData');
     const bonuses = withEnergyBoosts(await getUserBonuses(user._id), user);
     const reward = applyBonuses(bonuses, quest);
+
+    // force ข้าม gate ปกติ (ไม่เช็คว่าต้อง Start ก่อน) — ถ้ามีแถว QuestProgress ค้างของเควสนี้อยู่
+    // ก็เคลียร์ทิ้งไปด้วย ไม่งั้นการ์ดจะค้างโชว์ "In progress" ในหน้า Progress ทั้งที่ทำสำเร็จไปแล้ว
+    await QuestProgress.deleteOne({ userId: user._id, questId: quest._id });
 
     const history = await QuestHistory.create({
       userId: user._id,
@@ -212,9 +218,13 @@ router.post('/quests/reset-today', async (req, res) => {
 
 // @route   POST /api/admin/quests/reset-all
 // @desc    ล้างประวัติเควสทั้งหมดตั้งแต่ต้น — ทดสอบ empty state ของหน้า History
+//          ล้าง QuestProgress ไปด้วย (ต่างจาก reset-today) เพราะนี่คือรีเซ็ตทั้งบัญชี ไม่ใช่แค่วันนี้
 router.post('/quests/reset-all', async (req, res) => {
   try {
-    const result = await QuestHistory.deleteMany({ userId: req.userId });
+    const [result] = await Promise.all([
+      QuestHistory.deleteMany({ userId: req.userId }),
+      QuestProgress.deleteMany({ userId: req.userId }),
+    ]);
     res.json({ questsReset: result.deletedCount });
   } catch (err) {
     console.error(err);

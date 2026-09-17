@@ -11,6 +11,9 @@ class QuestCardModel {
   final int pointsReward;
   final bool isDaily; // ทำได้วันละครั้ง
   final bool completedToday; // วันนี้ทำไปแล้วหรือยัง (ใช้กับ quest ที่ isDaily)
+  // กด Start ไว้แล้วแต่ยังไม่กด Complete ที่หน้า Progress — ค้างได้ไม่จำกัดวัน
+  final bool inProgress;
+  final DateTime? startedAt; // เวลาที่กด Start — null ถ้ายังไม่ได้ start
   // quest ที่ต้องทำ action จริงในแอพก่อน ('fridge_check' = ต้องบันทึกของในตู้เย็น)
   // null = กดยืนยันเองได้เลย — ฝั่งแอพใช้ค่านี้ตัดสินว่ากด Start แล้วจะพาไปหน้าไหน
   final String? actionKey;
@@ -43,6 +46,8 @@ class QuestCardModel {
     required this.pointsReward,
     this.isDaily = false,
     this.completedToday = false,
+    this.inProgress = false,
+    this.startedAt,
     this.actionKey,
     this.detail = '',
     this.imageKey,
@@ -73,6 +78,8 @@ class QuestCardModel {
       pointsReward: json['scorePoints'] ?? 0,
       isDaily: json['isDaily'] ?? false,
       completedToday: json['completedToday'] ?? false,
+      inProgress: json['inProgress'] ?? false,
+      startedAt: json['startedAt'] != null ? DateTime.parse(json['startedAt']) : null,
       actionKey: json['actionKey'],
       detail: json['detail'] ?? '',
       imageKey: json['imageKey'],

@@ -10,11 +10,14 @@ class QuestProvider extends ChangeNotifier {
   final QuestService _questService = QuestService();
 
   List<QuestCardModel> _quests = [];
+  List<QuestCardModel> _inProgress = [];
   List<QuestHistoryEntry> _history = [];
   bool _isLoading = false;
   String? _errorMessage;
 
   List<QuestCardModel> get quests => _quests;
+  // เควสที่กด Start ไว้แล้วแต่ยังไม่กด Complete — โชว์ในหน้า Progress
+  List<QuestCardModel> get inProgress => _inProgress;
   // ประวัติ quest ที่ทำสำเร็จ ใช้โชว์ในหน้า Profile
   List<QuestHistoryEntry> get history => _history;
   bool get isLoading => _isLoading;
@@ -47,15 +50,58 @@ class QuestProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> loadProgress() async {
+    try {
+      _inProgress = await _questService.fetchProgress();
+      notifyListeners();
+    } catch (e) {
+      // เช่นเดียวกับ loadHistory — โหลดไม่ได้ไม่ควรทำให้หน้า Progress พัง
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+    }
+  }
+
+  // กด Start เควส — คืน true ถ้าสำเร็จ (สาเหตุที่ล้มเหลวดูได้ที่ errorMessage)
+  Future<bool> startQuest(String questId) async {
+    _errorMessage = null;
+
+    try {
+      await _questService.startQuest(questId);
+      // โหลดลิสต์ใหม่ให้การ์ดใน Explore เปลี่ยนเป็น "In progress" + โหลด Progress ให้เควสนี้โผล่ขึ้นมา
+      await Future.wait([loadQuests(), loadProgress()]);
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
+  // ยกเลิกเควสที่กด Start ไว้ — คืน true ถ้าสำเร็จ
+  Future<bool> cancelQuest(String questId) async {
+    _errorMessage = null;
+
+    try {
+      await _questService.cancelQuest(questId);
+      await Future.wait([loadQuests(), loadProgress()]);
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return false;
+    }
+  }
+
   // คืนรางวัลที่ได้กลับไปให้หน้า UI เอาไปโชว์ (null = ทำไม่สำเร็จ ดูสาเหตุที่ errorMessage)
   Future<QuestReward?> completeQuest(String questId) async {
     _errorMessage = null;
 
     try {
       final reward = await _questService.completeQuest(questId);
-      // โหลดลิสต์ใหม่เพื่อให้ completedToday ของ quest รายวันอัปเดตตาม
-      // และโหลดประวัติใหม่ด้วย เพราะเพิ่งมีรายการใหม่เพิ่มเข้าไป (หน้า Profile จะได้เห็นทันที)
-      await Future.wait([loadQuests(), loadHistory()]);
+      // โหลดลิสต์ใหม่เพื่อให้ completedToday ของ quest รายวันอัปเดตตาม, โหลดประวัติใหม่เพราะเพิ่งมี
+      // รายการใหม่เพิ่มเข้าไป (หน้า Profile จะได้เห็นทันที) และโหลด Progress ใหม่เพราะเควสนี้หลุด
+      // ออกจากรายการ "กำลังทำ" ไปแล้ว
+      await Future.wait([loadQuests(), loadHistory(), loadProgress()]);
       return reward;
     } catch (e) {
       _errorMessage = e.toString().replaceFirst('Exception: ', '');
