@@ -463,8 +463,9 @@ class _ExploreSheetState extends State<_ExploreSheet> {
   }
 }
 
-// ปุ่มวงกลมมุมขวาบน เข้าหน้า Progress — สำเนาของตัวในหน้า Explore (ดูเหตุผลที่ _onStartQuest
-// ด้านบน — 2 หน้านี้จงใจไม่รวม widget กัน)
+// ปุ่มมุมขวาบน เข้าหน้า Progress — สำเนาของตัวในหน้า Explore (ดูเหตุผลที่ _onStartQuest
+// ด้านบน — 2 หน้านี้จงใจไม่รวม widget กัน) เป็นแคปซูล icon+ข้อความ ไม่ใช่แค่ icon เฉยๆ
+// ให้เห็นชัดว่าปุ่มนี้ทำอะไรตั้งแต่มองผ่านๆ
 class _ProgressButton extends StatelessWidget {
   final int count;
   final VoidCallback onTap;
@@ -480,14 +481,24 @@ class _ProgressButton extends StatelessWidget {
         clipBehavior: Clip.none,
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: Colors.grey.shade200, shape: BoxShape.circle),
-            child: const Icon(Icons.checklist_rounded, color: Colors.black54, size: 20),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(20)),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.checklist_rounded, color: Colors.black54, size: 18),
+                SizedBox(width: 5),
+                Text(
+                  'Progress',
+                  style: TextStyle(color: Colors.black54, fontSize: 12.5, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
           ),
           if (count > 0)
             Positioned(
-              right: -2,
-              top: -2,
+              right: -6,
+              top: -6,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
