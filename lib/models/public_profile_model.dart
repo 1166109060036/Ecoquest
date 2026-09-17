@@ -12,8 +12,8 @@ class PublicProfileModel {
   final String? avatarUrl;
   final int level;
   final int points;
-  final String rank;
   final UserProgress progress;
+  final StreakInfo streak;
   final ProfileStats stats;
   final List<AchievementMedalModel> medals;
   final List<QuestHistoryEntry> history;
@@ -24,8 +24,8 @@ class PublicProfileModel {
     this.avatarUrl,
     required this.level,
     required this.points,
-    required this.rank,
     required this.progress,
+    required this.streak,
     required this.stats,
     required this.medals,
     required this.history,
@@ -42,8 +42,8 @@ class PublicProfileModel {
       avatarUrl: AppConstants.resolveUrl(user['avatarUrl']),
       level: user['level'] ?? 1,
       points: user['points'] ?? 0,
-      rank: user['rank'] ?? 'Bronze',
       progress: UserProgress.fromJson(json['progress'] ?? {}),
+      streak: StreakInfo.fromJson(json['streak'] ?? {}),
       stats: ProfileStats.fromJson(json['stats'] ?? {}),
       medals: medalsJson
           .map((m) => AchievementMedalModel.fromJson(m as Map<String, dynamic>))

@@ -24,13 +24,13 @@ router.get('/:id', authMiddleware, async (req, res) => {
     }
 
     const user = await User.findById(req.params.id).select(
-      'displayName level xp points rank avatarContentType avatarUpdatedAt'
+      'displayName level xp points streakCount lastStreakDate avatarContentType avatarUpdatedAt'
     );
     if (!user) {
       return res.status(404).json({ message: 'Player not found' });
     }
 
-    const [{ progress, stats }, medals, historyDocs] = await Promise.all([
+    const [{ progress, streak, stats }, medals, historyDocs] = await Promise.all([
       buildProfileStats(user),
       getAchievements(user._id),
       // ประวัติเควสล่าสุด — query + serialize แบบเดียวกับ GET /quests/history
@@ -48,9 +48,9 @@ router.get('/:id', authMiddleware, async (req, res) => {
         avatarUrl: avatarUrlFor(user),
         level: progress.level,
         points: user.points,
-        rank: progress.rankTier,
       },
       progress,
+      streak,
       stats,
       medals,
       history: historyDocs.map((h) => ({

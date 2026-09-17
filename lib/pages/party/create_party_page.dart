@@ -6,6 +6,7 @@ import '../../providers/party_provider.dart';
 import '../../providers/quest_provider.dart';
 import '../../utils/constants.dart';
 import '../../utils/date_format.dart';
+import '../../widgets/bubble_toast.dart';
 import '../../widgets/falling_leaves_overlay.dart';
 
 // หน้าสร้างห้อง (Party) จาก party quest ที่มีอยู่แล้ว — เหมือนสร้างห้องในเกมให้คนอื่นกดเข้าร่วม
@@ -99,27 +100,19 @@ class _CreatePartyPageState extends State<CreatePartyPage> {
 
     final name = _nameController.text.trim();
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a room name')),
-      );
+      showBubbleToast(context, 'Please enter a room name');
       return;
     }
     if (_eventDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please pick the event date and time')),
-      );
+      showBubbleToast(context, 'Please pick the event date and time');
       return;
     }
     if (_eventDate!.isBefore(DateTime.now())) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Event date must be in the future')),
-      );
+      showBubbleToast(context, 'Event date must be in the future');
       return;
     }
     if (_capacity < _minPartyCapacity) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Capacity must allow at least 2 members')),
-      );
+      showBubbleToast(context, 'Capacity must allow at least 2 members');
       return;
     }
 
@@ -135,15 +128,11 @@ class _CreatePartyPageState extends State<CreatePartyPage> {
     if (!mounted) return;
 
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Party created!')),
-      );
+      showBubbleToast(context, 'Party created!');
       // ส่ง true กลับไปให้หน้า Explore เอาไปสลับไปแท็บ Party ให้อัตโนมัติ
       Navigator.pop(context, true);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(partyProvider.errorMessage ?? 'Failed to create the party')),
-      );
+      showBubbleToast(context, partyProvider.errorMessage ?? 'Failed to create the party');
     }
   }
 

@@ -6,6 +6,8 @@ import '../models/quest_card_model.dart';
 import '../providers/achievement_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/notification_provider.dart';
+import '../services/sound_service.dart';
+import '../widgets/bubble_toast.dart';
 import '../widgets/liquid_glass_dialog.dart';
 import '../widgets/particle_burst.dart';
 
@@ -22,10 +24,9 @@ Future<void> handleQuestCompleted(BuildContext context, QuestReward reward) asyn
   // เลเวลอัพจริงๆ
   final levelBefore = authProvider.profile?.progress.level ?? 1;
 
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text('Quest complete! +${reward.points} points, +${reward.xp} XP')),
-  );
+  showBubbleToast(context, 'Quest complete! +${reward.points} points, +${reward.xp} XP');
   showParticleBurst(context, color: Colors.amber);
+  SoundService.instance.playQuestSuccess();
 
   await Future.wait([
     // points/XP เปลี่ยนแล้ว ต้องโหลดโปรไฟล์ใหม่ให้หน้า Profile/Home โชว์เลขล่าสุด
@@ -49,6 +50,13 @@ Future<void> handleQuestCompleted(BuildContext context, QuestReward reward) asyn
   if (levelAfter > levelBefore) {
     HapticFeedback.heavyImpact();
     await _showLevelUpDialog(context, levelAfter);
+    if (!context.mounted) return;
+  }
+
+  // Daily Streak milestone (วัน 7/14/21/30) — มาหลังสุด ให้ทุกอย่างที่ "เควสนี้เอง" ทำให้เกิดขึ้นก่อน
+  if (reward.streakMilestone != null) {
+    HapticFeedback.mediumImpact();
+    await _showStreakMilestoneDialog(context, reward.streakMilestone!);
   }
 }
 
@@ -128,6 +136,30 @@ Future<void> _showLevelUpDialog(BuildContext context, int newLevel) {
     ),
     actions: [
       LiquidGlassAction(label: 'Awesome', color: Colors.green, onPressed: () => Navigator.pop(context)),
+    ],
+  );
+}
+
+// เด้งฉลองตอนครบ milestone ของ Daily Streak (วัน 7/14/21/30) — คนละหน้าตากับ level-up/medal
+// (สีส้ม/ไอคอนไฟ ให้รู้สึกแยกกันชัดเจนกับอีก 2 อย่าง)
+Future<void> _showStreakMilestoneDialog(BuildContext context, StreakMilestoneReward streak) {
+  return LiquidGlassDialog.show<void>(
+    context: context,
+    icon: const _BounceIn(child: Icon(Icons.local_fire_department, color: Colors.orangeAccent, size: 40)),
+    backgroundEffect: const ParticleBurstOverlay(
+      color: Colors.orangeAccent,
+      particleCount: 20,
+      duration: Duration(milliseconds: 800),
+    ),
+    title: '${streak.day}-Day Streak!',
+    content: Text(
+      '+${streak.points} points, +${streak.xp} XP'
+      '${streak.itemType != null ? '\n+ a bonus item in your Inventory' : ''}',
+      textAlign: TextAlign.center,
+      style: LiquidGlassDialog.messageStyle,
+    ),
+    actions: [
+      LiquidGlassAction(label: 'Nice', color: Colors.orange, onPressed: () => Navigator.pop(context)),
     ],
   );
 }

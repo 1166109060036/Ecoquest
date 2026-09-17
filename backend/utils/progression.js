@@ -1,5 +1,5 @@
 // รวม "สูตร" ของระบบ progression ทั้งหมดไว้ไฟล์เดียว — อยากปรับความยากของเกมแก้ที่นี่ที่เดียวพอ
-// (level curve, rank tier) ทุกที่ในระบบต้องเรียกใช้จากไฟล์นี้ ห้าม hardcode ซ้ำที่อื่น
+// (level curve) ทุกที่ในระบบต้องเรียกใช้จากไฟล์นี้ ห้าม hardcode ซ้ำที่อื่น
 
 // ---------------------------------------------------------------------------
 // Level — คำนวณจาก XP สะสม (XP ไม่ reset ตลอดกาล ตามดีไซน์)
@@ -34,41 +34,14 @@ const levelProgress = (xp = 0) => {
   };
 };
 
-// ---------------------------------------------------------------------------
-// Rank — อิงจาก XP ที่ได้ "ภายใน season ปัจจุบัน" เท่านั้น (จึง reset เองทุก season)
-// ---------------------------------------------------------------------------
-const RANK_TIERS = [
-  { name: 'Bronze', minXp: 0 },
-  { name: 'Silver', minXp: 500 },
-  { name: 'Gold', minXp: 1500 },
-  { name: 'Platinum', minXp: 3000 },
-  { name: 'Diamond', minXp: 5000 },
-];
-
-const rankProgress = (seasonXp = 0) => {
-  let index = 0;
-  for (let i = 0; i < RANK_TIERS.length; i++) {
-    if (seasonXp >= RANK_TIERS[i].minXp) index = i;
-  }
-
-  const current = RANK_TIERS[index];
-  const next = RANK_TIERS[index + 1];
-
-  return {
-    rankTier: current.name,
-    seasonXp,
-    rankXpIntoTier: seasonXp - current.minXp,
-    // null = อยู่ tier สูงสุดแล้ว ไม่มีขั้นถัดไปให้ไต่
-    rankXpForNextTier: next ? next.minXp - current.minXp : null,
-  };
-};
-
 // หมายเหตุ: เคยมีระบบ Energy (เต็ม 5 ฟื้น +1 ทุก 5 นาที) อยู่ในไฟล์นี้
 // แต่ถูกตัดออกจากดีไซน์แล้ว — ทำ quest ได้โดยไม่เสียพลังงาน ไม่ต้องเอากลับมา
+//
+// หมายเหตุ: เคยมีระบบ Rank (Bronze/Silver/Gold/Platinum/Diamond อิง XP ในรอบ season) อยู่ในไฟล์นี้
+// ด้วย แต่ถูกตัดออกจากดีไซน์แล้ว แทนที่ด้วยระบบ Daily Streak (ดู utils/streak.js) ไม่ต้องเอากลับมา
 
 module.exports = {
   totalXpForLevel,
   levelFromXp,
   levelProgress,
-  rankProgress,
 };

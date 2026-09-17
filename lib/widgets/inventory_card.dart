@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'pressable_scale.dart';
@@ -11,7 +12,10 @@ class InventoryCard extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
   final String? imageAsset; // รูปจาก assets (ไอเทมตั้งต้นอย่าง Camera/Fridge)
-  final File? imageFile; // รูปที่ผู้ใช้ถ่ายเอง (ของในตู้เย็น) — มาก่อน imageAsset
+  // ลำดับความสำคัญของรูป: imageBytes > imageFile > imageUrl > imageAsset > icon
+  final Uint8List? imageBytes; // รูปที่เพิ่งถ่าย/เลือกแต่ยังไม่ได้ save (พรีวิว draft ของในตู้เย็น)
+  final File? imageFile; // ⚠️ ของเก่าที่มีแค่ photoPath ในเครื่อง (ก่อนอัพขึ้น server) — ยังต้องรองรับ
+  final String? imageUrl; // รูปที่ save แล้วและอัพขึ้น server จริง (ของในตู้เย็นชิ้นใหม่)
   final String title;
   final String description;
   final Color? descriptionColor; // null = สีเทาปกติ (ใช้สีอื่นตอนอยากเน้น เช่น ของหมดอายุในตู้เย็น)
@@ -35,7 +39,9 @@ class InventoryCard extends StatelessWidget {
     required this.description,
     this.iconColor = Colors.black87,
     this.imageAsset,
+    this.imageBytes,
     this.imageFile,
+    this.imageUrl,
     this.descriptionColor,
     this.quantity,
     this.onTap,
@@ -50,8 +56,14 @@ class InventoryCard extends StatelessWidget {
   // รูปจริงจะลอยอยู่บนพื้นโปร่งใสพร้อมเงา ส่วน "ไม่มีรูป" ถึงจะใช้กล่องสีอ่อนรอง icon ไว้
   // (กล่องสีรองมีไว้เป็น placeholder เฉยๆ ถ้าเอามาครอบรูปจริงด้วยจะกลายเป็นกรอบสี่เหลี่ยมทึบ)
   Widget _buildThumbnail() {
+    if (imageBytes != null) {
+      return _ShadowedImage(image: MemoryImage(imageBytes!), fallback: _iconPlaceholder());
+    }
     if (imageFile != null) {
       return _ShadowedImage(image: FileImage(imageFile!), fallback: _iconPlaceholder());
+    }
+    if (imageUrl != null) {
+      return _ShadowedImage(image: NetworkImage(imageUrl!), fallback: _iconPlaceholder());
     }
     if (imageAsset != null) {
       return _ShadowedImage(image: AssetImage(imageAsset!), fallback: _iconPlaceholder());

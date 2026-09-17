@@ -7,10 +7,11 @@ const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 const progression = require('../utils/progression');
 const { syncAchievements } = require('../utils/achievements');
-const { notifyQuestCompleted } = require('../utils/notifications');
+const { notifyQuestCompleted, notifyStreakMilestone } = require('../utils/notifications');
 const { getUserBonusesMap, applyBonuses } = require('../utils/upgrades');
 const { withEnergyBoosts } = require('../utils/inventory');
 const { startOfToday } = require('../utils/questDay');
+const { applyDailyQuestCompletion } = require('../utils/streak');
 const { avatarUrlFor } = require('../utils/avatar');
 const { requiredMembers, canStart, canComplete } = require('../utils/partyGate');
 const { syncPartyRoomForUser } = require('../sockets');
@@ -22,7 +23,7 @@ const toPartyPayload = async (party, userId) => {
   const members = await PartyMember.find({ partyId: party._id })
     .sort({ isLeader: -1, joinedAt: 1 }) // หัวหน้าขึ้นก่อน แล้วเรียงตามลำดับที่เข้าร่วม
     // avatarContentType/avatarUpdatedAt เอามาแค่สร้าง avatarUrl ไม่เอา avatarData ตัวจริงมาด้วย
-    .populate('userId', 'displayName level rank avatarContentType avatarUpdatedAt');
+    .populate('userId', 'displayName level avatarContentType avatarUpdatedAt');
 
   const quest = party.questId; // populate ไว้แล้วตอนดึง party มา
   // กันกรณี user ถูกลบไปแล้วแต่ record ยังค้าง — นับเฉพาะสมาชิกที่ยังมีบัญชีอยู่จริง (ตรงกับที่โชว์ในลิสต์)
@@ -68,7 +69,6 @@ const toPartyPayload = async (party, userId) => {
         displayName: m.userId.displayName,
         avatarUrl: avatarUrlFor(m.userId),
         level: m.userId.level,
-        rank: m.userId.rank,
         isLeader: m.isLeader,
         isMe: m.userId._id.toString() === String(userId),
         joinedAt: m.joinedAt,
@@ -418,6 +418,7 @@ router.post('/complete', authMiddleware, async (req, res) => {
     let awardedCount = 0;
     let leaderReward = { points: 0, xp: 0 };
     let leaderNewAchievements = [];
+    let leaderStreakMilestone = null;
 
     for (const m of members) {
       // เควส party ทำซ้ำได้วันละครั้งเหมือน quest รายวัน — ใครทำเควสนี้ไปแล้ววันนี้ ข้ามไป
@@ -435,7 +436,6 @@ router.post('/complete', authMiddleware, async (req, res) => {
       const baseBonuses = bonusesMap.get(String(user._id)) || {
         pointPct: 0,
         xpPct: 0,
-        rankPct: 0,
         partyPct: 0,
         questSlots: 0,
       };
@@ -448,13 +448,14 @@ router.post('/complete', authMiddleware, async (req, res) => {
         userId: user._id,
         questId: quest._id,
         pointsEarned: reward.points,
-        // ⚠️ เก็บ rankXp ไม่ใช่ reward.xp — ใช้คิด Rank แยกจาก user.xp ที่คิด Level (ดู utils/upgrades.js)
-        xpEarned: reward.rankXp,
+        xpEarned: reward.xp,
       });
 
       user.points += reward.points;
       user.xp += reward.xp;
       user.level = progression.levelFromXp(user.xp);
+      // สมาชิกแต่ละคนนับ Daily Streak ของตัวเองแยกกัน ไม่ผูกกับใครเป็นหัวหน้า
+      const streakMilestone = await applyDailyQuestCompletion(user);
       await user.save();
 
       const unlocked = await syncAchievements(user._id);
@@ -463,6 +464,9 @@ router.post('/complete', authMiddleware, async (req, res) => {
       // สมาชิกทุกคนที่ได้คะแนนรอบนี้ ไม่ใช่แค่หัวหน้า ต้องได้แจ้งเตือนของตัวเอง
       try {
         await notifyQuestCompleted(user._id, quest, history._id, reward.points);
+        if (streakMilestone) {
+          await notifyStreakMilestone(user._id, streakMilestone.day, streakMilestone);
+        }
       } catch (notifyErr) {
         console.error('สร้างแจ้งเตือนทำเควสสำเร็จไม่สำเร็จ:', notifyErr.message);
       }
@@ -470,6 +474,7 @@ router.post('/complete', authMiddleware, async (req, res) => {
       if (String(user._id) === String(req.userId)) {
         leaderReward = { points: reward.points, xp: reward.xp };
         leaderNewAchievements = unlocked;
+        leaderStreakMilestone = streakMilestone;
       }
     }
 
@@ -477,6 +482,7 @@ router.post('/complete', authMiddleware, async (req, res) => {
       message: 'Event completed',
       earned: leaderReward,
       newAchievements: leaderNewAchievements,
+      streakMilestone: leaderStreakMilestone,
       awardedCount,
       party: await toPartyPayload(party, req.userId),
     });

@@ -8,10 +8,11 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/photo_storage_service.dart';
+import '../../widgets/bubble_toast.dart';
 import '../../widgets/liquid_glass_dialog.dart';
 
 // ไอเทม Camera — ถ่ายรูปแล้วได้ "EcoQuest Moment" การ์ดที่มีกรอบเฉพาะของแอพ
-// ต่างจากถ่ายรูปธรรมดาตรงที่แปะข้อมูลผู้เล่นจริง (ชื่อ / Lv. / Rank / วันที่) ลงไปในรูปเลย
+// ต่างจากถ่ายรูปธรรมดาตรงที่แปะข้อมูลผู้เล่นจริง (ชื่อ / Lv. / วันที่) ลงไปในรูปเลย
 // รูปที่เซฟคือ "รูปใหม่ที่ตกแต่งแล้ว" ไม่ใช่รูปดิบ — เรนเดอร์การ์ดทั้งใบเป็น PNG ด้วย RepaintBoundary
 class CameraPage extends StatefulWidget {
   const CameraPage({super.key});
@@ -49,9 +50,7 @@ class _CameraPageState extends State<CameraPage> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open the camera')),
-      );
+      showBubbleToast(context, 'Could not open the camera');
     }
   }
 
@@ -77,9 +76,7 @@ class _CameraPageState extends State<CameraPage> {
         final granted = await Gal.requestAccess(toAlbum: true);
         if (!granted) {
           if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Photo permission is required to save to your device')),
-          );
+          showBubbleToast(context, 'Photo permission is required to save to your device');
           return;
         }
       }
@@ -92,19 +89,13 @@ class _CameraPageState extends State<CameraPage> {
 
       if (!mounted) return;
       HapticFeedback.lightImpact();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Saved to your device gallery')),
-      );
+      showBubbleToast(context, 'Saved to your device gallery');
     } on GalException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not save to device: ${e.type.message}')),
-      );
+      showBubbleToast(context, 'Could not save to device: ${e.type.message}');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not save to device')),
-      );
+      showBubbleToast(context, 'Could not save to device');
     }
   }
 
@@ -113,9 +104,7 @@ class _CameraPageState extends State<CameraPage> {
       await _saveToDevice(bytes: await _renderFrame());
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
-      );
+      showBubbleToast(context, e.toString().replaceFirst('Exception: ', ''));
     }
   }
 
@@ -133,15 +122,11 @@ class _CameraPageState extends State<CameraPage> {
         _shotPath = null;
         _isSaving = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Moment saved to your collection')),
-      );
+      showBubbleToast(context, 'Moment saved to your collection');
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSaving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not save: ${e.toString().replaceFirst('Exception: ', '')}')),
-      );
+      showBubbleToast(context, 'Could not save: ${e.toString().replaceFirst('Exception: ', '')}');
     }
   }
 
@@ -256,7 +241,6 @@ class _CameraPageState extends State<CameraPage> {
                       shotPath: _shotPath!,
                       displayName: user?.displayName ?? 'Player',
                       level: progress?.level ?? user?.level ?? 1,
-                      rank: progress?.rankTier ?? user?.rank ?? 'Bronze',
                       isSaving: _isSaving,
                       onRetake: () => setState(() => _shotPath = null),
                       onSave: _saveMoment,
@@ -278,7 +262,6 @@ class _PreviewView extends StatelessWidget {
   final String shotPath;
   final String displayName;
   final int level;
-  final String rank;
   final bool isSaving;
   final VoidCallback onRetake;
   final VoidCallback onSave;
@@ -289,7 +272,6 @@ class _PreviewView extends StatelessWidget {
     required this.shotPath,
     required this.displayName,
     required this.level,
-    required this.rank,
     required this.isSaving,
     required this.onRetake,
     required this.onSave,
@@ -312,7 +294,6 @@ class _PreviewView extends StatelessWidget {
                   shotPath: shotPath,
                   displayName: displayName,
                   level: level,
-                  rank: rank,
                   date: DateTime.now(),
                 ),
               ),
@@ -375,7 +356,7 @@ class _PreviewView extends StatelessWidget {
 // ⭐ กรอบ "EcoQuest Moment" — ตัวที่ทำให้รูปต่างจากถ่ายธรรมดา
 //
 // ดีไซน์: การ์ดขาวทรงโพลารอยด์ + รูปสี่เหลี่ยมจัตุรัสด้านบน
-//   - บนรูป: ป้ายเขียว EcoQuest มุมซ้ายบน, ไล่เฉดมืดด้านล่าง, ป้าย Lv./Rank มุมซ้ายล่าง
+//   - บนรูป: ป้ายเขียว EcoQuest มุมซ้ายบน, ไล่เฉดมืดด้านล่าง, ป้าย Lv. มุมซ้ายล่าง
 //   - ใต้รูป: ชื่อผู้เล่น + เมือง / วันที่ + ใบไม้เขียว
 // ทั้งใบถูกเรนเดอร์เป็นไฟล์ PNG ตอนกดเซฟ
 // ---------------------------------------------------------------------------
@@ -383,14 +364,12 @@ class _MomentFrame extends StatelessWidget {
   final String shotPath;
   final String displayName;
   final int level;
-  final String rank;
   final DateTime date;
 
   const _MomentFrame({
     required this.shotPath,
     required this.displayName,
     required this.level,
-    required this.rank,
     required this.date,
   });
 
@@ -476,17 +455,11 @@ class _MomentFrame extends StatelessWidget {
                       ),
                     ),
                   ),
-                  // แถบ Lv. / Rank มุมซ้ายล่างของรูป
+                  // แถบ Lv. มุมซ้ายล่างของรูป
                   Positioned(
                     left: 10,
                     bottom: 10,
-                    child: Row(
-                      children: [
-                        _StatChip(text: 'Lv. ${level.toString().padLeft(2, '0')}'),
-                        const SizedBox(width: 6),
-                        _StatChip(text: rank),
-                      ],
-                    ),
+                    child: _StatChip(text: 'Lv. ${level.toString().padLeft(2, '0')}'),
                   ),
                 ],
               ),
@@ -589,7 +562,7 @@ class _CollectionView extends StatelessWidget {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Capture your eco moments — each photo gets an EcoQuest frame with your level and rank',
+                          'Capture your eco moments — each photo gets an EcoQuest frame with your level',
                           textAlign: TextAlign.center,
                           style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
                         ),

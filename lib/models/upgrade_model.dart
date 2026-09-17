@@ -36,7 +36,6 @@ class UpgradeModel {
   IconData get icon => switch (upgradeType) {
         'point_booster' => Icons.trending_up,
         'xp_booster' => Icons.bolt,
-        'rank_booster' => Icons.military_tech,
         'party_bonus' => Icons.star,
         'quest_unlock' => Icons.lock_open,
         _ => Icons.auto_awesome,
@@ -45,7 +44,6 @@ class UpgradeModel {
   Color get color => switch (upgradeType) {
         'point_booster' => Colors.greenAccent,
         'xp_booster' => Colors.amberAccent,
-        'rank_booster' => Colors.orangeAccent,
         'party_bonus' => Colors.purpleAccent,
         'quest_unlock' => Colors.lightBlueAccent,
         _ => Colors.white,

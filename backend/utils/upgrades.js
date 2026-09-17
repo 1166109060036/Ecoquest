@@ -1,7 +1,7 @@
 const UserUpgrade = require('../models/UserUpgrade');
 const User = require('../models/User');
 
-// รวมนิยาม + สูตรของ upgrade ทั้งหมดไว้ไฟล์เดียว — แนวเดียวกับ progression.js (level/rank)
+// รวมนิยาม + สูตรของ upgrade ทั้งหมดไว้ไฟล์เดียว — แนวเดียวกับ progression.js (level)
 // และ MEDALS/ITEMS ใน utils/achievements.js / utils/inventory.js
 // ทุกที่ในระบบที่ต้องคิดผลของ upgrade ต้องเรียกจากไฟล์นี้ ห้าม hardcode สูตรซ้ำที่อื่น
 //
@@ -26,15 +26,6 @@ const UPGRADES = [
     upgradeType: 'xp_booster',
     title: 'XP Booster',
     description: 'Increase XP earned from every quest by 1% per level (raises your Level).',
-    baseCost: 20,
-    maxLevel: 50,
-  },
-  {
-    upgradeType: 'rank_booster',
-    title: 'Rank Booster',
-    // Rank คิดจาก XP สะสมในซีซั่นนี้เท่านั้น (ดู utils/profilePayload.js) แยกจาก XP รวมที่ใช้คิด Level
-    // เจตนาให้แยกกัน ไม่ใช่บั๊ก — ซื้อ XP Booster ไม่ได้ทำให้ Rank ขยับเร็วขึ้นด้วย ต้องซื้อตัวนี้แยก
-    description: 'Increase season XP earned from every quest by 1% per level (raises your Rank).',
     baseCost: 20,
     maxLevel: 50,
   },
@@ -70,7 +61,6 @@ const bonusesFromRows = (rows) => {
   return {
     pointPct: levelOf('point_booster'),
     xpPct: levelOf('xp_booster'),
-    rankPct: levelOf('rank_booster'),
     partyPct: levelOf('party_bonus'),
     questSlots: levelOf('quest_unlock'),
   };
@@ -102,13 +92,10 @@ const applyBonuses = (bonuses, quest) => {
   const isParty = quest.type === 'party';
   const pointMultiplier = 1 + bonuses.pointPct / 100 + (isParty ? bonuses.partyPct / 100 : 0);
   const xpMultiplier = 1 + bonuses.xpPct / 100;
-  const rankMultiplier = 1 + bonuses.rankPct / 100;
 
   return {
     points: Math.round(quest.scorePoints * pointMultiplier),
     xp: Math.round(quest.xpReward * xpMultiplier),
-    // rankXp เขียนแยกลง QuestHistory.xpEarned ต่างหากจาก xp ที่ใช้คิด Level โดยตั้งใจ
-    rankXp: Math.round(quest.xpReward * rankMultiplier),
   };
 };
 

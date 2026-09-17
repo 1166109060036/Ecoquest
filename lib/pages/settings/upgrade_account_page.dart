@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/constants.dart';
 import '../../utils/validators.dart';
+import '../../widgets/bubble_toast.dart';
 import '../../widgets/falling_leaves_overlay.dart';
 
 // หน้าเปลี่ยนบัญชี Guest -> บัญชีปกติ (ตั้งชื่อ + email + password)
@@ -45,14 +46,10 @@ class _UpgradeAccountPageState extends State<UpgradeAccountPage> {
     if (!mounted) return;
 
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Account created! You can now sign in with your email.')),
-      );
+      showBubbleToast(context, 'Account created! You can now sign in with your email.');
       Navigator.pop(context);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(authProvider.errorMessage ?? 'Failed to create your account')),
-      );
+      showBubbleToast(context, authProvider.errorMessage ?? 'Failed to create your account');
     }
   }
 

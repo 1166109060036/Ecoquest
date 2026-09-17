@@ -11,13 +11,12 @@ const router = express.Router();
 
 // allow-list เดียวกับ GET /api/users/:id — ห้ามใช้ .select('-password') เพราะยังหลุด
 // email/resetOtpHash/resetOtpExpires ออกไปได้ (ดูคอมเมนต์เต็มๆ ใน routes/users.js)
-const PUBLIC_FIELDS = 'displayName level rank avatarContentType avatarUpdatedAt';
+const PUBLIC_FIELDS = 'displayName level avatarContentType avatarUpdatedAt';
 
 const toPublicUser = (user) => ({
   id: user._id,
   displayName: user.displayName,
   level: user.level,
-  rank: user.rank,
   avatarUrl: avatarUrlFor(user),
 });
 

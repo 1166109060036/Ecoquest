@@ -13,7 +13,14 @@ const NotificationSchema = new mongoose.Schema(
     type: {
       type: String,
       required: true,
-      enum: ['quest_complete', 'fridge_expiring', 'achievement', 'friend_request', 'friend_accepted'],
+      enum: [
+        'quest_complete',
+        'fridge_expiring',
+        'achievement',
+        'friend_request',
+        'friend_accepted',
+        'streak_milestone',
+      ],
     },
     title: {
       type: String,

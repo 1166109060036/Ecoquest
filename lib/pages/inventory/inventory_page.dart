@@ -5,6 +5,7 @@ import '../../providers/achievement_provider.dart';
 import '../../providers/inventory_provider.dart';
 import '../../providers/quest_provider.dart';
 import '../../widgets/breathing_icon.dart';
+import '../../widgets/bubble_toast.dart';
 import '../../widgets/inventory_card.dart';
 import '../../widgets/leaf_refresh_indicator.dart';
 import '../../widgets/liquid_glass_dialog.dart';
@@ -58,9 +59,7 @@ class InventoryPage extends StatelessWidget {
     if (!context.mounted) return;
 
     if (!success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(inventoryProvider.errorMessage ?? 'Failed to use this item')),
-      );
+      showBubbleToast(context, inventoryProvider.errorMessage ?? 'Failed to use this item');
       return;
     }
 
@@ -70,9 +69,7 @@ class InventoryPage extends StatelessWidget {
     }
     if (!context.mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(_successMessage(item.itemType))),
-    );
+    showBubbleToast(context, _successMessage(item.itemType));
   }
 
   String _successMessage(String itemType) => switch (itemType) {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/validators.dart';
+import '../../widgets/bubble_toast.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -36,9 +37,7 @@ class _LoginPageState extends State<LoginPage> {
     if (success) {
       Navigator.pushReplacementNamed(context, '/main');
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(authProvider.errorMessage ?? 'Something went wrong')),
-      );
+      showBubbleToast(context, authProvider.errorMessage ?? 'Something went wrong');
     }
   }
 
@@ -51,9 +50,7 @@ class _LoginPageState extends State<LoginPage> {
     if (success) {
       Navigator.pushReplacementNamed(context, '/main');
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(authProvider.errorMessage ?? 'Something went wrong')),
-      );
+      showBubbleToast(context, authProvider.errorMessage ?? 'Something went wrong');
     }
   }
 

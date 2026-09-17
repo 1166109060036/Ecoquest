@@ -14,7 +14,6 @@ class UserModel {
   final int level;
   final int xp;
   final int points;
-  final String rank;
   // register/login/guest ไม่ส่งค่านี้กลับมาด้วย เลย default เป็น true (ค่าเริ่มต้นฝั่ง backend เหมือนกัน)
   final bool notificationsEnabled;
   // true เฉพาะบัญชีจริงที่อีเมลอยู่ใน ADMIN_EMAILS ฝั่ง backend — ใช้แค่โชว์/ซ่อนเมนู "Admin Tools"
@@ -30,7 +29,6 @@ class UserModel {
     this.level = 1,
     this.xp = 0,
     this.points = 0,
-    this.rank = 'Bronze',
     this.notificationsEnabled = true,
     this.isAdmin = false,
   });
@@ -45,7 +43,6 @@ class UserModel {
       level: json['level'] ?? 1,
       xp: json['xp'] ?? 0,
       points: json['points'] ?? 0,
-      rank: json['rank'] ?? 'Bronze',
       notificationsEnabled: json['notificationsEnabled'] ?? true,
       isAdmin: json['isAdmin'] ?? false,
     );
@@ -61,7 +58,6 @@ class UserModel {
       'level': level,
       'xp': xp,
       'points': points,
-      'rank': rank,
       'notificationsEnabled': notificationsEnabled,
       'isAdmin': isAdmin,
     };

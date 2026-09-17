@@ -16,7 +16,7 @@ class AuthProvider extends ChangeNotifier {
   String? _errorMessage;
 
   UserModel? get user => _user;
-  // ข้อมูล level/xp/rank/สถิติ จาก GET /auth/me — null = ยังโหลดไม่เสร็จ (หรือโหลดไม่ได้)
+  // ข้อมูล level/xp/streak/สถิติ จาก GET /auth/me — null = ยังโหลดไม่เสร็จ (หรือโหลดไม่ได้)
   ProfileData? get profile => _profile;
   bool get isLoading => _isLoading;
   bool get isProfileLoading => _isProfileLoading;
@@ -39,7 +39,7 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // ดึง level/xp/points/rank/สถิติ ของจริงมาเก็บไว้ให้หน้า Profile/Home ใช้
+  // ดึง level/xp/points/streak/สถิติ ของจริงมาเก็บไว้ให้หน้า Profile/Home ใช้
   // ตั้งใจไม่ throw ต่อ เพราะถ้าเน็ตหลุดก็ไม่ควรทำให้เปิดแอพไม่ได้ — แค่โชว์ค่าที่ cache ไว้แทน
   Future<void> refreshProfile() async {
     _isProfileLoading = true;
@@ -192,7 +192,7 @@ class AuthProvider extends ChangeNotifier {
       _user = await action();
       _isLoading = false;
       notifyListeners();
-      // login/register/guest สำเร็จแล้วดึงค่าเกม (level/xp/rank/สถิติ) ตามมาทันที
+      // login/register/guest สำเร็จแล้วดึงค่าเกม (level/xp/streak/สถิติ) ตามมาทันที
       // เพราะ endpoint พวกนั้นส่งกลับมาแค่ข้อมูลบัญชี ไม่มีค่าระบบเกมมาด้วย
       await refreshProfile();
       return true;

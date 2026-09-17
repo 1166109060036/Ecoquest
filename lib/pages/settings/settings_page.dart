@@ -4,6 +4,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../services/sound_service.dart';
 import '../../utils/constants.dart';
+import '../../widgets/bubble_toast.dart';
 import '../../widgets/falling_leaves_overlay.dart';
 import '../../widgets/liquid_glass_dialog.dart';
 
@@ -50,10 +51,9 @@ class SettingsPage extends StatelessWidget {
     final success = await authProvider.updateDisplayName(newName);
     if (!context.mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(success ? 'Display name updated' : (authProvider.errorMessage ?? 'Failed to update your name')),
-      ),
+    showBubbleToast(
+      context,
+      success ? 'Display name updated' : (authProvider.errorMessage ?? 'Failed to update your name'),
     );
   }
 
@@ -387,9 +387,7 @@ class _NotificationToggleItemState extends State<_NotificationToggleItem> {
 
     if (!success) {
       setState(() => _enabled = !value);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(authProvider.errorMessage ?? 'Failed to update notification setting')),
-      );
+      showBubbleToast(context, authProvider.errorMessage ?? 'Failed to update notification setting');
     }
   }
 

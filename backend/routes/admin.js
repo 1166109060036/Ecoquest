@@ -8,16 +8,15 @@ const Achievement = require('../models/Achievement');
 const InventoryItem = require('../models/InventoryItem');
 const UserUpgrade = require('../models/UserUpgrade');
 const FridgeItem = require('../models/FridgeItem');
-const Season = require('../models/Season');
 const authMiddleware = require('../middleware/auth');
 const { adminMiddleware } = require('../middleware/admin');
 const progression = require('../utils/progression');
 const { MEDALS, syncAchievements } = require('../utils/achievements');
 const { ITEMS, withEnergyBoosts } = require('../utils/inventory');
 const { UPGRADES, getUserBonuses, applyBonuses } = require('../utils/upgrades');
-const { createNotification } = require('../utils/notifications');
+const { createNotification, notifyStreakMilestone } = require('../utils/notifications');
 const { startOfToday } = require('../utils/questDay');
-const { ensureActiveSeason } = require('../utils/seasons');
+const { applyDailyQuestCompletion } = require('../utils/streak');
 
 const router = express.Router();
 
@@ -126,7 +125,8 @@ router.post('/user/reset', async (req, res) => {
             points: 0,
             xp: 0,
             level: 1,
-            rank: 'Bronze',
+            streakCount: 0,
+            lastStreakDate: null,
             redEnergyExpiresAt: null,
             blueEnergyExpiresAt: null,
             greenEnergyExpiresAt: null,
@@ -165,20 +165,25 @@ router.post('/quests/:id/force-complete', async (req, res) => {
       userId: user._id,
       questId: quest._id,
       pointsEarned: reward.points,
-      xpEarned: reward.rankXp,
+      xpEarned: reward.xp,
     });
 
     user.points += reward.points;
     user.xp += reward.xp;
     user.level = progression.levelFromXp(user.xp);
+    const streakMilestone = await applyDailyQuestCompletion(user);
     await user.save();
 
     const newAchievements = await syncAchievements(user._id);
+    if (streakMilestone) {
+      await notifyStreakMilestone(user._id, streakMilestone.day, streakMilestone);
+    }
 
     res.json({
       message: 'Quest force-completed',
       earned: { points: reward.points, xp: reward.xp },
       newAchievements,
+      streakMilestone,
       historyId: history._id,
     });
   } catch (err) {
@@ -308,15 +313,19 @@ router.post('/parties/:id/force-complete', async (req, res) => {
         userId: user._id,
         questId: quest._id,
         pointsEarned: reward.points,
-        xpEarned: reward.rankXp,
+        xpEarned: reward.xp,
       });
 
       user.points += reward.points;
       user.xp += reward.xp;
       user.level = progression.levelFromXp(user.xp);
+      const streakMilestone = await applyDailyQuestCompletion(user);
       await user.save();
 
       await syncAchievements(user._id);
+      if (streakMilestone) {
+        await notifyStreakMilestone(user._id, streakMilestone.day, streakMilestone);
+      }
       awardedCount += 1;
     }
 
@@ -418,35 +427,6 @@ router.post('/upgrades/set-level', async (req, res) => {
       { upsert: true, new: true }
     );
     res.json({ upgradeType, level: saved.level });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// ---------------------------------------------------------------------------
-// Season
-// ---------------------------------------------------------------------------
-
-// @route   GET /api/admin/seasons
-router.get('/seasons', async (req, res) => {
-  try {
-    const seasons = await Season.find().sort({ seasonNumber: -1 }).limit(20);
-    res.json({ seasons });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// @route   POST /api/admin/seasons/expire-current
-// @desc    ทำให้ season ที่ active อยู่หมดอายุทันที แล้วเรียก ensureActiveSeason() ต่อเลย ทดสอบ
-//          path จริงของ auto-reseason (ไม่ได้ bypass logic การหมุน season)
-router.post('/seasons/expire-current', async (req, res) => {
-  try {
-    await Season.updateOne({ isActive: true }, { $set: { endDate: new Date(Date.now() - 1000) } });
-    const next = await ensureActiveSeason();
-    res.json({ season: next });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });

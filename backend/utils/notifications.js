@@ -75,6 +75,18 @@ const notifyFriendAccepted = async (requesterId, byUser, friendshipId) => {
   });
 };
 
+// ครบ milestone ของ Daily Streak (วัน 7/14/21/30) — dedupeKey พ่วง reward.dateKey (วันที่จริงที่นับ
+// วันนั้น ไม่ใช่ Date.now()) เพราะรอบ 30 วันวนซ้ำได้เรื่อยๆ ถ้าใช้แค่ day เฉยๆ คนละรอบจะชนกัน
+const notifyStreakMilestone = async (userId, day, reward) => {
+  await createNotification({
+    userId,
+    type: 'streak_milestone',
+    title: `${day}-Day Streak!`,
+    message: `+${reward.points} points, +${reward.xp} XP${reward.itemType ? ' + a bonus item' : ''}`,
+    dedupeKey: `streak:${userId}:${day}:${reward.dateKey}`,
+  });
+};
+
 // ของในตู้เย็นที่เหลือไม่เกิน 24 ชม. หรือหมดอายุไปแล้ว — สร้างตอนอ่าน (lazy) เพราะ backend ไม่มี
 // scheduler/cron และ Render free tier หลับเมื่อไม่มีคนใช้ เลยพึ่ง cron จริงไม่ได้
 // bucket 'soon'/'expired' แยกกัน เลยได้แจ้งเตือนคนละใบตอนของเลยกำหนดจากที่เคยเตือนไว้ก่อนหน้า
@@ -135,6 +147,7 @@ module.exports = {
   notifyAchievementUnlocked,
   notifyFriendRequest,
   notifyFriendAccepted,
+  notifyStreakMilestone,
   ensureExpiryNotifications,
   getNotifications,
   markAllRead,

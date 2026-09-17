@@ -8,6 +8,7 @@ import '../../providers/party_provider.dart';
 import '../../providers/quest_provider.dart';
 import '../../utils/party_actions.dart';
 import '../../utils/quest_completion.dart';
+import '../../widgets/bubble_toast.dart';
 import '../../widgets/party_room_card.dart';
 import '../../widgets/quest_card.dart';
 import '../../widgets/skeleton_box.dart';
@@ -264,9 +265,7 @@ class _ExploreSheetState extends State<_ExploreSheet> {
     if (!mounted) return;
 
     if (reward == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(questProvider.errorMessage ?? 'Failed to complete quest')),
-      );
+      showBubbleToast(context, questProvider.errorMessage ?? 'Failed to complete quest');
       return;
     }
 

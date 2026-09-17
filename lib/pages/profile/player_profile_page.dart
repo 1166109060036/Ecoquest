@@ -103,20 +103,15 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
                                           displayName: profile.displayName,
                                           avatarUrl: profile.avatarUrl,
                                           level: profile.level,
-                                          rankTier: profile.rank,
                                           xp: profile.progress.xpIntoLevel,
                                           xpToNext: profile.progress.xpForNextLevel,
                                           // onTapAvatar ไม่ใส่ -> ดูอย่างเดียว ไม่มีป้ายกล้อง
                                         ),
                                         const SizedBox(height: 16),
-                                        PointsAndRankCard(
+                                        StreakCard(
                                           points: profile.points,
-                                          rankTier: profile.rank,
-                                          rankXp: profile.progress.rankXpIntoTier,
-                                          rankXpMax: profile.progress.rankXpForNextTier,
+                                          streak: profile.streak,
                                           pointsLabel: 'Point',
-                                          seasonNumber: profile.progress.seasonNumber,
-                                          seasonDaysRemaining: profile.progress.seasonDaysRemaining,
                                         ),
                                         const SizedBox(height: 16),
                                         StatsCard(stats: profile.stats),

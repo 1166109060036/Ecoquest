@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/validators.dart';
+import '../../widgets/bubble_toast.dart';
 
 // หน้าลืมรหัสผ่าน — 3 ขั้นตอนในหน้าเดียว: กรอกอีเมล -> กรอก OTP ที่ได้รับทางอีเมล -> ตั้งรหัสผ่านใหม่
 // สไตล์หน้าตาเหมือน login_page.dart (Scaffold ธรรมดา ไม่ใช่พื้นหลังรูปแบบ Profile/Settings)
@@ -44,21 +45,15 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
     if (success) {
       setState(() => _step = _Step.otp);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('If this email is registered, we have sent an OTP to it')),
-      );
+      showBubbleToast(context, 'If this email is registered, we have sent an OTP to it');
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(authProvider.errorMessage ?? 'Failed to send OTP')),
-      );
+      showBubbleToast(context, authProvider.errorMessage ?? 'Failed to send OTP');
     }
   }
 
   Future<void> _handleVerifyOtp() async {
     if (_otpController.text.trim().length != 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter the 6-digit OTP')),
-      );
+      showBubbleToast(context, 'Please enter the 6-digit OTP');
       return;
     }
 
@@ -74,23 +69,17 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       _resetToken = resetToken;
       setState(() => _step = _Step.newPassword);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(authProvider.errorMessage ?? 'Invalid or expired OTP')),
-      );
+      showBubbleToast(context, authProvider.errorMessage ?? 'Invalid or expired OTP');
     }
   }
 
   Future<void> _handleResetPassword() async {
     if (_newPasswordController.text.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password must be at least 6 characters')),
-      );
+      showBubbleToast(context, 'Password must be at least 6 characters');
       return;
     }
     if (_newPasswordController.text != _confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('New passwords do not match')),
-      );
+      showBubbleToast(context, 'New passwords do not match');
       return;
     }
 
@@ -100,14 +89,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     if (!mounted) return;
 
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password reset successfully. Please sign in again')),
-      );
+      showBubbleToast(context, 'Password reset successfully. Please sign in again');
       Navigator.pop(context);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(authProvider.errorMessage ?? 'Failed to reset password')),
-      );
+      showBubbleToast(context, authProvider.errorMessage ?? 'Failed to reset password');
     }
   }
 

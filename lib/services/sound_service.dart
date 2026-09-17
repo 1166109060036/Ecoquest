@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// รวมการเล่นเสียงทั้งหมดของแอพไว้ที่เดียว — ตอนนี้มี 2 อย่าง: เพลงพื้นหลัง (เล่นวนตั้งแต่เปิดแอพ)
-// กับเสียงกดปุ่ม (เล่นเฉพาะตอนแตะ widget ที่กดได้จริงๆ ผ่าน SoundSplashFactory ด้านล่างไฟล์นี้ ที่ครอบ
-// ThemeData ทั้งก้อนใน lib/main.dart — ไม่ใช่ทุกจุดที่แตะหน้าจอเหมือนที่เคยลองด้วย Listener ตอนแรก
-// เพราะพื้นที่ว่างก็ดังไปด้วย ผู้ใช้ไม่ต้องการแบบนั้น)
+// รวมการเล่นเสียงทั้งหมดของแอพไว้ที่เดียว — เพลงพื้นหลัง (เล่นวนตั้งแต่เปิดแอพ), เสียงกดปุ่ม (เล่นเฉพาะ
+// ตอนแตะ widget ที่กดได้จริงๆ ผ่าน SoundSplashFactory ด้านล่างไฟล์นี้ ที่ครอบ ThemeData ทั้งก้อนใน
+// lib/main.dart — ไม่ใช่ทุกจุดที่แตะหน้าจอเหมือนที่เคยลองด้วย Listener ตอนแรก เพราะพื้นที่ว่างก็ดังไปด้วย
+// ผู้ใช้ไม่ต้องการแบบนั้น), และเอฟเฟคสั้นๆ อีก 3 อย่าง (ซื้อของสำเร็จ/แจ้งเตือนใหม่/ทำเควสสำเร็จ — เรียกจาก
+// จุดที่เกี่ยวข้องตรงๆ ไม่ได้ผูกกับ SoundSplashFactory)
 //
-// ไฟล์เสียงจริงยังไม่มี (ผู้ใช้จะหามาใส่เอง) — วางไว้ที่ lib/utils/assets/sounds/ ตามชื่อที่กำหนดไว้ด้านล่าง
-// (ดู lib/utils/assets/sounds/README.md) ทุกเมธอดในนี้ต้องดัก error เงียบๆ เสมอ ไม่ throw ต่อ เพราะไฟล์
+// ไฟล์เสียงจริงวางไว้ที่ lib/utils/assets/sounds/ ตามชื่อที่กำหนดไว้ด้านล่าง (ดู
+// lib/utils/assets/sounds/README.md) ทุกเมธอดในนี้ต้องดัก error เงียบๆ เสมอ ไม่ throw ต่อ เพราะไฟล์
 // อาจจะยังไม่มี — แอพต้องรันได้ปกติทุกอย่างเหมือนเดิม แค่ไม่มีเสียงเฉยๆ (แนวเดียวกับ errorBuilder ที่
 // InventoryCard ใช้ตอนหารูปไอเทมไม่เจอ)
 class SoundService {
@@ -20,11 +21,19 @@ class SoundService {
     // เก่าไปแล้วตั้งแต่บรรทัด `final AudioPlayer _music = AudioPlayer();` ด้านล่าง)
     _music.audioCache = _cache;
     _click.audioCache = _cache;
+    _buySuccess.audioCache = _cache;
+    _notification.audioCache = _cache;
+    _questSuccess.audioCache = _cache;
   }
   static final SoundService instance = SoundService._();
 
   static const _backgroundMusicAsset = 'lib/utils/assets/sounds/background_music.mp3';
   static const _buttonClickAsset = 'lib/utils/assets/sounds/button_click.mp3';
+  static const _buySuccessAsset = 'lib/utils/assets/sounds/buy_success.mp3';
+  // ชื่อไฟล์จริงเป็นตัวพิมพ์ใหญ่ .MP3 (ไม่ใช่พิมพ์เล็ก) ต้องสะกดให้ตรงเป๊ะ — Android build asset
+  // เคสตัวอักษรมีผล ต่างจาก Windows ที่ไม่สนตัวพิมพ์เล็ก-ใหญ่
+  static const _notificationAsset = 'lib/utils/assets/sounds/notification.MP3';
+  static const _questSuccessAsset = 'lib/utils/assets/sounds/quess_success.MP3';
 
   // audioplayers เติม prefix "assets/" ให้ AssetSource เองโดย default — โปรเจคนี้ไม่ได้เก็บ asset ไว้ใต้
   // โฟลเดอร์ assets/ (เก็บใต้ lib/utils/assets/ ตามที่ pubspec.yaml ประกาศไว้จริง) เลยต้องเคลียร์ prefix
@@ -45,6 +54,11 @@ class SoundService {
   // เงียบไปเลยไม่มี error ให้เห็น (โหลดไม่สำเร็จ กด play ก็ไม่มีเสียงออกโดยไม่ throw) เปลี่ยนกลับมาใช้
   // PlayerMode.mediaPlayer (ค่า default เดียวกับ _music) เพราะรองรับไฟล์เสียงได้กว้างกว่ามาก
   final AudioPlayer _click = AudioPlayer();
+  // เสียงเอฟเฟคสั้นๆ อีก 3 อย่าง — คนละ player กับ _click กันเสียงชนกันตัดกันเองถ้าเกิดพร้อมกันพอดี
+  // (เช่น ซื้อของสำเร็จแล้วมีแจ้งเตือนโผล่มาพร้อมกัน) อยู่กลุ่มระดับเสียง "Sound Effects" เดียวกับ _click
+  final AudioPlayer _buySuccess = AudioPlayer();
+  final AudioPlayer _notification = AudioPlayer();
+  final AudioPlayer _questSuccess = AudioPlayer();
 
   // ---- ระดับเสียง — แยกเพลงพื้นหลัง/เสียงระบบ (ปุ่มกด) ออกจากกัน ปรับได้ในหน้า Settings ----
   static const _musicVolumeKey = 'sound_music_volume';
@@ -85,6 +99,33 @@ class SoundService {
     }
   }
 
+  Future<void> playBuySuccess() async {
+    try {
+      await _buySuccess.setAudioContext(_mixContext);
+      await _buySuccess.play(AssetSource(_buySuccessAsset));
+    } catch (e) {
+      debugPrint('SoundService: playBuySuccess failed — $e');
+    }
+  }
+
+  Future<void> playNotification() async {
+    try {
+      await _notification.setAudioContext(_mixContext);
+      await _notification.play(AssetSource(_notificationAsset));
+    } catch (e) {
+      debugPrint('SoundService: playNotification failed — $e');
+    }
+  }
+
+  Future<void> playQuestSuccess() async {
+    try {
+      await _questSuccess.setAudioContext(_mixContext);
+      await _questSuccess.play(AssetSource(_questSuccessAsset));
+    } catch (e) {
+      debugPrint('SoundService: playQuestSuccess failed — $e');
+    }
+  }
+
   // เรียกครั้งเดียวตอนเปิดแอพ (ก่อน playBackgroundMusic ใน main()) — โหลดระดับเสียงที่เคยตั้งไว้
   // ครั้งก่อนกลับมาใช้ ไม่งั้นทุกครั้งที่เปิดแอพใหม่เสียงจะรีเซ็ทกลับไปดังสุดเสมอ
   Future<void> loadSavedVolumes() async {
@@ -94,6 +135,9 @@ class SoundService {
       _clickVolume = prefs.getDouble(_clickVolumeKey) ?? 1.0;
       await _music.setVolume(_musicVolume);
       await _click.setVolume(_clickVolume);
+      await _buySuccess.setVolume(_clickVolume);
+      await _notification.setVolume(_clickVolume);
+      await _questSuccess.setVolume(_clickVolume);
     } catch (e) {
       debugPrint('SoundService: loadSavedVolumes failed — $e');
     }
@@ -118,6 +162,9 @@ class SoundService {
     _clickVolume = volume.clamp(0.0, 1.0);
     try {
       await _click.setVolume(_clickVolume);
+      await _buySuccess.setVolume(_clickVolume);
+      await _notification.setVolume(_clickVolume);
+      await _questSuccess.setVolume(_clickVolume);
       if (persist) {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setDouble(_clickVolumeKey, _clickVolume);

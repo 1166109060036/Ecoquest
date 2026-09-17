@@ -7,6 +7,7 @@ import '../../providers/quest_provider.dart';
 import '../../utils/date_format.dart';
 import '../../utils/quest_completion.dart';
 import '../../widgets/breathing_icon.dart';
+import '../../widgets/bubble_toast.dart';
 import '../../widgets/liquid_glass_dialog.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/pulse_glow.dart';
@@ -92,9 +93,7 @@ class _PartyTabState extends State<PartyTab> {
     if (!mounted) return;
 
     if (!ok) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(partyProvider.errorMessage ?? 'Failed to leave the party')),
-      );
+      showBubbleToast(context, partyProvider.errorMessage ?? 'Failed to leave the party');
       return;
     }
     // กลับมาที่หน้ารายการห้อง -> รีเฟรชลิสต์ห้องให้ทันสถานะล่าสุด และรีเฟรช quest list
@@ -114,9 +113,7 @@ class _PartyTabState extends State<PartyTab> {
     if (!mounted) return;
 
     if (!ok) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(partyProvider.errorMessage ?? 'Failed to start this event')),
-      );
+      showBubbleToast(context, partyProvider.errorMessage ?? 'Failed to start this event');
     }
   }
 
@@ -149,9 +146,7 @@ class _PartyTabState extends State<PartyTab> {
     if (!mounted) return;
 
     if (reward == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(partyProvider.errorMessage ?? 'Failed to complete this event')),
-      );
+      showBubbleToast(context, partyProvider.errorMessage ?? 'Failed to complete this event');
       return;
     }
 
@@ -886,7 +881,7 @@ class _MemberRow extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '$roleLabel  ·  Lv. ${member.level.toString().padLeft(2, '0')}  ·  ${member.rank}',
+                    '$roleLabel  ·  Lv. ${member.level.toString().padLeft(2, '0')}',
                     style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                   ),
                 ],

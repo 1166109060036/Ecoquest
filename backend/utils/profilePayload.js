@@ -1,20 +1,16 @@
-// สร้าง progress (level/xp/rank) + stats (จำนวนเควส/CO2/ปาร์ตี้) ของ user คนไหนก็ได้
+// สร้าง progress (level/xp) + streak (Daily Streak) + stats (จำนวนเควส/CO2/ปาร์ตี้) ของ user คนไหนก็ได้
 // แยกออกมาจาก GET /auth/me เพื่อให้ GET /users/:id (ดูโปรไฟล์คนอื่น) เอาไปใช้ซ้ำได้
 // โดยไม่ต้องก๊อปโค้ด aggregate ซ้ำ — ทั้งสอง route คิดเลขแบบเดียวกันเป๊ะๆ
 const Quest = require('../models/Quest');
 const QuestHistory = require('../models/QuestHistory');
 const progression = require('./progression');
-const { ensureActiveSeason, daysRemaining } = require('./seasons');
+const { getDisplayStreak } = require('./streak');
 
-// รับ user document ที่ query มาแล้ว (ต้องการแค่ _id กับ xp) ไม่ใช่ userId string
-// เพราะ aggregate ไม่ cast string -> ObjectId ให้เอง ใช้ user._id ที่เป็น ObjectId จริงตรงๆ ปลอดภัยกว่า
+// รับ user document ที่ query มาแล้ว ต้องการ _id, xp, streakCount, lastStreakDate (ไม่ใช่ userId
+// string เพราะ aggregate ไม่ cast string -> ObjectId ให้เอง ใช้ user._id ที่เป็น ObjectId จริงตรงๆ)
 async function buildProfileStats(user) {
-  // เช็ค+หมุน season อัตโนมัติทุกครั้งที่มีคนเปิดหน้า Profile — ไม่มี scheduler ในระบบ
-  // เลยต้องเช็คตอนมีคนเรียก API แทน (ดู utils/seasons.js) คืนค่ามาเสมอ ไม่มีทาง null
-  const activeSeason = await ensureActiveSeason();
-
   // ยิงพร้อมกันทีเดียว ไม่ต้องรอทีละ query
-  const [questCompleted, questTotal, questAgg, seasonAgg] = await Promise.all([
+  const [questCompleted, questTotal, questAgg] = await Promise.all([
     QuestHistory.countDocuments({ userId: user._id }),
     Quest.countDocuments({ isActive: true }),
     // partiesJoined + co2SavedKg ต้อง join ไปหา Quest เพราะข้อมูลอยู่ที่ template ของ quest
@@ -39,31 +35,16 @@ async function buildProfileStats(user) {
         },
       },
     ]),
-    // XP เฉพาะที่ได้ภายใน season ปัจจุบัน — ใช้คิด Rank (ensureActiveSeason การันตีว่ามี season เสมอ)
-    QuestHistory.aggregate([
-      {
-        $match: {
-          userId: user._id,
-          completedAt: { $gte: activeSeason.startDate, $lte: activeSeason.endDate },
-        },
-      },
-      { $group: { _id: null, xp: { $sum: '$xpEarned' } } },
-    ]),
   ]);
 
   const { partiesJoined = 0, co2SavedKg = 0 } = questAgg[0] || {};
-  const seasonXp = seasonAgg[0]?.xp || 0;
 
-  // level/rank คิดสดจาก xp เสมอ (xp คือ source of truth ตามดีไซน์)
-  const progress = {
-    ...progression.levelProgress(user.xp),
-    ...progression.rankProgress(seasonXp),
-    seasonNumber: activeSeason.seasonNumber,
-    seasonDaysRemaining: daysRemaining(activeSeason),
-  };
+  // level คิดสดจาก xp เสมอ (xp คือ source of truth ตามดีไซน์)
+  const progress = progression.levelProgress(user.xp);
 
   return {
     progress,
+    streak: getDisplayStreak(user),
     stats: { questCompleted, questTotal, co2SavedKg, partiesJoined },
   };
 }

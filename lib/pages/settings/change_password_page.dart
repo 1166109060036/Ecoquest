@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/constants.dart';
+import '../../widgets/bubble_toast.dart';
 import '../../widgets/falling_leaves_overlay.dart';
 
 // หน้าเปลี่ยนรหัสผ่าน — เข้าถึงจากหน้า Settings แบ่งเป็น 2 ขั้นตอน:
@@ -34,9 +35,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
 
   Future<void> _handleVerifyOldPassword() async {
     if (_oldPasswordController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your current password')),
-      );
+      showBubbleToast(context, 'Please enter your current password');
       return;
     }
 
@@ -48,23 +47,17 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     if (success) {
       setState(() => _step = _Step.newPassword);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(authProvider.errorMessage ?? 'Incorrect password')),
-      );
+      showBubbleToast(context, authProvider.errorMessage ?? 'Incorrect password');
     }
   }
 
   Future<void> _handleChangePassword() async {
     if (_newPasswordController.text.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('New password must be at least 6 characters')),
-      );
+      showBubbleToast(context, 'New password must be at least 6 characters');
       return;
     }
     if (_newPasswordController.text != _confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('New passwords do not match')),
-      );
+      showBubbleToast(context, 'New passwords do not match');
       return;
     }
 
@@ -77,14 +70,10 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     if (!mounted) return;
 
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password changed successfully')),
-      );
+      showBubbleToast(context, 'Password changed successfully');
       Navigator.pop(context);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(authProvider.errorMessage ?? 'Failed to change password')),
-      );
+      showBubbleToast(context, authProvider.errorMessage ?? 'Failed to change password');
     }
   }
 

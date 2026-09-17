@@ -81,7 +81,7 @@ class AuthService {
     return _storage.getUser();
   }
 
-  // ดึงข้อมูล user ปัจจุบัน + level/xp/rank + สถิติ จาก backend (ของจริง ไม่ใช่ mock)
+  // ดึงข้อมูล user ปัจจุบัน + level/xp/streak + สถิติ จาก backend (ของจริง ไม่ใช่ mock)
   // อัปเดต session ที่ cache ไว้ด้วย เพื่อให้เปิดแอพครั้งหน้าเห็นค่าล่าสุดทันทีก่อน fetch เสร็จ
   Future<ProfileData> fetchProfile() async {
     final token = await _storage.getToken();

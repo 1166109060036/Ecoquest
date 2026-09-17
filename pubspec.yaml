@@ -85,7 +85,7 @@ flutter:
      # ประกาศเป็นโฟลเดอร์ (ต้องมี / ปิดท้าย) เพราะรูปปก quest จะเพิ่มเรื่อยๆ
      # เพิ่มรูปใหม่แค่วางไฟล์ลงโฟลเดอร์นี้ ไม่ต้องมาแก้ pubspec ทุกครั้ง
      - lib/utils/assets/questimg/
-     # เผื่อไว้ใส่เสียงพื้นหลัง (background_music.mp3) + เสียงกดปุ่ม (button_click.mp3)
+     # เพลงพื้นหลัง + เสียงกดปุ่ม + เอฟเฟคซื้อของสำเร็จ/แจ้งเตือนใหม่/ทำเควสสำเร็จ (5 ไฟล์)
      # ดู lib/services/sound_service.dart และ lib/utils/assets/sounds/README.md
      - lib/utils/assets/sounds/
   #   - images/a_dot_ham.jpeg

@@ -7,6 +7,7 @@ const { sendOtpEmail } = require('../utils/mailer');
 const { buildProfileStats } = require('../utils/profilePayload');
 const { avatarUrlFor } = require('../utils/avatar');
 const { adminEmails } = require('../middleware/admin');
+const { decodeImageBase64 } = require('../utils/imageUpload');
 
 const router = express.Router();
 
@@ -125,7 +126,7 @@ router.post('/guest', async (req, res) => {
 });
 
 // @route   GET /api/auth/me
-// @desc    ดึงข้อมูล user ปัจจุบัน + ความคืบหน้า (level/xp/rank) + สถิติ สำหรับหน้า Profile/Home
+// @desc    ดึงข้อมูล user ปัจจุบัน + ความคืบหน้า (level/xp) + Daily Streak + สถิติ สำหรับหน้า Profile/Home
 router.get('/me', authMiddleware, async (req, res) => {
   try {
     // -avatarData กัน Buffer รูปโปรไฟล์ (อาจหนักหลายร้อย KB) ถูกดึงมาด้วยทั้งที่ route นี้
@@ -135,9 +136,9 @@ router.get('/me', authMiddleware, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // progress (level/xp/rank) + stats (จำนวนเควส/CO2/ปาร์ตี้) ใช้ตัวช่วยร่วมกับ
+    // progress (level/xp) + streak (Daily Streak) + stats (จำนวนเควส/CO2/ปาร์ตี้) ใช้ตัวช่วยร่วมกับ
     // GET /users/:id (ดูโปรไฟล์คนอื่น) เพื่อให้คิดเลขแบบเดียวกันเป๊ะๆ
-    const { progress, stats } = await buildProfileStats(user);
+    const { progress, streak, stats } = await buildProfileStats(user);
 
     res.json({
       user: {
@@ -149,13 +150,13 @@ router.get('/me', authMiddleware, async (req, res) => {
         level: progress.level,
         xp: user.xp,
         points: user.points,
-        rank: progress.rankTier,
         notificationsEnabled: user.notificationsEnabled,
         // true เฉพาะบัญชีจริง (มี email) ที่อยู่ใน ADMIN_EMAILS — ใช้ตัดสินใจโชว์เมนู "Admin Tools"
         // ในหน้า Settings ฝั่งแอพ ไม่ใช่ตัวเช็คสิทธิ์จริง (backend เช็คซ้ำเองทุก route ผ่าน adminMiddleware)
         isAdmin: Boolean(user.email) && adminEmails().includes(user.email.toLowerCase()),
       },
       progress,
+      streak,
       stats,
     });
   } catch (err) {
@@ -164,8 +165,6 @@ router.get('/me', authMiddleware, async (req, res) => {
   }
 });
 
-// รูปที่ยอมรับ — จำกัดแค่ 2 แบบนี้พอ ไม่ต้องรองรับทุก mime type ที่มือถือส่งมาได้
-const ALLOWED_AVATAR_TYPES = ['image/jpeg', 'image/png'];
 // กันไฟล์ใหญ่ผิดปกติ (image_picker ฝั่งแอพย่อเหลือ maxWidth 800 อยู่แล้ว ปกติไม่เกินนี้)
 const MAX_AVATAR_BYTES = 4 * 1024 * 1024;
 
@@ -191,13 +190,12 @@ router.post('/avatar', authMiddleware, async (req, res) => {
       return res.json({ message: 'Avatar removed', avatarUrl: null });
     }
 
-    if (typeof avatarBase64 !== 'string' || !ALLOWED_AVATAR_TYPES.includes(contentType)) {
-      return res.status(400).json({ message: 'Invalid avatar data' });
-    }
-
-    const buffer = Buffer.from(avatarBase64, 'base64');
-    if (buffer.length === 0 || buffer.length > MAX_AVATAR_BYTES) {
-      return res.status(400).json({ message: 'Avatar image is too large' });
+    let buffer;
+    try {
+      buffer = decodeImageBase64(avatarBase64, contentType, MAX_AVATAR_BYTES);
+    } catch (err) {
+      const message = err.message === 'Image is too large' ? 'Avatar image is too large' : 'Invalid avatar data';
+      return res.status(err.status || 400).json({ message });
     }
 
     user.avatarData = buffer;

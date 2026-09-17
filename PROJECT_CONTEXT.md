@@ -31,20 +31,25 @@
 - **Mini Quest "Check Your Food & Expiration Dates"** — บันทึกอาหารในตู้เย็น+วันหมดอายุ, อัปเดตได้วันละครั้ง
   (เดิมรางวัลคือ +1 energy — ตอนนี้ต้องตัดสินใจใหม่ว่าจะให้รางวัลเป็นอะไรแทน ยังไม่ได้ข้อสรุป)
 
-**XP / Level / Rank / Season / Points** (แยกกันชัดเจน อย่าสับสน):
+**XP / Level / Points / Daily Streak** (แยกกันชัดเจน อย่าสับสน):
 - **XP** — สะสมถาวร ไม่ reset ใช้คำนวณ Level
 - **Level** — ปลดล็อกฟีเจอร์ใหม่ (เช่น Level 10 ถึงจะสร้าง Party Event ได้)
-- **Rank** (Bronze/Silver/Gold ฯลฯ) — อิงจาก XP แต่ **reset ทุก Season** (XP เองไม่ reset)
 - **Points** — คนละตัวกับ XP ใช้แลก reward/upgrade ในหน้า Profile
+- **Daily Streak** — จำนวนวันติดต่อกันที่ทำเควสสำเร็จอย่างน้อย 1 อัน รอบละ 30 วัน มีของรางวัลที่วัน
+  7/14/21/30 (วัน 30 ใหญ่สุด+แถมไอเทม) พลาด 1 วัน = รีเซ็ทกลับไปวัน 1 ทันที — ดูหัวข้อ 5 รายละเอียดเต็ม
+
+⚠️ **ระบบ Rank (Bronze/Silver/Gold/Platinum/Diamond) กับระบบ Season (รอบรีเซ็ท Rank ทุก 90 วัน) ถูกเอาออก
+จากเกมทั้งหมดแล้ว** แทนที่ด้วย Daily Streak ข้างบน — ถ้าเจอเอกสาร/โค้ดเก่าที่พูดถึง Rank/Season ให้ถือว่า
+เป็นของเก่าที่ไม่ได้ใช้แล้ว (`backend/models/Season.js`, `backend/utils/seasons.js` ถูกลบทิ้งจริง)
 
 **Achievement medals**: Food Saver, Recycling, Community, Plastic Reduction (เก็บสะสมได้)
 
-> ⚙️ **สูตรทั้งหมดของ progression อยู่ที่ `backend/utils/progression.js` ไฟล์เดียว** (level curve, rank tier)
-> อยากปรับความยาก/ความเร็วของเกมให้แก้ที่นั่นที่เดียว **ห้าม hardcode ตัวเลขพวกนี้ซ้ำที่อื่น**
+> ⚙️ **สูตรทั้งหมดของ progression อยู่ที่ `backend/utils/progression.js` ไฟล์เดียว** (level curve) และ
+> **สูตรของ Daily Streak อยู่ที่ `backend/utils/streak.js` ไฟล์เดียว** อยากปรับความยาก/ความเร็วของเกมให้
+> แก้ที่นั่นที่เดียว **ห้าม hardcode ตัวเลขพวกนี้ซ้ำที่อื่น**
 > - Level: XP ที่ต้องใช้เลื่อนจาก level L ไป L+1 = `100 × L` (L1→2 ใช้ 100, L2→3 ใช้ 200 …)
-> - Rank tier ตาม XP ที่ได้ใน season ปัจจุบัน: Bronze 0 / Silver 500 / Gold 1500 / Platinum 3000 / Diamond 5000
-> - **XP คือ source of truth** — level/rank คำนวณสดจาก XP เสมอ ส่วนฟิลด์ `user.level` / `user.rank` ใน DB เป็นแค่ cache
->   (ตอนเขียน endpoint ทำ quest สำเร็จ ต้องอัปเดต 2 ฟิลด์นี้ให้ตรงด้วย)
+> - **XP คือ source of truth** — level คำนวณสดจาก XP เสมอ ส่วนฟิลด์ `user.level` ใน DB เป็นแค่ cache
+>   (ตอนเขียน endpoint ทำ quest สำเร็จ ต้องอัปเดตฟิลด์นี้ให้ตรงด้วย)
 
 **Inventory/Items**: ได้จาก quest/achievement/reward/event เช่นไอเทม Energy Drink (คูณคะแนน quest x2) — **ไอเทมนี้ถูกตัดออกจากดีไซน์จริงแล้ว ไม่ต้องใส่กลับมา**
 
@@ -66,17 +71,18 @@
 
 ## 4. โครงสร้าง MongoDB Collections (ออกแบบไว้แล้ว ไม่ embed)
 
-- `users` — email, password, isGuest, displayName, level, xp, points, rank, seasonId
+- `users` — email, password, isGuest, displayName, level, xp, points, streakCount, lastStreakDate
   \+ `resetOtpHash`, `resetOtpExpires` (เพิ่มทีหลังสำหรับ flow ลืมรหัสผ่าน — เก็บ **hash** ของ OTP ไม่ใช่ตัวเลขจริง)
   \- เอา `energy` / `lastEnergyUpdate` ออกแล้ว (ระบบ Energy ถูกตัดจากดีไซน์)
+  \- เอา `rank` / `seasonId` ออกแล้ว (ระบบ Rank/Season ถูกตัดจากดีไซน์ แทนที่ด้วย streakCount/lastStreakDate)
 - `quests` — template ของ quest (มี static method `Quest.calculateScore(difficulty, impact)`)
   \+ `co2SavedKg` (เพิ่มทีหลัง — ใช้รวมเป็นสถิติ "CO2 Saved" ในหน้า Profile, ตอน seed quest ต้องใส่ค่านี้ด้วย)
 - `questHistory` — แยก collection ต่างหาก (ไม่ embed ใน user)
-- `fridgeItems` — สำหรับ Mini Quest เช็คอาหาร (`itemName`, `expirationDate`, `quantity`, `addedAt`)
-  ⚠️ ยังไม่มีฟิลด์เก็บ path รูปถ่าย — ตอนทำฟีเจอร์กล้องต้องเพิ่มเอง (ฝั่ง Flutter ใช้ชื่อ `photoPath`)
+- `fridgeItems` — สำหรับ Mini Quest เช็คอาหาร (`itemName`, `expirationDate`, `quantity`, `addedAt`,
+  `photoData`/`photoContentType` — รูปจริงอัปโหลดขึ้น server แล้ว ดูหัวข้อ 5, `photoPath` เป็นฟิลด์เก่า
+  เก็บไว้เพื่อของก่อนหน้านี้เท่านั้น)
 - `items`/`inventory` — ไอเทมที่ผู้เล่นถือ
 - `achievements` — medal ที่ปลดล็อกแล้ว (unique index กันซ้ำ)
-- `seasons` — ควบคุมรอบ reset ของ Rank
 
 Mongoose models ทั้งหมดอยู่ใน `backend/models/` **สร้างไว้ครบแล้ว** แค่ยังไม่มี route/controller สำหรับ quest/user/inventory (มีแค่ auth routes)
 
@@ -152,6 +158,18 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
   - ทุกเมธอดใน `SoundService` ดัก error เงียบๆ (ไม่ throw ต่อ, มี `debugPrint` ให้เห็นตอนรัน `flutter run`
     เท่านั้น) — ไม่มีไฟล์เสียงก็รันแอพได้ปกติทุกอย่างเหมือนเดิม แค่ไม่มีเสียง (แนวเดียวกับ `errorBuilder`
     ที่ `InventoryCard` ใช้ตอนหารูปไอเทมไม่เจอ)
+  - **เพิ่มเอฟเฟคสั้นๆ อีก 3 อย่าง** (ผู้ใช้อัปโหลดไฟล์มาเพิ่มทีหลัง): `playBuySuccess()`
+    (`lib/utils/assets/sounds/buy_success.mp3`) เรียกจากหน้า Shop (`_buyItem`) และหน้า Profile ส่วน
+    Upgrade Ability (`_buyUpgrade`) ตอนซื้อสำเร็จ, `playQuestSuccess()`
+    (`lib/utils/assets/sounds/quess_success.MP3` — ชื่อไฟล์สะกดแบบนี้จริงๆ ไม่ใช่พิมพ์ผิด) เรียกจาก
+    `lib/utils/quest_completion.dart#handleQuestCompleted` จุดเดียวที่ใช้ร่วมกันทั้ง 4 ที่ที่ทำเควสได้,
+    `playNotification()` (`lib/utils/assets/sounds/notification.MP3`) เรียกจาก `NotificationProvider.
+    loadNotifications()` เอง — เทียบ id ของแจ้งเตือนรอบนี้กับรอบก่อนหน้า (`_knownIds`) เล่นเฉพาะตอนมี id
+    ใหม่โผล่มาจริงๆ เท่านั้น **ไม่เล่นตอนโหลดครั้งแรกสุดตอนเปิดแอพ** (ค่าเริ่มต้น `_knownIds` เป็น `null`
+    กันเสียงดังตอนเปิดแอพทั้งที่เป็นแจ้งเตือนเก่า) — ทั้ง 3 เมธอดใหม่ใช้ audio player แยกจาก `_click` ของ
+    ตัวเอง (กันเสียงชนกันเองถ้าเกิดพร้อมกันพอดี) แต่ยังผูกกับสไลเดอร์ "Sound Effects" เดียวกันใน Settings
+    ⚠️ `notification.MP3`/`quess_success.MP3` เป็น `.MP3` ตัวพิมพ์ใหญ่ (ต่างจาก `buy_success.mp3` พิมพ์เล็ก)
+    ต้องสะกด asset path ให้ตรงเคสเป๊ะ ไม่งั้น build ผ่านบน Windows dev machine แต่ Android จริงหาไฟล์ไม่เจอ
 - **Popup ยืนยัน/แจ้งเตือนทั้งแอพ — ธีม "Liquid Glass" แบบ macOS** — `LiquidGlassDialog` +
   `LiquidGlassAction` (`lib/widgets/liquid_glass_dialog.dart`) เป็น widget กลางที่ใช้แทน `AlertDialog`
   ธรรมดาทุกจุดในแอพที่ผู้เล่นเจอ ให้หน้าตาเหมือนกันหมด: กระจกฝ้าโปร่งแสง (`BackdropFilter` เบลอพื้นหลัง
@@ -188,7 +206,7 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
     (คนละหน้าตากับ popup เหรียญ — สีเขียว/อนุภาคเยอะกว่า) เรียง**เหรียญก่อนเลเวลอัพ**ถ้าเกิดพร้อมกัน —
     popup เหรียญเดิมก็เพิ่ม `backgroundEffect` (ประกายเบาๆ) และห่อไอคอนถ้วยรางวัลด้วย `_BounceIn`
     (`Curves.elasticOut`) ให้เด้งเข้ามาแทนโผล่มาเฉยๆ
-  - **ตัวเลข Points/XP นับไล่ขึ้น** — `CountUpNumber` แทน `Text` ธรรมดาใน `UserHeader`/`PointsAndRankCard`
+  - **ตัวเลข Points/XP นับไล่ขึ้น** — `CountUpNumber` แทน `Text` ธรรมดาใน `UserHeader`/`StreakCard`
     (`profile_sections.dart`) นับขึ้นเองอัตโนมัติทุกครั้งที่ provider รีเฟรชค่าใหม่ ไม่ต้อง wiring เพิ่ม
   - **เอฟเฟคซื้อของสำเร็จ** — `InventoryCard` เพิ่ม param `celebrate: bool` (ห่อ thumbnail ด้วย
     `PulseGlow`) `ShopPage` แปลงเป็น `StatefulWidget` เก็บ `_celebratingItemType` เคลียร์เองหลัง 600ms;
@@ -241,16 +259,22 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
   - ✅ `Community Cleanup` เปิดใช้งานแล้ว (เป็น party quest ตัวจริง) — ดูหัวข้อ "ระบบ Party" ด้านล่าง
     ถ้าเปิดตอนนี้จะกลายเป็นกดปุ่มรับ 30 แต้มฟรี
   - ⚠️ **ค่า `co2SavedKg` ทุกอันเป็นค่าประมาณ ยังไม่ได้อ้างอิงงานวิจัยจริง** ถ้าจะเอาไปนำเสนอควรหาตัวเลขอ้างอิงมาแทน
-  - ✅ **Season เปิด/ปิดอัตโนมัติแล้ว ไม่ต้อง seed มือ** — `backend/utils/seasons.js#ensureActiveSeason()`
-    เช็คทุกครั้งที่มีคนเรียก `GET /auth/me` (ผ่าน `utils/profilePayload.js`) และตอน server boot
-    ยังไม่เคยมี season เลย → เปิด season 1 ให้เอง / season ปัจจุบันหมดอายุ (`endDate` ผ่านไปแล้ว) →
-    ปิดแล้วเปิดอันถัดไปให้เอง ยาวซีซั่นละ 90 วัน (`SEASON_DURATION_DAYS` ในไฟล์เดียวกัน)
-    - หน้า Profile (ทั้งของตัวเองและของผู้เล่นคนอื่น) โชว์ "Season N · D days left" ใต้แถบ Rank ด้วยแล้ว
-    - กันสอง request ปิด/เปิดซีซั่นชนกันพอดีตอนหมดอายุด้วย compare-and-swap แบบเดียวกับ
-      latch ที่ `routes/party.js` ใช้กันคะแนนซ้ำ — ถ้าไม่มีคนเข้าแอพนานจนซีซั่นหมดอายุไปหลายรอบ
-      จะไล่เปิด-ปิดทีละซีซั่นจนกว่าจะถึงซีซั่นที่ยัง cover เวลาปัจจุบัน ไม่กระโดดข้ามเลข
-    - `npm run seed:season` **ยังอยู่แต่ไม่จำเป็นต้องรันแล้ว** เหลือไว้บังคับสร้าง/รีเซ็ต season ตอน
-      dev/debug เท่านั้น (มีคำเตือนในตัวสคริปต์ว่าจะไปทับ season 1 ถ้าระบบหมุนไปไกลกว่านั้นแล้ว)
+  - ✅ **ระบบ Rank/Season ถูกเอาออกทั้งหมดแล้ว แทนที่ด้วย Daily Streak** — `backend/utils/streak.js`
+    เป็นเจ้าของสูตรทั้งหมด: `applyDailyQuestCompletion(user)` เรียกจาก 3 จุดที่ทำเควสสำเร็จ
+    (`routes/quests.js`, `routes/party.js#complete`, `routes/admin.js` force-complete ทั้ง 2 จุด) ก่อน
+    `user.save()` เสมอ — เทียบ `user.lastStreakDate` กับวันนี้ (`startOfToday()` จาก `utils/questDay.js`
+    ตัวเดียวกับที่ quest รายวันใช้): ห่างกันพอดี 1 วัน = ต่อ streak, ห่างมากกว่านั้น = รีเซ็ทกลับวัน 1,
+    วันเดียวกับที่นับไปแล้ว = no-op (กันทำหลายเควสวันเดียวนับซ้ำ) ครบวัน 7/14/21/30 ได้รางวัล
+    (`STREAK_REWARDS` ในไฟล์เดียวกัน) วัน 30 ได้ไอเทมพิเศษด้วยแล้ว auto รีเซ็ทกลับวัน 1
+    - `getDisplayStreak(user)` ใช้ตอนสร้าง profile payload (`utils/profilePayload.js`) — เช็คแบบ
+      read-only ว่า streak ยังไม่ขาดจริง (lazy correction แบบเดียวกับ `ensureExpiryNotifications`
+      ของแจ้งเตือนของหมดอายุ ไม่ใช้ cron เพราะ backend ไม่มี scheduler) กัน UI โชว์เลข streak เก่าที่
+      ตายไปแล้วค้างอยู่ ก่อนจะรีเซ็ทจริงตอนทำเควสครั้งถัดไป
+    - หน้า Profile (ทั้งของตัวเองและของผู้เล่นคนอื่น) โชว์การ์ด `StreakCard` (เดิมชื่อ
+      `PointsAndRankCard`) แทน Rank/Season แล้ว — ไฟไอคอน + "Day X / 30" + progress bar ไป
+      milestone ถัดไป + preview รางวัล
+    - แจ้งเตือนครบ milestone ผ่าน `notifyStreakMilestone()` ใน `utils/notifications.js`
+      (type `'streak_milestone'`) + dialog ฉลองใน `lib/utils/quest_completion.dart`
 - **Mini Quest "เช็คของในตู้เย็น" ทำงานจริงแล้ว (ไม่ใช่กดรับคะแนนเปล่าๆ)**
   - `Quest.actionKey` = key บอกว่า quest นี้ต้องทำ action จริงในแอพก่อน (`null` = กดยืนยันเองได้เลย)
     quest เช็คตู้เย็นใช้ `actionKey: 'fridge_check'`
@@ -266,7 +290,7 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
 - **ไอเทม Camera ใช้งานได้จริง** — กดไอเทม Camera ในหน้า Inventory เข้าหน้า `/camera`
   - ถ่ายรูป (หรือเลือกจากคลังรูป) แล้วได้การ์ด **"EcoQuest Moment"** ที่ตกแต่งเฉพาะของแอพ
     ดีไซน์: การ์ดขาวทรงโพลารอยด์ ขอบเขียว + รูปจัตุรัส, ป้าย EcoQuest มุมซ้ายบน,
-    ชิป **Lv. / Rank ของผู้เล่นจริง** ทับมุมซ้ายล่างของรูป, ใต้รูปเป็นชื่อผู้เล่น + `Ebetsu City · วันที่` + ไอคอนใบไม้
+    ชิป **Lv. ของผู้เล่นจริง** ทับมุมซ้ายล่างของรูป, ใต้รูปเป็นชื่อผู้เล่น + `Ebetsu City · วันที่` + ไอคอนใบไม้
   - **รูปที่เซฟคือรูปใหม่ที่ตกแต่งแล้ว** ไม่ใช่รูปดิบ — เรนเดอร์การ์ดทั้งใบเป็น PNG ด้วย `RepaintBoundary.toImage()`
     (ต้องครอบ `RepaintBoundary` เฉพาะการ์ด ไม่งั้นปุ่ม/พื้นหลังหน้าจอจะติดไปในรูปด้วย)
   - มีแกลเลอรีในแอพ (grid) กดดูรูปเต็ม/ลบได้ — เก็บ path ไว้ใน `SharedPreferences` (`camera_photos`)
@@ -307,6 +331,26 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
   - `AppConstants.resolveUrl()` (`lib/utils/constants.dart`) เป็นจุดเดียวที่เติม `baseUrl` นำหน้า
     `avatarUrl` ที่ backend ส่งมา — เช็ค `startsWith('http')` ก่อนเสมอ กัน URL ถูกเติม `baseUrl` ซ้ำสอง
     ตอนโหลดค่าที่ cache ไว้ใน `SharedPreferences` กลับมา (`UserModel.toJson()` cache ค่าที่เติม prefix แล้ว)
+- **รูปของในตู้เย็นอัปโหลดขึ้น server จริงแล้ว** (เดิมเก็บแค่ path ในเครื่อง เห็นได้แค่เครื่องที่ถ่ายไว้ —
+  แก้ตามที่เขียนไว้ในหัวข้อ 7 "งานถัดไปที่แนะนำ" เดิม) เลียนแบบ pattern ของ avatar ข้างบนทุกอย่าง:
+  - `FridgeItem.photoData` (Buffer) + `photoContentType` ใน MongoDB ตรงๆ — ไม่ใช้ cloud storage ภายนอก
+    เหตุผลเดียวกับ avatar (Render free tier ephemeral filesystem) เสิร์ฟผ่าน
+    `GET /api/fridge-items/:id/photo` **public ไม่ต้อง login เหมือน avatar** (ObjectId ทายไม่ได้จริง
+    และของในตู้เย็นไม่ใช่ข้อมูลอ่อนไหว) — validate/decode base64 ใช้ฟังก์ชันกลาง
+    `backend/utils/imageUpload.js#decodeImageBase64()` ร่วมกับ avatar route ด้วย (กันโค้ด validate ซ้ำ
+    สองที่ — `routes/auth.js` ก็ refactor มาเรียกตัวนี้แล้วเหมือนกัน พฤติกรรม/error message เดิมทุกอย่าง)
+  - `POST /api/fridge-items` แต่ละ item ใน `items[]` รับ `photoBase64`/`photoContentType` เพิ่ม (optional)
+    ควบคู่กับ field เดิม — `toClient()` แนบ `photoUrl` กลับไปด้วยถ้ามีรูป (`/fridge-items/<id>/photo`)
+  - **ฟิลด์เก่า `photoPath` (path ในเครื่อง) ยังอยู่ ไม่ได้ลบ** — ของเก่าที่เคยถ่ายไว้ก่อนอัพเดตนี้ (มีแต่
+    `photoPath` ไม่มี `photoData`) ยัง fallback โชว์รูปได้ปกติบนเครื่องเดิม ไม่มี migration ย้อนหลัง
+    เพราะไบต์รูปจริงไม่เคยถูกส่งขึ้น server เลยตั้งแต่แรก — ของใหม่ทุกชิ้นมี `photoUrl` แทน ไม่ใช้
+    `photoPath` อีกต่อไป
+  - ฝั่งแอพ: `FridgeItemDraft` เก็บ `Uint8List photoBytes` (อ่านตรงๆ จาก `image_picker` ไม่ copy ไป
+    `AppPhotoStorage` อีกต่อไปเหมือน avatar's `_pickAvatar()`) ส่ง base64 ตอนกด Save,
+    `FridgeItemModel.photoUrl` โชว์ผ่าน `AppConstants.resolveUrl()` ตัวเดียวกับ avatar
+  - `InventoryCard` (`lib/widgets/inventory_card.dart`) เพิ่ม param `imageBytes`/`imageUrl` คู่กับ
+    `imageFile`/`imageAsset` เดิม ลำดับความสำคัญ: `imageBytes` (พรีวิว draft ที่ยังไม่ save) →
+    `imageFile` (ของเก่า fallback) → `imageUrl` (ของใหม่จาก server) → `imageAsset` → icon
 - **Achievement system ใช้งานได้จริง** — `GET /api/achievements` + ปลดล็อกอัตโนมัติตอนทำ quest สำเร็จ
   - นิยามเหรียญ + เงื่อนไขปลดล็อกทั้งหมดอยู่ที่ **`backend/utils/achievements.js` ไฟล์เดียว**
     (แนวเดียวกับ `progression.js`) — อยากปรับให้ปลดล็อกง่ายขึ้นตอนเดโมก็ลดเลข `required` ได้เลย
@@ -373,13 +417,13 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
   - `NotificationProvider.unreadCount` นับจากลิสต์ในเครื่อง ไม่ได้ให้ backend ส่งเลขมาแยก
     เข้าหน้า Notification แล้วถือว่าอ่านหมดทันที (`markAllRead`)
 - **ร้าน Upgrade Ability ใช้งานได้จริงแล้ว** — การ์ด "Upgrade your Ability" ในหน้า Profile ซื้อได้จริง
-  ผ่าน `GET /api/upgrades` + `POST /api/upgrades/:upgradeType/buy` ขาย 5 ตัว: Point Booster, XP Booster,
-  Rank Booster, Party Bonus Points, Quest Unlock — ซื้อซ้ำได้สูงสุด 50 ระดับ (Quest Unlock 14 ระดับ
+  ผ่าน `GET /api/upgrades` + `POST /api/upgrades/:upgradeType/buy` ขาย 4 ตัว: Point Booster, XP Booster,
+  Party Bonus Points, Quest Unlock — ซื้อซ้ำได้สูงสุด 50 ระดับ (Quest Unlock 14 ระดับ
   เพราะมี solo quest แค่ 18 อัน) แต่ละระดับเพิ่มผล 1% (Quest Unlock เพิ่ม 1 เควส) ราคาแพงขึ้นทุกระดับ
   - นิยาม + สูตรทั้งหมดอยู่ที่ **`backend/utils/upgrades.js` ไฟล์เดียว** (แนวเดียวกับ `progression.js`)
-  - ⚠️ **XP Booster กับ Rank Booster ตั้งใจแยกกัน ไม่ใช่บั๊ก** — XP Booster คูณ `user.xp` (คิด Level)
-    ส่วน Rank Booster คูณค่าที่เขียนลง `QuestHistory.xpEarned` (ผลรวมใน season คิด Rank แยกต่างหาก
-    ดู `utils/profilePayload.js`) ซื้อ XP Booster ไม่ทำให้ Rank ขยับเร็วขึ้นด้วย ต้องซื้อ Rank Booster แยก
+  - ⚠️ **เคยมี "Rank Booster" ตัวที่ 5 อยู่ด้วย แต่ถูกเอาออกแล้วพร้อมกับระบบ Rank** (ดูหัวข้อ 2) —
+    `QuestHistory.xpEarned` ตอนนี้เก็บ `reward.xp` ตรงๆ (ค่าเดียวกับที่ใช้คิด Level) ไม่มี `rankXp` แยก
+    อีกต่อไปแล้ว
   - หักแต้มแบบ atomic ด้วย `findOneAndUpdate({points: {$gte: cost}}, {$inc: {points: -cost}})`
     (compare-and-swap แบบเดียวกับ latch ที่ `routes/party.js` ใช้กันคะแนนซ้ำ) กันทั้งแต้มติดลบและกดซื้อซ้อนกัน
   - `GET /api/quests` คูณ `scorePoints`/`xpReward` ที่โชว์บนการ์ดด้วย upgrade ของผู้เล่นแล้ว และ
@@ -391,7 +435,7 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
   ⚠️ **ยังไม่มี "รูป quest" จริงในระบบ** (`Quest` model ไม่มีฟิลด์รูป, ไม่มีไฟล์ภาพใน assets)
   ตอนนี้ใช้ไอคอนตามหมวดแทน (food_waste / recycling / plastic / community) — ถ้าเพิ่มฟิลด์รูปทีหลัง
   แก้แค่ตรง `_QuestHistoryRow` ในหน้า Profile จุดเดียว (การ์ด quest ในหน้า Explore ก็ยังเป็นกล่องเทา placeholder เหมือนกัน)
-- **หน้า Profile ใช้ข้อมูลจริงแล้ว** — level / xp / points / rank / stats ดึงจาก `GET /api/auth/me`
+- **หน้า Profile ใช้ข้อมูลจริงแล้ว** — level / xp / points / streak / stats ดึงจาก `GET /api/auth/me`
   (หน้า Home ได้ตามไปด้วยอัตโนมัติ เพราะใช้ `ProfilePage` ตัวจริงเป็นพื้นหลัง) ดึงลงเพื่อ refresh ได้ในแท็บ Profile
 - Bottom nav (`MainShell` + `IndexedStack`) สลับ 5 แท็บ: Home, Inventory, Explore, Party, Profile
 - หน้า Profile — UI ครบ, background เปลี่ยนรูปเองได้ (`lib/utils/assets/background.png`)
@@ -473,13 +517,13 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
     ทุกแถวกดได้ (ไม่ใช่แค่แถวหัวหน้าเหมือนก่อนหน้านี้) — แถวของ**ตัวเอง** สลับไปแท็บ Profile ของจริง
     ส่วนแถวของ**คนอื่น**เปิด `lib/pages/profile/player_profile_page.dart` (โปรไฟล์แบบดูอย่างเดียว)
     ผ่าน `GET /api/users/:id` (ผู้เล่นที่ login แล้วดูของกันและกันได้ทุกคน ไม่ต้องอยู่ห้องเดียวกัน)
-    - `backend/routes/users.js` คัดฟิลด์แบบ **allow-list** เท่านั้น (`displayName level xp points rank
-      avatarContentType avatarUpdatedAt`) ห้ามใช้ `.select('-password')` เพราะยังหลุด
-      `email`/`resetOtpHash`/`resetOtpExpires` ได้ — ส่ง `avatarUrl` (สร้างจาก `avatarUrlFor()`) กลับไปด้วย
-      เพราะรูปตอนนี้อยู่บน server แล้ว เปิดจากเครื่องไหนก็ได้
-    - progress/stats คำนวณผ่าน `backend/utils/profilePayload.js` (`buildProfileStats`) ตัวเดียวที่
+    - `backend/routes/users.js` คัดฟิลด์แบบ **allow-list** เท่านั้น (`displayName level xp points
+      streakCount lastStreakDate avatarContentType avatarUpdatedAt`) ห้ามใช้ `.select('-password')`
+      เพราะยังหลุด `email`/`resetOtpHash`/`resetOtpExpires` ได้ — ส่ง `avatarUrl` (สร้างจาก
+      `avatarUrlFor()`) กลับไปด้วยเพราะรูปตอนนี้อยู่บน server แล้ว เปิดจากเครื่องไหนก็ได้
+    - progress/streak/stats คำนวณผ่าน `backend/utils/profilePayload.js` (`buildProfileStats`) ตัวเดียวที่
       `GET /auth/me` ก็เรียกใช้ ทั้งสอง endpoint เลยคิดเลขตรงกันเป๊ะ
-    - ชิ้นส่วน UI ที่ไม่ผูกกับ "ตัวเอง" (หัวข้อ+แถบ XP, การ์ด Point/Rank, การ์ดสถิติ, ประวัติเควส) ถูกยกออกมา
+    - ชิ้นส่วน UI ที่ไม่ผูกกับ "ตัวเอง" (หัวข้อ+แถบ XP, การ์ด Point/Streak, การ์ดสถิติ, ประวัติเควส) ถูกยกออกมา
       เป็น public widget ที่ `lib/widgets/profile_sections.dart` ให้ทั้งหน้า Profile ตัวเองและหน้าโปรไฟล์
       คนอื่นเรียกใช้ร่วมกัน (การ์ด Upgrade Ability ไม่ได้ยกมาเพราะเป็นของตัวเองเท่านั้น)
   - **หน้าสร้างห้องใหม่** `lib/pages/party/create_party_page.dart` (route `/party/create`, เข้าได้ทางเดียว
@@ -533,15 +577,16 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
     เงื่อนไข, reset ประวัติวันนี้/ทั้งหมด), Party (list ทุกห้อง + force-start/force-complete ข้ามเช็ค
     leader/เวลานัด/15 นาทีหลัง start — force-complete รับได้ทั้งห้อง `open` และ `started`),
     Achievement (unlock/reset), Inventory (grant ไอเทมไหนก็ได้ข้าม cost/reset), Upgrade (set level
-    ตรงๆ ข้าม cost), Season (list + บังคับหมดอายุแล้วเรียก `ensureActiveSeason()` จริงต่อทันที),
-    Notification (ยิงแจ้งเตือนทดสอบ 3 แบบ), Fridge (เพิ่มของทดสอบกำหนด expiry เองได้)
+    ตรงๆ ข้าม cost), Notification (ยิงแจ้งเตือนทดสอบ 3 แบบ), Fridge (เพิ่มของทดสอบกำหนด expiry เองได้)
+    ⚠️ ส่วน Season (list + บังคับหมดอายุ) เคยมีแต่ถูกลบออกพร้อมระบบ Rank/Season ทั้งระบบแล้ว
   - ฝั่งแอพ: `lib/pages/admin/admin_page.dart` (ธีม Material เรียบๆ ไม่ใช้ธีมกระจกมืดของเกมจริง — ตั้งใจ
     ให้ดูต่างจากเกมชัดๆ) เรียกผ่าน `lib/services/admin_service.dart` + `AdminProvider`
     (`lib/providers/admin_provider.dart`) — หลังทุก action ที่สำเร็จ หน้าเพจเรียก provider เดิมของระบบ
     นั้น refresh ต่อเอง (`AuthProvider.refreshProfile()`, `QuestProvider.loadQuests()` ฯลฯ) ไม่เก็บ state
     ซ้ำเอง
 
-`GET /api/auth/me` คืน 3 ก้อน: `user` (+ level/xp/points/rank), `progress` (ความคืบหน้า level/rank),
+`GET /api/auth/me` คืน 4 ก้อน: `user` (+ level/xp/points), `progress` (ความคืบหน้า level),
+`streak` (Daily Streak — count/cycleLength/milestones/rewards ดู `backend/utils/streak.js`),
 `stats` (questCompleted / questTotal / co2SavedKg / partiesJoined — คำนวณจริงจาก `QuestHistory` + `Quest`)
 
 ## 6. รายละเอียดปลีกย่อยที่เคยเสียเวลาแก้ปัญหามาก่อน (กันเสียเวลาซ้ำ)
@@ -622,9 +667,8 @@ backend พร้อม deploy แล้ว (ทดสอบว่าบูต�
 
 ## 7. งานถัดไปที่แนะนำ
 
-ทุกฟีเจอร์หลักต่อ backend จริงครบแล้ว ไม่มี mock เหลืออยู่ในแอพ งานที่เหลือเป็นงานเสริม/ปรับแต่ง เช่น:
-- ทำ upload รูปขึ้น server/cloud storage แทนการเก็บ path ในเครื่อง (รูปโปรไฟล์ + รูปของในตู้เย็น
-  เก็บถาวรไม่หายแล้วผ่าน `AppPhotoStorage` แต่ยังเห็นได้แค่บนเครื่องที่ตั้งค่าไว้ ข้ามเครื่องจะไม่เห็น)
+ทุกฟีเจอร์หลักต่อ backend จริงครบแล้ว ไม่มี mock เหลืออยู่ในแอพ (✅ รูปโปรไฟล์และรูปของในตู้เย็นอัปโหลด
+ขึ้น server จริงแล้วทั้งคู่ ดูหัวข้อ 5) งานที่เหลือเป็นงานเสริม/ปรับแต่ง เช่น:
 - ปรับสมดุลราคา/ผลของ upgrade ถ้าเทสแล้วรู้สึกไม่ลงตัว (แก้ที่ `backend/utils/upgrades.js` ไฟล์เดียว)
 
 ## 8. สิ่งที่ฉันคิดออกและต้องการ
@@ -751,7 +795,10 @@ backend พร้อม deploy แล้ว (ทดสอบว่าบูต�
       เปลี่ยน `PartyMember` — ไม่มี room membership ให้ sync)
     - `backend/routes/chat.js` เพิ่ม `GET /party/messages` (หา partyId จาก membership เอง) และ
       `GET /friend/:friendUserId/messages` (เช็ค Friendship accepted ก่อนเสมอ)
-    - Frontend: `chat_service.dart` เพิ่ม `fetchPartyHistory()`/`fetchFriendHistory(friendUserId)`,
+    - Fronten✅ ทดสอบ boot server + WebSocket handshake ผ่าน socket client จริงอีกรอบ ยืนยันว่า `chat:send`
+      channelType `party` ทำงานตามลอจิก (query DB แล้ว fail อย่างสุภาพเพราะ Atlas connect ไม่ติด
+      เหมือนทุก Phase ก่อนหน้า ไม่ crash) — **ยังไม่เคยทดสอบกับ Dart client จริงและยังไม่เคยเห็น
+      ข้อความ persisd: `chat_service.dart` เพิ่ม `fetchPartyHistory()`/`fetchFriendHistory(friendUserId)`,
       `chat_provider.dart` เก็บข้อความแยกคีย์ต่อ channel (`'world'`/`'party'`/`'friend:<userId>'` —
       แชทเพื่อนต้องแยกคีย์ต่อคนคุย เพราะคุยได้หลายคน) เพิ่ม `sendPartyMessage`/`sendFriendMessage`/
       `loadPartyHistory`/`loadFriendHistory`
@@ -759,7 +806,4 @@ backend พร้อม deploy แล้ว (ทดสอบว่าบูต�
       `PartyProvider.hasParty`, Friend enable เฉพาะตอนมีเพื่อนอย่างน้อย 1 คน (กดแล้วเปิด bottom
       sheet เลือกว่าจะคุยกับเพื่อนคนไหน) — ออกจากปาร์ตี้ระหว่างอยู่แท็บ Party chat จะเด้งกลับ World
       เองอัตโนมัติ
-    - ✅ ทดสอบ boot server + WebSocket handshake ผ่าน socket client จริงอีกรอบ ยืนยันว่า `chat:send`
-      channelType `party` ทำงานตามลอจิก (query DB แล้ว fail อย่างสุภาพเพราะ Atlas connect ไม่ติด
-      เหมือนทุก Phase ก่อนหน้า ไม่ crash) — **ยังไม่เคยทดสอบกับ Dart client จริงและยังไม่เคยเห็น
-      ข้อความ persist ลง DB จริงเลยทั้งโปรเจค Chat** ต้องทดสอบเต็มรูปแบบอีกทีหลัง deploy ขึ้น Render
+    - t ลง DB จริงเลยทั้งโปรเจค Chat** ต้องทดสอบเต็มรูปแบบอีกทีหลัง deploy ขึ้น Render

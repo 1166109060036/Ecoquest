@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/party_model.dart';
 import '../providers/party_provider.dart';
+import '../widgets/bubble_toast.dart';
 
 // กด "Join" บนการ์ดห้องปาร์ตี้ — ใช้ร่วมกันทั้งหน้า Explore และแผ่น Explore ในหน้า Home
 // (เหมือน handleQuestCompleted ใน quest_completion.dart ที่แชร์กันหลายหน้า)
@@ -16,9 +17,7 @@ Future<void> joinPartyRoom(
   if (!context.mounted) return;
 
   if (!ok) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(partyProvider.errorMessage ?? 'Failed to join this party')),
-    );
+    showBubbleToast(context, partyProvider.errorMessage ?? 'Failed to join this party');
     return;
   }
 

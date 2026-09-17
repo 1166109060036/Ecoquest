@@ -7,14 +7,12 @@ class FriendModel {
   final String displayName;
   final String? avatarUrl; // null = ยังไม่ได้ตั้งรูปโปรไฟล์ (โชว์ไอคอนคนแทน)
   final int level;
-  final String rank;
 
   FriendModel({
     required this.id,
     required this.displayName,
     this.avatarUrl,
     required this.level,
-    required this.rank,
   });
 
   factory FriendModel.fromJson(Map<String, dynamic> json) {
@@ -23,7 +21,6 @@ class FriendModel {
       displayName: json['displayName'] ?? 'Player',
       avatarUrl: AppConstants.resolveUrl(json['avatarUrl']),
       level: json['level'] ?? 1,
-      rank: json['rank'] ?? 'Bronze',
     );
   }
 }

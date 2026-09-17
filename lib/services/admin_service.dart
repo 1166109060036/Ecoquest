@@ -86,14 +86,6 @@ class AdminService {
   Future<void> setUpgradeLevel(String upgradeType, int level) =>
       _post('/upgrades/set-level', {'upgradeType': upgradeType, 'level': level});
 
-  // ---- Season ----
-  Future<List<Map<String, dynamic>>> listSeasons() async {
-    final data = await _get('/seasons');
-    return List<Map<String, dynamic>>.from(data['seasons']);
-  }
-
-  Future<void> expireCurrentSeason() => _post('/seasons/expire-current');
-
   // ---- Notification ----
   Future<void> testNotification(String type) => _post('/notifications/test', {'type': type});
 

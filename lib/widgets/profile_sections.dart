@@ -60,13 +60,12 @@ class ProfileGlassCard extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// ส่วนหัว: avatar + ชื่อ + level/rank + progress bar
+// ส่วนหัว: avatar + ชื่อ + level + progress bar
 // ---------------------------------------------------------------------------
 class UserHeader extends StatelessWidget {
   final String displayName;
   final String? avatarUrl; // URL เต็มของรูปโปรไฟล์ — null = ยังไม่ได้ตั้ง
   final int level;
-  final String rankTier;
   final int xp;
   final int xpToNext;
   // null = ดูโปรไฟล์คนอื่น (แก้รูปไม่ได้ ไม่โชว์ป้ายกล้อง) — มีค่าเฉพาะหน้าโปรไฟล์ตัวเอง
@@ -77,7 +76,6 @@ class UserHeader extends StatelessWidget {
     required this.displayName,
     this.avatarUrl,
     required this.level,
-    required this.rankTier,
     required this.xp,
     required this.xpToNext,
     this.onTapAvatar,
@@ -106,7 +104,7 @@ class UserHeader extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                'Lv. ${level.toString().padLeft(2, '0')}   $rankTier Rank',
+                'Lv. ${level.toString().padLeft(2, '0')}',
                 style: const TextStyle(color: Colors.white70, fontSize: 12),
               ),
               const SizedBox(height: 6),
@@ -192,27 +190,18 @@ class _AvatarPicker extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// การ์ด Point + Rank — label เปลี่ยนได้ ("Your Point" ในโปรไฟล์ตัวเอง, "Point" ในโปรไฟล์คนอื่น)
+// การ์ด Point + Daily Streak — label เปลี่ยนได้ ("Your Point" ในโปรไฟล์ตัวเอง, "Point" ในโปรไฟล์คนอื่น)
 // ---------------------------------------------------------------------------
-class PointsAndRankCard extends StatelessWidget {
+class StreakCard extends StatelessWidget {
   final int points;
-  final String rankTier;
-  final int rankXp; // XP ที่ไต่มาได้แล้วภายใน tier ปัจจุบัน (นับเฉพาะ season นี้)
-  final int? rankXpMax; // null = อยู่ tier สูงสุดแล้ว
+  final StreakInfo streak;
   final String pointsLabel;
-  // null = ไม่โชว์บรรทัดซีซั่น (เผื่อโปรไฟล์เก่าที่ backend ยังไม่ส่งค่านี้มา)
-  final int? seasonNumber;
-  final int? seasonDaysRemaining;
 
-  const PointsAndRankCard({
+  const StreakCard({
     super.key,
     required this.points,
-    required this.rankTier,
-    required this.rankXp,
-    required this.rankXpMax,
+    required this.streak,
     this.pointsLabel = 'Your Point',
-    this.seasonNumber,
-    this.seasonDaysRemaining,
   });
 
   @override
@@ -248,7 +237,6 @@ class PointsAndRankCard extends StatelessWidget {
             ),
             const VerticalDivider(color: Colors.white24, width: 1),
             Expanded(
-              // เท่ากับฝั่ง Point แล้ว (เดิม flex:2 แคบไป "Bronze Rank" ตัวหนาโดนตัดเหลือ "Bronze R...")
               flex: 3,
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -257,19 +245,17 @@ class PointsAndRankCard extends StatelessWidget {
                     CircleAvatar(
                       radius: 16,
                       backgroundColor: Colors.black.withValues(alpha: 0.48),
-                      child: const Icon(Icons.emoji_events, color: Colors.amberAccent, size: 16),
+                      child: const Icon(Icons.local_fire_department, color: Colors.orangeAccent, size: 16),
                     ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Rank',
+                          const Text('Daily Streak',
                               style: TextStyle(color: Colors.white54, fontSize: 10)),
                           Text(
-                            '$rankTier Rank',
-                            // ไม่ตัดด้วย ... อีกต่อไป — ยอมให้ขึ้นบรรทัดใหม่แทน กันชื่อยศยาวๆ
-                            // อย่าง "Platinum Rank" โดนตัดหายเหมือนที่ "Bronze Rank" เจอมาก่อน
+                            'Day ${streak.count} / ${streak.cycleLength}',
                             softWrap: true,
                             style: const TextStyle(
                               color: Colors.white,
@@ -282,27 +268,28 @@ class PointsAndRankCard extends StatelessWidget {
                           ClipRRect(
                             borderRadius: BorderRadius.circular(4),
                             child: LinearProgressIndicator(
-                              // tier สูงสุดแล้ว (rankXpMax == null) -> โชว์เต็มหลอด
-                              value: rankXpMax == null
+                              // ไม่มี milestone ถัดไปแล้ว (ไม่ควรเกิดจริง) -> โชว์เต็มหลอดไปเลย
+                              value: streak.nextMilestone == null
                                   ? 1.0
-                                  : (rankXpMax == 0 ? 0.0 : (rankXp / rankXpMax!).clamp(0.0, 1.0)),
+                                  : (streak.count / streak.nextMilestone!).clamp(0.0, 1.0),
                               minHeight: 4,
                               backgroundColor: Colors.white24,
-                              valueColor: const AlwaysStoppedAnimation(Colors.greenAccent),
+                              valueColor: const AlwaysStoppedAnimation(Colors.orangeAccent),
                             ),
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            rankXpMax == null
+                            streak.nextMilestone == null
                                 ? 'MAX'
-                                : '${formatNumber(rankXp)} / ${formatNumber(rankXpMax!)} XP',
+                                : 'Next: Day ${streak.nextMilestone}',
                             style: const TextStyle(color: Colors.white54, fontSize: 9),
                           ),
-                          if (seasonNumber != null) ...[
+                          if (streak.nextReward != null) ...[
                             const SizedBox(height: 2),
                             Text(
-                              // แยกคนละบรรทัดกัน (เดิมอยู่บรรทัดเดียวคั่นด้วย "·")
-                              'Season $seasonNumber\n${seasonDaysRemaining ?? 0} days left',
+                              '+${formatNumber(streak.nextReward!.points)}P '
+                              '+${formatNumber(streak.nextReward!.xp)}XP'
+                              '${streak.nextReward!.itemType != null ? ' + item' : ''}',
                               style: const TextStyle(
                                 color: Colors.white38,
                                 fontSize: 8.5,

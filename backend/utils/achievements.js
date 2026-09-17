@@ -4,7 +4,7 @@ const QuestHistory = require('../models/QuestHistory');
 const { notifyAchievementUnlocked } = require('./notifications');
 
 // รวมนิยามเหรียญทั้งหมดไว้ไฟล์เดียว — อยากเพิ่ม/แก้เงื่อนไขปลดล็อกแก้ที่นี่ที่เดียว
-// (แนวเดียวกับ progression.js ที่รวมสูตร level/rank ไว้ที่เดียว)
+// (แนวเดียวกับ progression.js ที่รวมสูตร level ไว้ที่เดียว)
 //
 // เงื่อนไขตอนนี้: ทำ quest ในหมวดนั้นครบตามจำนวน "required" ครั้ง
 // อยากปรับให้ปลดล็อกง่ายขึ้นตอนเดโม ก็ลดเลข required ได้เลย ไม่ต้องแก้โค้ดอื่น

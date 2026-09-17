@@ -215,7 +215,7 @@ class _FriendPickerSheet extends StatelessWidget {
                           : null,
                     ),
                     title: Text(friend.displayName, style: const TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: Text('Lv. ${friend.level.toString().padLeft(2, '0')}  ·  ${friend.rank}'),
+                    subtitle: Text('Lv. ${friend.level.toString().padLeft(2, '0')}'),
                   );
                 },
               ),

@@ -61,16 +61,9 @@ const UserSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-    rank: {
-      type: String,
-      default: 'Bronze',
-      // reset ทุก season
-    },
-    seasonId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Season',
-      default: null,
-    },
+    // ---- Daily Streak — นับวันติดต่อกันที่ทำเควสสำเร็จอย่างน้อย 1 อัน (ดู utils/streak.js) ----
+    streakCount: { type: Number, default: 0 }, // จำนวนวันติดต่อกันในรอบปัจจุบัน (1-30)
+    lastStreakDate: { type: Date, default: null }, // วันล่าสุดที่นับไปแล้ว (ค่าจาก startOfToday())
     // หมายเหตุ: เคยมีฟิลด์ energy / lastEnergyUpdate อยู่ตรงนี้ (ระบบ stamina ที่ใช้แล้วหมดต้องรอเติม
     // ก่อนทำเควสได้อีก) แต่ถูกตัดออกจากดีไซน์แล้ว (quest ทำได้โดยไม่เสียพลังงาน) จึงลบทิ้ง
     //

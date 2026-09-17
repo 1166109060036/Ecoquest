@@ -3,7 +3,9 @@ import 'package:provider/provider.dart';
 import '../../models/inventory_item_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/inventory_provider.dart';
+import '../../services/sound_service.dart';
 import '../../widgets/breathing_icon.dart';
+import '../../widgets/bubble_toast.dart';
 import '../../widgets/inventory_card.dart';
 import '../../widgets/leaf_refresh_indicator.dart';
 import '../../widgets/skeleton_box.dart';
@@ -36,18 +38,15 @@ class _ShopPageState extends State<ShopPage> {
     if (!context.mounted) return;
 
     if (!success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(inventoryProvider.errorMessage ?? 'Failed to buy this item')),
-      );
+      showBubbleToast(context, inventoryProvider.errorMessage ?? 'Failed to buy this item');
       return;
     }
 
     // ซื้อเสร็จแล้วแต้มลด — รีเฟรช AuthProvider ให้ยอดแต้มที่โชว์ในแอพอัปเดตตามทันที
     await context.read<AuthProvider>().refreshProfile();
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${item.title} purchased')),
-    );
+    showBubbleToast(context, '${item.title} purchased');
+    SoundService.instance.playBuySuccess();
 
     setState(() => _celebratingItemType = item.itemType);
     Future.delayed(const Duration(milliseconds: 600), () {

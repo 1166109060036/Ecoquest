@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../models/friend_model.dart';
 import '../../providers/friend_provider.dart';
 import '../../widgets/breathing_icon.dart';
+import '../../widgets/bubble_toast.dart';
 import '../../widgets/liquid_glass_dialog.dart';
 import '../../widgets/pressable_scale.dart';
 import '../profile/player_profile_page.dart';
@@ -80,9 +81,7 @@ class _FriendTabState extends State<FriendTab> {
     final provider = context.read<FriendProvider>();
     final ok = await provider.removeFriend(friend.id);
     if (!mounted || ok) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(provider.errorMessage ?? 'Failed to remove this friend')),
-    );
+    showBubbleToast(context, provider.errorMessage ?? 'Failed to remove this friend');
   }
 
   Future<void> _sendRequest(FriendSearchResultModel result) async {
@@ -93,9 +92,7 @@ class _FriendTabState extends State<FriendTab> {
       // รีเฟรชผลค้นหาเดิมด้วย ให้ปุ่ม Add ตรงแถวนี้เปลี่ยนเป็น Pending/Friends ทันทีโดยไม่ต้องพิมพ์ค้นหาใหม่
       await provider.search(_searchController.text);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(provider.errorMessage ?? 'Failed to send friend request')),
-      );
+      showBubbleToast(context, provider.errorMessage ?? 'Failed to send friend request');
     }
   }
 
@@ -103,27 +100,21 @@ class _FriendTabState extends State<FriendTab> {
     final provider = context.read<FriendProvider>();
     final ok = await provider.acceptRequest(request.id);
     if (!mounted || ok) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(provider.errorMessage ?? 'Failed to accept this request')),
-    );
+    showBubbleToast(context, provider.errorMessage ?? 'Failed to accept this request');
   }
 
   Future<void> _rejectRequest(FriendRequestModel request) async {
     final provider = context.read<FriendProvider>();
     final ok = await provider.rejectRequest(request.id);
     if (!mounted || ok) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(provider.errorMessage ?? 'Failed to reject this request')),
-    );
+    showBubbleToast(context, provider.errorMessage ?? 'Failed to reject this request');
   }
 
   Future<void> _cancelRequest(FriendRequestModel request) async {
     final provider = context.read<FriendProvider>();
     final ok = await provider.cancelRequest(request.id);
     if (!mounted || ok) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(provider.errorMessage ?? 'Failed to cancel this request')),
-    );
+    showBubbleToast(context, provider.errorMessage ?? 'Failed to cancel this request');
   }
 
   @override
@@ -477,7 +468,7 @@ class _FriendUserRow extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
-                      'Lv. ${user.level.toString().padLeft(2, '0')}  ·  ${user.rank}',
+                      'Lv. ${user.level.toString().padLeft(2, '0')}',
                       style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                     ),
                   ],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/notification_model.dart';
 import '../services/notification_service.dart';
+import '../services/sound_service.dart';
 
 // ถือรายการแจ้งเตือนไว้ให้จุดแดงบนไอคอนกระดิ่งกับหน้า Notification ใช้ร่วมกัน
 // โหลดครั้งเดียวตอนเข้าแอพ แล้วโหลดใหม่ทุกครั้งที่ทำเควสสำเร็จ (อาจมีแจ้งเตือนใหม่)
@@ -10,6 +11,10 @@ class NotificationProvider extends ChangeNotifier {
   List<NotificationModel> _items = [];
   bool _isLoading = false;
   String? _errorMessage;
+  // เก็บ id ที่เคยเห็นแล้ว ไว้เทียบว่ารอบนี้มีแจ้งเตือนใหม่จริงๆ โผล่มาไหม (กันเล่นเสียงซ้ำตอนแค่โหลดซ้ำ
+  // ลิสต์เดิม) เริ่มจาก null ตั้งใจ — โหลดครั้งแรกสุดตอนเปิดแอพไม่ควรมีเสียง เพราะเป็นแจ้งเตือนเก่าที่มี
+  // อยู่ก่อนแล้ว ไม่ใช่ของใหม่ที่เพิ่งเกิดขึ้น
+  Set<String>? _knownIds;
 
   List<NotificationModel> get items => _items;
   bool get isLoading => _isLoading;
@@ -24,6 +29,12 @@ class NotificationProvider extends ChangeNotifier {
 
     try {
       _items = await _service.fetchNotifications();
+
+      final currentIds = _items.map((n) => n.id).toSet();
+      if (_knownIds != null && currentIds.any((id) => !_knownIds!.contains(id))) {
+        SoundService.instance.playNotification();
+      }
+      _knownIds = currentIds;
     } catch (e) {
       // โหลดแจ้งเตือนไม่ได้ไม่ควรทำให้หน้า Notification พัง — ปล่อยเป็นลิสต์ว่างไปก่อน
       _errorMessage = e.toString().replaceFirst('Exception: ', '');

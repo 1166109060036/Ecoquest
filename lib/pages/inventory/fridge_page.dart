@@ -5,10 +5,12 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../models/fridge_item_model.dart';
+import '../../utils/constants.dart';
 import '../../utils/quest_completion.dart';
 import '../../providers/fridge_provider.dart';
 import '../../providers/quest_provider.dart';
 import '../../services/app_photo_storage.dart';
+import '../../widgets/bubble_toast.dart';
 import '../../widgets/inventory_card.dart';
 import '../../widgets/liquid_glass_dialog.dart';
 import '../../widgets/staggered_fade_in.dart';
@@ -74,9 +76,7 @@ class _FridgePageState extends State<FridgePage> {
     if (!mounted) return;
 
     if (!saved) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(fridgeProvider.errorMessage ?? 'Failed to save items')),
-      );
+      showBubbleToast(context, fridgeProvider.errorMessage ?? 'Failed to save items');
       return;
     }
 
@@ -89,9 +89,7 @@ class _FridgePageState extends State<FridgePage> {
     final fridgeQuest = pending.isEmpty ? null : pending.first;
 
     if (fridgeQuest == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Fridge items saved')),
-      );
+      showBubbleToast(context, 'Fridge items saved');
       return;
     }
 
@@ -99,9 +97,7 @@ class _FridgePageState extends State<FridgePage> {
     if (!mounted) return;
 
     if (reward == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(questProvider.errorMessage ?? 'Items saved, but the quest failed')),
-      );
+      showBubbleToast(context, questProvider.errorMessage ?? 'Items saved, but the quest failed');
       return;
     }
 
@@ -135,14 +131,15 @@ class _FridgePageState extends State<FridgePage> {
     final ok = await fridgeProvider.deleteItem(item.id);
     if (!ok) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(fridgeProvider.errorMessage ?? 'Failed to remove item')),
-      );
+      showBubbleToast(context, fridgeProvider.errorMessage ?? 'Failed to remove item');
       return;
     }
 
-    // ลบไฟล์รูปที่เก็บถาวรไว้ทิ้งด้วย ไม่งั้นค้างอยู่ในเครื่องเปล่าๆ
-    await AppPhotoStorage.delete(item.photoPath);
+    // รูปของใหม่อยู่บน server แล้ว ลบ record ก็จบ — เหลือแค่ของเก่าที่ยังมีแค่ photoPath ในเครื่อง
+    // ที่ต้องลบไฟล์ถาวรทิ้งเองด้วย ไม่งั้นค้างอยู่ในเครื่องเปล่าๆ
+    if (item.photoUrl == null && item.photoPath != null) {
+      await AppPhotoStorage.delete(item.photoPath);
+    }
   }
 
   @override
@@ -231,9 +228,14 @@ class _FridgePageState extends State<FridgePage> {
                             else
                               for (final item in items) ...[
                                 InventoryCard(
-                                  // ของในตู้เย็นใช้รูปที่ผู้ใช้ถ่ายเองเป็นหลัก
-                                  // ยังไม่มีรูป (หรือไฟล์หาย) ค่อย fallback เป็นไอคอนอาหาร
-                                  imageFile: item.photoPath != null
+                                  // ของในตู้เย็นใช้รูปที่ผู้ใช้ถ่ายเองเป็นหลัก — ของใหม่ทุกชิ้นมี photoUrl
+                                  // (อัพขึ้น server แล้ว เห็นได้ทุกเครื่อง) ของเก่าก่อนมีฟีเจอร์นี้ค่อย
+                                  // fallback ไปใช้ photoPath ในเครื่อง (เห็นได้แค่เครื่องที่ถ่ายไว้)
+                                  // ไม่มีรูปเลย (หรือไฟล์เก่าหาย) ค่อย fallback เป็นไอคอนอาหาร
+                                  imageUrl: item.photoUrl != null
+                                      ? AppConstants.resolveUrl(item.photoUrl)
+                                      : null,
+                                  imageFile: item.photoUrl == null && item.photoPath != null
                                       ? File(AppPhotoStorage.resolve(item.photoPath!))
                                       : null,
                                   icon: _foodFallbackIcon,
@@ -318,7 +320,8 @@ class _AddItemSheetState extends State<_AddItemSheet> {
 
   DateTime? _expirationDate;
   int _quantity = 1;
-  String? _photoPath;
+  Uint8List? _photoBytes;
+  String? _photoContentType;
 
   @override
   void dispose() {
@@ -337,17 +340,20 @@ class _AddItemSheetState extends State<_AddItemSheet> {
       );
       if (shot == null || !mounted) return;
 
-      // copy ไปเก็บถาวรทันที ไม่ใช้ path ใน cache ของ image_picker ตรงๆ
-      // (ถ้าระบบเคลียร์ cache รูปจะหาย) — copy ตอน pick เพราะ _buildDraft/_add เป็น sync
-      final saved = await AppPhotoStorage.save(shot.path, prefix: 'fridge');
+      // อ่าน bytes ตรงๆ ไม่ copy ไปเก็บถาวรในเครื่องอีกต่อไป (แนวเดียวกับ avatar's _pickAvatar())
+      // เพราะจะอัพขึ้น server ตอนกด Save เลย ไม่ต้องมีสำเนาถาวรในเครื่องซ้ำ
+      final bytes = await shot.readAsBytes();
       if (!mounted) return;
-      setState(() => _photoPath = saved);
+      // backend รับแค่ image/jpeg กับ image/png — เดาจากนามสกุลไฟล์ (แนวเดียวกับ avatar picker)
+      final contentType = shot.path.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
+      setState(() {
+        _photoBytes = bytes;
+        _photoContentType = contentType;
+      });
     } catch (e) {
       if (!mounted) return;
       // เครื่องไม่มีกล้อง / ผู้ใช้ปฏิเสธ permission
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open the camera')),
-      );
+      showBubbleToast(context, 'Could not open the camera');
     }
   }
 
@@ -372,15 +378,11 @@ class _AddItemSheetState extends State<_AddItemSheet> {
     final name = _nameController.text.trim();
 
     if (name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter the item name')),
-      );
+      showBubbleToast(context, 'Please enter the item name');
       return null;
     }
     if (_expirationDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please pick an expiration date')),
-      );
+      showBubbleToast(context, 'Please pick an expiration date');
       return null;
     }
 
@@ -396,7 +398,8 @@ class _AddItemSheetState extends State<_AddItemSheet> {
         59,
       ),
       quantity: _quantity,
-      photoPath: _photoPath,
+      photoBytes: _photoBytes,
+      photoContentType: _photoContentType,
     );
   }
 
@@ -417,7 +420,8 @@ class _AddItemSheetState extends State<_AddItemSheet> {
       _nameController.clear();
       _expirationDate = null;
       _quantity = 1;
-      _photoPath = null;
+      _photoBytes = null;
+      _photoContentType = null;
     });
     _nameFocus.requestFocus();
   }
@@ -457,10 +461,13 @@ class _AddItemSheetState extends State<_AddItemSheet> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _PhotoPickerBox(
-                    photoPath: _photoPath,
+                    photoBytes: _photoBytes,
                     onTakePhoto: () => _pickPhoto(ImageSource.camera),
                     onPickFromGallery: () => _pickPhoto(ImageSource.gallery),
-                    onClear: () => setState(() => _photoPath = null),
+                    onClear: () => setState(() {
+                      _photoBytes = null;
+                      _photoContentType = null;
+                    }),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -562,13 +569,13 @@ class _AddItemSheetState extends State<_AddItemSheet> {
 
 // กล่องเลือกรูป 72×72 — แตะ = เปิดกล้องเลย, ปุ่มเล็กมุมล่างขวา = เลือกจากคลังรูป
 class _PhotoPickerBox extends StatelessWidget {
-  final String? photoPath;
+  final Uint8List? photoBytes;
   final VoidCallback onTakePhoto;
   final VoidCallback onPickFromGallery;
   final VoidCallback onClear;
 
   const _PhotoPickerBox({
-    required this.photoPath,
+    required this.photoBytes,
     required this.onTakePhoto,
     required this.onPickFromGallery,
     required this.onClear,
@@ -576,7 +583,7 @@ class _PhotoPickerBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasPhoto = photoPath != null;
+    final hasPhoto = photoBytes != null;
 
     return SizedBox(
       width: 72,
@@ -597,8 +604,8 @@ class _PhotoPickerBox extends StatelessWidget {
               ),
               clipBehavior: Clip.antiAlias,
               child: hasPhoto
-                  ? Image.file(
-                      File(AppPhotoStorage.resolve(photoPath!)),
+                  ? Image.memory(
+                      photoBytes!,
                       fit: BoxFit.cover,
                       errorBuilder: (_, _, _) =>
                           const Icon(Icons.broken_image_outlined, color: Colors.green),
@@ -688,11 +695,11 @@ class _DraftCard extends StatelessWidget {
           SizedBox(
             width: 56,
             height: 56,
-            child: draft.photoPath != null
+            child: draft.photoBytes != null
                 ? ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: Image.file(
-                      File(AppPhotoStorage.resolve(draft.photoPath!)),
+                    child: Image.memory(
+                      draft.photoBytes!,
                       fit: BoxFit.cover,
                       errorBuilder: (_, _, _) =>
                           const Icon(_foodFallbackIcon, color: Colors.green, size: 28),

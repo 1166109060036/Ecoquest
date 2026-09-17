@@ -97,23 +97,52 @@ class QuestReward {
   final int xp;
   // เหรียญที่เพิ่งปลดล็อกจากการทำ quest ครั้งนี้ (ปกติว่าง) — เอาไปเด้งแสดงความยินดี
   final List<UnlockedMedal> newAchievements;
+  // ไม่ null เฉพาะตอนวันนี้ตรง milestone ของ Daily Streak (7/14/21/30) — เอาไปเด้ง celebrate
+  final StreakMilestoneReward? streakMilestone;
 
   QuestReward({
     required this.points,
     required this.xp,
     this.newAchievements = const [],
+    this.streakMilestone,
   });
 
   // รับทั้งก้อน response มาเลย เพราะ earned กับ newAchievements อยู่คนละชั้นกัน
   factory QuestReward.fromResponse(Map<String, dynamic> json) {
     final earned = (json['earned'] ?? {}) as Map<String, dynamic>;
     final medals = (json['newAchievements'] ?? []) as List;
+    final streakJson = json['streakMilestone'] as Map<String, dynamic>?;
 
     return QuestReward(
       points: earned['points'] ?? 0,
       xp: earned['xp'] ?? 0,
       newAchievements:
           medals.map((m) => UnlockedMedal.fromJson(m as Map<String, dynamic>)).toList(),
+      streakMilestone: streakJson != null ? StreakMilestoneReward.fromJson(streakJson) : null,
+    );
+  }
+}
+
+// รางวัลที่ได้ตอนครบวัน milestone ของ Daily Streak — ดู backend/utils/streak.js เป็นเจ้าของสูตรจริง
+class StreakMilestoneReward {
+  final int day;
+  final int points;
+  final int xp;
+  final String? itemType; // ไม่ null เฉพาะ milestone ที่แถมไอเทมพิเศษด้วย (ตอนนี้มีแค่วัน 30)
+
+  StreakMilestoneReward({
+    required this.day,
+    required this.points,
+    required this.xp,
+    this.itemType,
+  });
+
+  factory StreakMilestoneReward.fromJson(Map<String, dynamic> json) {
+    return StreakMilestoneReward(
+      day: json['day'] ?? 0,
+      points: json['points'] ?? 0,
+      xp: json['xp'] ?? 0,
+      itemType: json['itemType'],
     );
   }
 }

@@ -7,10 +7,11 @@ const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 const progression = require('../utils/progression');
 const { syncAchievements } = require('../utils/achievements');
-const { notifyQuestCompleted } = require('../utils/notifications');
+const { notifyQuestCompleted, notifyStreakMilestone } = require('../utils/notifications');
 const { getUserBonuses, applyBonuses, BASE_VISIBLE_QUESTS } = require('../utils/upgrades');
 const { withEnergyBoosts } = require('../utils/inventory');
 const { startOfToday, todayKey } = require('../utils/questDay');
+const { applyDailyQuestCompletion } = require('../utils/streak');
 const crypto = require('crypto');
 
 const router = express.Router();
@@ -217,16 +218,16 @@ router.post('/:id/complete', authMiddleware, async (req, res) => {
       userId: user._id,
       questId: quest._id,
       pointsEarned: reward.points,
-      // ⚠️ เก็บ rankXp ตรงนี้ ไม่ใช่ reward.xp — ค่านี้จะถูกรวมเป็น seasonXp ไปคิด Rank
-      // (ดู utils/profilePayload.js) แยกจาก user.xp ที่ใช้คิด Level โดยตั้งใจ (คนละ upgrade กัน)
-      xpEarned: reward.rankXp,
+      xpEarned: reward.xp,
     });
 
     user.points += reward.points;
     user.xp += reward.xp;
     // level เป็น cache ของ xp — คำนวณใหม่ทุกครั้งที่ xp เปลี่ยน
-    // ส่วน user.rank ปล่อยให้ GET /auth/me คิดสดจาก season XP เอา (ไม่ต้อง query season ตรงนี้)
     user.level = progression.levelFromXp(user.xp);
+    // อัพเดท Daily Streak ก่อน save — mutate user ในหน่วยความจำ (points/xp เพิ่มเติมถ้าครบ milestone)
+    // แล้ว save รวมทีเดียวกับการเปลี่ยนแปลงข้างบน
+    const streakMilestone = await applyDailyQuestCompletion(user);
     await user.save();
 
     // เช็คเหรียญหลังบันทึกประวัติแล้ว — quest ที่เพิ่งทำต้องถูกนับด้วย
@@ -235,6 +236,9 @@ router.post('/:id/complete', authMiddleware, async (req, res) => {
     // แจ้งเตือนว่าทำเควสสำเร็จ — ไม่ทำให้ทั้ง request พังถ้าสร้างแจ้งเตือนไม่สำเร็จ
     try {
       await notifyQuestCompleted(user._id, quest, history._id, reward.points);
+      if (streakMilestone) {
+        await notifyStreakMilestone(user._id, streakMilestone.day, streakMilestone);
+      }
     } catch (notifyErr) {
       console.error('สร้างแจ้งเตือนทำเควสสำเร็จไม่สำเร็จ:', notifyErr.message);
     }
@@ -247,6 +251,8 @@ router.post('/:id/complete', authMiddleware, async (req, res) => {
       },
       // เหรียญที่เพิ่งปลดล็อกรอบนี้ (ปกติเป็น array ว่าง) — แอพเอาไปเด้งแจ้งเตือน
       newAchievements,
+      // ไม่ null เฉพาะตอนวันนี้ตรง milestone ของ Daily Streak (7/14/21/30) — แอพเอาไปเด้ง celebrate
+      streakMilestone,
       user: {
         level: user.level,
         xp: user.xp,

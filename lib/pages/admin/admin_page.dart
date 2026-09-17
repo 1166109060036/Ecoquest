@@ -35,9 +35,7 @@ class _AdminPageState extends State<AdminPage> {
   String? _selectedUpgradeType;
 
   List<Map<String, dynamic>> _parties = [];
-  List<Map<String, dynamic>> _seasons = [];
   bool _loadingParties = false;
-  bool _loadingSeasons = false;
 
   @override
   void dispose() {
@@ -104,18 +102,6 @@ class _AdminPageState extends State<AdminPage> {
     setState(() {
       _parties = parties ?? [];
       _loadingParties = false;
-    });
-  }
-
-  Future<void> _loadSeasons(BuildContext context) async {
-    setState(() => _loadingSeasons = true);
-    final seasons = await context.read<AdminProvider>().run(
-          () => context.read<AdminProvider>().service.listSeasons(),
-        );
-    if (!mounted) return;
-    setState(() {
-      _seasons = seasons ?? [];
-      _loadingSeasons = false;
     });
   }
 
@@ -237,7 +223,7 @@ class _AdminPageState extends State<AdminPage> {
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade700, foregroundColor: Colors.white),
                 onPressed: () async {
                   if (!await _confirm(context, 'Reset account?',
-                      'Wipes quest history, achievements, inventory and upgrades, and resets points/xp/level/rank. This cannot be undone.')) {
+                      'Wipes quest history, achievements, inventory and upgrades, and resets points/xp/level/streak. This cannot be undone.')) {
                     return;
                   }
                   if (!context.mounted) return;
@@ -501,35 +487,6 @@ class _AdminPageState extends State<AdminPage> {
                     child: const Text('Set Level'),
                   ),
                 ],
-              ),
-            ],
-          ),
-
-          // ---- Season ----
-          _Section(
-            title: 'Season',
-            icon: Icons.calendar_month,
-            children: [
-              OutlinedButton(
-                onPressed: _loadingSeasons ? null : () => _loadSeasons(context),
-                child: Text(_loadingSeasons ? 'Loading...' : 'Load Seasons'),
-              ),
-              const SizedBox(height: 8),
-              for (final s in _seasons)
-                ListTile(
-                  dense: true,
-                  title: Text('Season ${s['seasonNumber']}${s['isActive'] == true ? ' (active)' : ''}'),
-                  subtitle: Text('ends ${s['endDate']}'),
-                ),
-              const Divider(),
-              ElevatedButton(
-                onPressed: () => _run(
-                  context,
-                  admin.service.expireCurrentSeason,
-                  successMessage: 'Season rolled over',
-                  onSuccess: [auth.refreshProfile, () => _loadSeasons(context)],
-                ),
-                child: const Text('Expire Current Season Now'),
               ),
             ],
           ),

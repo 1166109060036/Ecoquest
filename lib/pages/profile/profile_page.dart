@@ -7,7 +7,9 @@ import '../../providers/quest_provider.dart';
 import '../../providers/upgrade_provider.dart';
 import '../../models/profile_model.dart';
 import '../../models/upgrade_model.dart';
+import '../../services/sound_service.dart';
 import '../../widgets/profile_sections.dart';
+import '../../widgets/bubble_toast.dart';
 import '../../widgets/falling_leaves_overlay.dart';
 import '../../widgets/leaf_refresh_indicator.dart';
 import '../../widgets/pressable_scale.dart';
@@ -25,6 +27,7 @@ class ProfilePage extends StatelessWidget {
     final authProvider = context.watch<AuthProvider>();
     final user = authProvider.user;
     final progress = authProvider.profile?.progress;
+    final streak = authProvider.profile?.streak;
     final stats = authProvider.profile?.stats;
     // ประวัติ quest มาจาก QuestProvider (โหลดไว้แล้วตั้งแต่ MainShell) ไม่ได้ fetch ซ้ำที่นี่
     final questHistory = context.watch<QuestProvider>().history;
@@ -35,9 +38,8 @@ class ProfilePage extends StatelessWidget {
     final xpIntoLevel = progress?.xpIntoLevel ?? 0;
     final xpForNextLevel = progress?.xpForNextLevel ?? 0;
     final points = user?.points ?? 0;
-    final rankTier = progress?.rankTier ?? user?.rank ?? 'Bronze';
-    final rankXpIntoTier = progress?.rankXpIntoTier ?? 0;
-    final rankXpForNextTier = progress?.rankXpForNextTier;
+    final streakInfo = streak ??
+        StreakInfo(count: 0, cycleLength: 30, milestones: const [], rewards: const {});
     final profileStats = stats ??
         ProfileStats(questCompleted: 0, questTotal: 0, co2SavedKg: 0.0, partiesJoined: 0);
 
@@ -86,19 +88,14 @@ class ProfilePage extends StatelessWidget {
                         displayName: user?.displayName ?? 'Player',
                         avatarUrl: user?.avatarUrl,
                         level: level,
-                        rankTier: rankTier,
                         xp: xpIntoLevel,
                         xpToNext: xpForNextLevel,
                         onTapAvatar: () => _pickAvatar(context, hasAvatar: user?.avatarUrl != null),
                       ),
                       const SizedBox(height: 16),
-                      PointsAndRankCard(
+                      StreakCard(
                         points: points,
-                        rankTier: rankTier,
-                        rankXp: rankXpIntoTier,
-                        rankXpMax: rankXpForNextTier,
-                        seasonNumber: progress?.seasonNumber,
-                        seasonDaysRemaining: progress?.seasonDaysRemaining,
+                        streak: streakInfo,
                       ),
                       const SizedBox(height: 16),
                       StatsCard(stats: profileStats),
@@ -124,8 +121,8 @@ class ProfilePage extends StatelessWidget {
 
   // เปิด bottom sheet ให้เลือกถ่ายรูป/เลือกจากคลังรูป/ลบรูป (ลบโชว์เฉพาะตอนมีรูปอยู่แล้ว)
   // แล้วอัปโหลด bytes ขึ้น server ตรงๆ ผ่าน AuthProvider — ไม่ต้องเก็บไฟล์ไว้ในเครื่องเลย
-  // (ต่างจากรูปของในตู้เย็น/EcoQuest Moment ที่ยังเก็บถาวรในเครื่องผ่าน AppPhotoStorage
-  // เพราะรูปโปรไฟล์อยู่บน server แล้ว ดึงกลับมาโชว์ผ่าน avatarUrl ได้เสมอไม่ว่าเครื่องไหน)
+  // (แนวเดียวกับรูปของในตู้เย็นตอนนี้แล้ว — ต่างจาก EcoQuest Moment ที่ยังเก็บถาวรในเครื่องผ่าน
+  // AppPhotoStorage เพราะเป็นอัลบั้มส่วนตัวในเครื่อง ไม่มี backend model รองรับ)
   Future<void> _pickAvatar(BuildContext context, {required bool hasAvatar}) async {
     // ใช้ String action ('camera'/'gallery'/'remove') แทน ImageSource? ตรงๆ
     // เพราะ ImageSource ไม่มีค่าให้แทนความหมาย "ลบรูป" ได้
@@ -142,9 +139,7 @@ class ProfilePage extends StatelessWidget {
       final ok = await authProvider.updateAvatar(null);
       if (!context.mounted) return;
       if (!ok) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(authProvider.errorMessage ?? 'Failed to remove photo')),
-        );
+        showBubbleToast(context, authProvider.errorMessage ?? 'Failed to remove photo');
       }
       return;
     }
@@ -167,16 +162,12 @@ class ProfilePage extends StatelessWidget {
       final ok = await authProvider.updateAvatar(bytes, contentType: contentType);
       if (!context.mounted) return;
       if (!ok) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(authProvider.errorMessage ?? 'Failed to update photo')),
-        );
+        showBubbleToast(context, authProvider.errorMessage ?? 'Failed to update photo');
       }
     } catch (e) {
       if (!context.mounted) return;
       // เครื่องไม่มีกล้อง / ผู้ใช้ปฏิเสธ permission
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open the camera')),
-      );
+      showBubbleToast(context, 'Could not open the camera');
     }
   }
 
@@ -188,11 +179,11 @@ class ProfilePage extends StatelessWidget {
     if (!context.mounted) return;
 
     if (!ok) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(upgradeProvider.errorMessage ?? 'Failed to buy this upgrade')),
-      );
+      showBubbleToast(context, upgradeProvider.errorMessage ?? 'Failed to buy this upgrade');
       return;
     }
+
+    SoundService.instance.playBuySuccess();
 
     await Future.wait([
       context.read<AuthProvider>().refreshProfile(),

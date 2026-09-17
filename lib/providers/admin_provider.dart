@@ -14,7 +14,7 @@ class AdminProvider extends ChangeNotifier {
   bool get isBusy => _isBusy;
   String? get errorMessage => _errorMessage;
 
-  // เรียก action ที่มีค่าคืนกลับ (debugMe/listParties/listSeasons) แบบมี busy/error state ให้อัตโนมัติ
+  // เรียก action ที่มีค่าคืนกลับ (debugMe/listParties) แบบมี busy/error state ให้อัตโนมัติ
   // คืนผลลัพธ์ของ action ถ้าสำเร็จ, null ถ้าพัง (เช็ค errorMessage ต่อได้)
   Future<T?> run<T>(Future<T> Function() action) async {
     _isBusy = true;

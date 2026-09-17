@@ -22,7 +22,6 @@ class PartyMemberModel {
   final String name;
   final String? avatarUrl; // null = ยังไม่ได้ตั้งรูปโปรไฟล์ (โชว์ไอคอนคนแทน)
   final int level;
-  final String rank;
   final bool isLeader;
   final bool isMe; // ใช้ไฮไลต์แถวของตัวเองในรายชื่อ
 
@@ -31,7 +30,6 @@ class PartyMemberModel {
     required this.name,
     this.avatarUrl,
     required this.level,
-    required this.rank,
     required this.isLeader,
     required this.isMe,
   });
@@ -42,7 +40,6 @@ class PartyMemberModel {
       name: json['displayName'] ?? 'Player',
       avatarUrl: AppConstants.resolveUrl(json['avatarUrl']),
       level: json['level'] ?? 1,
-      rank: json['rank'] ?? 'Bronze',
       isLeader: json['isLeader'] ?? false,
       isMe: json['isMe'] ?? false,
     );
