@@ -380,6 +380,9 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
     - **Green Energy** (40P) — 2x Points จากเควส Party เท่านั้น นาน 30 นาที
     - **Super Energy** (100P) — ลบประวัติเควสที่ทำวันนี้ทั้งหมด (`QuestHistory` ที่ `completedAt >= startOfToday()`)
       ทำให้ `completedToday`/gate เควสรายวันกลับมาทำได้อีกรอบทันที — แต้ม/XP ที่ได้ไปแล้วไม่ถูกหักคืน
+      ⚠️ ลบ `QuestHistory` จริง แต่**ไม่แตะ `User.totalQuestsCompleted`** (ยอด Quest Completed ในหน้า
+      Profile) เลย — ตั้งใจแยกกันเพราะเคยมีบั๊กที่ตัวเลข Quest Completed ลดลงตอนใช้ไอเทมนี้ (ดูหัวข้อ 3
+      เรื่อง `stats.questCompleted`)
     ⚠️ ราคา/ตัวคูณยังไม่ผ่านการเทสสมดุลเกมจริง ปรับได้ที่เดียวที่ `ITEMS` ใน `utils/inventory.js`
   - `POST /api/inventory/:itemType/buy` — ซื้อ 1 ชิ้นด้วย Points (atomic compare-and-swap แบบเดียวกับ
     `buyUpgrade` ใน `utils/upgrades.js`) — ไม่จำกัดจำนวนซื้อซ้ำ (ต่างจาก upgrade ที่มี `maxLevel`)
@@ -593,10 +596,33 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
 
 `GET /api/auth/me` คืน 4 ก้อน: `user` (+ level/xp/points), `progress` (ความคืบหน้า level),
 `streak` (Daily Streak — count/cycleLength/milestones/rewards ดู `backend/utils/streak.js`),
-`stats` (questCompleted / questTotal / co2SavedKg / partiesJoined — คำนวณจริงจาก `QuestHistory` + `Quest`)
+`stats` (questCompleted / co2SavedKg / partiesJoined — คำนวณจริงจาก `QuestHistory` + `Quest`)
+⚠️ **`questCompleted` คือยอดรวมทุกครั้งที่ทำเควสสำเร็จ นับเควสซ้ำด้วย ไม่มี `questTotal` แล้ว** (เคยมีไว้
+โชว์ "X / Y" ในหน้า Profile แต่เอาออกแล้วเพราะเควสรายวันทำซ้ำได้ไม่จำกัด ไม่มี "Y" ที่ตายตัวให้เทียบจริงๆ —
+`StatItem` "Quest Completed" ตอนนี้โชว์แค่ตัวเลขเดียวเหมือน "Parties Joined")
+- ⚠️ **`questCompleted` มาจาก `User.totalQuestsCompleted` ไม่ใช่ `QuestHistory.countDocuments()` ตรงๆ
+  อีกต่อไป** (เคยเป็นแบบนั้นตอนแรก แล้วเจอบั๊กจริง: ไอเทม Super Energy ลบ `QuestHistory` ของวันนี้ทิ้ง
+  เพื่อให้ทำเควสซ้ำได้ — `utils/inventory.js#useItem` case `'super_energy'` — ทำให้ตัวเลข Quest Completed
+  ลดลงไปด้วยทั้งที่ผู้เล่นไม่ได้เสียความสำเร็จอะไรไปจริงๆ) `totalQuestsCompleted` เป็นฟิลด์แยกใน
+  `User` (`backend/models/User.js`) ที่ **+1 ทุกครั้งที่บันทึก `QuestHistory` ใหม่จริง** (4 จุด:
+  `routes/quests.js`, `routes/party.js`'s `/complete` loop, `routes/admin.js` force-complete ทั้ง 2 จุด)
+  **ไม่มีจุดไหนลดค่านี้เลยนอกจาก** `POST /api/admin/user/reset` (รีเซ็ทบัญชีทั้งบัญชีจริงๆ ถึงจะรีเซ็ทกลับ
+  0 ด้วย) — `utils/profilePayload.js` มี logic **backfill อัตโนมัติ**ให้บัญชีเก่าที่มีอยู่ก่อนฟีเจอร์นี้
+  (ที่ `totalQuestsCompleted` ยังเป็น 0 default ทั้งที่เคยทำเควสมาก่อนแล้ว): เช็คว่าถ้า
+  `totalQuestsCompleted === 0` แต่ `QuestHistory.countDocuments()` จริง `> 0` ให้ใช้ค่า `QuestHistory`
+  ไปก่อนสำหรับ response นี้ พร้อมเขียนกลับเข้า DB แบบ fire-and-forget (ไม่ await) ให้ครั้งถัดไปอ่านจาก
+  `totalQuestsCompleted` ได้เลย ไม่ต้อง backfill ซ้ำ — เกิดขึ้นอัตโนมัติครั้งเดียวต่อบัญชีตอนโหลดโปรไฟล์
+  ครั้งแรกหลัง deploy ไม่ต้องรันสคริปต์ migrate เอง
 
 ## 6. รายละเอียดปลีกย่อยที่เคยเสียเวลาแก้ปัญหามาก่อน (กันเสียเวลาซ้ำ)
 
+- ⚠️ **หน้าที่ไม่มี `SingleChildScrollView`/`ListView` ห่อ (เช่น `settings_page.dart` เดิม) จะล้น
+  (RenderFlex overflow) ทันทีที่คีย์บอร์ดเปิด** แม้เนื้อหาจะพอดีจอตอนไม่มีคีย์บอร์ดก็ตาม — เจอจริงตอนเปิด
+  dialog "Edit Display Name" (มี `TextField`) จากหน้า Settings คีย์บอร์ดเปิดแล้ว Scaffold หดพื้นที่ลง
+  ตาม `viewInsets.bottom` แต่ `Column` เดิมไม่ยอมหด ล้นออกมาเป็นแถบเหลือง-ดำ — แก้โดยห่อเนื้อหาหลักด้วย
+  `Expanded(child: SingleChildScrollView(...))` (เก็บปุ่ม Logout ไว้นอก scroll ให้ยังปักอยู่ล่างสุดเสมอ
+  แทนที่จะใช้ `Spacer()` ซึ่งใช้ในสภาพแวดล้อม scroll ไม่ได้) — หน้าอื่นที่มี `TextField`/dialog แบบเดียวกัน
+  ควรเช็คแพทเทิร์นนี้ด้วยถ้าเจออาการคล้ายกัน
 - **Asset path ต้องตรงกับ `pubspec.yaml` เป๊ะๆ ทุกตัวอักษร** ห้ามมี `/` นำหน้า และเปลี่ยน `pubspec.yaml` ต้อง `flutter clean` + full restart เท่านั้น hot reload/restart ไม่พอ
 - ⚠️ **ถ้าจะประกาศ asset เป็น "โฟลเดอร์" ใน `pubspec.yaml` ต้องมี `/` ปิดท้ายเสมอ** (เคยพลาดมาแล้ว build พังทั้งแอพ)
   - เขียน `- lib/utils/assets` (ไม่มี `/`) → Flutter มองว่าเป็น**ชื่อไฟล์** พอหาไฟล์นั้นไม่เจอจะขึ้น

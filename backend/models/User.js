@@ -61,6 +61,14 @@ const UserSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    // ยอดรวมทุกครั้งที่ทำเควสสำเร็จ "ตลอดชีพ" — สะสมตลอด ไม่มีทางลดลง (ต่างจากการนับจาก
+    // QuestHistory.countDocuments ตรงๆ ซึ่งลดลงได้ถ้าแถวถูกลบ เช่นตอนใช้ไอเทม Super Energy ที่ลบ
+    // QuestHistory ของวันนี้ทิ้งเพื่อให้ทำเควสซ้ำได้ — ดู utils/inventory.js#useItem case 'super_energy')
+    // +1 ทุกครั้งที่ quests.js/party.js/admin.js บันทึก QuestHistory ใหม่ ไม่มีจุดไหนลดค่านี้เลย
+    totalQuestsCompleted: {
+      type: Number,
+      default: 0,
+    },
     // ---- Daily Streak — นับวันติดต่อกันที่ทำเควสสำเร็จอย่างน้อย 1 อัน (ดู utils/streak.js) ----
     streakCount: { type: Number, default: 0 }, // จำนวนวันติดต่อกันในรอบปัจจุบัน (1-30)
     lastStreakDate: { type: Date, default: null }, // วันล่าสุดที่นับไปแล้ว (ค่าจาก startOfToday())

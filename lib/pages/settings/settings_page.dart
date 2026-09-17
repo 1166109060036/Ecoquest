@@ -154,71 +154,84 @@ class SettingsPage extends StatelessWidget {
                   children: [
                     const _TopBar(),
                     const SizedBox(height: 20),
-                    _AccountCard(
-                      displayName: user?.displayName ?? 'Player',
-                      email: user?.email,
-                      isGuest: user?.isGuest ?? false,
-                    ),
-                    const SizedBox(height: 14),
-                    _SettingsMenuItem(
-                      icon: Icons.badge_outlined,
-                      label: 'Edit Display Name',
-                      onTap: () => _editDisplayName(context),
-                    ),
-                    if (user?.isGuest ?? false) ...[
-                      // Guest ล็อกอินกลับเข้าบัญชีเดิมไม่ได้เลยถ้า logout (ไม่มี email/password)
-                      // เมนูนี้เลยเน้นให้เห็นชัดกว่าเมนูอื่น
-                      const SizedBox(height: 14),
-                      _SettingsMenuItem(
-                        icon: Icons.person_add_alt,
-                        label: 'Create an account',
-                        subtitle: 'Guest progress is lost when you log out',
-                        highlighted: true,
-                        onTap: () => Navigator.pushNamed(context, '/upgrade-account'),
+                    // เนื้อหาทั้งหมด (ยกเว้นปุ่ม Logout) ห่อด้วย Expanded+SingleChildScrollView แทน
+                    // Column เปล่าๆ — ไม่งั้นตอนคีย์บอร์ดเปิด (เช่น dialog Edit Display Name มี
+                    // TextField) พื้นที่ที่เหลือให้ Scaffold หดลง แล้ว Column เดิมที่ไม่ scroll ได้จะ
+                    // ล้นออกมาเป็น RenderFlex overflow ทันที (เจอจริงตอนทดสอบบนเครื่อง)
+                    Expanded(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _AccountCard(
+                              displayName: user?.displayName ?? 'Player',
+                              email: user?.email,
+                              isGuest: user?.isGuest ?? false,
+                            ),
+                            const SizedBox(height: 14),
+                            _SettingsMenuItem(
+                              icon: Icons.badge_outlined,
+                              label: 'Edit Display Name',
+                              onTap: () => _editDisplayName(context),
+                            ),
+                            if (user?.isGuest ?? false) ...[
+                              // Guest ล็อกอินกลับเข้าบัญชีเดิมไม่ได้เลยถ้า logout (ไม่มี email/password)
+                              // เมนูนี้เลยเน้นให้เห็นชัดกว่าเมนูอื่น
+                              const SizedBox(height: 14),
+                              _SettingsMenuItem(
+                                icon: Icons.person_add_alt,
+                                label: 'Create an account',
+                                subtitle: 'Guest progress is lost when you log out',
+                                highlighted: true,
+                                onTap: () => Navigator.pushNamed(context, '/upgrade-account'),
+                              ),
+                            ] else ...[
+                              // บัญชี Guest ไม่มีรหัสผ่าน เลยไม่ต้องมีเมนูนี้ให้กด
+                              const SizedBox(height: 14),
+                              _SettingsMenuItem(
+                                icon: Icons.lock_outline,
+                                label: 'Change Password',
+                                onTap: () => Navigator.pushNamed(context, '/change-password'),
+                              ),
+                            ],
+                            const SizedBox(height: 14),
+                            _NotificationToggleItem(initialValue: user?.notificationsEnabled ?? true),
+                            const SizedBox(height: 14),
+                            _VolumeSliderItem(
+                              icon: Icons.music_note_outlined,
+                              label: 'Background Music',
+                              initialValue: SoundService.instance.musicVolume,
+                              onChanged: (v) => SoundService.instance.setMusicVolume(v, persist: false),
+                              onChangeEnd: (v) => SoundService.instance.setMusicVolume(v),
+                            ),
+                            const SizedBox(height: 14),
+                            _VolumeSliderItem(
+                              icon: Icons.volume_up_outlined,
+                              label: 'Sound Effects',
+                              initialValue: SoundService.instance.clickVolume,
+                              onChanged: (v) => SoundService.instance.setClickVolume(v, persist: false),
+                              onChangeEnd: (v) => SoundService.instance.setClickVolume(v),
+                            ),
+                            const SizedBox(height: 14),
+                            _SettingsMenuItem(
+                              icon: Icons.info_outline,
+                              label: 'About',
+                              onTap: () => _showAbout(context),
+                            ),
+                            if (user?.isAdmin ?? false) ...[
+                              // dev/QA เท่านั้น — เห็นเฉพาะบัญชีที่อีเมลอยู่ใน ADMIN_EMAILS ฝั่ง backend
+                              const SizedBox(height: 14),
+                              _SettingsMenuItem(
+                                icon: Icons.admin_panel_settings_outlined,
+                                label: 'Admin Tools',
+                                onTap: () => Navigator.pushNamed(context, '/admin'),
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
-                    ] else ...[
-                      // บัญชี Guest ไม่มีรหัสผ่าน เลยไม่ต้องมีเมนูนี้ให้กด
-                      const SizedBox(height: 14),
-                      _SettingsMenuItem(
-                        icon: Icons.lock_outline,
-                        label: 'Change Password',
-                        onTap: () => Navigator.pushNamed(context, '/change-password'),
-                      ),
-                    ],
-                    const SizedBox(height: 14),
-                    _NotificationToggleItem(initialValue: user?.notificationsEnabled ?? true),
-                    const SizedBox(height: 14),
-                    _VolumeSliderItem(
-                      icon: Icons.music_note_outlined,
-                      label: 'Background Music',
-                      initialValue: SoundService.instance.musicVolume,
-                      onChanged: (v) => SoundService.instance.setMusicVolume(v, persist: false),
-                      onChangeEnd: (v) => SoundService.instance.setMusicVolume(v),
                     ),
                     const SizedBox(height: 14),
-                    _VolumeSliderItem(
-                      icon: Icons.volume_up_outlined,
-                      label: 'Sound Effects',
-                      initialValue: SoundService.instance.clickVolume,
-                      onChanged: (v) => SoundService.instance.setClickVolume(v, persist: false),
-                      onChangeEnd: (v) => SoundService.instance.setClickVolume(v),
-                    ),
-                    const SizedBox(height: 14),
-                    _SettingsMenuItem(
-                      icon: Icons.info_outline,
-                      label: 'About',
-                      onTap: () => _showAbout(context),
-                    ),
-                    if (user?.isAdmin ?? false) ...[
-                      // dev/QA เท่านั้น — เห็นเฉพาะบัญชีที่อีเมลอยู่ใน ADMIN_EMAILS ฝั่ง backend
-                      const SizedBox(height: 14),
-                      _SettingsMenuItem(
-                        icon: Icons.admin_panel_settings_outlined,
-                        label: 'Admin Tools',
-                        onTap: () => Navigator.pushNamed(context, '/admin'),
-                      ),
-                    ],
-                    const Spacer(),
                     ElevatedButton(
                       onPressed: () => _confirmLogout(context),
                       style: ElevatedButton.styleFrom(

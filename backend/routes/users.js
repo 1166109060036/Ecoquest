@@ -24,7 +24,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
     }
 
     const user = await User.findById(req.params.id).select(
-      'displayName level xp points streakCount lastStreakDate avatarContentType avatarUpdatedAt'
+      'displayName level xp points totalQuestsCompleted streakCount lastStreakDate avatarContentType avatarUpdatedAt'
     );
     if (!user) {
       return res.status(404).json({ message: 'Player not found' });

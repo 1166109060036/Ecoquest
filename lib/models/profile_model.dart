@@ -102,14 +102,14 @@ class ProfileData {
 }
 
 class ProfileStats {
+  // จำนวนครั้งที่ทำเควสสำเร็จทั้งหมด (นับรวมเควสซ้ำ เช่นเควสรายวันที่ทำคนละวันด้วย ไม่ dedupe
+  // ตาม questId) — ไม่มี "/ ทั้งหมด" แล้วเพราะเควสรายวันทำซ้ำได้ไม่จำกัด ไม่มี "ทั้งหมด" ที่ตายตัวจริงๆ
   final int questCompleted;
-  final int questTotal;
   final double co2SavedKg;
   final int partiesJoined;
 
   ProfileStats({
     required this.questCompleted,
-    required this.questTotal,
     required this.co2SavedKg,
     required this.partiesJoined,
   });
@@ -117,7 +117,6 @@ class ProfileStats {
   factory ProfileStats.fromJson(Map<String, dynamic> json) {
     return ProfileStats(
       questCompleted: json['questCompleted'] ?? 0,
-      questTotal: json['questTotal'] ?? 0,
       co2SavedKg: (json['co2SavedKg'] ?? 0).toDouble(),
       partiesJoined: json['partiesJoined'] ?? 0,
     );

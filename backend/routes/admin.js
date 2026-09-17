@@ -125,6 +125,7 @@ router.post('/user/reset', async (req, res) => {
             points: 0,
             xp: 0,
             level: 1,
+            totalQuestsCompleted: 0,
             streakCount: 0,
             lastStreakDate: null,
             redEnergyExpiresAt: null,
@@ -171,6 +172,8 @@ router.post('/quests/:id/force-complete', async (req, res) => {
     user.points += reward.points;
     user.xp += reward.xp;
     user.level = progression.levelFromXp(user.xp);
+    // ยอดรวมตลอดชีพ +1 เสมอ ไม่มีทางลดลง (ต่างจาก QuestHistory ที่ลบแถวได้ตอนใช้ Super Energy)
+    user.totalQuestsCompleted = (user.totalQuestsCompleted || 0) + 1;
     const streakMilestone = await applyDailyQuestCompletion(user);
     await user.save();
 
@@ -319,6 +322,8 @@ router.post('/parties/:id/force-complete', async (req, res) => {
       user.points += reward.points;
       user.xp += reward.xp;
       user.level = progression.levelFromXp(user.xp);
+      // ยอดรวมตลอดชีพ +1 เสมอ ไม่มีทางลดลง (ต่างจาก QuestHistory ที่ลบแถวได้ตอนใช้ Super Energy)
+      user.totalQuestsCompleted = (user.totalQuestsCompleted || 0) + 1;
       const streakMilestone = await applyDailyQuestCompletion(user);
       await user.save();
 

@@ -475,8 +475,9 @@ class StatsCard extends StatelessWidget {
                 StatItem(
                   icon: Icons.eco,
                   iconColor: Colors.greenAccent,
-                  value: '${stats.questCompleted.toString().padLeft(2, '0')} / '
-                      '${stats.questTotal.toString().padLeft(2, '0')}',
+                  // ยอดรวมทุกครั้งที่ทำเควสสำเร็จ (นับเควสซ้ำด้วย) ไม่มี "/ ทั้งหมด" แล้ว เพราะเควส
+                  // รายวันทำซ้ำได้ไม่จำกัด ไม่มีเลข "ทั้งหมด" ที่ตายตัวให้เทียบ (เหมือน Parties Joined)
+                  value: stats.questCompleted.toString().padLeft(2, '0'),
                   label: 'Quest Completed',
                 ),
                 StatItem(

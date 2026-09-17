@@ -225,6 +225,8 @@ router.post('/:id/complete', authMiddleware, async (req, res) => {
     user.xp += reward.xp;
     // level เป็น cache ของ xp — คำนวณใหม่ทุกครั้งที่ xp เปลี่ยน
     user.level = progression.levelFromXp(user.xp);
+    // ยอดรวมตลอดชีพ +1 เสมอ ไม่มีทางลดลง (ต่างจาก QuestHistory ที่ลบแถวได้ตอนใช้ Super Energy)
+    user.totalQuestsCompleted = (user.totalQuestsCompleted || 0) + 1;
     // อัพเดท Daily Streak ก่อน save — mutate user ในหน่วยความจำ (points/xp เพิ่มเติมถ้าครบ milestone)
     // แล้ว save รวมทีเดียวกับการเปลี่ยนแปลงข้างบน
     const streakMilestone = await applyDailyQuestCompletion(user);

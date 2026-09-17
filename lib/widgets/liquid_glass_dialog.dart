@@ -74,7 +74,16 @@ class LiquidGlassDialog extends StatelessWidget {
         elevation: 0,
         insetPadding: const EdgeInsets.symmetric(horizontal: 36, vertical: 24),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 340),
+          // ลบ maxHeight ของคีย์บอร์ด (viewInsets.bottom) ออกจากพื้นที่ที่มีให้เสมอ ไม่งั้นตอนคีย์บอร์ด
+          // เด้งขึ้น (เช่น dialog ที่มี TextField อย่าง Edit Display Name) เนื้อหาจะสูงเกินพื้นที่จริงที่
+          // เหลือแล้วล้นออกมา (RenderFlex overflow) เพราะ Column ข้างในเป็น mainAxisSize.min ไม่ยอมหด
+          // เอง — ค่า 48 คือ insetPadding บน+ล่างรวมกัน (24*2) ให้ยังเหลือระยะขอบเท่าตอนไม่มีคีย์บอร์ด
+          constraints: BoxConstraints(
+            maxWidth: 340,
+            maxHeight: MediaQuery.of(context).size.height -
+                MediaQuery.of(context).viewInsets.bottom -
+                48,
+          ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(28),
             // เบลอทุกอย่างที่อยู่ข้างหลัง dialog นี้จริงๆ — หัวใจของเอฟเฟค "กระจกฝ้า" แบบ macOS
@@ -121,37 +130,43 @@ class LiquidGlassDialog extends StatelessWidget {
                     ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(24, 28, 24, 18),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (icon != null) ...[icon!, const SizedBox(height: 14)],
-                          Text(
-                            title,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                              letterSpacing: -0.2,
-                              shadows: [Shadow(color: Colors.black45, blurRadius: 6)],
+                      // ห่อด้วย SingleChildScrollView ให้ content ที่สูงเกินพื้นที่ที่เหลือ (เช่นตอน
+                      // คีย์บอร์ดเปิดอยู่ ดู maxHeight ของ ConstrainedBox ด้านบน) เลื่อนดูได้แทนที่จะ
+                      // ล้นออกมาเป็น RenderFlex overflow — ปุ่ม actions เลื่อนตามไปด้วยได้ ไม่ใช่ปัญหา
+                      // เพราะ dialog พวกนี้เนื้อหาสั้นอยู่แล้วปกติไม่ต้องเลื่อน
+                      child: SingleChildScrollView(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (icon != null) ...[icon!, const SizedBox(height: 14)],
+                            Text(
+                              title,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                                letterSpacing: -0.2,
+                                shadows: [Shadow(color: Colors.black45, blurRadius: 6)],
+                              ),
                             ),
-                          ),
-                          if (content != null) ...[
-                            const SizedBox(height: 10),
-                            content!,
-                          ],
-                          if (actions.isNotEmpty) ...[
-                            const SizedBox(height: 22),
-                            Row(
-                              children: [
-                                for (int i = 0; i < actions.length; i++) ...[
-                                  if (i > 0) const SizedBox(width: 10),
-                                  Expanded(child: actions[i]),
+                            if (content != null) ...[
+                              const SizedBox(height: 10),
+                              content!,
+                            ],
+                            if (actions.isNotEmpty) ...[
+                              const SizedBox(height: 22),
+                              Row(
+                                children: [
+                                  for (int i = 0; i < actions.length; i++) ...[
+                                    if (i > 0) const SizedBox(width: 10),
+                                    Expanded(child: actions[i]),
+                                  ],
                                 ],
-                              ],
-                            ),
+                              ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
                     ),
                   ],
