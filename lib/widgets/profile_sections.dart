@@ -10,6 +10,7 @@ import '../models/profile_model.dart';
 import '../models/quest_history_model.dart';
 import '../utils/constants.dart';
 import 'count_up_text.dart';
+import 'liquid_glass_dialog.dart';
 
 // ---------------------------------------------------------------------------
 // พื้นหลัง — ใส่รูปเองได้ทีหลังผ่าน AppConstants.profileBgAsset
@@ -206,106 +207,244 @@ class StreakCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ProfileGlassCard(
-      child: IntrinsicHeight(
-        child: Row(
-          children: [
-            Expanded(
-              flex: 3,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(pointsLabel, style: const TextStyle(color: Colors.white70, fontSize: 13)),
-                    const SizedBox(height: 6),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.baseline,
-                      textBaseline: TextBaseline.alphabetic,
-                      mainAxisSize: MainAxisSize.min,
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        // กดฝั่งไหนของการ์ดก็เปิดรายละเอียด Streak ได้เหมือนกัน (ฝั่ง Point ไม่มีอะไรให้ดูเพิ่มอยู่แล้ว)
+        onTap: () => _showStreakDetail(context, streak),
+        child: ProfileGlassCard(
+          child: IntrinsicHeight(
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        CountUpNumber(
-                          value: points,
-                          style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
+                        Text(pointsLabel, style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                        const SizedBox(height: 6),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CountUpNumber(
+                              value: points,
+                              style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
+                            ),
+                            const Text(' P', style: TextStyle(color: Colors.white70, fontSize: 16)),
+                          ],
                         ),
-                        const Text(' P', style: TextStyle(color: Colors.white70, fontSize: 16)),
                       ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
-            const VerticalDivider(color: Colors.white24, width: 1),
-            Expanded(
-              flex: 3,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 16,
-                      backgroundColor: Colors.black.withValues(alpha: 0.48),
-                      child: const Icon(Icons.local_fire_department, color: Colors.orangeAccent, size: 16),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Daily Streak',
-                              style: TextStyle(color: Colors.white54, fontSize: 10)),
-                          Text(
-                            'Day ${streak.count} / ${streak.cycleLength}',
-                            softWrap: true,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              height: 1.15,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: LinearProgressIndicator(
-                              // ไม่มี milestone ถัดไปแล้ว (ไม่ควรเกิดจริง) -> โชว์เต็มหลอดไปเลย
-                              value: streak.nextMilestone == null
-                                  ? 1.0
-                                  : (streak.count / streak.nextMilestone!).clamp(0.0, 1.0),
-                              minHeight: 4,
-                              backgroundColor: Colors.white24,
-                              valueColor: const AlwaysStoppedAnimation(Colors.orangeAccent),
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            streak.nextMilestone == null
-                                ? 'MAX'
-                                : 'Next: Day ${streak.nextMilestone}',
-                            style: const TextStyle(color: Colors.white54, fontSize: 9),
-                          ),
-                          if (streak.nextReward != null) ...[
-                            const SizedBox(height: 2),
-                            Text(
-                              '+${formatNumber(streak.nextReward!.points)}P '
-                              '+${formatNumber(streak.nextReward!.xp)}XP'
-                              '${streak.nextReward!.itemType != null ? ' + item' : ''}',
-                              style: const TextStyle(
-                                color: Colors.white38,
-                                fontSize: 8.5,
-                                height: 1.3,
+                const VerticalDivider(color: Colors.white24, width: 1),
+                Expanded(
+                  flex: 3,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 16,
+                          backgroundColor: Colors.black.withValues(alpha: 0.48),
+                          child: const Icon(Icons.local_fire_department, color: Colors.orangeAccent, size: 16),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Daily Streak',
+                                  style: TextStyle(color: Colors.white54, fontSize: 10)),
+                              Text(
+                                'Day ${streak.count} / ${streak.cycleLength}',
+                                softWrap: true,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.15,
+                                ),
                               ),
-                            ),
-                          ],
-                        ],
-                      ),
+                              const SizedBox(height: 4),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(4),
+                                child: LinearProgressIndicator(
+                                  // ไม่มี milestone ถัดไปแล้ว (ไม่ควรเกิดจริง) -> โชว์เต็มหลอดไปเลย
+                                  value: streak.nextMilestone == null
+                                      ? 1.0
+                                      : (streak.count / streak.nextMilestone!).clamp(0.0, 1.0),
+                                  minHeight: 4,
+                                  backgroundColor: Colors.white24,
+                                  valueColor: const AlwaysStoppedAnimation(Colors.orangeAccent),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                streak.nextMilestone == null
+                                    ? 'MAX'
+                                    : 'Next: Day ${streak.nextMilestone}',
+                                style: const TextStyle(color: Colors.white54, fontSize: 9),
+                              ),
+                              if (streak.nextReward != null) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  '+${formatNumber(streak.nextReward!.points)}P '
+                                  '+${formatNumber(streak.nextReward!.xp)}XP'
+                                  '${streak.nextReward!.itemType != null ? ' + item' : ''}',
+                                  style: const TextStyle(
+                                    color: Colors.white38,
+                                    fontSize: 8.5,
+                                    height: 1.3,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        Icon(Icons.chevron_right, color: Colors.white.withValues(alpha: 0.3), size: 18),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// เปิดดูรายละเอียด Daily Streak เต็มๆ — ตาราง 30 วัน + รางวัลของทุก milestone ผ่านแล้ว/ยัง
+// เรียกจาก StreakCard เอง (self-contained ไม่ต้องส่ง callback ผ่าน constructor) ทั้งหน้า Profile
+// ตัวเองและหน้าโปรไฟล์คนอื่นที่ใช้ StreakCard ตัวเดียวกันเลยได้ฟีเจอร์นี้ฟรีทั้งคู่
+void _showStreakDetail(BuildContext context, StreakInfo streak) {
+  LiquidGlassDialog.show<void>(
+    context: context,
+    icon: const Icon(Icons.local_fire_department, color: Colors.orangeAccent, size: 36),
+    title: 'Daily Streak',
+    content: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          'Day ${streak.count} / ${streak.cycleLength}',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            shadows: [Shadow(color: Colors.black45, blurRadius: 6)],
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Complete at least 1 quest a day to keep your streak going. '
+          'Miss a day and it resets back to Day 1.',
+          textAlign: TextAlign.center,
+          style: LiquidGlassDialog.messageStyle,
+        ),
+        const SizedBox(height: 16),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          alignment: WrapAlignment.center,
+          children: [
+            for (int day = 1; day <= streak.cycleLength; day++)
+              _StreakDayDot(day: day, achieved: day <= streak.count, isMilestone: streak.milestones.contains(day)),
           ],
         ),
+        const SizedBox(height: 16),
+        for (final day in streak.milestones) _StreakRewardRow(day: day, streak: streak),
+      ],
+    ),
+    actions: [
+      LiquidGlassAction(label: 'Got it', color: Colors.orange, onPressed: () => Navigator.pop(context)),
+    ],
+  );
+}
+
+// จุดวันเดียว 1-30 ในตาราง — milestone (7/14/21/30) ตัวใหญ่กว่า+มีไอคอนของขวัญทับ ให้แยกจากวันธรรมดาชัดๆ
+class _StreakDayDot extends StatelessWidget {
+  final int day;
+  final bool achieved;
+  final bool isMilestone;
+
+  const _StreakDayDot({required this.day, required this.achieved, required this.isMilestone});
+
+  @override
+  Widget build(BuildContext context) {
+    final size = isMilestone ? 26.0 : 20.0;
+    final color = achieved
+        ? (isMilestone ? Colors.orangeAccent : Colors.orangeAccent.withValues(alpha: 0.8))
+        : Colors.white.withValues(alpha: 0.08);
+
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        border: isMilestone
+            ? Border.all(color: Colors.white.withValues(alpha: achieved ? 0.9 : 0.3), width: 1.4)
+            : null,
+      ),
+      child: isMilestone
+          ? Icon(Icons.card_giftcard, size: 13, color: achieved ? Colors.white : Colors.white38)
+          : Text(
+              '$day',
+              style: TextStyle(
+                fontSize: 8,
+                color: achieved ? Colors.black87 : Colors.white38,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+    );
+  }
+}
+
+// แถวรางวัลของ milestone หนึ่งวัน — เครื่องหมายถูกสีเขียวถ้าผ่านไปแล้วในรอบนี้
+class _StreakRewardRow extends StatelessWidget {
+  final int day;
+  final StreakInfo streak;
+
+  const _StreakRewardRow({required this.day, required this.streak});
+
+  @override
+  Widget build(BuildContext context) {
+    final reward = streak.rewards[day];
+    final achieved = day <= streak.count;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          Icon(
+            achieved ? Icons.check_circle : Icons.radio_button_unchecked,
+            size: 15,
+            color: achieved ? Colors.greenAccent : Colors.white30,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              reward == null
+                  ? 'Day $day'
+                  : 'Day $day — +${formatNumber(reward.points)}P +${formatNumber(reward.xp)}XP'
+                      '${reward.itemType != null ? ' + item' : ''}',
+              style: TextStyle(
+                color: achieved ? Colors.white : Colors.white54,
+                fontSize: 12,
+                fontWeight: achieved ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

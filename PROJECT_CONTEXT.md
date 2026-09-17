@@ -273,6 +273,12 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
     - หน้า Profile (ทั้งของตัวเองและของผู้เล่นคนอื่น) โชว์การ์ด `StreakCard` (เดิมชื่อ
       `PointsAndRankCard`) แทน Rank/Season แล้ว — ไฟไอคอน + "Day X / 30" + progress bar ไป
       milestone ถัดไป + preview รางวัล
+    - **กดการ์ด `StreakCard` เปิดดูรายละเอียดเต็มได้แล้ว** (`_showStreakDetail()` ใน
+      `lib/widgets/profile_sections.dart`) — ตาราง 30 วัน (`_StreakDayDot`, milestone 7/14/21/30 ตัว
+      ใหญ่กว่า+ไอคอนของขวัญ) + รายการรางวัลทุก milestone พร้อมเครื่องหมายถูกว่าผ่านรอบนี้หรือยัง
+      (`_StreakRewardRow`) — logic อยู่ใน `StreakCard` เอง (self-contained ไม่ผ่าน callback) เลยได้ฟรี
+      ทั้งหน้า Profile ตัวเองและหน้าโปรไฟล์คนอื่นทันทีโดยไม่ต้องแก้ 2 หน้านั้นเลย ใช้ข้อมูลจาก
+      `StreakInfo.milestones`/`.rewards` ที่มีอยู่แล้ว ไม่ต้องเพิ่ม field ใหม่จาก backend
     - แจ้งเตือนครบ milestone ผ่าน `notifyStreakMilestone()` ใน `utils/notifications.js`
       (type `'streak_milestone'`) + dialog ฉลองใน `lib/utils/quest_completion.dart`
 - **Mini Quest "เช็คของในตู้เย็น" ทำงานจริงแล้ว (ไม่ใช่กดรับคะแนนเปล่าๆ)**
