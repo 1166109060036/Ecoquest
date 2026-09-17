@@ -19,6 +19,11 @@ class AppConstants {
 
   static const String tokenKey = 'auth_token';
   static const String userKey = 'auth_user';
+  // จำบัญชี guest ล่าสุดไว้แยกจาก session หลัก (คนละ key ตั้งใจ) เพื่อให้ logout (ซึ่งลบแค่
+  // tokenKey/userKey) ไม่ลบความจำ guest ทิ้งไปด้วย — กด "Continue as Guest" ครั้งถัดไปจะได้บัญชีเดิม
+  // แทนที่จะสร้างใหม่ทุกครั้ง (ดู AuthService.loginAsGuest)
+  static const String guestTokenKey = 'guest_auth_token';
+  static const String guestUserKey = 'guest_auth_user';
   // เก็บ path รูปที่ถ่ายจากไอเทม Camera (เก็บแค่ในเครื่อง ไม่ได้อัปขึ้น server)
   static const String cameraPhotosKey = 'camera_photos';
 

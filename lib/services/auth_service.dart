@@ -58,6 +58,15 @@ class AuthService {
   }
 
   Future<UserModel> loginAsGuest() async {
+    // ถ้าเคยมี guest บนเครื่องนี้อยู่แล้ว ลองใช้ตัวเดิมก่อน จะได้ไม่เสียความคืบหน้าทุกครั้งที่
+    // logout แล้วกด guest ใหม่ — ต้องเช็คทั้งว่า token ยังไม่หมดอายุ และยังไม่เคย upgrade เป็น
+    // บัญชีจริงไปแล้ว (ถ้า upgrade ไปแล้ว ต้องสร้าง guest ใหม่ ไม่ใช่หลุดเข้าบัญชีจริงนั้นโดยไม่ต้อง
+    // ใส่รหัสผ่าน)
+    final resumedUser = await _tryResumeGuest();
+    if (resumedUser != null) {
+      return resumedUser;
+    }
+
     final response = await http.post(
       Uri.parse('${AppConstants.baseUrl}/auth/guest'),
       headers: {'Content-Type': 'application/json'},
@@ -71,7 +80,31 @@ class AuthService {
 
     final user = UserModel.fromJson(data['user']);
     await _storage.saveSession(data['token'], user);
+    await _storage.saveGuestSession(data['token'], user);
     return user;
+  }
+
+  Future<UserModel?> _tryResumeGuest() async {
+    final rememberedToken = await _storage.getGuestToken();
+    if (rememberedToken == null) return null;
+
+    try {
+      final response = await http.get(
+        Uri.parse('${AppConstants.baseUrl}/auth/me'),
+        headers: {'Authorization': 'Bearer $rememberedToken'},
+      );
+      if (response.statusCode != 200) return null;
+
+      final data = jsonDecode(response.body);
+      final user = UserModel.fromJson(data['user']);
+      if (!user.isGuest) return null;
+
+      await _storage.saveSession(rememberedToken, user);
+      return user;
+    } catch (_) {
+      // เน็ตหลุด/parse พัง ฯลฯ — ปล่อยให้ fallback ไปสร้าง guest ใหม่แทน ไม่ throw
+      return null;
+    }
   }
 
   // เช็คว่ามี session ค้างอยู่ไหม (ใช้ตอนเปิดแอพ / splash page)
@@ -160,6 +193,9 @@ class AuthService {
     if (token != null) {
       await _storage.saveSession(token, user);
     }
+    // ไม่ใช่ guest แล้ว เลิกจำไว้เป็น guest ที่จะ resume ครั้งหน้า (กันหลุดเข้าบัญชีนี้แบบไม่ใส่
+    // รหัสผ่านตอนกด "Continue as Guest" ในอนาคต)
+    await _storage.clearGuestSession();
     return user;
   }
 

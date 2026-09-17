@@ -28,4 +28,22 @@ class StorageService {
     await prefs.remove(AppConstants.tokenKey);
     await prefs.remove(AppConstants.userKey);
   }
+
+  // จำบัญชี guest ไว้แยกจาก session หลัก — clearSession() (logout) ไม่แตะ key พวกนี้เลย
+  Future<void> saveGuestSession(String token, UserModel user) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(AppConstants.guestTokenKey, token);
+    await prefs.setString(AppConstants.guestUserKey, jsonEncode(user.toJson()));
+  }
+
+  Future<String?> getGuestToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(AppConstants.guestTokenKey);
+  }
+
+  Future<void> clearGuestSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(AppConstants.guestTokenKey);
+    await prefs.remove(AppConstants.guestUserKey);
+  }
 }
