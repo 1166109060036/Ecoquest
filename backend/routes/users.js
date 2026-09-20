@@ -5,7 +5,7 @@ const QuestHistory = require('../models/QuestHistory');
 const authMiddleware = require('../middleware/auth');
 const { buildProfileStats } = require('../utils/profilePayload');
 const { getAchievements } = require('../utils/achievements');
-const { avatarUrlFor } = require('../utils/avatar');
+const { avatarUrlFor, cosmeticsFor } = require('../utils/avatar');
 
 const router = express.Router();
 
@@ -24,7 +24,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
     }
 
     const user = await User.findById(req.params.id).select(
-      'displayName level xp points totalQuestsCompleted streakCount lastStreakDate avatarContentType avatarUpdatedAt'
+      'displayName level xp points totalQuestsCompleted streakCount lastStreakDate avatarContentType avatarUpdatedAt cosmetics'
     );
     if (!user) {
       return res.status(404).json({ message: 'Player not found' });
@@ -46,6 +46,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
         id: user._id,
         displayName: user.displayName,
         avatarUrl: avatarUrlFor(user),
+        cosmetics: cosmeticsFor(user),
         level: progress.level,
         points: user.points,
       },

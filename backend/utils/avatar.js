@@ -14,4 +14,14 @@ const avatarUrlFor = (user) => {
   return `/users/${user._id}/avatar?v=${version}`;
 };
 
-module.exports = { avatarUrlFor };
+// ของตกแต่งโปรไฟล์ที่ user คนนี้ใส่อยู่ — เรียกคู่กับ avatarUrlFor เสมอทุกจุดที่ต้องโชว์ตัวตนของ
+// user ให้คนอื่นเห็น (GET /auth/me, GET /users/:id, สมาชิกปาร์ตี้, รายชื่อเพื่อน) ต้อง .select('cosmetics')
+// หรือ .populate(... 'cosmetics') มาด้วยเสมอ ไม่งั้นจะได้ undefined ทุกช่องเงียบๆ ไม่ throw
+const cosmeticsFor = (user) => ({
+  frame: user.cosmetics?.frame ?? null,
+  nameStyle: user.cosmetics?.nameStyle ?? null,
+  background: user.cosmetics?.background ?? null,
+  effect: user.cosmetics?.effect ?? null,
+});
+
+module.exports = { avatarUrlFor, cosmeticsFor };

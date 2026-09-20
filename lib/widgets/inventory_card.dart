@@ -31,6 +31,9 @@ class InventoryCard extends StatelessWidget {
   // true ชั่วคราวทันทีหลังซื้อ/ใช้ไอเทมสำเร็จ — เรืองแสงรอบ thumbnail สั้นๆ ให้เห็นชัดว่าการ์ดนี้เพิ่งมีการ
   // เปลี่ยนแปลง (ดู PulseGlow) ผู้เรียกมีหน้าที่เคลียร์กลับเป็น false เองหลังผ่านไปสักพัก
   final bool celebrate;
+  // true เฉพาะของตกแต่งโปรไฟล์ที่ใส่อยู่ตอนนี้ — วาดขอบเขียว + เครื่องหมายถูกมุมบนขวาของ thumbnail
+  // (ไอเทมทั่วไปไม่มีสถานะนี้ ค่าเริ่มต้น false เลยไม่กระทบการใช้งานเดิมที่จุดอื่น)
+  final bool equipped;
 
   const InventoryCard({
     super.key,
@@ -51,6 +54,7 @@ class InventoryCard extends StatelessWidget {
     this.actionBusy = false,
     this.actionColor = Colors.green,
     this.celebrate = false,
+    this.equipped = false,
   });
 
   // รูปจริงจะลอยอยู่บนพื้นโปร่งใสพร้อมเงา ส่วน "ไม่มีรูป" ถึงจะใช้กล่องสีอ่อนรอง icon ไว้
@@ -96,6 +100,7 @@ class InventoryCard extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
+            border: equipped ? Border.all(color: Colors.green, width: 2) : null,
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.06),
@@ -115,6 +120,16 @@ class InventoryCard extends StatelessWidget {
                     borderRadius: 16,
                     child: SizedBox(width: 72, height: 72, child: _buildThumbnail()),
                   ),
+                  if (equipped)
+                    const Positioned(
+                      right: -4,
+                      top: -4,
+                      child: CircleAvatar(
+                        radius: 9,
+                        backgroundColor: Colors.green,
+                        child: Icon(Icons.check, size: 12, color: Colors.white),
+                      ),
+                    ),
                   if (quantity != null)
                     Positioned(
                       left: -6,

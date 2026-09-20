@@ -74,4 +74,26 @@ class InventoryProvider extends ChangeNotifier {
       return false;
     }
   }
+
+  // ใส่/ถอดของตกแต่งโปรไฟล์ 1 ชิ้น — equip:true ใส่ itemType นี้เข้าช่อง slotKey, false ถอดออก
+  // busy key ใช้ itemType ของการ์ดที่กด (ไม่ใช่ slotKey) เพราะนั่นคือการ์ดที่ผู้ใช้เห็นกำลังโหลดอยู่จริง
+  // ผู้เรียก (หน้า Inventory) ต้อง refreshProfile() ต่อเองด้วย เพราะ cosmetics ที่ใส่อยู่เก็บใน
+  // AuthProvider.user คนละตัวกับ inventory (เหมือน buyItem ที่ผู้เรียกต้อง refreshProfile() แต้มเอง)
+  Future<bool> equipCosmetic(String itemType, {required String slotKey, required bool equip}) async {
+    _busyItemType = itemType;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await _service.equipCosmetics({slotKey: equip ? itemType : null});
+      _busyItemType = null;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _busyItemType = null;
+      notifyListeners();
+      return false;
+    }
+  }
 }

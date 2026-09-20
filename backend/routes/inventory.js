@@ -1,6 +1,6 @@
 const express = require('express');
 const authMiddleware = require('../middleware/auth');
-const { getInventory, buyItem, useItem } = require('../utils/inventory');
+const { getInventory, buyItem, useItem, equipCosmetics } = require('../utils/inventory');
 
 const router = express.Router();
 
@@ -11,6 +11,27 @@ router.get('/', authMiddleware, async (req, res) => {
   try {
     const items = await getInventory(req.userId);
     res.json({ items });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   PUT /api/inventory/cosmetics
+// @desc    ใส่/ถอดของตกแต่งโปรไฟล์ — body เป็น partial ของ {frame, nameStyle, background, effect}
+//          ค่า null = ถอดช่องนั้น, ช่องที่ไม่ส่งมา = ไม่แตะ (ประกาศก่อน /:itemType/* ตามธรรมเนียมไฟล์นี้
+//          แม้ path จะไม่ชนกันจริงเพราะคนละจำนวน segment ก็ตาม)
+router.put('/cosmetics', authMiddleware, async (req, res) => {
+  try {
+    if (typeof req.body !== 'object' || req.body === null || Array.isArray(req.body)) {
+      return res.status(400).json({ message: 'Invalid request body' });
+    }
+
+    const result = await equipCosmetics(req.userId, req.body);
+    if (result.error) {
+      return res.status(result.error.status).json({ message: result.error.message });
+    }
+    res.json(result);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });

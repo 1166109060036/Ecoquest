@@ -7,6 +7,7 @@ import '../../providers/friend_provider.dart';
 import '../../providers/party_provider.dart';
 import '../../services/chat_socket_service.dart';
 import '../../widgets/breathing_icon.dart';
+import '../../widgets/decorated_avatar.dart';
 import '../../widgets/pressable_scale.dart';
 
 // แท็บย่อย "Chat" ของหน้า Community — แชทแบบ real-time ผ่าน WebSocket (ดู
@@ -206,13 +207,13 @@ class _FriendPickerSheet extends StatelessWidget {
                   return ListTile(
                     onTap: () => Navigator.pop(context, friend),
                     contentPadding: EdgeInsets.zero,
-                    leading: CircleAvatar(
-                      radius: 20,
-                      backgroundColor: Colors.grey.shade200,
-                      backgroundImage: friend.avatarUrl != null ? NetworkImage(friend.avatarUrl!) : null,
-                      child: friend.avatarUrl == null
-                          ? Icon(Icons.person, color: Colors.grey.shade500)
-                          : null,
+                    leading: DecoratedAvatar(
+                      avatarUrl: friend.avatarUrl,
+                      size: 40,
+                      frameItemType: friend.cosmetics.frame,
+                      placeholderBackgroundColor: Colors.grey.shade200,
+                      placeholderIconColor: Colors.grey.shade500,
+                      placeholderIconSize: 24,
                     ),
                     title: Text(friend.displayName, style: const TextStyle(fontWeight: FontWeight.w600)),
                     subtitle: Text('Lv. ${friend.level.toString().padLeft(2, '0')}'),

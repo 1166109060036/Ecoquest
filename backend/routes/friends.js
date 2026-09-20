@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const Friendship = require('../models/Friendship');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
-const { avatarUrlFor } = require('../utils/avatar');
+const { avatarUrlFor, cosmeticsFor } = require('../utils/avatar');
 const { pairKey } = require('../utils/friendKey');
 const { notifyFriendRequest, notifyFriendAccepted } = require('../utils/notifications');
 
@@ -11,13 +11,14 @@ const router = express.Router();
 
 // allow-list เดียวกับ GET /api/users/:id — ห้ามใช้ .select('-password') เพราะยังหลุด
 // email/resetOtpHash/resetOtpExpires ออกไปได้ (ดูคอมเมนต์เต็มๆ ใน routes/users.js)
-const PUBLIC_FIELDS = 'displayName level avatarContentType avatarUpdatedAt';
+const PUBLIC_FIELDS = 'displayName level avatarContentType avatarUpdatedAt cosmetics';
 
 const toPublicUser = (user) => ({
   id: user._id,
   displayName: user.displayName,
   level: user.level,
   avatarUrl: avatarUrlFor(user),
+  cosmetics: cosmeticsFor(user),
 });
 
 // @route   GET /api/friends/search?q=

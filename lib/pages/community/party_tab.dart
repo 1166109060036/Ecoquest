@@ -8,6 +8,7 @@ import '../../utils/date_format.dart';
 import '../../utils/quest_completion.dart';
 import '../../widgets/breathing_icon.dart';
 import '../../widgets/bubble_toast.dart';
+import '../../widgets/decorated_avatar.dart';
 import '../../widgets/liquid_glass_dialog.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/pulse_glow.dart';
@@ -837,16 +838,13 @@ class _MemberRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           children: [
-            CircleAvatar(
-              radius: 22,
-              backgroundColor: Colors.grey.shade200,
-              backgroundImage:
-                  member.avatarUrl != null ? NetworkImage(member.avatarUrl!) : null,
-              // โหลดรูปไม่สำเร็จ (เน็ตหลุด/รูปถูกลบไปแล้ว) -> โชว์ไอคอนคนแทน ไม่ให้หน้าพัง
-              onBackgroundImageError: member.avatarUrl != null ? (_, _) {} : null,
-              child: member.avatarUrl == null
-                  ? Icon(Icons.person, color: Colors.grey.shade500, size: 24)
-                  : null,
+            DecoratedAvatar(
+              avatarUrl: member.avatarUrl,
+              size: 44,
+              frameItemType: member.cosmetics.frame,
+              placeholderBackgroundColor: Colors.grey.shade200,
+              placeholderIconColor: Colors.grey.shade500,
+              placeholderIconSize: 24,
             ),
             const SizedBox(width: 14),
             Expanded(

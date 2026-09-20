@@ -5,6 +5,7 @@ import '../../models/friend_model.dart';
 import '../../providers/friend_provider.dart';
 import '../../widgets/breathing_icon.dart';
 import '../../widgets/bubble_toast.dart';
+import '../../widgets/decorated_avatar.dart';
 import '../../widgets/liquid_glass_dialog.dart';
 import '../../widgets/pressable_scale.dart';
 import '../profile/player_profile_page.dart';
@@ -448,14 +449,13 @@ class _FriendUserRow extends StatelessWidget {
           ),
           child: Row(
             children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: Colors.grey.shade200,
-                backgroundImage: user.avatarUrl != null ? NetworkImage(user.avatarUrl!) : null,
-                onBackgroundImageError: user.avatarUrl != null ? (_, _) {} : null,
-                child: user.avatarUrl == null
-                    ? Icon(Icons.person, color: Colors.grey.shade500, size: 22)
-                    : null,
+              DecoratedAvatar(
+                avatarUrl: user.avatarUrl,
+                size: 40,
+                frameItemType: user.cosmetics.frame,
+                placeholderBackgroundColor: Colors.grey.shade200,
+                placeholderIconColor: Colors.grey.shade500,
+                placeholderIconSize: 22,
               ),
               const SizedBox(width: 12),
               Expanded(

@@ -9,19 +9,33 @@ import 'package:flutter/material.dart';
 import '../models/profile_model.dart';
 import '../models/quest_history_model.dart';
 import '../utils/constants.dart';
+import '../utils/cosmetics.dart';
 import 'count_up_text.dart';
+import 'decorated_avatar.dart';
 import 'liquid_glass_dialog.dart';
 
 // ---------------------------------------------------------------------------
 // พื้นหลัง — ใส่รูปเองได้ทีหลังผ่าน AppConstants.profileBgAsset
 // ถ้ายังไม่มีไฟล์รูป จะ fallback เป็น gradient สีเขียว-ฟ้าให้อัตโนมัติ ไม่มี error ค้าง
 // (ตัวเดียวกับที่ party_page.dart เคยก๊อปไว้เป็น _PartyBackground แบบเหมือนทุกตัวอักษร)
+//
+// backgroundItemType (จาก EquippedCosmetics.background) มีค่า = ใส่พื้นหลังที่ซื้อไว้อยู่แทน
+// ค่าเริ่มต้น — ⚠️ widget นี้เป็นฉากหลังของหน้า Home ด้วย (ดู home_page.dart ที่ใช้ ProfilePage
+// เป็นพื้นหลังเต็มจอ) ซื้อพื้นหลังแล้วหน้า Home จะเปลี่ยนตามไปด้วย ตั้งใจให้เป็นแบบนั้น
 // ---------------------------------------------------------------------------
 class ProfileBackground extends StatelessWidget {
-  const ProfileBackground({super.key});
+  final String? backgroundItemType;
+
+  const ProfileBackground({super.key, this.backgroundItemType});
 
   @override
   Widget build(BuildContext context) {
+    final style = cosmeticStyleFor(backgroundItemType);
+
+    if (style?.backgroundGradient != null) {
+      return Container(decoration: BoxDecoration(gradient: style!.backgroundGradient));
+    }
+
     return Image.asset(
       AppConstants.profileBgAsset,
       fit: BoxFit.cover,
@@ -66,6 +80,9 @@ class ProfileGlassCard extends StatelessWidget {
 class UserHeader extends StatelessWidget {
   final String displayName;
   final String? avatarUrl; // URL เต็มของรูปโปรไฟล์ — null = ยังไม่ได้ตั้ง
+  // itemType ของกรอบ/สีชื่อที่ใส่อยู่ (จาก EquippedCosmetics) — null = ไม่ได้ใส่ ใช้ค่าเริ่มต้นเดิม
+  final String? frameItemType;
+  final String? nameStyleItemType;
   final int level;
   final int xp;
   final int xpToNext;
@@ -76,6 +93,8 @@ class UserHeader extends StatelessWidget {
     super.key,
     required this.displayName,
     this.avatarUrl,
+    this.frameItemType,
+    this.nameStyleItemType,
     required this.level,
     required this.xp,
     required this.xpToNext,
@@ -85,24 +104,45 @@ class UserHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final progress = xpToNext == 0 ? 0.0 : (xp / xpToNext).clamp(0.0, 1.0);
+    final nameStyle = cosmeticStyleFor(nameStyleItemType);
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        _AvatarPicker(avatarUrl: avatarUrl, onTap: onTapAvatar),
+        DecoratedAvatar(
+          avatarUrl: avatarUrl,
+          size: 64,
+          frameItemType: frameItemType,
+          showCameraBadge: onTapAvatar != null,
+          onTap: onTapAvatar,
+        ),
         const SizedBox(width: 14),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                displayName,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              nameStyle?.nameGradient != null
+                  ? ShaderMask(
+                      shaderCallback: (bounds) => nameStyle.nameGradient!.createShader(bounds),
+                      child: Text(
+                        displayName,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          shadows: nameStyle!.nameGlow,
+                        ),
+                      ),
+                    )
+                  : Text(
+                      displayName,
+                      style: TextStyle(
+                        color: nameStyle?.nameColor ?? Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        shadows: nameStyle?.nameGlow,
+                      ),
+                    ),
               const SizedBox(height: 2),
               Text(
                 'Lv. ${level.toString().padLeft(2, '0')}',
@@ -133,59 +173,6 @@ class UserHeader extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-// อวตาร 64px — แตะเพื่อเปิด bottom sheet เลือก/ลบรูป (เฉพาะตอนมี onTap)
-// ป้ายกล้องเล็กๆ มุมล่างขวาโชว์เฉพาะตอนแก้ไขได้ — โปรไฟล์คนอื่นดูอย่างเดียว ไม่มีป้ายนี้
-// โชว์รูปจาก avatarPath ถ้ามี (fallback เป็นไอคอนคนถ้าไฟล์หายหรือยังไม่ได้ตั้งรูป)
-class _AvatarPicker extends StatelessWidget {
-  final String? avatarUrl;
-  final VoidCallback? onTap;
-
-  const _AvatarPicker({required this.avatarUrl, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final editable = onTap != null;
-
-    return InkWell(
-      onTap: onTap,
-      customBorder: const CircleBorder(),
-      child: SizedBox(
-        width: 64,
-        height: 64,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            CircleAvatar(
-              radius: 32,
-              backgroundColor: Colors.black.withValues(alpha: 0.48),
-              backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl!) : null,
-              // ยังไม่มีรูป หรือโหลดรูปไม่สำเร็จ (เน็ตหลุด/รูปถูกลบไปแล้ว) -> โชว์ไอคอนคนแทน
-              onBackgroundImageError: avatarUrl != null ? (_, _) {} : null,
-              child: avatarUrl == null
-                  ? const Icon(Icons.person, color: Colors.white70, size: 34)
-                  : null,
-            ),
-            if (editable)
-              Positioned(
-                right: -2,
-                bottom: -2,
-                child: Material(
-                  color: Colors.green,
-                  shape: const CircleBorder(),
-                  elevation: 2,
-                  child: Padding(
-                    padding: const EdgeInsets.all(5),
-                    child: Icon(Icons.photo_camera, size: 13, color: Colors.white),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
     );
   }
 }

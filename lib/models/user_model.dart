@@ -1,4 +1,5 @@
 import '../utils/constants.dart';
+import 'cosmetics_model.dart';
 
 class UserModel {
   final String id;
@@ -7,6 +8,9 @@ class UserModel {
   final bool isGuest;
   // URL เต็มของรูปโปรไฟล์ (เก็บจริงเป็นไฟล์บน backend แล้ว) — null = ยังไม่ได้ตั้งรูป
   final String? avatarUrl;
+  // ของตกแต่งโปรไฟล์ที่ใส่อยู่ตอนนี้ — register/login/guest ไม่ส่งค่านี้มาด้วย จะได้ค่าจริงตอน
+  // เรียก GET /auth/me เหมือนฟิลด์ระบบเกมด้านล่าง
+  final EquippedCosmetics cosmetics;
 
   // ---- ค่าระบบเกม ----
   // register/login/guest ไม่ได้ส่งค่าพวกนี้กลับมาด้วย จะได้ค่าจริงตอนเรียก GET /auth/me
@@ -26,6 +30,7 @@ class UserModel {
     required this.displayName,
     required this.isGuest,
     this.avatarUrl,
+    this.cosmetics = const EquippedCosmetics(),
     this.level = 1,
     this.xp = 0,
     this.points = 0,
@@ -40,6 +45,7 @@ class UserModel {
       displayName: json['displayName'] ?? 'Player',
       isGuest: json['isGuest'] ?? false,
       avatarUrl: AppConstants.resolveUrl(json['avatarUrl']),
+      cosmetics: EquippedCosmetics.fromJson(json['cosmetics']),
       level: json['level'] ?? 1,
       xp: json['xp'] ?? 0,
       points: json['points'] ?? 0,
@@ -48,6 +54,8 @@ class UserModel {
     );
   }
 
+  // ใช้ cache session ลง SharedPreferences (ดู StorageService) — ลืมใส่ฟิลด์ไหนตรงนี้ ฟิลด์นั้น
+  // จะหายตอนเปิดแอพใหม่ (cold start อ่านจาก cache นี้ก่อน ไม่ได้ยิง /auth/me ทันที)
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -55,6 +63,7 @@ class UserModel {
       'displayName': displayName,
       'isGuest': isGuest,
       'avatarUrl': avatarUrl,
+      'cosmetics': cosmetics.toJson(),
       'level': level,
       'xp': xp,
       'points': points,

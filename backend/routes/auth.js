@@ -5,7 +5,7 @@ const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 const { sendOtpEmail } = require('../utils/mailer');
 const { buildProfileStats } = require('../utils/profilePayload');
-const { avatarUrlFor } = require('../utils/avatar');
+const { avatarUrlFor, cosmeticsFor } = require('../utils/avatar');
 const { adminEmails } = require('../middleware/admin');
 const { decodeImageBase64 } = require('../utils/imageUpload');
 
@@ -147,6 +147,7 @@ router.get('/me', authMiddleware, async (req, res) => {
         displayName: user.displayName,
         isGuest: user.isGuest,
         avatarUrl: avatarUrlFor(user),
+        cosmetics: cosmeticsFor(user),
         level: progress.level,
         xp: user.xp,
         points: user.points,

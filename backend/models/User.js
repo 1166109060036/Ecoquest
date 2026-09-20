@@ -1,5 +1,20 @@
 const mongoose = require('mongoose');
 
+// ของตกแต่งโปรไฟล์ที่ "ใส่อยู่ตอนนี้" (คนละเรื่องกับความเป็นเจ้าของ ซึ่งอยู่ที่ InventoryItem) —
+// เก็บบน User โดยตรงแทนที่จะเป็นฟิลด์ equipped บน InventoryItem เพราะ routes/party.js และ
+// routes/friends.js ต้องรู้ว่าสมาชิกแต่ละคนในลิสต์ใส่อะไรอยู่ ถ้าเก็บคนละ collection ต้อง query
+// เพิ่มต่อคนในลิสต์ (N+1) ส่วนเก็บบน User แค่เติมคำว่า cosmetics ในสาย select/populate ที่มีอยู่แล้ว
+// ค่าที่เก็บคือ itemType ตรงๆ จาก backend/utils/inventory.js#ITEMS (null = ไม่ได้ใส่ช่องนั้น)
+const CosmeticsSchema = new mongoose.Schema(
+  {
+    frame: { type: String, default: null },
+    nameStyle: { type: String, default: null },
+    background: { type: String, default: null },
+    effect: { type: String, default: null },
+  },
+  { _id: false }
+);
+
 const UserSchema = new mongoose.Schema(
   {
     email: {
@@ -80,6 +95,9 @@ const UserSchema = new mongoose.Schema(
     redEnergyExpiresAt: { type: Date, default: null },
     blueEnergyExpiresAt: { type: Date, default: null },
     greenEnergyExpiresAt: { type: Date, default: null },
+
+    // ของตกแต่งโปรไฟล์ที่ใส่อยู่ — ดูคอมเมนต์ที่ CosmeticsSchema ด้านบน
+    cosmetics: { type: CosmeticsSchema, default: () => ({}) },
 
     // ---- ฟิลด์สำหรับ flow ลืมรหัสผ่าน (OTP ทางอีเมล) ----
     // เก็บแค่ hash ของ OTP (เหมือน password) ไม่เก็บ OTP ตัวจริงไว้ในฐานข้อมูล

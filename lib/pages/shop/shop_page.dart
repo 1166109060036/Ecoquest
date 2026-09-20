@@ -15,6 +15,9 @@ import '../../widgets/staggered_fade_in.dart';
 // push ทับ MainShell เลยไม่มี bottom nav ให้เห็น (เหมือนหน้า Notification/Settings)
 // หน้าตาอิงตามหน้า Inventory ทั้งหมด (พื้นหลัง/หัวข้อ/การ์ด) ต่างกันแค่ปุ่มขวาเป็น "ซื้อ" แทน "ใช้"
 // ข้อมูลไอเทม+ราคาจริงจาก GET /api/inventory ตัวเดียวกับหน้า Inventory (คนละ view ของข้อมูลชุดเดียวกัน)
+//
+// แยก 2 แท็บ: "Items" (ไอเทม Energy ที่ใช้แล้วหมด) กับ "Decorations" (ของตกแต่งโปรไฟล์ — ซื้อครั้ง
+// เดียวถาวร ใส่/ถอดที่หน้า Inventory) แยกตาม InventoryItemModel.isCosmetic (มี slot หรือไม่)
 class ShopPage extends StatefulWidget {
   const ShopPage({super.key});
 
@@ -22,10 +25,18 @@ class ShopPage extends StatefulWidget {
   State<ShopPage> createState() => _ShopPageState();
 }
 
-class _ShopPageState extends State<ShopPage> {
+class _ShopPageState extends State<ShopPage> with SingleTickerProviderStateMixin {
+  late final TabController _tabController = TabController(length: 2, vsync: this);
+
   // ไอเทมที่เพิ่งซื้อสำเร็จ — เอาไว้ให้การ์ดนั้นเรืองแสงสั้นๆ (ดู celebrate ใน InventoryCard)
   // เคลียร์กลับเป็น null เองหลังผ่านไปสักพัก ไม่ต้องรอ user ทำอะไรต่อ
   String? _celebratingItemType;
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   Future<void> _onRefresh(BuildContext context) => Future.wait([
         context.read<InventoryProvider>().loadInventory(),
@@ -59,7 +70,9 @@ class _ShopPageState extends State<ShopPage> {
     final inventoryProvider = context.watch<InventoryProvider>();
     final points = context.watch<AuthProvider>().user?.points ?? 0;
     // มีแค่ไอเทมที่ตั้งราคาไว้ (cost != null) เท่านั้นที่ซื้อได้ — starter item อย่าง Camera/Fridge ไม่ใช่ของขาย
-    final shopItems = inventoryProvider.items.where((item) => item.cost != null).toList();
+    final purchasable = inventoryProvider.items.where((item) => item.cost != null);
+    final regularItems = purchasable.where((item) => !item.isCosmetic).toList();
+    final cosmeticItems = purchasable.where((item) => item.isCosmetic).toList();
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
@@ -84,60 +97,125 @@ class _ShopPageState extends State<ShopPage> {
                 ],
               ),
             ),
+            TabBar(
+              controller: _tabController,
+              labelColor: Colors.green,
+              unselectedLabelColor: Colors.grey.shade500,
+              indicatorColor: Colors.green,
+              tabs: const [
+                Tab(text: 'Items'),
+                Tab(text: 'Decorations'),
+              ],
+            ),
             Expanded(
-              child: inventoryProvider.isLoading && shopItems.isEmpty
-                  ? ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-                      itemCount: 5,
-                      separatorBuilder: (_, _) => const SizedBox(height: 14),
-                      itemBuilder: (_, _) => const InventoryCardSkeleton(),
-                    )
-                  : shopItems.isEmpty
-                      ? LeafRefreshIndicator(
-                          onRefresh: () => _onRefresh(context),
-                          child: ListView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            children: [
-                              SizedBox(height: MediaQuery.of(context).size.height * 0.15),
-                              _EmptyState(errorMessage: inventoryProvider.errorMessage),
-                            ],
-                          ),
-                        )
-                      : LeafRefreshIndicator(
-                          onRefresh: () => _onRefresh(context),
-                          child: ListView.separated(
-                            padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-                            itemCount: shopItems.length,
-                            separatorBuilder: (_, _) => const SizedBox(height: 14),
-                            itemBuilder: (context, index) {
-                              final item = shopItems[index];
-                              final canAfford = points >= (item.cost ?? 0);
-                              return FadeSlideIn(
-                                key: ValueKey(item.itemType),
-                                delay: Duration(milliseconds: 40 * index.clamp(0, 10)),
-                                child: InventoryCard(
-                                  icon: item.icon,
-                                  iconColor: item.accentColor,
-                                  // ยังไม่มีไฟล์รูปจริงของไอเทม Energy — วางไฟล์ตามชื่อที่
-                                  // InventoryItemModel.imageAsset คาดไว้ได้เลย การ์ดจะเปลี่ยนมาโชว์รูปแทน
-                                  // icon เองอัตโนมัติ (ไม่มีไฟล์ก็ fallback กลับมาเป็น icon เหมือนเดิม)
-                                  imageAsset: item.imageAsset,
-                                  title: item.title,
-                                  description: item.description,
-                                  quantity: item.quantity > 0 ? item.quantity : null,
-                                  actionLabel: 'Buy · ${item.cost} P',
-                                  actionColor: item.accentColor,
-                                  onAction: canAfford ? () => _buyItem(context, item) : null,
-                                  actionBusy: inventoryProvider.busyItemType == item.itemType,
-                                  celebrate: _celebratingItemType == item.itemType,
-                                ),
-                              );
-                            },
-                          ),
-                        ),
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _ShopList(
+                    items: regularItems,
+                    inventoryProvider: inventoryProvider,
+                    points: points,
+                    celebratingItemType: _celebratingItemType,
+                    onBuy: (item) => _buyItem(context, item),
+                    onRefresh: () => _onRefresh(context),
+                    emptyMessage: 'No items available right now',
+                  ),
+                  _ShopList(
+                    items: cosmeticItems,
+                    inventoryProvider: inventoryProvider,
+                    points: points,
+                    celebratingItemType: _celebratingItemType,
+                    onBuy: (item) => _buyItem(context, item),
+                    onRefresh: () => _onRefresh(context),
+                    emptyMessage: 'No decorations available right now',
+                  ),
+                ],
+              ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// เนื้อหาของ 1 แท็บ — ใช้ซ้ำกันทั้ง Items และ Decorations ต่างกันแค่ลิสต์ไอเทมที่ส่งเข้ามา
+class _ShopList extends StatelessWidget {
+  final List<InventoryItemModel> items;
+  final InventoryProvider inventoryProvider;
+  final int points;
+  final String? celebratingItemType;
+  final ValueChanged<InventoryItemModel> onBuy;
+  final Future<void> Function() onRefresh;
+  final String emptyMessage;
+
+  const _ShopList({
+    required this.items,
+    required this.inventoryProvider,
+    required this.points,
+    required this.celebratingItemType,
+    required this.onBuy,
+    required this.onRefresh,
+    required this.emptyMessage,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (inventoryProvider.isLoading && items.isEmpty) {
+      return ListView.separated(
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+        itemCount: 5,
+        separatorBuilder: (_, _) => const SizedBox(height: 14),
+        itemBuilder: (_, _) => const InventoryCardSkeleton(),
+      );
+    }
+
+    if (items.isEmpty) {
+      return LeafRefreshIndicator(
+        onRefresh: onRefresh,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            SizedBox(height: MediaQuery.of(context).size.height * 0.15),
+            _EmptyState(errorMessage: inventoryProvider.errorMessage, emptyMessage: emptyMessage),
+          ],
+        ),
+      );
+    }
+
+    return LeafRefreshIndicator(
+      onRefresh: onRefresh,
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+        itemCount: items.length,
+        separatorBuilder: (_, _) => const SizedBox(height: 14),
+        itemBuilder: (context, index) {
+          final item = items[index];
+          // ของตกแต่งซื้อได้แค่ครั้งเดียว — มีอยู่แล้ว (quantity > 0) ไม่ต้องให้กดซื้อซ้ำอีก
+          // (badge "x1" บน thumbnail ก็บอกอยู่แล้วว่ามีของชิ้นนี้ ใส่/ถอดไปกดที่หน้า Inventory แทน)
+          final owned = item.isCosmetic && item.quantity > 0;
+          final canAfford = points >= (item.cost ?? 0);
+          return FadeSlideIn(
+            key: ValueKey(item.itemType),
+            delay: Duration(milliseconds: 40 * index.clamp(0, 10)),
+            child: InventoryCard(
+              icon: item.icon,
+              iconColor: item.accentColor,
+              // ยังไม่มีไฟล์รูปจริงของไอเทม Energy/ของตกแต่ง — วางไฟล์ตามชื่อที่
+              // InventoryItemModel.imageAsset คาดไว้ได้เลย การ์ดจะเปลี่ยนมาโชว์รูปแทน
+              // icon เองอัตโนมัติ (ไม่มีไฟล์ก็ fallback กลับมาเป็น icon เหมือนเดิม)
+              imageAsset: item.imageAsset,
+              title: item.title,
+              description: item.description,
+              quantity: item.quantity > 0 ? item.quantity : null,
+              actionLabel: 'Buy · ${item.cost} P',
+              actionColor: item.accentColor,
+              onAction: owned || !canAfford ? null : () => onBuy(item),
+              actionBusy: inventoryProvider.busyItemType == item.itemType,
+              celebrate: celebratingItemType == item.itemType,
+            ),
+          );
+        },
       ),
     );
   }
@@ -166,7 +244,8 @@ class _CircleBackButton extends StatelessWidget {
 
 class _EmptyState extends StatelessWidget {
   final String? errorMessage;
-  const _EmptyState({this.errorMessage});
+  final String emptyMessage;
+  const _EmptyState({this.errorMessage, required this.emptyMessage});
 
   @override
   Widget build(BuildContext context) {
@@ -187,7 +266,7 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              failed ? errorMessage! : 'No items available right now',
+              failed ? errorMessage! : emptyMessage,
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
             ),

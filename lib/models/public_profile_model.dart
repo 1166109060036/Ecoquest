@@ -3,6 +3,7 @@
 // เพราะ backend serialize เหมือน /auth/me กับ /quests/history เป๊ะๆ
 import '../utils/constants.dart';
 import 'achievement_model.dart';
+import 'cosmetics_model.dart';
 import 'profile_model.dart';
 import 'quest_history_model.dart';
 
@@ -10,6 +11,7 @@ class PublicProfileModel {
   final String userId;
   final String displayName;
   final String? avatarUrl;
+  final EquippedCosmetics cosmetics;
   final int level;
   final int points;
   final UserProgress progress;
@@ -22,6 +24,7 @@ class PublicProfileModel {
     required this.userId,
     required this.displayName,
     this.avatarUrl,
+    this.cosmetics = const EquippedCosmetics(),
     required this.level,
     required this.points,
     required this.progress,
@@ -40,6 +43,7 @@ class PublicProfileModel {
       userId: (user['id'] ?? '').toString(),
       displayName: user['displayName'] ?? 'Player',
       avatarUrl: AppConstants.resolveUrl(user['avatarUrl']),
+      cosmetics: EquippedCosmetics.fromJson(user['cosmetics']),
       level: user['level'] ?? 1,
       points: user['points'] ?? 0,
       progress: UserProgress.fromJson(json['progress'] ?? {}),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/achievement_model.dart';
 import '../../models/public_profile_model.dart';
 import '../../services/user_service.dart';
+import '../../utils/cosmetics.dart';
 import '../../widgets/profile_sections.dart';
 import '../../widgets/falling_leaves_overlay.dart';
 
@@ -61,7 +62,7 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
     return Scaffold(
       body: Stack(
         children: [
-          const Positioned.fill(child: ProfileBackground()),
+          Positioned.fill(child: ProfileBackground(backgroundItemType: profile?.cosmetics.background)),
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
@@ -77,7 +78,9 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
               ),
             ),
           ),
-          const Positioned.fill(child: FallingLeavesOverlay()),
+          Positioned.fill(
+            child: AmbientOverlay(effect: cosmeticStyleFor(profile?.cosmetics.effect)?.effect),
+          ),
           Positioned.fill(
             child: SafeArea(
               child: Padding(
@@ -102,6 +105,8 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
                                         UserHeader(
                                           displayName: profile.displayName,
                                           avatarUrl: profile.avatarUrl,
+                                          frameItemType: profile.cosmetics.frame,
+                                          nameStyleItemType: profile.cosmetics.nameStyle,
                                           level: profile.level,
                                           xp: profile.progress.xpIntoLevel,
                                           xpToNext: profile.progress.xpForNextLevel,

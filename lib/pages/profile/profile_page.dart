@@ -8,6 +8,7 @@ import '../../providers/upgrade_provider.dart';
 import '../../models/profile_model.dart';
 import '../../models/upgrade_model.dart';
 import '../../services/sound_service.dart';
+import '../../utils/cosmetics.dart';
 import '../../widgets/profile_sections.dart';
 import '../../widgets/bubble_toast.dart';
 import '../../widgets/falling_leaves_overlay.dart';
@@ -47,7 +48,7 @@ class ProfilePage extends StatelessWidget {
       body: Stack(
         children: [
           // ---- พื้นหลัง ----
-          const Positioned.fill(child: ProfileBackground()),
+          Positioned.fill(child: ProfileBackground(backgroundItemType: user?.cosmetics.background)),
           // ---- overlay มืดให้อ่านตัวหนังสือง่ายขึ้น ----
           Positioned.fill(
             child: Container(
@@ -64,8 +65,10 @@ class ProfilePage extends StatelessWidget {
               ),
             ),
           ),
-          // ---- ใบไม้ลอยตก ----
-          const Positioned.fill(child: FallingLeavesOverlay()),
+          // ---- เอฟเฟกต์บรรยากาศ (ของตกแต่งโปรไฟล์ — null ถ้ายังไม่ได้ซื้อ/ใส่) ----
+          Positioned.fill(
+            child: AmbientOverlay(effect: cosmeticStyleFor(user?.cosmetics.effect)?.effect),
+          ),
           // ---- เนื้อหา ----
           // Positioned.fill ตรงนี้สำคัญมาก: ถ้าไม่ใส่ Stack จะคำนวณขนาดตาม
           // ความสูงของเนื้อหาจริงเท่านั้น (สั้นกว่าจอ) เหลือพื้นที่ว่างสีขาว
@@ -87,6 +90,8 @@ class ProfilePage extends StatelessWidget {
                       UserHeader(
                         displayName: user?.displayName ?? 'Player',
                         avatarUrl: user?.avatarUrl,
+                        frameItemType: user?.cosmetics.frame,
+                        nameStyleItemType: user?.cosmetics.nameStyle,
                         level: level,
                         xp: xpIntoLevel,
                         xpToNext: xpForNextLevel,

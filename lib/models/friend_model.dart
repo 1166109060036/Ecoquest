@@ -1,17 +1,20 @@
 // เพื่อน = ความสัมพันธ์ 2 คนที่ accepted แล้ว ข้อมูลจริงจาก GET /api/friends
 // (ผลค้นหาจาก GET /api/friends/search และคำขอจาก GET /api/friends/requests ก็ใช้โครงเดียวกันนี้)
 import '../utils/constants.dart';
+import 'cosmetics_model.dart';
 
 class FriendModel {
   final String id;
   final String displayName;
   final String? avatarUrl; // null = ยังไม่ได้ตั้งรูปโปรไฟล์ (โชว์ไอคอนคนแทน)
+  final EquippedCosmetics cosmetics;
   final int level;
 
   FriendModel({
     required this.id,
     required this.displayName,
     this.avatarUrl,
+    this.cosmetics = const EquippedCosmetics(),
     required this.level,
   });
 
@@ -20,6 +23,7 @@ class FriendModel {
       id: (json['id'] ?? '').toString(),
       displayName: json['displayName'] ?? 'Player',
       avatarUrl: AppConstants.resolveUrl(json['avatarUrl']),
+      cosmetics: EquippedCosmetics.fromJson(json['cosmetics']),
       level: json['level'] ?? 1,
     );
   }

@@ -53,4 +53,24 @@ class InventoryService {
       throw Exception(data['message'] ?? 'Failed to use this item');
     }
   }
+
+  // ใส่/ถอดของตกแต่งโปรไฟล์ — patch เช่น {'frame': 'frame_gold'} (ใส่) หรือ {'frame': null} (ถอด)
+  // ผลลัพธ์จริง (cosmetics ทั้ง 4 ช่อง) มาจาก AuthProvider.refreshProfile() ที่ผู้เรียกต้องยิงต่อเอง
+  // ไม่ได้อ่านจาก response ตรงนี้ (เหมือน buyItem/useItem ที่ให้หน้า Profile รีเฟรชแต้มเอง)
+  Future<void> equipCosmetics(Map<String, String?> patch) async {
+    final token = await _storage.getToken();
+    final response = await http.put(
+      Uri.parse('${AppConstants.baseUrl}/inventory/cosmetics'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(patch),
+    );
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode != 200) {
+      throw Exception(data['message'] ?? 'Failed to update cosmetics');
+    }
+  }
 }

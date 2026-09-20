@@ -12,7 +12,7 @@ const { getUserBonusesMap, applyBonuses } = require('../utils/upgrades');
 const { withEnergyBoosts } = require('../utils/inventory');
 const { startOfToday } = require('../utils/questDay');
 const { applyDailyQuestCompletion } = require('../utils/streak');
-const { avatarUrlFor } = require('../utils/avatar');
+const { avatarUrlFor, cosmeticsFor } = require('../utils/avatar');
 const { requiredMembers, canStart, canComplete } = require('../utils/partyGate');
 const { syncPartyRoomForUser } = require('../sockets');
 
@@ -23,7 +23,7 @@ const toPartyPayload = async (party, userId) => {
   const members = await PartyMember.find({ partyId: party._id })
     .sort({ isLeader: -1, joinedAt: 1 }) // หัวหน้าขึ้นก่อน แล้วเรียงตามลำดับที่เข้าร่วม
     // avatarContentType/avatarUpdatedAt เอามาแค่สร้าง avatarUrl ไม่เอา avatarData ตัวจริงมาด้วย
-    .populate('userId', 'displayName level avatarContentType avatarUpdatedAt');
+    .populate('userId', 'displayName level avatarContentType avatarUpdatedAt cosmetics');
 
   const quest = party.questId; // populate ไว้แล้วตอนดึง party มา
   // กันกรณี user ถูกลบไปแล้วแต่ record ยังค้าง — นับเฉพาะสมาชิกที่ยังมีบัญชีอยู่จริง (ตรงกับที่โชว์ในลิสต์)
@@ -68,6 +68,7 @@ const toPartyPayload = async (party, userId) => {
         userId: m.userId._id,
         displayName: m.userId.displayName,
         avatarUrl: avatarUrlFor(m.userId),
+        cosmetics: cosmeticsFor(m.userId),
         level: m.userId.level,
         isLeader: m.isLeader,
         isMe: m.userId._id.toString() === String(userId),

@@ -1,6 +1,7 @@
 // ปาร์ตี้ = "ห้อง" ที่ผู้เล่นกดสร้างขึ้นจาก party quest ที่มีอยู่แล้ว (เหมือนห้องในเกม)
 // ข้อมูลจริงจาก GET /api/party (ห้องของฉัน) และ GET /api/party/rooms (ลิสต์ห้องให้เข้าร่วม)
 import '../utils/constants.dart';
+import 'cosmetics_model.dart';
 import 'quest_card_model.dart' show QuestReward;
 
 // ผลตอบกลับตอนหัวหน้ากดจบอีเวนต์ — ต้องคืนทั้งรางวัลของหัวหน้าเอง (ไปเด้ง handleQuestCompleted
@@ -21,6 +22,7 @@ class PartyMemberModel {
   final String userId;
   final String name;
   final String? avatarUrl; // null = ยังไม่ได้ตั้งรูปโปรไฟล์ (โชว์ไอคอนคนแทน)
+  final EquippedCosmetics cosmetics;
   final int level;
   final bool isLeader;
   final bool isMe; // ใช้ไฮไลต์แถวของตัวเองในรายชื่อ
@@ -29,6 +31,7 @@ class PartyMemberModel {
     required this.userId,
     required this.name,
     this.avatarUrl,
+    this.cosmetics = const EquippedCosmetics(),
     required this.level,
     required this.isLeader,
     required this.isMe,
@@ -39,6 +42,7 @@ class PartyMemberModel {
       userId: (json['userId'] ?? '').toString(),
       name: json['displayName'] ?? 'Player',
       avatarUrl: AppConstants.resolveUrl(json['avatarUrl']),
+      cosmetics: EquippedCosmetics.fromJson(json['cosmetics']),
       level: json['level'] ?? 1,
       isLeader: json['isLeader'] ?? false,
       isMe: json['isMe'] ?? false,

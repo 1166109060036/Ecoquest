@@ -14,8 +14,16 @@ const BOOST_DURATION_MS = 30 * 60 * 1000;
 // starter: true  = ไอเทมที่ผู้เล่นทุกคนต้องมีติดตัวตั้งแต่แรก (ไม่ใช่ของที่ซื้อ/ใช้ได้)
 // cost           = ราคาซื้อ 1 ชิ้นด้วย Points ผ่าน POST /:itemType/buy — ไม่มี cost = ซื้อไม่ได้
 // effect         = สิ่งที่เกิดขึ้นตอนใช้ผ่าน POST /:itemType/use — ไม่มี effect = ใช้ไม่ได้ (เช่น starter item)
+// slot           = ของตกแต่งโปรไฟล์ (frame/nameStyle/background/effect) — "การมี slot" คือตัวบอกว่า
+//                  ไอเทมนี้เป็นของตกแต่ง ซึ่งต่างจากไอเทมทั่วไป 3 อย่าง: ซื้อซ้ำไม่ได้ (ดู buyItem),
+//                  ใช้ไม่ได้ (ไม่มี effect เลย useItem ปฏิเสธให้เองอยู่แล้ว) และใส่/ถอดได้ผ่าน
+//                  equipCosmetics แทน โดยของที่ใส่อยู่เก็บไว้ที่ User.cosmetics ไม่ใช่ที่ InventoryItem
 //
 // ⚠️ ราคา/ตัวคูณตรงนี้เป็นค่าเริ่มต้นที่ยังไม่ผ่านการเทสสมดุลเกมจริง ปรับได้ที่เดียวตรงนี้เลย
+// (อ้างอิงตอนตั้งราคาของตกแต่ง: เควสทั่วไปได้ 10 P, Upgrade 1 สายเต็ม = 5,900 P — ของตกแต่ง
+// ทั้งหมดรวมกัน ~4,100 P จงใจให้ถูกกว่า Upgrade 1 สาย จะได้ไม่ไปแย่งงบกับสายพลัง)
+const COSMETIC_SLOTS = ['frame', 'nameStyle', 'background', 'effect'];
+
 const ITEMS = [
   {
     itemType: 'camera',
@@ -63,6 +71,91 @@ const ITEMS = [
     cost: 100,
     effect: 'super_energy',
   },
+  // ---- ของตกแต่งโปรไฟล์ (slot) — ซื้อด้วย Point อย่างเดียว ไม่มีเงื่อนไขเลเวล/เหรียญ ----
+  {
+    itemType: 'name_mint',
+    slot: 'nameStyle',
+    title: 'Mint',
+    description: 'A cool mint color for your display name.',
+    cost: 150,
+  },
+  {
+    itemType: 'name_sunset',
+    slot: 'nameStyle',
+    title: 'Sunset',
+    description: 'A warm orange-to-pink gradient for your display name.',
+    cost: 150,
+  },
+  {
+    itemType: 'name_aurora',
+    slot: 'nameStyle',
+    title: 'Aurora',
+    description: 'A glowing green-to-purple gradient for your display name.',
+    cost: 300,
+  },
+  {
+    itemType: 'frame_leaf',
+    slot: 'frame',
+    title: 'Emerald Leaf',
+    description: 'A green gradient ring around your avatar.',
+    cost: 250,
+  },
+  {
+    itemType: 'frame_ocean',
+    slot: 'frame',
+    title: 'Ocean Wave',
+    description: 'A blue gradient ring around your avatar.',
+    cost: 250,
+  },
+  {
+    itemType: 'frame_gold',
+    slot: 'frame',
+    title: 'Golden Sun',
+    description: 'A glowing golden ring around your avatar.',
+    cost: 500,
+  },
+  {
+    itemType: 'fx_leaves',
+    slot: 'effect',
+    title: 'Falling Leaves',
+    description: 'Leaves gently falling across your profile.',
+    cost: 400,
+  },
+  {
+    itemType: 'fx_snow',
+    slot: 'effect',
+    title: 'Snowfall',
+    description: 'Snow gently falling across your profile.',
+    cost: 400,
+  },
+  {
+    itemType: 'fx_rain',
+    slot: 'effect',
+    title: 'Rainfall',
+    description: 'Rain falling across your profile.',
+    cost: 400,
+  },
+  {
+    itemType: 'fx_ember',
+    slot: 'effect',
+    title: 'Embers',
+    description: 'Glowing embers drifting up your profile.',
+    cost: 400,
+  },
+  {
+    itemType: 'bg_forest',
+    slot: 'background',
+    title: 'Deep Forest',
+    description: 'A deep forest green backdrop for your profile.',
+    cost: 600,
+  },
+  {
+    itemType: 'bg_night',
+    slot: 'background',
+    title: 'Starry Night',
+    description: 'A starry night sky backdrop for your profile.',
+    cost: 600,
+  },
 ];
 
 const findItem = (itemType) => ITEMS.find((i) => i.itemType === itemType);
@@ -99,6 +192,8 @@ const getInventory = async (userId) => {
     description: item.description,
     quantity: ownedMap.get(item.itemType) ?? 0,
     cost: item.cost ?? null,
+    // มีค่า = ของตกแต่งโปรไฟล์ (frame/nameStyle/background/effect) — ไม่มีค่า = ไอเทมทั่วไป
+    slot: item.slot ?? null,
   }));
 };
 
@@ -120,20 +215,35 @@ const buyItem = async (userId, itemType) => {
     return { error: { status: 400, message: 'Not enough points' } };
   }
 
-  let saved;
   try {
-    saved = await InventoryItem.findOneAndUpdate(
+    if (item.slot) {
+      // ของตกแต่งซื้อได้แค่ครั้งเดียว (มีติดตัวแล้วไม่มีประโยชน์จะมีอีกชิ้น ไม่เหมือนไอเทม Energy
+      // ที่ซื้อสะสมได้) — ใช้ upsert ล้วนๆ ไม่มี $inc แล้วเช็คว่า "เพิ่งสร้างแถวใหม่จริงไหม" จากผลลัพธ์
+      // เท่านั้น (ห้ามเช็คด้วย exists() ก่อนหน้า เพราะกดซื้อรัวพร้อมกัน 2 request จะลอดผ่านได้ทั้งคู่)
+      const result = await InventoryItem.updateOne(
+        { userId, itemType },
+        { $setOnInsert: { userId, itemType, quantity: 1 } },
+        { upsert: true }
+      );
+      if (!result.upsertedCount) {
+        // มีอยู่แล้ว — คืนแต้มที่หักไปข้างบน ไม่งั้นกดปุ่มซ้อน/กดซ้ำจะเสียแต้มฟรีโดยไม่ได้อะไรเพิ่ม
+        await User.updateOne({ _id: userId }, { $inc: { points: item.cost } });
+        return { error: { status: 400, message: 'You already own this item' } };
+      }
+      return { itemType, quantity: 1, points: user.points };
+    }
+
+    const saved = await InventoryItem.findOneAndUpdate(
       { userId, itemType },
       { $inc: { quantity: 1 }, $setOnInsert: { userId, itemType } },
       { upsert: true, new: true }
     );
+    return { itemType, quantity: saved.quantity, points: user.points };
   } catch (err) {
     // เพิ่มไอเทมไม่สำเร็จ ต้องคืนแต้มที่หักไปแล้ว ไม่งั้นผู้ใช้เสียแต้มฟรีโดยไม่ได้อะไรเลย
     await User.updateOne({ _id: userId }, { $inc: { points: item.cost } });
     throw err;
   }
-
-  return { itemType, quantity: saved.quantity, points: user.points };
 };
 
 // ใช้ไอเทม 1 ชิ้น — หักจำนวนแบบ atomic ก่อนเสมอ (เงื่อนไข quantity >= 1 อยู่ใน query เอง)
@@ -179,6 +289,59 @@ const useItem = async (userId, itemType) => {
   }
 };
 
+// ใส่/ถอดของตกแต่งโปรไฟล์ — patch เป็น partial ของ 4 ช่อง {frame, nameStyle, background, effect}
+// ค่า null = ถอดช่องนั้น, ช่องที่ไม่ส่งมาใน patch = ไม่แตะ (สลับหลายช่องพร้อมกันได้ในคำขอเดียว
+// ไม่ต้องมี endpoint ถอดแยกต่างหาก) ตอบกลับ cosmetics ทั้ง 4 ช่องเสมอให้แอพแทนที่ state ทั้งก้อน
+const equipCosmetics = async (userId, patch) => {
+  const keys = Object.keys(patch);
+
+  for (const key of keys) {
+    if (!COSMETIC_SLOTS.includes(key)) {
+      return { error: { status: 400, message: `Invalid cosmetic slot: ${key}` } };
+    }
+  }
+
+  // เช็คว่าแต่ละค่าที่จะใส่มีจริงใน catalogue และ slot ตรงกับช่องที่จะใส่ก่อน ค่อยไปเช็คความเป็นเจ้าของ
+  const itemTypesToOwn = [];
+  for (const key of keys) {
+    const value = patch[key];
+    if (value === null) continue;
+    const item = findItem(value);
+    if (!item) {
+      return { error: { status: 404, message: 'Cosmetic not found' } };
+    }
+    if (item.slot !== key) {
+      return { error: { status: 400, message: 'Item does not fit this slot' } };
+    }
+    itemTypesToOwn.push(value);
+  }
+
+  if (itemTypesToOwn.length > 0) {
+    // query เดียวเช็คทุกชิ้นพร้อมกัน ไม่ query ทีละชิ้น
+    const owned = await InventoryItem.find({
+      userId,
+      itemType: { $in: itemTypesToOwn },
+      quantity: { $gte: 1 },
+    }).select('itemType');
+    const ownedSet = new Set(owned.map((row) => row.itemType));
+    const missing = itemTypesToOwn.find((itemType) => !ownedSet.has(itemType));
+    if (missing) {
+      return { error: { status: 403, message: 'You do not own this cosmetic' } };
+    }
+  }
+
+  const setFields = {};
+  for (const key of keys) {
+    setFields[`cosmetics.${key}`] = patch[key];
+  }
+
+  const user = await User.findByIdAndUpdate(userId, { $set: setFields }, { new: true }).select(
+    'cosmetics'
+  );
+
+  return { cosmetics: user.cosmetics };
+};
+
 // เติมเปอร์เซ็นต์โบนัสจากไอเทม Energy ที่ยังไม่หมดอายุเข้าไปใน bonuses (จาก getUserBonuses/getUserBonusesMap
 // ใน utils/upgrades.js) ก่อนส่งเข้า applyBonuses ตามปกติ — ไม่ต้องแก้ applyBonuses เลยเพราะมันรับแค่
 // ตัวเลขเปอร์เซ็นต์อยู่แล้ว บวก 100 = คูณ 2 เท่า (ระยะเวลา 30 นาที ต้องเช็คแค่ expiresAt > ตอนนี้)
@@ -195,4 +358,4 @@ const withEnergyBoosts = (bonuses, user) => {
   };
 };
 
-module.exports = { ITEMS, getInventory, buyItem, useItem, withEnergyBoosts };
+module.exports = { ITEMS, getInventory, buyItem, useItem, equipCosmetics, withEnergyBoosts };
