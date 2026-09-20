@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/inventory_item_model.dart';
 import '../../providers/achievement_provider.dart';
-import '../../providers/auth_provider.dart';
 import '../../providers/inventory_provider.dart';
 import '../../providers/quest_provider.dart';
-import '../../utils/cosmetics.dart';
 import '../../widgets/breathing_icon.dart';
 import '../../widgets/bubble_toast.dart';
 import '../../widgets/inventory_card.dart';
@@ -14,28 +12,14 @@ import '../../widgets/liquid_glass_dialog.dart';
 import '../../widgets/skeleton_box.dart';
 import '../../widgets/staggered_fade_in.dart';
 
-// key ที่ backend ใช้เก็บ cosmetics ต่อ slot (PUT /inventory/cosmetics) — ต้องตรงกับ
-// backend/models/User.js#CosmeticsSchema เป๊ะๆ
-String _slotKey(CosmeticSlot slot) => switch (slot) {
-      CosmeticSlot.frame => 'frame',
-      CosmeticSlot.nameStyle => 'nameStyle',
-      CosmeticSlot.background => 'background',
-      CosmeticSlot.effect => 'effect',
-    };
-
-String _slotLabel(CosmeticSlot slot) => switch (slot) {
-      CosmeticSlot.frame => 'Avatar Frame',
-      CosmeticSlot.nameStyle => 'Name Style',
-      CosmeticSlot.background => 'Profile Background',
-      CosmeticSlot.effect => 'Ambient Effect',
-    };
-
 // หน้า Inventory — ไอเทมที่มีอยู่จริงเท่านั้น (Camera, Fridge, Eco Badge, ไอเทม Energy ที่ซื้อไว้)
 // สูงสุด 100 ช่อง (capacity) ตามดีไซน์
 // ⚠️ ไอเทมที่ซื้อได้แต่ยังไม่เคยซื้อ (quantity 0) ไม่โชว์ที่นี่ — ไปโชว์เป็นการ์ดร้านค้าในหน้า Profile แทน
 // (ดู _ItemShopCard ใน profile_page.dart) หน้านี้โชว์แค่ "ของที่มีอยู่จริง" เท่านั้น
 // ⚠️ เหรียญ Achievement ไม่ได้อยู่ในลิสต์นี้แล้ว — ย้ายไปอยู่หลังไอเทม Eco Badge แทน (กดเข้าไปดู
 // เหรียญที่ปลดล็อกแล้วได้ที่ EcoBadgePage เหมือนที่ไอเทม Fridge เปิดไป FridgePage)
+// ⚠️ ของตกแต่งโปรไฟล์ (isCosmetic) ก็ไม่โชว์ที่นี่เหมือนกัน — ย้ายไปใส่/ถอดที่หน้า Custom Profile
+// แทนแล้ว (เข้าจากปุ่ม "Custom Profile" ในหน้า Profile) ดู customize_profile_page.dart
 class InventoryPage extends StatelessWidget {
   // MainShell ส่ง callback นี้เข้ามา ใช้ตอนกดปุ่ม back เพื่อกลับไปแท็บ Home
   final ValueChanged<int>? onNavigateToTab;
@@ -98,36 +82,11 @@ class InventoryPage extends StatelessWidget {
         _ => 'Item used',
       };
 
-  // กด Equip/Equipped สลับใส่-ถอดของตกแต่ง 1 ชิ้น — กดของที่ใส่อยู่แล้วซ้ำ = ถอดออก
-  Future<void> _onEquip(BuildContext context, InventoryItemModel item, {required bool isEquipped}) async {
-    final inventoryProvider = context.read<InventoryProvider>();
-    final success = await inventoryProvider.equipCosmetic(
-      item.itemType,
-      slotKey: _slotKey(item.slot!),
-      equip: !isEquipped,
-    );
-    if (!context.mounted) return;
-
-    if (!success) {
-      showBubbleToast(context, inventoryProvider.errorMessage ?? 'Failed to update cosmetics');
-      return;
-    }
-
-    // cosmetics ที่ใส่อยู่เก็บใน AuthProvider.user คนละที่กับ inventory — ต้องรีเฟรชโปรไฟล์เอง
-    // (แบบเดียวกับที่หน้า Shop เรียก refreshProfile() ต่อหลังซื้อของ)
-    await context.read<AuthProvider>().refreshProfile();
-    if (!context.mounted) return;
-
-    showBubbleToast(context, isEquipped ? '${item.title} unequipped' : '${item.title} equipped');
-  }
-
   @override
   Widget build(BuildContext context) {
     final inventoryProvider = context.watch<InventoryProvider>();
-    final equippedCosmetics = context.watch<AuthProvider>().user?.cosmetics;
-
     // ไอเทมที่ซื้อได้แต่ยังไม่เคยซื้อ (quantity 0) ไม่โชว์ในกระเป๋า — โชว์แค่ของที่มีอยู่จริง
-    // ของตกแต่ง (isCosmetic) แยกไปโชว์เป็นคนละส่วนด้านล่าง ไม่ปนกับไอเทมทั่วไป
+    // ของตกแต่ง (isCosmetic) ก็ไม่โชว์ที่นี่เหมือนกัน — ย้ายไปหน้า Custom Profile แทนแล้ว
     final ownedItems = inventoryProvider.items.where((item) => item.quantity > 0 && !item.isCosmetic);
 
     final allEntries = <_InventoryEntry>[
@@ -149,47 +108,8 @@ class InventoryPage extends StatelessWidget {
         ),
     ];
 
-    // นับจำนวนช่องที่ใช้ไปทั้งหมด — ของตกแต่งไม่นับรวม capacity 100 ช่องนี้ (คนละระบบกัน)
+    // นับจำนวนช่องที่ใช้ไปทั้งหมด
     final usedCapacity = allEntries.fold<int>(0, (sum, e) => sum + (e.quantity ?? 0));
-
-    // จัดของตกแต่งที่มีอยู่จริงเป็นกลุ่มตาม slot (frame/nameStyle/background/effect) เรียงตาม
-    // ลำดับของ CosmeticSlot.values ให้ผลคงที่ทุกครั้ง
-    final cosmeticsBySlot = <CosmeticSlot, List<InventoryItemModel>>{};
-    for (final item in inventoryProvider.items) {
-      if (item.isCosmetic && item.quantity > 0) {
-        cosmeticsBySlot.putIfAbsent(item.slot!, () => []).add(item);
-      }
-    }
-
-    // รายการที่จะ render จริง — ผสม header (String) กับการ์ดไอเทม (_InventoryEntry) ไว้ในลิสต์เดียว
-    final listItems = <Object>[...allEntries];
-    for (final slot in CosmeticSlot.values) {
-      final slotItems = cosmeticsBySlot[slot];
-      if (slotItems == null || slotItems.isEmpty) continue;
-
-      final equippedItemType = switch (slot) {
-        CosmeticSlot.frame => equippedCosmetics?.frame,
-        CosmeticSlot.nameStyle => equippedCosmetics?.nameStyle,
-        CosmeticSlot.background => equippedCosmetics?.background,
-        CosmeticSlot.effect => equippedCosmetics?.effect,
-      };
-
-      listItems.add(_slotLabel(slot));
-      for (final item in slotItems) {
-        final isEquipped = item.itemType == equippedItemType;
-        listItems.add(_InventoryEntry(
-          itemType: item.itemType,
-          icon: item.icon,
-          iconColor: item.accentColor,
-          title: item.title,
-          description: item.description,
-          actionColor: isEquipped ? Colors.grey : item.accentColor,
-          actionLabel: isEquipped ? 'Equipped' : 'Equip',
-          isEquipped: isEquipped,
-          onUse: () => _onEquip(context, item, isEquipped: isEquipped),
-        ));
-      }
-    }
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
@@ -215,14 +135,14 @@ class InventoryPage extends StatelessWidget {
               ),
             ),
             Expanded(
-              child: inventoryProvider.isLoading && listItems.isEmpty
+              child: inventoryProvider.isLoading && allEntries.isEmpty
                   ? ListView.separated(
                       padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
                       itemCount: 5,
                       separatorBuilder: (_, _) => const SizedBox(height: 14),
                       itemBuilder: (_, _) => const InventoryCardSkeleton(),
                     )
-                  : listItems.isEmpty
+                  : allEntries.isEmpty
                       ? LeafRefreshIndicator(
                           onRefresh: () => _onRefresh(context),
                           // ต้อง scrollable เสมอ ไม่งั้นตอนลิสต์ว่างจะดึงลง refresh ไม่ได้
@@ -238,26 +158,10 @@ class InventoryPage extends StatelessWidget {
                           onRefresh: () => _onRefresh(context),
                           child: ListView.separated(
                             padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-                            itemCount: listItems.length,
+                            itemCount: allEntries.length,
                             separatorBuilder: (_, __) => const SizedBox(height: 14),
                             itemBuilder: (context, index) {
-                              final listItem = listItems[index];
-
-                              if (listItem is String) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(top: 4, bottom: 2),
-                                  child: Text(
-                                    listItem,
-                                    style: TextStyle(
-                                      color: Colors.grey.shade600,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                );
-                              }
-
-                              final entry = listItem as _InventoryEntry;
+                              final entry = allEntries[index];
                               return FadeSlideIn(
                                 key: ValueKey('${entry.itemType}-${entry.title}'),
                                 delay: Duration(milliseconds: 40 * index.clamp(0, 10)),
@@ -269,10 +173,9 @@ class InventoryPage extends StatelessWidget {
                                   description: entry.description,
                                   quantity: entry.quantity,
                                   onTap: entry.onTap,
-                                  actionLabel: entry.actionLabel,
+                                  actionLabel: 'Use',
                                   actionColor: entry.actionColor,
                                   onAction: entry.onUse,
-                                  equipped: entry.isEquipped,
                                   actionBusy: entry.onUse != null &&
                                       inventoryProvider.busyItemType == entry.itemType,
                                 ),
@@ -308,8 +211,6 @@ class _InventoryEntry {
   final VoidCallback? onTap;
   final VoidCallback? onUse;
   final Color actionColor;
-  final String actionLabel; // 'Use' สำหรับไอเทมทั่วไป, 'Equip'/'Equipped' สำหรับของตกแต่ง
-  final bool isEquipped;
 
   _InventoryEntry({
     this.itemType = '',
@@ -322,8 +223,6 @@ class _InventoryEntry {
     this.onTap,
     this.onUse,
     this.actionColor = Colors.green,
-    this.actionLabel = 'Use',
-    this.isEquipped = false,
   });
 }
 

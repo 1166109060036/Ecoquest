@@ -9,6 +9,7 @@ import '../../models/profile_model.dart';
 import '../../models/upgrade_model.dart';
 import '../../services/sound_service.dart';
 import '../../utils/cosmetics.dart';
+import 'customize_profile_page.dart';
 import '../../widgets/profile_sections.dart';
 import '../../widgets/bubble_toast.dart';
 import '../../widgets/falling_leaves_overlay.dart';
@@ -96,6 +97,13 @@ class ProfilePage extends StatelessWidget {
                         xp: xpIntoLevel,
                         xpToNext: xpForNextLevel,
                         onTapAvatar: () => _pickAvatar(context, hasAvatar: user?.avatarUrl != null),
+                      ),
+                      const SizedBox(height: 12),
+                      _CustomizeProfileButton(
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const CustomizeProfilePage()),
+                        ),
                       ),
                       const SizedBox(height: 16),
                       StreakCard(
@@ -269,6 +277,49 @@ class _MaybeRefreshable extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!enabled) return child;
     return LeafRefreshIndicator(onRefresh: onRefresh, child: child);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// ปุ่มเข้าหน้าใส่/ถอดของตกแต่งโปรไฟล์ (Custom Profile) — วางไว้ใต้ UserHeader เพราะเป็นเรื่อง
+// ของรูป/ชื่อ/พื้นหลัง/เอฟเฟกต์ที่อยู่ตรงนั้นโดยตรง (ซื้อของตกแต่งยังทำที่แท็บ Decorations ใน
+// หน้า Shop เหมือนเดิม ปุ่มนี้พาไปแค่หน้าใส่/ถอดของที่ซื้อไว้แล้ว — ดู customize_profile_page.dart)
+// ---------------------------------------------------------------------------
+class _CustomizeProfileButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const _CustomizeProfileButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(14),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.38),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.auto_awesome, color: Colors.orangeAccent, size: 18),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  'Custom Profile',
+                  style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+              ),
+              Icon(Icons.chevron_right, color: Colors.white.withValues(alpha: 0.4), size: 18),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
