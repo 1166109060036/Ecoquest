@@ -378,12 +378,14 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
     - **Red Energy** (40P) — 2x Points จากทุกเควส นาน 30 นาที
     - **Blue Energy** (40P) — 2x XP จากทุกเควส นาน 30 นาที
     - **Green Energy** (40P) — 2x Points จากเควส Party เท่านั้น นาน 30 นาที
-    - **Super Energy** (100P) — ลบประวัติเควสที่ทำวันนี้ทั้งหมด (`QuestHistory` ที่ `completedAt >= startOfToday()`)
+    - **Super Energy** (~~100P~~ **70P** — ลดราคาหลังทดสอบ balance ดู `BALANCE_REPORT.md`) —
+      ลบประวัติเควสที่ทำวันนี้ทั้งหมด (`QuestHistory` ที่ `completedAt >= startOfToday()`)
       ทำให้ `completedToday`/gate เควสรายวันกลับมาทำได้อีกรอบทันที — แต้ม/XP ที่ได้ไปแล้วไม่ถูกหักคืน
       ⚠️ ลบ `QuestHistory` จริง แต่**ไม่แตะ `User.totalQuestsCompleted`** (ยอด Quest Completed ในหน้า
       Profile) เลย — ตั้งใจแยกกันเพราะเคยมีบั๊กที่ตัวเลข Quest Completed ลดลงตอนใช้ไอเทมนี้ (ดูหัวข้อ 3
       เรื่อง `stats.questCompleted`)
-    ⚠️ ราคา/ตัวคูณยังไม่ผ่านการเทสสมดุลเกมจริง ปรับได้ที่เดียวที่ `ITEMS` ใน `utils/inventory.js`
+    ✅ ราคา/ตัวคูณผ่านการทดสอบ balance รอบแรกแล้ว (จำลอง Casual/Normal/Active player + ROI ทุกไอเทม —
+    ดู `BALANCE_REPORT.md` ที่ root) ปรับต่อได้ที่เดียวที่ `ITEMS` ใน `utils/inventory.js`
   - `POST /api/inventory/:itemType/buy` — ซื้อ 1 ชิ้นด้วย Points (atomic compare-and-swap แบบเดียวกับ
     `buyUpgrade` ใน `utils/upgrades.js`) — ไม่จำกัดจำนวนซื้อซ้ำ (ต่างจาก upgrade ที่มี `maxLevel`)
   - `POST /api/inventory/:itemType/use` — ใช้ 1 ชิ้น หักจำนวนแบบ atomic ก่อนเสมอแล้วค่อยใส่ผล (กันกดรัวๆ
@@ -427,9 +429,14 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
     เข้าหน้า Notification แล้วถือว่าอ่านหมดทันที (`markAllRead`)
 - **ร้าน Upgrade Ability ใช้งานได้จริงแล้ว** — การ์ด "Upgrade your Ability" ในหน้า Profile ซื้อได้จริง
   ผ่าน `GET /api/upgrades` + `POST /api/upgrades/:upgradeType/buy` ขาย 4 ตัว: Point Booster, XP Booster,
-  Party Bonus Points, Quest Unlock — ซื้อซ้ำได้สูงสุด 50 ระดับ (Quest Unlock 14 ระดับ
-  เพราะมี solo quest แค่ 18 อัน) แต่ละระดับเพิ่มผล 1% (Quest Unlock เพิ่ม 1 เควส) ราคาแพงขึ้นทุกระดับ
+  Party Bonus Points (แต่ละระดับ **+5%**, สูงสุด **10 ระดับ** = +50% รวม, สะสม 1,520 P ถึง max),
+  Quest Unlock (แต่ละระดับ **+1 เควส**, สูงสุด **10 ระดับ** เพราะหลังหักกลุ่มสุ่ม `food_saver` มี
+  solo quest ให้เห็นจริงแค่ 16 อัน และ `BASE_VISIBLE_QUESTS` ตั้งต้น 6 อัน → 6+10=16 พอดี)
+  ⚠️ **เดิมเป็น 1%/ระดับ สูงสุด 50 ระดับ** แต่เควสส่วนใหญ่ราคา 10 P ทำให้ 4 เลเวลแรกโดนปัดเศษทิ้ง
+  ไม่เห็นผลอะไรเลย (`Math.round(10 * 1.04) = 10`) — ปรับเป็น 5%/ระดับ max 10 หลังทดสอบ balance
+  (เพดานรวมเท่าเดิม +50% แต่ใช้แต้มน้อยลงและเห็นผลตั้งแต่เลเวลแรก ดู `BALANCE_REPORT.md`)
   - นิยาม + สูตรทั้งหมดอยู่ที่ **`backend/utils/upgrades.js` ไฟล์เดียว** (แนวเดียวกับ `progression.js`)
+    `pctPerLevel` บนแต่ละ entry ของ `UPGRADES` คือ % ต่อเลเวล คูณเข้ากับ level ที่ `bonusesFromRows`
   - ⚠️ **เคยมี "Rank Booster" ตัวที่ 5 อยู่ด้วย แต่ถูกเอาออกแล้วพร้อมกับระบบ Rank** (ดูหัวข้อ 2) —
     `QuestHistory.xpEarned` ตอนนี้เก็บ `reward.xp` ตรงๆ (ค่าเดียวกับที่ใช้คิด Level) ไม่มี `rankXp` แยก
     อีกต่อไปแล้ว
@@ -471,11 +478,15 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
     คนสร้างห้องเป็น leader ทันที; ถ้า leader ออกก่อนอีเวนต์จบ ตำแหน่งจะตกไปคนถัดไปตาม `joinedAt`
   - **⚠️ ด่าน Start กันปั๊มคะแนน** (`backend/utils/partyGate.js`) — เดิมสร้างห้องแล้วกด Complete ได้ทันที
     ไม่ต้องทำอะไรจริงเลย ตอนนี้ต้องผ่าน `open → started → completed` เท่านั้น:
-    - **บังคับตั้ง `capacity` อย่างน้อย 2 คนเสมอ** สำหรับห้องใหม่ (เลิกรองรับ "ไม่จำกัดคน") เพราะเงื่อนไข
-      "สมาชิกครบ" นิยามไม่ได้ถ้าไม่จำกัด — ห้องเก่าที่ยังมี `capacity: 0` ค้างใน DB ใช้ `MIN_PARTY_MEMBERS = 2`
-      แทนผ่าน `requiredMembers(party)`
-    - `POST /api/party/start` (หัวหน้าเท่านั้น) — กดได้ต่อเมื่อ **ถึง `eventDate`** แล้ว **และสมาชิกครบ**
-      (`canStart()`) เช็คก่อน latch เสมอ แล้วค่อย `findOneAndUpdate` เปลี่ยน `open→started` + ตั้ง `startedAt`
+    - **บังคับตั้ง `capacity` อย่างน้อย 2 คนเสมอ** สำหรับห้องใหม่ (เลิกรองรับ "ไม่จำกัดคน") — ห้องเก่าที่
+      ยังมี `capacity: 0` ค้างใน DB ใช้ `requiredMembers(party)` (fallback `MIN_PARTY_MEMBERS = 2`)
+      เป็นเพดาน**รับสมัคร**เท่านั้น (กัน join เกิน)
+    - ⚠️ **`canStart()` ใช้ `MIN_PARTY_MEMBERS` (2 คน) เป็นเกณฑ์เสมอ ไม่ใช่ `requiredMembers`/capacity
+      เต็มห้อง** — แก้หลังเจอปัญหา balance ว่าห้อง capacity สูง (เช่น Tree Planting Day = 30) ต้องรอคน
+      ครบ 30 คนถึงจะกด Start ได้ ทำให้เควส party เล่นไม่ได้จริงในทางปฏิบัติ ตอนนี้มีครบ 2 คนก็เริ่มงาน
+      กันได้แล้ว ที่เหลือ join ทีหลังได้จนกว่าจะ Complete (ดู `BALANCE_REPORT.md`)
+    - `POST /api/party/start` (หัวหน้าเท่านั้น) — กดได้ต่อเมื่อ **ถึง `eventDate`** แล้ว **และมีอย่างน้อย
+      2 คน** (`canStart()`) เช็คก่อน latch เสมอ แล้วค่อย `findOneAndUpdate` เปลี่ยน `open→started` + ตั้ง `startedAt`
     - `POST /api/party/complete` เปลี่ยน latch จาก `status:'open'` เป็น **`status:'started'`** และเพิ่มเงื่อนไข
       **ต้องผ่านมาแล้วอย่างน้อย 15 นาทีนับจาก `startedAt`** (`canComplete()`, `START_TO_COMPLETE_MS`)
       ก่อน latch เช่นกัน — กันกด Start แล้วกด Complete รัวๆ ต่อกันทันที
@@ -483,7 +494,8 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
       `canComplete`, `completeBlockedReason` มาด้วย ให้แอพโชว์/ซ่อนปุ่มได้เลยไม่ต้อง mirror สูตรเอง
       (ฝั่งแอพยัง mirror คร่าวๆ ไว้ที่ `PartyModel.isReadyToStartAt`/`completeCountdownAt` เพื่อนับถอยหลัง
       แบบ live ด้วย `Timer.periodic` โดยไม่ต้องรอ backend ตอบ — **backend เป็นคนตัดสินจริงเสมอ** ทุก request
-      ยังเช็คซ้ำที่ server หมด ไม่เชื่อค่าที่แอพคำนวณเอง)
+      ยังเช็คซ้ำที่ server หมด ไม่เชื่อค่าที่แอพคำนวณเอง — `isReadyToStartAt` เทียบ `memberCount` กับ
+      `PartyModel.minMembersToStart` (2, mirror ของ `MIN_PARTY_MEMBERS`) ไม่ใช่ `requiredMembers`/capacity)
   - `backend/routes/party.js` (mount ที่ `/api/party`)
     - `GET /api/party` → ห้องที่ฉันอยู่ตอนนี้ (`{ party: null }` ถ้ายังไม่ได้เข้าห้องไหน)
     - `GET /api/party/rooms` → ลิสต์ห้องที่ยังเปิดรับสมาชิกอยู่ (`status: 'open'`) ให้เลือกเข้าร่วม — ห้องที่
@@ -658,6 +670,12 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
 - ถ้าทดสอบผ่าน WiFi มหาวิทยาลัย/องค์กร อาจเจอ firewall บล็อกการเชื่อม MongoDB Atlas — ใช้ hotspot มือถือแทนได้
 - `IndexedStack` ต้องครอบด้วย `SizedBox.expand` ไม่งั้นบางทีไม่ยอมขยายเต็มพื้นที่ (เจอปัญหาช่องว่างสีขาวมาก่อน)
 - Gradle JDK ต้องเป็น JDK 17 (ไม่ใช่ JDK ใหม่กว่านี้) ไม่งั้น Gradle sync fail
+- ⚠️ **`scripts/seedQuests.js` เป็น upsert อิง `title`** (`Quest.findOneAndUpdate({title}, {...q}, {upsert:true})`)
+  — **แก้ลำดับ object ใน array `QUESTS` ของไฟล์นี้ไม่มีผลกับเควสที่มีอยู่แล้วใน DB เลย** เพราะลำดับที่แอพ
+  โชว์จริงมาจาก `Quest.sortOrder` (+ `createdAt` เป็น tie-breaker) ไม่ใช่ตำแหน่งในไฟล์/`createdAt` ที่
+  `findOneAndUpdate` ไม่ไปแตะของเดิม — จะคุมว่าเควสไหนโผล่ก่อน (สำคัญมากกับ `BASE_VISIBLE_QUESTS` เพราะ
+  กำหนดว่าผู้เล่นใหม่เห็นเควสอะไรบ้าง) ต้องแก้ที่ฟิลด์ `sortOrder` ของแต่ละ quest object ตรงๆ เท่านั้น
+  (เจอตอนทำ Game Balance รอบแรก — ดู `BALANCE_REPORT.md`)
 
 ## 6.5 Deploy backend (ให้แอพใช้ได้โดยไม่ต้องเปิดคอม)
 

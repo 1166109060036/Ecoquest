@@ -144,7 +144,14 @@ class PartyModel {
   bool get isOpen => status == 'open';
   bool get isStarted => status == 'started';
   bool get isCompleted => status == 'completed';
+  // เต็มห้อง = ใช้ capacity (requiredMembers) — เกณฑ์นี้คุมแค่ "รับคนเข้าห้องเพิ่มได้ไหม" คนละเรื่องกับ
+  // "เริ่มงานได้เลยไหม" ที่ minMembersToStart ด้านล่างดูแล
   bool get isFull => memberCount >= requiredMembers;
+
+  // ⚠️ ต้องตรงกับ MIN_PARTY_MEMBERS ใน backend/utils/partyGate.js เสมอ — จำนวนคนขั้นต่ำที่กด Start
+  // ได้ ไม่ใช่ capacity เต็มห้อง (ห้อง capacity 30 อย่าง Tree Planting Day ไม่ต้องรอคนครบ 30 คน
+  // แค่ 2 คนก็เริ่มกันได้แล้ว คนที่เหลือ join ทีหลังได้จนกว่าจะ Complete)
+  static const minMembersToStart = 2;
 
   // ⚠️ ต้องตรงกับ START_TO_COMPLETE_MS ใน backend/utils/partyGate.js เสมอ — ใช้แค่คำนวณนับถอยหลัง/
   // เปิด-ปิดปุ่มแบบ live ฝั่งแอพเท่านั้น (canStart/canComplete จาก backend คือค่าที่เชื่อถือได้จริง
@@ -154,7 +161,7 @@ class PartyModel {
   // คำนวณสดด้วย `now` ที่ส่งเข้ามา (ไม่ใช้ DateTime.now() ตรงๆ ในนี้ เพื่อให้ทดสอบ/นับถอยหลังจาก
   // Timer.periodic เดียวกันได้ ไม่ต้อง query เวลาซ้ำหลายจุด)
   bool isReadyToStartAt(DateTime now) =>
-      isOpen && !now.isBefore(eventDate) && memberCount >= requiredMembers;
+      isOpen && !now.isBefore(eventDate) && memberCount >= minMembersToStart;
 
   // เวลาที่เหลือก่อนจะกด Complete ได้ — null ถ้ายังไม่ได้ start หรือ start ไปนานพอแล้ว
   Duration? completeCountdownAt(DateTime now) {

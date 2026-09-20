@@ -8,60 +8,77 @@ const User = require('../models/User');
 // upgradeType ห้ามเปลี่ยนหลังมีคนซื้อไปแล้ว เพราะเป็นคีย์ที่บันทึกลง DB
 // (มี unique index (userId, upgradeType) กันซื้อซ้ำเป็นหลายแถวอยู่ที่ models/UserUpgrade.js)
 //
-// ทุก upgrade เพิ่มผล 1% ต่อระดับ ซื้อซ้ำได้สูงสุด maxLevel ครั้ง ราคาแพงขึ้นทุกระดับ
+// ทุก upgrade ซื้อซ้ำได้สูงสุด maxLevel ครั้ง ราคาแพงขึ้นทุกระดับ
 // (costForNextLevel คูณตาม "ระดับที่กำลังจะซื้อ" ไม่ใช่ระดับปัจจุบัน)
 //
-// ⚠️ quest_unlock จำกัด maxLevel ไว้ที่ 14 (ไม่ใช่ 50 เหมือนตัวอื่น) เพราะทั้งระบบมี solo quest
-// อยู่แค่ 18 อัน เริ่มเห็น 4 อันตั้งต้น เหลืออีก 14 อันให้ปลดครบพอดี ถ้าปล่อยถึง 50 ระดับท้ายๆ
-// จะเก็บแต้มไปแล้วไม่ได้อะไรเพิ่มเลย (เพิ่มเควสใหม่ทีหลังก็ปรับเลขนี้ขึ้นตามได้)
+// ⚠️ pctPerLevel = 5 (เดิม 1%) — ที่ 1%/level เควสส่วนใหญ่ราคา 10 P จะโดนปัดเศษทิ้งจนถึงเลเวล 5
+// (Math.round(10 * 1.04) ยังได้ 10 เท่าเดิม) ผู้เล่นเสียแต้มไป 4 เลเวลแรกฟรีไม่เห็นผลอะไรเลย
+// ที่ 5%/level เลเวล 1 ก็เห็นผลทันที (10 * 1.05 = 10.5 → ปัดเป็น 11) — คูณเข้ากับ level ที่
+// bonusesFromRows ด้านล่าง ไม่ใช่เก็บเป็น pct ตรงๆ ใน UserUpgrade (เก็บ level เหมือนเดิม)
+//
+// ⚠️ maxLevel ของ point_booster/xp_booster/party_bonus ลดจาก 50 เหลือ 10 (5%/level × 10 = +50%
+// เท่าเดิมกับตอน 1%/level × 50) — แค่ใช้แต้มน้อยลงในการไปถึงเพดานเดิม (1,520 P แทน 5,900 P)
+//
+// ⚠️ quest_unlock ลดจาก maxLevel 14 เหลือ 10 เพราะ BASE_VISIBLE_QUESTS ปรับเป็น 6 แล้ว และหลัง
+// หักกลุ่มสุ่ม food_saver (3 เควสเหลือโชว์แค่ 1) ทั้งระบบมี solo quest ให้เห็นจริงแค่ 16 อัน
+// (18 อันในไฟล์ seed - 2 ที่โดนกลุ่มสุ่มซ่อน) → 6 + 10 = 16 พอดี ไม่มีเลเวลไหนซื้อแล้วไม่ได้อะไรเพิ่ม
 const UPGRADES = [
   {
     upgradeType: 'point_booster',
     title: 'Point Booster',
-    description: 'Increase points earned from every quest by 1% per level.',
-    baseCost: 20,
-    maxLevel: 50,
+    description: 'Increase points earned from every quest by 5% per level.',
+    baseCost: 80,
+    maxLevel: 10,
+    pctPerLevel: 5,
   },
   {
     upgradeType: 'xp_booster',
     title: 'XP Booster',
-    description: 'Increase XP earned from every quest by 1% per level (raises your Level).',
-    baseCost: 20,
-    maxLevel: 50,
+    description: 'Increase XP earned from every quest by 5% per level (raises your Level).',
+    baseCost: 80,
+    maxLevel: 10,
+    pctPerLevel: 5,
   },
   {
     upgradeType: 'party_bonus',
     title: 'Party Bonus Points',
-    description: 'Increase points earned from Party quests by an extra 1% per level.',
-    baseCost: 20,
-    maxLevel: 50,
+    description: 'Increase points earned from Party quests by an extra 5% per level.',
+    baseCost: 80,
+    maxLevel: 10,
+    pctPerLevel: 5,
   },
   {
     upgradeType: 'quest_unlock',
     title: 'Quest Unlock',
     description: 'Reveal 1 more quest in Explore per level.',
     baseCost: 20,
-    maxLevel: 14,
+    maxLevel: 10,
   },
 ];
 
-const BASE_VISIBLE_QUESTS = 4;
+// ผู้เล่นใหม่เห็น 6 เควส solo ตั้งต้น (เดิม 4) — 6 เควสแรก (sortOrder 1-6 ใน seedQuests.js) คละราคา
+// 10/10/10/15/10/15 = 70 P/วัน ให้เนื้อหาวันแรกมากพอจะเข้าใจแอพ ไม่ใช่ตันที่ 40 P ล้วนราคาถูกสุด
+const BASE_VISIBLE_QUESTS = 6;
 
 const findUpgrade = (upgradeType) => UPGRADES.find((u) => u.upgradeType === upgradeType);
 
 // ราคาของ "ระดับถัดไป" ที่กำลังจะซื้อ (currentLevel = ระดับที่มีอยู่ตอนนี้)
-// แต่ละระดับเพิ่มราคาอีก 20% ของ baseCost (ไม่ใช่ 100% เหมือนเดิม — ของเดิมแพงเกินไป)
-// เช่น baseCost 20: ระดับ 1 = 20, ระดับ 2 = 24, ระดับ 3 = 28, ... ระดับ 50 = 216
+// แต่ละระดับเพิ่มราคาอีก 20% ของ baseCost
+// เช่น baseCost 20 (quest_unlock): ระดับ 1 = 20, ระดับ 5 = 36, ระดับ 10 = 56 (สะสม 380 P)
+// baseCost 80 (point/xp/party booster): ระดับ 1 = 80, ระดับ 10 = 224 (สะสม 1,520 P)
 const costForNextLevel = (upgrade, currentLevel) =>
   Math.round(upgrade.baseCost * (1 + 0.2 * currentLevel));
 
 // แปลงแถว UserUpgrade ที่ query มาแล้วให้เป็นก้อนโบนัสพร้อมใช้
+// pctPerLevel คูณเข้ากับ level ตรงนี้ที่เดียว — ค่าที่เก็บใน UserUpgrade.level ยังเป็น "จำนวนเลเวล
+// ที่ซื้อ" เฉยๆ ไม่ใช่ pct สำเร็จรูป (quest_unlock ไม่มี pctPerLevel เพราะ 1 เลเวล = 1 ช่องเควสตรงๆ)
 const bonusesFromRows = (rows) => {
   const levelOf = (type) => rows.find((r) => r.upgradeType === type)?.level || 0;
+  const pctFor = (type) => levelOf(type) * (findUpgrade(type)?.pctPerLevel || 0);
   return {
-    pointPct: levelOf('point_booster'),
-    xpPct: levelOf('xp_booster'),
-    partyPct: levelOf('party_bonus'),
+    pointPct: pctFor('point_booster'),
+    xpPct: pctFor('xp_booster'),
+    partyPct: pctFor('party_bonus'),
     questSlots: levelOf('quest_unlock'),
   };
 };

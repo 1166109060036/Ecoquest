@@ -26,44 +26,74 @@ class AmbientOverlay extends StatefulWidget {
 class _AmbientOverlayState extends State<AmbientOverlay> with SingleTickerProviderStateMixin {
   static const _particleCount = 9;
 
-  AnimationController? _controller;
-  List<_Particle>? _particles;
-  AmbientEffectType? _builtFor;
+  // ⚠️ ต้องมี AnimationController ตัวเดียวตลอดอายุของ State เท่านั้น — เปลี่ยนเอฟเฟกต์แล้วแก้แค่
+  // duration พอ ห้าม dispose แล้วสร้างตัวใหม่เด็ดขาด เพราะ SingleTickerProviderStateMixin ยอมให้
+  // สร้าง ticker ได้ครั้งเดียว พอสร้างตัวที่ 2 มันจะ assert กลางคันจนการ assign ไม่สำเร็จ ทำให้
+  // _controller ค้างชี้ไปที่ตัวที่ dispose ไปแล้ว แล้วไปโดน dispose ซ้ำอีกรอบตอน State ตาย
+  // (เคยเป็นบั๊กจริง: หน้า Profile แดงเต็มจอตอนสลับเอฟเฟกต์ครั้งที่ 2 เพราะ build() โยน exception
+  // แล้ว ErrorWidget มาแทนทั้ง subtree ซึ่งเป็น Positioned.fill)
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 16),
+  );
 
-  void _ensureBuilt() {
+  List<_Particle> _particles = const [];
+  bool _risesUp = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncEffect();
+  }
+
+  // เปลี่ยนเอฟเฟกต์ต้องทำที่นี่เท่านั้น ห้ามทำใน build() (การแก้ state ระหว่าง build ผิดหลัก Flutter
+  // และเป็นต้นตอของบั๊ก dispose ซ้ำข้างบน)
+  @override
+  void didUpdateWidget(AmbientOverlay oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.effect != widget.effect) _syncEffect();
+  }
+
+  void _syncEffect() {
     final effect = widget.effect;
-    if (effect == null || effect == _builtFor) return;
+    if (effect == null) {
+      // ถอดเอฟเฟกต์ออก — ต้องหยุด controller ด้วย ไม่งั้นมันหมุน repeat() กินซีพียูต่อไปเรื่อยๆ
+      // ทั้งที่ build() คืน SizedBox.shrink() ไม่ได้วาดอะไรแล้ว
+      _controller.stop();
+      _particles = const [];
+      return;
+    }
 
     final config = _configFor(effect);
     final random = Random();
     _particles = List.generate(_particleCount, (_) => _Particle.random(random, config));
-    _controller?.dispose();
-    _controller = AnimationController(vsync: this, duration: config.baseCycle)..repeat();
-    _builtFor = effect;
+    _risesUp = config.risesUp;
+    _controller
+      ..duration = config.baseCycle
+      ..repeat();
   }
 
   @override
   void dispose() {
-    _controller?.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     if (widget.effect == null) return const SizedBox.shrink();
-    _ensureBuilt();
 
     // IgnorePointer กันไว้อีกชั้น (ปกติแตะทะลุอยู่แล้วเพราะ paint อยู่หลังเนื้อหาจริงใน Stack)
     return IgnorePointer(
       child: AnimatedBuilder(
-        animation: _controller!,
+        animation: _controller,
         builder: (context, _) {
           return CustomPaint(
             size: Size.infinite,
             painter: _ParticlePainter(
-              particles: _particles!,
-              progress: _controller!.value,
-              risesUp: _configFor(widget.effect!).risesUp,
+              particles: _particles,
+              progress: _controller.value,
+              risesUp: _risesUp,
             ),
           );
         },

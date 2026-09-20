@@ -18,6 +18,10 @@ const QUESTS = [
   // ---------------------------------------------------------------- food waste
   {
     title: 'Check Your Food & Expiration Dates',
+    // เรียงลำดับใหม่ให้ 6 เควสแรก (sortOrder 1-6) ที่ผู้เล่นใหม่เห็นวันแรกเป็นเควสกดครั้งเดียวจบ
+    // ทั้งหมด — อันนี้ต้องบันทึกของในตู้เย็นก่อนถึงจะกดสำเร็จได้ (actionKey: 'fridge_check')
+    // เลยจงใจไม่ใส่ไว้ใน 6 อันแรก กันผู้เล่นใหม่สับสนว่าทำไมกดแล้วไม่ได้คะแนนทันที
+    sortOrder: 7,
     description: 'Food Waste Quest',
     detail:
       'Open your fridge and record what is inside along with each expiration date. ' +
@@ -35,6 +39,7 @@ const QUESTS = [
   },
   {
     title: 'Finish Your Meal',
+    sortOrder: 1,
     description: 'Food Waste Quest',
     detail:
       'Eat everything on your plate today. Taking only what you can finish is the easiest habit '
@@ -50,6 +55,7 @@ const QUESTS = [
   },
   {
     title: 'Use Leftover Ingredients',
+    sortOrder: 8,
     description: 'Food Waste Quest',
     detail:
       'Cook a meal using ingredients that were about to go bad. '
@@ -67,6 +73,7 @@ const QUESTS = [
   // ------------------------------------------------------------------ recycling
   {
     title: 'Sort Waste Correctly',
+    sortOrder: 2,
     description: 'Recycling Quest',
     detail:
       'Separate your waste following the Ebetsu City sorting rules — burnable, plastic, '
@@ -81,6 +88,7 @@ const QUESTS = [
   },
   {
     title: 'Reuse a Plastic Bottle',
+    sortOrder: 9,
     description: 'Recycling Quest',
     detail:
       'Give a plastic bottle a second life before recycling it — use it as a water bottle, '
@@ -97,6 +105,7 @@ const QUESTS = [
   // -------------------------------------------------------------------- plastic
   {
     title: 'Use a Reusable Bottle',
+    sortOrder: 3,
     description: 'Plastic Reduction Quest',
     detail:
       'Carry your own bottle today instead of buying a drink in a single-use plastic one.',
@@ -110,6 +119,7 @@ const QUESTS = [
   },
   {
     title: 'Refill Your Water Bottle',
+    sortOrder: 10,
     description: 'Plastic Reduction Quest',
     detail:
       'Refill your bottle at a water station or at home instead of buying a new one while you are out.',
@@ -123,6 +133,7 @@ const QUESTS = [
   },
   {
     title: 'Bring Your Own Shopping Bag',
+    sortOrder: 11,
     description: 'Plastic Reduction Quest',
     detail: 'Take your own bag to the shop and refuse the plastic one at the counter.',
     category: 'plastic',
@@ -135,6 +146,7 @@ const QUESTS = [
   },
   {
     title: 'Buy Refill Products',
+    sortOrder: 12,
     description: 'Plastic Reduction Quest',
     detail:
       'Choose a refill pack instead of a brand new bottle. Refill packs use far less plastic '
@@ -145,9 +157,14 @@ const QUESTS = [
     impact: 'low',
     xpReward: 10,
     co2SavedKg: 0.12,
+    // ⚠️ แก้บั๊ก balance: เดิมไม่มี isDaily เลย = ไม่มีด่านกันทำซ้ำอะไรเลยทั้ง POST /:id/start และ
+    // POST /:id/complete (เช็คเฉพาะตอน isDaily === true เท่านั้น ดู routes/quests.js) กด Start→
+    // Complete วนได้ไม่จำกัดรอบ ได้แต้มไม่มีเพดาน — ต้องตั้งเป็นรายวันเหมือนเควส solo อื่นทุกอัน
+    isDaily: true,
   },
   {
     title: 'Use Refillable Laundry Detergent',
+    sortOrder: 13,
     description: 'Plastic Reduction Quest',
     detail:
       'Refill your detergent container instead of buying a new plastic bottle. '
@@ -158,9 +175,11 @@ const QUESTS = [
     impact: 'medium',
     xpReward: 15,
     co2SavedKg: 0.25,
+    isDaily: true, // ดูเหตุผลที่คอมเมนต์ของ 'Buy Refill Products' ด้านบน — เดิมเควสนี้ทำซ้ำไม่จำกัดรอบได้
   },
   {
     title: 'Use Refillable Dish Soap',
+    sortOrder: 14,
     description: 'Plastic Reduction Quest',
     detail: 'Refill your dish soap bottle rather than replacing it with a new one.',
     category: 'plastic',
@@ -169,9 +188,11 @@ const QUESTS = [
     impact: 'medium',
     xpReward: 15,
     co2SavedKg: 0.2,
+    isDaily: true, // ดูเหตุผลที่คอมเมนต์ของ 'Buy Refill Products' ด้านบน — เดิมเควสนี้ทำซ้ำไม่จำกัดรอบได้
   },
   {
     title: 'Use Reusable Food Containers',
+    sortOrder: 4,
     description: 'Plastic Reduction Quest',
     detail:
       'Pack your food in reusable containers instead of disposable wrap or single-use boxes.',
@@ -185,6 +206,7 @@ const QUESTS = [
   },
   {
     title: 'Avoid Single-Use Plastic for One Day',
+    sortOrder: 6,
     description: 'Plastic Reduction Quest',
     detail:
       'Go a full day without using any single-use plastic — no plastic bags, straws, cutlery or bottles. '
@@ -201,6 +223,7 @@ const QUESTS = [
   // --------------------------------------------------------------------- energy
   {
     title: 'Turn Off Unused Lights',
+    sortOrder: 5,
     description: 'Energy Saving Quest',
     detail: 'Switch off the lights in rooms nobody is using.',
     category: 'energy',
@@ -213,6 +236,7 @@ const QUESTS = [
   },
   {
     title: 'Unplug Unused Devices',
+    sortOrder: 15,
     description: 'Energy Saving Quest',
     detail:
       'Unplug chargers and appliances you are not using. Devices left plugged in keep drawing '
@@ -233,6 +257,7 @@ const QUESTS = [
   // ------------------------------------------------------------------------
   {
     title: 'Food Saver — 1 Day',
+    sortOrder: 16,
     description: 'Food Waste Quest',
     detail:
       'Get through today without throwing away any food. '
@@ -248,6 +273,7 @@ const QUESTS = [
   },
   {
     title: 'Food Saver — 3 Days',
+    sortOrder: 17,
     description: 'Food Waste Quest',
     detail: 'Commit to keeping your food waste at zero for the next 3 days.',
     // ใช้รูปเดียวกับ Finish Your Meal ตามที่ผู้ใช้ระบุ (ยังไม่มีรูปแยกของตัวเองในโฟลเดอร์ questimg)
@@ -263,6 +289,7 @@ const QUESTS = [
   },
   {
     title: 'Food Saver — 7 Days',
+    sortOrder: 18,
     description: 'Food Waste Quest',
     detail: 'Commit to keeping your food waste at zero for a full week.',
     // ใช้รูปเดียวกับ Finish Your Meal ตามที่ผู้ใช้ระบุ (ยังไม่มีรูปแยกของตัวเองในโฟลเดอร์ questimg)
@@ -285,6 +312,7 @@ const QUESTS = [
   // ------------------------------------------------------------------------
   {
     title: 'Community Cleanup',
+    sortOrder: 19,
     description: 'Riverside Park',
     detail:
       'Join your neighbours to collect litter along the Ishikari river bank. '
@@ -300,6 +328,7 @@ const QUESTS = [
   },
   {
     title: 'Tree Planting Day',
+    sortOrder: 20,
     description: 'Ebetsu City Park',
     detail:
       'Help plant young trees in the city park. Every tree planted keeps absorbing CO2 for decades, '
@@ -315,6 +344,7 @@ const QUESTS = [
   },
   {
     title: 'Neighborhood Recycling Drive',
+    sortOrder: 21,
     description: 'Community Center',
     detail:
       'Collect and sort recyclables from around the neighbourhood together, '

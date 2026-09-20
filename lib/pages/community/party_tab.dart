@@ -386,20 +386,22 @@ class _PartyActionArea extends StatelessWidget {
       );
     }
 
-    // party.isOpen
+    // party.isOpen — จำนวนคนที่ต้องรอให้ครบก่อนกด Start ได้ คือ minMembersToStart (2) ไม่ใช่
+    // capacity เต็มห้อง (requiredMembers) — ใช้ตัวเลขผิดจะบอกผู้เล่นว่าต้องรอคนเยอะเกินจริงมาก
+    // (เช่นห้อง capacity 30 จะขึ้น "รอ 2/30" ทั้งที่จริงกด Start ได้แล้วตั้งแต่มีครบ 2 คน)
     final ready = party.isReadyToStartAt(now);
     if (!party.isLeader) {
       return _WaitingPill(
-        text: party.memberCount < party.requiredMembers
-            ? 'Waiting for more members (${party.memberCount}/${party.requiredMembers})'
+        text: party.memberCount < PartyModel.minMembersToStart
+            ? 'Waiting for more members (${party.memberCount}/${PartyModel.minMembersToStart})'
             : 'Waiting for the leader to start this event',
       );
     }
     return _GateButton(
       label: ready
           ? 'Start Event'
-          : party.memberCount < party.requiredMembers
-              ? 'Waiting for members (${party.memberCount}/${party.requiredMembers})'
+          : party.memberCount < PartyModel.minMembersToStart
+              ? 'Waiting for members (${party.memberCount}/${PartyModel.minMembersToStart})'
               : 'Starts ${formatEventDateTime(party.eventDate)}',
       enabled: ready,
       isBusy: isBusy,

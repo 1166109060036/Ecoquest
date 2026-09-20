@@ -67,7 +67,7 @@ const toQuestPayload = (quest, bonuses, { completedToday, inProgress, startedAt,
 // @desc    ลิสต์ quest ที่เปิดใช้งานอยู่ + บอกด้วยว่า quest รายวันอันไหนวันนี้ทำไปแล้ว/กำลังทำอยู่
 router.get('/', authMiddleware, async (req, res) => {
   try {
-    const allQuests = await Quest.find({ isActive: true }).sort({ createdAt: 1 });
+    const allQuests = await Quest.find({ isActive: true }).sort({ sortOrder: 1, createdAt: 1 });
 
     // แยก quest ที่อยู่กลุ่มสุ่มออกมา แล้วเอาแค่กลุ่มละ 1 อัน
     const pools = new Map();

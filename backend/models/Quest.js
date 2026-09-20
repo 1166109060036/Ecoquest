@@ -108,6 +108,15 @@ const QuestSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    // ลำดับที่เควสนี้โชว์ในหน้า Explore (เลขน้อยขึ้นก่อน) — ตัวเลขน้อยกว่า BASE_VISIBLE_QUESTS
+    // (utils/upgrades.js) คือกลุ่มเควสที่ผู้เล่นใหม่ level 1 เห็นตั้งแต่วันแรก ต้องคุมตรงนี้ชัดๆ
+    // เพราะ createdAt เพียงอย่างเดียวคุมไม่ได้ (แก้ลำดับใน seedQuests.js ไม่มีผลกับเควสที่มีอยู่แล้ว
+    // ใน DB เนื่องจาก findOneAndUpdate ไม่แตะ createdAt ของ document เดิม)
+    sortOrder: {
+      type: Number,
+      default: 0,
+      index: true,
+    },
   },
   { timestamps: true }
 );
