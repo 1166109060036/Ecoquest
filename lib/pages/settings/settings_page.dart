@@ -121,6 +121,38 @@ class SettingsPage extends StatelessWidget {
     Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
   }
 
+  // ใช้ตอนส่งต่อเครื่องให้คนทดสอบคนถัดไป — ล้าง guest ที่จำไว้บนเครื่องด้วย (ต่างจาก logout
+  // ธรรมดาที่ตั้งใจ "จำ" guest เดิมไว้ให้ resume ได้) เพื่อให้ "Continue as Guest" ครั้งถัดไป
+  // ได้บัญชีใหม่จริงๆ แทนที่จะกลับเข้าบัญชีเดิม
+  Future<void> _confirmResetGuest(BuildContext context) async {
+    final confirmed = await LiquidGlassDialog.show<bool>(
+      context: context,
+      icon: const Icon(Icons.refresh_rounded, color: Colors.redAccent, size: 28),
+      title: 'Start new guest account?',
+      content: const Text(
+        'This guest\'s progress will be permanently lost and cannot be recovered.',
+        textAlign: TextAlign.center,
+        style: LiquidGlassDialog.messageStyle,
+      ),
+      actions: [
+        LiquidGlassAction(label: 'Cancel', onPressed: () => Navigator.pop(context, false)),
+        LiquidGlassAction(
+          label: 'Start New',
+          color: Colors.redAccent,
+          onPressed: () => Navigator.pop(context, true),
+        ),
+      ],
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    context.read<ChatProvider>().disconnect();
+    final authProvider = context.read<AuthProvider>();
+    await authProvider.resetGuestSession();
+    if (!context.mounted) return;
+    Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
@@ -184,6 +216,13 @@ class SettingsPage extends StatelessWidget {
                                 subtitle: 'Guest progress is lost when you log out',
                                 highlighted: true,
                                 onTap: () => Navigator.pushNamed(context, '/upgrade-account'),
+                              ),
+                              const SizedBox(height: 14),
+                              _SettingsMenuItem(
+                                icon: Icons.refresh,
+                                label: 'Start New Guest Account',
+                                subtitle: 'Current guest progress will be permanently lost',
+                                onTap: () => _confirmResetGuest(context),
                               ),
                             ] else ...[
                               // บัญชี Guest ไม่มีรหัสผ่าน เลยไม่ต้องมีเมนูนี้ให้กด

@@ -79,6 +79,15 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ล้าง guest ที่จำไว้บนเครื่อง + session ปัจจุบัน เพื่อให้กด "Continue as Guest" ครั้งถัดไป
+  // ได้บัญชีใหม่จริงๆ แทนที่จะ resume บัญชี guest เดิม (ใช้ตอนส่งต่อเครื่องให้คนทดสอบคนถัดไป)
+  Future<void> resetGuestSession() async {
+    await _authService.resetGuestSession();
+    _user = null;
+    _profile = null;
+    notifyListeners();
+  }
+
   // ตั้ง/ลบรูปโปรไฟล์ (bytes: null = ลบรูป) — เรียก refreshProfile() ต่อให้ทุกหน้าที่ใช้ user เห็นค่าใหม่ทันที
   Future<bool> updateAvatar(Uint8List? bytes, {String? contentType}) async {
     _isUpdatingAvatar = true;

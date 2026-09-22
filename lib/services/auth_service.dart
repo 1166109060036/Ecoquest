@@ -84,6 +84,11 @@ class AuthService {
     return user;
   }
 
+  Future<void> resetGuestSession() async {
+    await _storage.clearGuestSession();
+    await _storage.clearSession();
+  }
+
   Future<UserModel?> _tryResumeGuest() async {
     final rememberedToken = await _storage.getGuestToken();
     if (rememberedToken == null) return null;
