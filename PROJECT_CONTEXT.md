@@ -76,7 +76,9 @@
   \- เอา `energy` / `lastEnergyUpdate` ออกแล้ว (ระบบ Energy ถูกตัดจากดีไซน์)
   \- เอา `rank` / `seasonId` ออกแล้ว (ระบบ Rank/Season ถูกตัดจากดีไซน์ แทนที่ด้วย streakCount/lastStreakDate)
 - `quests` — template ของ quest (มี static method `Quest.calculateScore(difficulty, impact)`)
-  \+ `co2SavedKg` (เพิ่มทีหลัง — ใช้รวมเป็นสถิติ "CO2 Saved" ในหน้า Profile, ตอน seed quest ต้องใส่ค่านี้ด้วย)
+  \+ ผลกระทบต่อสิ่งแวดล้อม: `co2eEstimateKg` (null = วัดเป็น CO2 ไม่ได้ ไม่นับรวม) / `impactCategory` /
+  `impactMetric` / `overlapGroup` — แทน `co2SavedKg` เดิม ระดับผลกระทบใช้ `impact` ตัวเดิม ที่มาของทุกค่าอยู่ใน
+  `CO2_RESEARCH.md`
 - `questHistory` — แยก collection ต่างหาก (ไม่ embed ใน user)
 - `fridgeItems` — สำหรับ Mini Quest เช็คอาหาร (`itemName`, `expirationDate`, `quantity`, `addedAt`,
   `photoData`/`photoContentType` — รูปจริงอัปโหลดขึ้น server แล้ว ดูหัวข้อ 5, `photoPath` เป็นฟิลด์เก่า
@@ -258,7 +260,10 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
     - เพิ่มกลุ่มใหม่ได้แค่ใส่ `randomPool: 'ชื่อกลุ่ม'` ให้ quest หลายอัน ไม่ต้องแก้โค้ด route
   - ✅ `Community Cleanup` เปิดใช้งานแล้ว (เป็น party quest ตัวจริง) — ดูหัวข้อ "ระบบ Party" ด้านล่าง
     ถ้าเปิดตอนนี้จะกลายเป็นกดปุ่มรับ 30 แต้มฟรี
-  - ⚠️ **ค่า `co2SavedKg` ทุกอันเป็นค่าประมาณ ยังไม่ได้อ้างอิงงานวิจัยจริง** ถ้าจะเอาไปนำเสนอควรหาตัวเลขอ้างอิงมาแทน
+  - ✅ **ค่า `co2eEstimateKg` มีแหล่งอ้างอิงแล้ว** (ข้อมูลญี่ปุ่น — ดู `CO2_RESEARCH.md`) 6 เควสเป็น `null`
+    (Check Food, Reuse Bottle, Sort Waste, Recycling Drive, Cleanup, Tree Planting) เพราะวัดเป็น CO2 อย่างมี
+    หลักฐานไม่ได้ ⚠️ แก้ตัวเลขใน seed ต้องแก้เอกสารนั้นด้วย และ `overlapGroup` ต้องตรงกับ
+    `OVERLAP_DAILY_CAP_KG` ใน `backend/utils/profilePayload.js`
   - ✅ **ระบบ Rank/Season ถูกเอาออกทั้งหมดแล้ว แทนที่ด้วย Daily Streak** — `backend/utils/streak.js`
     เป็นเจ้าของสูตรทั้งหมด: `applyDailyQuestCompletion(user)` เรียกจาก 3 จุดที่ทำเควสสำเร็จ
     (`routes/quests.js`, `routes/party.js#complete`, `routes/admin.js` force-complete ทั้ง 2 จุด) ก่อน
@@ -608,7 +613,10 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
 
 `GET /api/auth/me` คืน 4 ก้อน: `user` (+ level/xp/points), `progress` (ความคืบหน้า level),
 `streak` (Daily Streak — count/cycleLength/milestones/rewards ดู `backend/utils/streak.js`),
-`stats` (questCompleted / co2SavedKg / partiesJoined — คำนวณจริงจาก `QuestHistory` + `Quest`)
+`stats` (questCompleted / co2eEstimateKg / partiesJoined — คำนวณจริงจาก `QuestHistory` + `Quest`)
+⚠️ **`co2eEstimateKg` ไม่ใช่ `$sum` ตรงๆ** — เควสใน `overlapGroup` เดียวกันวันเดียวกัน (ตัดวันเวลาญี่ปุ่น) รวมกัน
+แล้วตัดที่เพดานของกลุ่ม กันนับผลกระทบชุดเดียวกันซ้ำ (เช่น Finish Your Meal + Food Saver) และอ่านค่าจาก
+template ปัจจุบันเสมอ แก้ตัวเลขใน seed แล้วยอดย้อนหลังทุกบัญชีเปลี่ยนตาม
 ⚠️ **`questCompleted` คือยอดรวมทุกครั้งที่ทำเควสสำเร็จ นับเควสซ้ำด้วย ไม่มี `questTotal` แล้ว** (เคยมีไว้
 โชว์ "X / Y" ในหน้า Profile แต่เอาออกแล้วเพราะเควสรายวันทำซ้ำได้ไม่จำกัด ไม่มี "Y" ที่ตายตัวให้เทียบจริงๆ —
 `StatItem` "Quest Completed" ตอนนี้โชว์แค่ตัวเลขเดียวเหมือน "Parties Joined")

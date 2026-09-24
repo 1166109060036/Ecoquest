@@ -8,8 +8,10 @@
 // 📌 scorePoints ไม่ต้องกรอกเอง สคริปต์คำนวณจาก difficulty + impact ให้อัตโนมัติ
 //    (easy/medium/hard = 5/10/15 บวกกับ low/medium/high = 5/10/15)
 //
-// ⚠️ ค่า co2SavedKg ทั้งหมดเป็น "ค่าประมาณคร่าวๆ" ยังไม่ได้อ้างอิงงานวิจัยจริง
-//    ถ้าจะเอาไปใช้นำเสนอจริงควรหาตัวเลขอ้างอิงมาแทนก่อน
+// 🌱 co2eEstimateKg / impactCategory / impactMetric / overlapGroup — ที่มาและวิธีคิดของทุกค่าอยู่ใน
+//    CO2_RESEARCH.md (ข้อมูลญี่ปุ่น: food loss จาก MOE/CAA, ค่าไฟจาก Hokkaido Electric) ห้ามแก้ตัวเลขที่นี่
+//    โดยไม่อัปเดตเอกสารนั้นด้วย — co2eEstimateKg: null = วัดเป็น CO2 ไม่ได้อย่างมีหลักฐาน (ไม่นับรวม)
+//    ส่วน overlapGroup ต้องตรงกับ OVERLAP_DAILY_CAP_KG ใน utils/profilePayload.js
 require('dotenv').config();
 const mongoose = require('mongoose');
 const Quest = require('../models/Quest');
@@ -32,7 +34,10 @@ const QUESTS = [
     difficulty: 'easy',
     impact: 'low',
     xpReward: 10,
-    co2SavedKg: 0.2,
+    co2eEstimateKg: null,
+    impactCategory: 'Food Inventory Checked',
+    impactMetric: 'checks',
+    overlapGroup: null,
     isDaily: true,
     // ต้องบันทึกของในตู้เย็นวันนี้ก่อน ถึงจะกดสำเร็จได้ (กดปุ่มเฉยๆ ไม่ให้คะแนน)
     actionKey: 'fridge_check',
@@ -50,7 +55,10 @@ const QUESTS = [
     difficulty: 'easy',
     impact: 'low',
     xpReward: 10,
-    co2SavedKg: 0.15,
+    co2eEstimateKg: 0.05,
+    impactCategory: 'Food Waste Prevented',
+    impactMetric: 'days',
+    overlapGroup: 'food_waste',
     isDaily: true,
   },
   {
@@ -66,7 +74,10 @@ const QUESTS = [
     difficulty: 'easy',
     impact: 'low',
     xpReward: 10,
-    co2SavedKg: 0.2,
+    co2eEstimateKg: 0.05,
+    impactCategory: 'Food Waste Prevented',
+    impactMetric: 'meals',
+    overlapGroup: 'food_waste',
     isDaily: true,
   },
 
@@ -83,7 +94,10 @@ const QUESTS = [
     difficulty: 'easy',
     impact: 'low',
     xpReward: 10,
-    co2SavedKg: 0.1,
+    co2eEstimateKg: null,
+    impactCategory: 'Waste Sorted Correctly',
+    impactMetric: 'days',
+    overlapGroup: null,
     isDaily: true,
   },
   {
@@ -98,7 +112,10 @@ const QUESTS = [
     difficulty: 'easy',
     impact: 'low',
     xpReward: 10,
-    co2SavedKg: 0.08,
+    co2eEstimateKg: null,
+    impactCategory: 'Plastic Reused',
+    impactMetric: 'bottles',
+    overlapGroup: null,
     isDaily: true,
   },
 
@@ -114,7 +131,10 @@ const QUESTS = [
     difficulty: 'easy',
     impact: 'low',
     xpReward: 10,
-    co2SavedKg: 0.08,
+    co2eEstimateKg: 0.08,
+    impactCategory: 'Single-Use Plastic Avoided',
+    impactMetric: 'bottles',
+    overlapGroup: 'single_use_plastic',
     isDaily: true,
   },
   {
@@ -128,7 +148,10 @@ const QUESTS = [
     difficulty: 'easy',
     impact: 'low',
     xpReward: 10,
-    co2SavedKg: 0.08,
+    co2eEstimateKg: 0.08,
+    impactCategory: 'Single-Use Plastic Avoided',
+    impactMetric: 'bottles',
+    overlapGroup: 'single_use_plastic',
     isDaily: true,
   },
   {
@@ -141,7 +164,10 @@ const QUESTS = [
     difficulty: 'easy',
     impact: 'low',
     xpReward: 10,
-    co2SavedKg: 0.03,
+    co2eEstimateKg: 0.01,
+    impactCategory: 'Single-Use Plastic Avoided',
+    impactMetric: 'bags',
+    overlapGroup: 'single_use_plastic',
     isDaily: true,
   },
   {
@@ -156,7 +182,10 @@ const QUESTS = [
     difficulty: 'easy',
     impact: 'low',
     xpReward: 10,
-    co2SavedKg: 0.12,
+    co2eEstimateKg: 0.05,
+    impactCategory: 'Plastic Packaging Reduced',
+    impactMetric: 'refills',
+    overlapGroup: null,
     // ⚠️ แก้บั๊ก balance: เดิมไม่มี isDaily เลย = ไม่มีด่านกันทำซ้ำอะไรเลยทั้ง POST /:id/start และ
     // POST /:id/complete (เช็คเฉพาะตอน isDaily === true เท่านั้น ดู routes/quests.js) กด Start→
     // Complete วนได้ไม่จำกัดรอบ ได้แต้มไม่มีเพดาน — ต้องตั้งเป็นรายวันเหมือนเควส solo อื่นทุกอัน
@@ -174,7 +203,10 @@ const QUESTS = [
     difficulty: 'easy',
     impact: 'medium',
     xpReward: 15,
-    co2SavedKg: 0.25,
+    co2eEstimateKg: 0.07,
+    impactCategory: 'Plastic Packaging Reduced',
+    impactMetric: 'refills',
+    overlapGroup: null,
     isDaily: true, // ดูเหตุผลที่คอมเมนต์ของ 'Buy Refill Products' ด้านบน — เดิมเควสนี้ทำซ้ำไม่จำกัดรอบได้
   },
   {
@@ -187,7 +219,10 @@ const QUESTS = [
     difficulty: 'easy',
     impact: 'medium',
     xpReward: 15,
-    co2SavedKg: 0.2,
+    co2eEstimateKg: 0.04,
+    impactCategory: 'Plastic Packaging Reduced',
+    impactMetric: 'refills',
+    overlapGroup: null,
     isDaily: true, // ดูเหตุผลที่คอมเมนต์ของ 'Buy Refill Products' ด้านบน — เดิมเควสนี้ทำซ้ำไม่จำกัดรอบได้
   },
   {
@@ -201,7 +236,10 @@ const QUESTS = [
     difficulty: 'easy',
     impact: 'medium',
     xpReward: 15,
-    co2SavedKg: 0.15,
+    co2eEstimateKg: 0.02,
+    impactCategory: 'Single-Use Plastic Avoided',
+    impactMetric: 'uses',
+    overlapGroup: 'single_use_plastic',
     isDaily: true,
   },
   {
@@ -216,7 +254,10 @@ const QUESTS = [
     difficulty: 'medium',
     impact: 'low',
     xpReward: 15,
-    co2SavedKg: 0.3,
+    co2eEstimateKg: 0.12,
+    impactCategory: 'Single-Use Plastic Avoided',
+    impactMetric: 'days',
+    overlapGroup: 'single_use_plastic',
     isDaily: true,
   },
 
@@ -231,7 +272,10 @@ const QUESTS = [
     difficulty: 'easy',
     impact: 'low',
     xpReward: 10,
-    co2SavedKg: 0.1,
+    co2eEstimateKg: 0.06,
+    impactCategory: 'Electricity Saved',
+    impactMetric: 'days',
+    overlapGroup: null,
     isDaily: true,
   },
   {
@@ -246,7 +290,10 @@ const QUESTS = [
     difficulty: 'easy',
     impact: 'low',
     xpReward: 10,
-    co2SavedKg: 0.12,
+    co2eEstimateKg: 0.06,
+    impactCategory: 'Electricity Saved',
+    impactMetric: 'days',
+    overlapGroup: null,
     isDaily: true,
   },
 
@@ -267,7 +314,10 @@ const QUESTS = [
     difficulty: 'easy',
     impact: 'medium',
     xpReward: 15,
-    co2SavedKg: 0.2,
+    co2eEstimateKg: 0.12,
+    impactCategory: 'Food Waste Prevented',
+    impactMetric: 'days',
+    overlapGroup: 'food_waste',
     isDaily: true,
     randomPool: 'food_saver',
   },
@@ -283,7 +333,10 @@ const QUESTS = [
     difficulty: 'medium',
     impact: 'medium',
     xpReward: 20,
-    co2SavedKg: 0.6,
+    co2eEstimateKg: 0.35,
+    impactCategory: 'Food Waste Prevented',
+    impactMetric: 'days',
+    overlapGroup: 'food_waste',
     isDaily: true,
     randomPool: 'food_saver',
   },
@@ -299,7 +352,10 @@ const QUESTS = [
     difficulty: 'hard',
     impact: 'medium',
     xpReward: 25,
-    co2SavedKg: 1.4,
+    co2eEstimateKg: 0.81,
+    impactCategory: 'Food Waste Prevented',
+    impactMetric: 'days',
+    overlapGroup: 'food_waste',
     isDaily: true,
     randomPool: 'food_saver',
   },
@@ -322,7 +378,10 @@ const QUESTS = [
     difficulty: 'hard',
     impact: 'high',
     xpReward: 30,
-    co2SavedKg: 2.0,
+    co2eEstimateKg: null,
+    impactCategory: 'Litter Removed',
+    impactMetric: 'events',
+    overlapGroup: null,
     location: 'Riverside Park',
     capacity: 10,
   },
@@ -338,7 +397,10 @@ const QUESTS = [
     difficulty: 'medium',
     impact: 'high',
     xpReward: 25,
-    co2SavedKg: 5.0,
+    co2eEstimateKg: null,
+    impactCategory: 'Trees Planted',
+    impactMetric: 'events',
+    overlapGroup: null,
     location: 'Ebetsu City Park',
     capacity: 30,
   },
@@ -354,7 +416,10 @@ const QUESTS = [
     difficulty: 'medium',
     impact: 'medium',
     xpReward: 20,
-    co2SavedKg: 1.5,
+    co2eEstimateKg: null,
+    impactCategory: 'Recyclables Collected',
+    impactMetric: 'events',
+    overlapGroup: null,
     location: 'Community Center',
     capacity: 15,
   },
@@ -391,6 +456,10 @@ async function seedQuests({ verbose = true } = {}) {
           (flags ? `  (${flags})` : '')
       );
     }
+
+  // ลบฟิลด์ co2SavedKg เดิม (ก่อนเปลี่ยนเป็น co2eEstimateKg) ที่ค้างอยู่ใน document เก่า — upsert ข้างบน
+  // ลบให้ไม่ได้เพราะฟิลด์นี้ไม่อยู่ใน schema แล้ว ต้องปิด strict ให้ $unset ผ่าน (รันซ้ำได้ ไม่มีผลข้างเคียง)
+  await Quest.updateMany({}, { $unset: { co2SavedKg: 1 } }, { strict: false });
 
   const active = await Quest.countDocuments({ isActive: true });
   const inactive = await Quest.countDocuments({ isActive: false });

@@ -55,11 +55,29 @@ const QuestSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-    // ปริมาณ CO2 ที่ช่วยลดได้เมื่อทำ quest นี้สำเร็จ (kgCO2e)
-    // ใช้รวมเป็นสถิติ "CO2 Saved" ในหน้า Profile — ตอน seed quest จริงต้องใส่ค่านี้ด้วย
-    co2SavedKg: {
+    // ---- ผลกระทบต่อสิ่งแวดล้อม — ที่มาของตัวเลขทุกค่าอยู่ใน CO2_RESEARCH.md ----
+    // ระดับผลกระทบใช้ฟิลด์ `impact` ด้านบน (ตัวเดียวกับที่คิดแต้ม) ไม่แยกฟิลด์ซ้ำ
+    //
+    // ค่าประมาณ kgCO2e ที่เลี่ยงได้ต่อการทำ 1 ครั้ง — null = กิจกรรมนี้วัดเป็น CO2 ไม่ได้อย่างมีหลักฐาน
+    // (เช่น เก็บขยะ/ปลูกต้นไม้/คัดแยกขยะ) ไม่นับรวมใน "CO2 Saved" แต่ยังมีผลกระทบด้านอื่นตาม impactCategory
+    co2eEstimateKg: {
       type: Number,
-      default: 0,
+      default: null,
+    },
+    // ผลกระทบที่กิจกรรมนี้สร้างจริง (เช่น 'Food Waste Prevented', 'Litter Removed') + หน่วยของมัน
+    impactCategory: {
+      type: String,
+      default: '',
+    },
+    impactMetric: {
+      type: String,
+      default: '',
+    },
+    // เควสที่นับผลกระทบชุดเดียวกัน (เช่น Finish Your Meal กับ Food Saver) อยู่กลุ่มเดียวกัน — ตอนรวมยอด
+    // CO2 ในโปรไฟล์ บวกกันได้ภายในกลุ่มแต่ไม่เกินเพดานต่อวันของกลุ่ม (ดู utils/profilePayload.js)
+    overlapGroup: {
+      type: String,
+      default: null,
     },
     // ใช้เฉพาะ party quest — level ขั้นต่ำที่จะสร้างห้อง (Party) จาก quest นี้ได้
     // เช็คจริงตอน POST /api/party ใน backend/routes/party.js

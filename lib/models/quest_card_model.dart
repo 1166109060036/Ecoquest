@@ -22,9 +22,12 @@ class QuestCardModel {
   final String detail; // ข้อความอธิบายยาวในกล่อง "Quest Detail"
   final String? imageKey; // ชื่อไฟล์รูปปก (ไม่รวมนามสกุล) ในโฟลเดอร์ questimg
   final int xpReward;
-  final double co2SavedKg;
+  // ค่าประมาณ kgCO2e ต่อการทำ 1 ครั้ง — null = กิจกรรมนี้วัดเป็น CO2 ไม่ได้ ให้โชว์ impactCategory แทน
+  final double? co2eEstimateKg;
+  final String impactCategory; // เช่น 'Food Waste Prevented', 'Litter Removed'
+  final String impactMetric; // หน่วยของผลกระทบ เช่น 'days', 'bottles', 'events'
   final String difficulty; // easy / medium / hard
-  final String impact; // low / medium / high
+  final String impact; // low / medium / high — ระดับผลกระทบต่อสิ่งแวดล้อม (ใช้คิดแต้มด้วย)
   final String questCategory; // food_waste / recycling / plastic / community / energy
 
   // ---- ใช้เฉพาะ party quest — quest เดี่ยวๆ นี้ยังไม่มี "ห้อง" (ต้องกดสร้างก่อน) ----
@@ -52,7 +55,9 @@ class QuestCardModel {
     this.detail = '',
     this.imageKey,
     this.xpReward = 0,
-    this.co2SavedKg = 0,
+    this.co2eEstimateKg,
+    this.impactCategory = '',
+    this.impactMetric = '',
     this.difficulty = '',
     this.impact = '',
     this.questCategory = '',
@@ -84,8 +89,10 @@ class QuestCardModel {
       detail: json['detail'] ?? '',
       imageKey: json['imageKey'],
       xpReward: json['xpReward'] ?? 0,
-      // Mongo อาจส่งมาเป็น int ถ้าค่าเป็นจำนวนเต็มพอดี เลยต้องแปลงเป็น double เอง
-      co2SavedKg: (json['co2SavedKg'] ?? 0).toDouble(),
+      // Mongo อาจส่งมาเป็น int ถ้าค่าเป็นจำนวนเต็มพอดี เลยต้องแปลงเป็น double เอง (null คงเป็น null)
+      co2eEstimateKg: (json['co2eEstimateKg'] as num?)?.toDouble(),
+      impactCategory: json['impactCategory'] ?? '',
+      impactMetric: json['impactMetric'] ?? '',
       difficulty: json['difficulty'] ?? '',
       impact: json['impact'] ?? '',
       questCategory: json['category'] ?? '',

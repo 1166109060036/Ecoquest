@@ -105,19 +105,21 @@ class ProfileStats {
   // จำนวนครั้งที่ทำเควสสำเร็จทั้งหมด (นับรวมเควสซ้ำ เช่นเควสรายวันที่ทำคนละวันด้วย ไม่ dedupe
   // ตาม questId) — ไม่มี "/ ทั้งหมด" แล้วเพราะเควสรายวันทำซ้ำได้ไม่จำกัด ไม่มี "ทั้งหมด" ที่ตายตัวจริงๆ
   final int questCompleted;
-  final double co2SavedKg;
+  // ยอดรวม kgCO2e โดยประมาณ — backend ตัดเพดานต่อวันของเควสที่นับผลกระทบซ้ำกันให้แล้ว
+  // (ดู OVERLAP_DAILY_CAP_KG ใน backend/utils/profilePayload.js)
+  final double co2eEstimateKg;
   final int partiesJoined;
 
   ProfileStats({
     required this.questCompleted,
-    required this.co2SavedKg,
+    required this.co2eEstimateKg,
     required this.partiesJoined,
   });
 
   factory ProfileStats.fromJson(Map<String, dynamic> json) {
     return ProfileStats(
       questCompleted: json['questCompleted'] ?? 0,
-      co2SavedKg: (json['co2SavedKg'] ?? 0).toDouble(),
+      co2eEstimateKg: (json['co2eEstimateKg'] ?? 0).toDouble(),
       partiesJoined: json['partiesJoined'] ?? 0,
     );
   }

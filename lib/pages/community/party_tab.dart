@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../models/party_model.dart';
 import '../../providers/party_provider.dart';
 import '../../providers/quest_provider.dart';
+import '../../utils/co2_format.dart';
 import '../../utils/date_format.dart';
 import '../../utils/quest_completion.dart';
 import '../../widgets/breathing_icon.dart';
@@ -543,17 +544,14 @@ class _CompletedView extends StatelessWidget {
                         style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
                       ),
                       const SizedBox(height: 14),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: 8,
+                        runSpacing: 8,
                         children: [
                           _RewardChip(label: '+${quest.scorePoints} P', color: Colors.amber.shade800),
-                          const SizedBox(width: 8),
                           _RewardChip(label: '+${quest.xpReward} XP', color: Colors.green.shade700),
-                          const SizedBox(width: 8),
-                          _RewardChip(
-                            label: '${quest.co2SavedKg.toStringAsFixed(1)} kg CO₂',
-                            color: Colors.blue.shade700,
-                          ),
+                          _RewardChip(label: _impactChipLabel(quest), color: Colors.blue.shade700),
                         ],
                       ),
                     ],
@@ -680,16 +678,13 @@ class _EventCard extends StatelessWidget {
                 ],
                 const SizedBox(height: 14),
                 // ---- รางวัลที่จะได้ ----
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
                     _RewardChip(label: '+${quest.scorePoints} P', color: Colors.amber.shade800),
-                    const SizedBox(width: 8),
                     _RewardChip(label: '+${quest.xpReward} XP', color: Colors.green.shade700),
-                    const SizedBox(width: 8),
-                    _RewardChip(
-                      label: '${quest.co2SavedKg.toStringAsFixed(1)} kg CO₂',
-                      color: Colors.blue.shade700,
-                    ),
+                    _RewardChip(label: _impactChipLabel(quest), color: Colors.blue.shade700),
                   ],
                 ),
               ],
@@ -751,6 +746,14 @@ class _InfoLine extends StatelessWidget {
       ],
     );
   }
+}
+
+// เควสปาร์ตี้ตอนนี้ทั้ง 3 อันวัดเป็น CO2 ไม่ได้ (เก็บขยะ/ปลูกต้นไม้/รีไซเคิล — ดู CO2_RESEARCH.md)
+// เลยโชว์ประเภทผลกระทบแทนตัวเลข แต่ถ้ามีเควสใหม่ที่มีค่า CO2 ก็โชว์ค่าประมาณให้เอง
+String _impactChipLabel(PartyQuestModel quest) {
+  final co2 = quest.co2eEstimateKg;
+  if (co2 != null) return '${formatCo2e(co2)} CO₂e';
+  return quest.impactCategory.isNotEmpty ? quest.impactCategory : 'Eco impact';
 }
 
 class _RewardChip extends StatelessWidget {

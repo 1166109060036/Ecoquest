@@ -60,7 +60,9 @@ const toPartyPayload = async (party, userId) => {
           impact: quest.impact,
           scorePoints: quest.scorePoints,
           xpReward: quest.xpReward,
-          co2SavedKg: quest.co2SavedKg,
+          co2eEstimateKg: quest.co2eEstimateKg ?? null,
+          impactCategory: quest.impactCategory,
+          impactMetric: quest.impactMetric,
         }
       : null,
     members: validMembers

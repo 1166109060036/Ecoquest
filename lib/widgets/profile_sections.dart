@@ -8,6 +8,7 @@
 import 'package:flutter/material.dart';
 import '../models/profile_model.dart';
 import '../models/quest_history_model.dart';
+import '../utils/co2_format.dart';
 import '../utils/constants.dart';
 import '../utils/cosmetics.dart';
 import 'count_up_text.dart';
@@ -470,8 +471,8 @@ class StatsCard extends StatelessWidget {
                 StatItem(
                   icon: Icons.cloud_outlined,
                   iconColor: Colors.lightBlueAccent,
-                  value: '${stats.co2SavedKg.toStringAsFixed(1)} kgCO2e',
-                  label: 'CO2 Saved',
+                  value: '${formatCo2e(stats.co2eEstimateKg)} CO₂e',
+                  label: 'CO₂ Saved',
                 ),
                 StatItem(
                   icon: Icons.groups,

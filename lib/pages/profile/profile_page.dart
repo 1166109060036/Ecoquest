@@ -43,7 +43,7 @@ class ProfilePage extends StatelessWidget {
     final streakInfo = streak ??
         StreakInfo(count: 0, cycleLength: 30, milestones: const [], rewards: const {});
     final profileStats = stats ??
-        ProfileStats(questCompleted: 0, co2SavedKg: 0.0, partiesJoined: 0);
+        ProfileStats(questCompleted: 0, co2eEstimateKg: 0.0, partiesJoined: 0);
 
     return Scaffold(
       body: Stack(

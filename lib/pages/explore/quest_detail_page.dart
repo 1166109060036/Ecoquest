@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/quest_card_model.dart';
+import '../../utils/co2_format.dart';
 import '../../widgets/quest_card.dart';
 
 // หน้ารายละเอียด quest — เข้าโดยกดที่ตัวการ์ด quest (ปุ่ม Start บนการ์ดยังทำงานเหมือนเดิม)
@@ -328,28 +329,55 @@ class _RewardCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final co2 = quest.co2eEstimateKg;
+    final impactLevel = quest.impact.isEmpty
+        ? '-'
+        : quest.impact[0].toUpperCase() + quest.impact.substring(1);
+
     return _SectionCard(
       title: 'What you get',
-      child: Row(
+      child: Column(
         children: [
-          _RewardItem(
-            icon: Icons.stars_rounded,
-            color: Colors.amber.shade700,
-            value: '+${quest.pointsReward}',
-            label: 'Points',
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _RewardItem(
+                icon: Icons.stars_rounded,
+                color: Colors.amber.shade700,
+                value: '+${quest.pointsReward}',
+                label: 'Points',
+              ),
+              _RewardItem(
+                icon: Icons.trending_up_rounded,
+                color: Colors.green,
+                value: '+${quest.xpReward}',
+                label: 'XP',
+              ),
+              // วัดเป็น CO2 ไม่ได้ (เก็บขยะ/ปลูกต้นไม้/คัดแยกขยะ) → โชว์ระดับผลกระทบ + ประเภทผลกระทบแทน
+              // ไม่แสดงเลข CO2 ที่ไม่มีหลักฐานรองรับ
+              co2 != null
+                  ? _RewardItem(
+                      icon: Icons.cloud_outlined,
+                      color: Colors.lightBlue,
+                      value: formatCo2e(co2),
+                      label: 'CO₂e avoided',
+                    )
+                  : _RewardItem(
+                      icon: Icons.public_rounded,
+                      color: Colors.teal,
+                      value: impactLevel,
+                      label: quest.impactCategory.isNotEmpty ? quest.impactCategory : 'Impact',
+                    ),
+            ],
           ),
-          _RewardItem(
-            icon: Icons.trending_up_rounded,
-            color: Colors.green,
-            value: '+${quest.xpReward}',
-            label: 'XP',
-          ),
-          _RewardItem(
-            icon: Icons.cloud_outlined,
-            color: Colors.lightBlue,
-            value: '${quest.co2SavedKg.toStringAsFixed(1)} kg',
-            label: 'CO₂ saved',
-          ),
+          if (co2 != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              'CO₂e is an estimate based on Japan-wide averages',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 10.5, color: Colors.grey.shade500),
+            ),
+          ],
         ],
       ),
     );
@@ -383,7 +411,9 @@ class _RewardItem extends StatelessWidget {
           Text(value,
               style: const TextStyle(
                   fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87)),
-          Text(label, style: TextStyle(fontSize: 10.5, color: Colors.grey.shade600)),
+          Text(label,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 10.5, color: Colors.grey.shade600)),
         ],
       ),
     );
