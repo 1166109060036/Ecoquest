@@ -34,6 +34,10 @@ class InventoryCard extends StatelessWidget {
   // true เฉพาะของตกแต่งโปรไฟล์ที่ใส่อยู่ตอนนี้ — วาดขอบเขียว + เครื่องหมายถูกมุมบนขวาของ thumbnail
   // (ไอเทมทั่วไปไม่มีสถานะนี้ ค่าเริ่มต้น false เลยไม่กระทบการใช้งานเดิมที่จุดอื่น)
   final bool equipped;
+  // ปุ่มรองแบบขอบ (เช่น "Preview" ของตกแต่งในร้าน) — โชว์ใต้ปุ่มหลัก และโชว์ได้แม้ปุ่มหลักจะไม่มี
+  // (ของที่ซื้อแล้ว/แต้มไม่พอ ก็ยังกดดูตัวอย่างได้)
+  final String? secondaryActionLabel;
+  final VoidCallback? onSecondaryAction;
 
   const InventoryCard({
     super.key,
@@ -55,6 +59,8 @@ class InventoryCard extends StatelessWidget {
     this.actionColor = Colors.green,
     this.celebrate = false,
     this.equipped = false,
+    this.secondaryActionLabel,
+    this.onSecondaryAction,
   });
 
   // รูปจริงจะลอยอยู่บนพื้นโปร่งใสพร้อมเงา ส่วน "ไม่มีรูป" ถึงจะใช้กล่องสีอ่อนรอง icon ไว้
@@ -191,26 +197,52 @@ class InventoryCard extends StatelessWidget {
                   ],
                 ),
               ),
-              if (onAction != null) ...[
+              if (onAction != null || onSecondaryAction != null) ...[
                 const SizedBox(width: 8),
-                PressableScale(
-                  child: ElevatedButton(
-                    onPressed: actionBusy ? null : onAction,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: actionColor,
-                      foregroundColor: Colors.white,
-                      disabledBackgroundColor: Colors.grey.shade300,
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    ),
-                    child: actionBusy
-                        ? const SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                          )
-                        : Text(actionLabel ?? 'Use', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                // IntrinsicWidth + stretch = ปุ่มหลักกับปุ่มรองกว้างเท่ากัน (กว้างตามปุ่มที่ข้อความยาวกว่า)
+                IntrinsicWidth(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (onAction != null)
+                        PressableScale(
+                          child: ElevatedButton(
+                            onPressed: actionBusy ? null : onAction,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: actionColor,
+                              foregroundColor: Colors.white,
+                              disabledBackgroundColor: Colors.grey.shade300,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                            ),
+                            child: actionBusy
+                                ? const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                  )
+                                : Text(actionLabel ?? 'Use',
+                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                          ),
+                        ),
+                      if (onAction != null && onSecondaryAction != null) const SizedBox(height: 6),
+                      if (onSecondaryAction != null)
+                        PressableScale(
+                          child: OutlinedButton(
+                            onPressed: onSecondaryAction,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: actionColor,
+                              side: BorderSide(color: actionColor.withValues(alpha: 0.6), width: 1.4),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                            ),
+                            child: Text(secondaryActionLabel ?? 'Preview',
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ] else if (onTap != null)

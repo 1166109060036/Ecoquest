@@ -70,17 +70,17 @@ class InventoryItemModel {
       };
 
   // path รูปจริงของไอเทม ถ้ามี — ใช้แทน icon
-  // ⚠️ Eco Badge + ไอเทม Energy ทั้ง 4 เว้นชื่อไฟล์ไว้ล่วงหน้าแล้ว (ยังไม่มีไฟล์รูปจริง) — วางไฟล์ชื่อตรงกัน
-  // นี้ลงใน lib/utils/assets/items/ ได้เลยไม่ต้องแก้โค้ด/pubspec เพิ่ม (ประกาศเป็นโฟลเดอร์ไว้แล้ว) ระหว่างที่
-  // ยังไม่มีไฟล์ Image.errorBuilder ใน InventoryCard จะ fallback ไปโชว์ icon/accentColor ด้านบนแทนเอง
+  // ⚠️ Eco Badge ยังไม่มีไฟล์รูปจริง (เว้นชื่อไว้ล่วงหน้า) — ระหว่างนี้ Image.errorBuilder ใน InventoryCard จะ
+  // fallback ไปโชว์ icon/accentColor ด้านบนแทนเอง ชื่อไฟล์ Energy ไม่มีขีดล่าง (redenergy.png) ต้องสะกดให้ตรง
+  // กับไฟล์จริงเป๊ะ — Android แยกตัวพิมพ์/สะกดผิดนิดเดียวก็หารูปไม่เจอแล้วเงียบไปเป็น icon แทน
   String? get imageAsset => switch (itemType) {
         'camera' => 'lib/utils/assets/items/camera.png',
         'fridge' => 'lib/utils/assets/inventory/fridge.png',
         'eco_badge' => 'lib/utils/assets/items/eco_badge.png',
-        'red_energy' => 'lib/utils/assets/items/red_energy.png',
-        'blue_energy' => 'lib/utils/assets/items/blue_energy.png',
-        'green_energy' => 'lib/utils/assets/items/green_energy.png',
-        'super_energy' => 'lib/utils/assets/items/super_energy.png',
+        'red_energy' => 'lib/utils/assets/items/redenergy.png',
+        'blue_energy' => 'lib/utils/assets/items/blueenergy.png',
+        'green_energy' => 'lib/utils/assets/items/greenenergy.png',
+        'super_energy' => 'lib/utils/assets/items/superenergy.png',
         _ => null,
       };
 }

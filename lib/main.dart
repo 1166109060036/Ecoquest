@@ -23,6 +23,7 @@ void main() async {
   await AppPhotoStorage.init();
   // ต้องโหลดระดับเสียงที่เคยตั้งไว้ก่อนเริ่มเล่นเพลง ไม่งั้นจะดังสุดวูบนึงก่อนค่อยปรับลง
   await SoundService.instance.loadSavedVolumes();
+  SoundService.instance.attachLifecycle();
   // ไม่ await เพราะไม่ต้องรอเพลงพร้อมก่อนเปิดหน้าแรก (ยังไม่มีไฟล์เพลงจริงก็รอไม่มีทางจบ)
   SoundService.instance.playBackgroundMusic();
   runApp(const MyApp());

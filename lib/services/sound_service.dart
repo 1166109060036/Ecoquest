@@ -83,10 +83,44 @@ class SoundService {
   }
 
   Future<void> stopBackgroundMusic() async {
+    _pausedByLifecycle = false;
     try {
       await _music.stop();
     } catch (_) {
       // ไม่ได้เล่นอยู่แล้วก็ไม่เป็นไร
+    }
+  }
+
+  // เพลงตั้งเป็น mixWithOthers (ไม่ขอ audio focus) เลยไม่มีทางที่ Android จะหยุดเพลงให้เองตอนออกจากแอพ/
+  // ปิดจอ — ต้องดัก lifecycle เอง เรียกครั้งเดียวใน main() หลัง ensureInitialized
+  AppLifecycleListener? _lifecycle;
+  bool _pausedByLifecycle = false;
+
+  void attachLifecycle() {
+    _lifecycle ??= AppLifecycleListener(
+      onHide: _pauseForBackground,
+      onResume: _resumeFromBackground,
+    );
+  }
+
+  Future<void> _pauseForBackground() async {
+    try {
+      if (_music.state != PlayerState.playing) return;
+      await _music.pause();
+      _pausedByLifecycle = true;
+    } catch (e) {
+      debugPrint('SoundService: pause on background failed — $e');
+    }
+  }
+
+  // เล่นต่อเฉพาะกรณีที่ตัวเองเป็นคนหยุดไว้ — กันไปปลุกเพลงที่ตั้งใจ stop ไว้หรือเล่นไม่สำเร็จตั้งแต่แรก
+  Future<void> _resumeFromBackground() async {
+    if (!_pausedByLifecycle) return;
+    _pausedByLifecycle = false;
+    try {
+      await _music.resume();
+    } catch (e) {
+      debugPrint('SoundService: resume from background failed — $e');
     }
   }
 

@@ -1,14 +1,15 @@
 import 'dart:async';
+import 'dart:math';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'particle_burst.dart';
 
-// เรียกแทน ScaffoldMessenger.of(context).showSnackBar(SnackBar(...)) ทุกจุดในแอพ — โชว์เป็นฟองลอย
-// ขึ้นมาเบาๆ (สไตล์ liquid glass เดียวกับ LiquidGlassDialog) ค้างอยู่สักพักแล้ว "แตก" ไปเอง
-// (auto-dismiss) หรือกดที่ตัวฟองเพื่อแตกเองก่อนเวลาก็ได้
+// เรียกแทน ScaffoldMessenger.of(context).showSnackBar(SnackBar(...)) ทุกจุดในแอพ — โชว์เป็นฟองสบู่ใสๆ
+// เด้งพองขึ้นมาจากด้านล่าง ค่อยๆ ลอยขึ้น (ส่ายซ้ายขวา + ยืดหดนิดๆ เหมือนฟองจริง) แล้ว "แตก" ไปเองตรงตำแหน่ง
+// ที่ลอยไปถึง (auto-dismiss) หรือกดที่ตัวฟองเพื่อแตกเองก่อนเวลาก็ได้
 //
-// ดีไซน์: กระจกสีดำล้วนโปร่งใส (ไม่ไล่สี) ตัวหนังสือสีขาวตัดกันชัด ใช้ได้ทับพื้นหลังได้ทุกแบบ
-// (ทั้งหน้าสว่างอย่าง Explore/Inventory และหน้าเข้มอย่าง Settings/Profile)
+// ดีไซน์: ฟองใส ตรงกลางมืดลงนิดเดียว (พอให้ตัวหนังสือขาวอ่านออกบนหน้าสว่างอย่าง Explore/Inventory)
+// ขอบเป็นรุ้งจางๆ หมุนวนช้าๆ + แสงสะท้อน 2 จุด — จุดที่ทำให้ดูเป็น "ฟองสบู่" จริงๆ
 //
 // มีทีละฟองเดียวพอ — ถ้าเรียกซ้ำตอนฟองเก่ายังลอยอยู่ ฟองเก่าจะแตกเร็วขึ้นทันทีแล้วฟองใหม่ค่อยลอยขึ้นแทน
 // (กันฟองซ้อนกันเยอะๆ บนจอ)
@@ -65,14 +66,24 @@ class _BubbleToast extends StatefulWidget {
 }
 
 class _BubbleToastState extends State<_BubbleToast> with TickerProviderStateMixin {
-  // ลอยขึ้น + จางเข้ามาตอนโผล่ครั้งแรก
-  late final AnimationController _enterController =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 380));
-  late final Animation<double> _enter = CurvedAnimation(parent: _enterController, curve: Curves.easeOutCubic);
+  static const _riseDistance = 90.0;
+  static const _swayAmplitude = 6.0;
+  static const _popDuration = Duration(milliseconds: 200);
+  static const _burstDuration = Duration(milliseconds: 420);
 
-  // ขยายตัว + จางหายเร็วตอน "แตก" (เล่นคู่กับ ParticleBurstOverlay ด้านล่าง)
-  late final AnimationController _popController =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 240));
+  // เด้งพองขึ้นมาตอนโผล่ (easeOutBack ให้เกินนิดแล้วเด้งกลับ เหมือนฟองเพิ่งหลุดจากห่วงเป่า)
+  late final AnimationController _enterController =
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 520));
+  late final Animation<double> _enter = CurvedAnimation(parent: _enterController, curve: Curves.easeOutBack);
+
+  // ลอยขึ้นต่อเนื่องตลอดอายุฟอง — ความยาวเท่ากับ duration ที่ฟองค้างอยู่ ลอยได้ระยะเท่ากันทุกฟอง
+  late final AnimationController _floatController = AnimationController(vsync: this, duration: widget.duration);
+
+  // วนไม่หยุด ใช้ทั้งส่ายซ้ายขวา ยืดหดตัวฟอง และหมุนรุ้งที่ขอบ
+  late final AnimationController _wobbleController =
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 1600))..repeat();
+
+  late final AnimationController _popController = AnimationController(vsync: this, duration: _popDuration);
 
   Timer? _autoPopTimer;
   bool _popping = false;
@@ -82,23 +93,26 @@ class _BubbleToastState extends State<_BubbleToast> with TickerProviderStateMixi
     super.initState();
     widget.registerDismiss(_pop);
     _enterController.forward();
+    _floatController.forward();
     _autoPopTimer = Timer(widget.duration, _pop);
   }
 
   void _pop() {
-    if (_popping) return;
+    if (_popping || !mounted) return;
     setState(() => _popping = true);
     _autoPopTimer?.cancel();
+    // หยุดลอยไว้ตรงนั้นเลย ให้ละอองแตกออกจากตำแหน่งที่ฟองอยู่จริงตอนแตก
+    _floatController.stop();
     _popController.forward();
-    // รอทั้งฟองยุบ (popController) และอนุภาคแตกกระจาย (ParticleBurstOverlay) เล่นจบก่อนค่อยลบ
-    // overlay entry ทิ้ง — 320ms ครอบคลุมทั้งสองอย่าง (240ms/280ms ตามลำดับ) พอดี
-    Future.delayed(const Duration(milliseconds: 320), widget.onDismissed);
+    Future.delayed(_burstDuration, widget.onDismissed);
   }
 
   @override
   void dispose() {
     _autoPopTimer?.cancel();
     _enterController.dispose();
+    _floatController.dispose();
+    _wobbleController.dispose();
     _popController.dispose();
     super.dispose();
   }
@@ -107,116 +121,175 @@ class _BubbleToastState extends State<_BubbleToast> with TickerProviderStateMixi
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.of(context).padding.bottom + 24;
 
-    return Stack(
-      children: [
-        // กล่องขอบเขตแยกไว้ให้ ParticleBurstOverlay เต็มพอดี (ตัวมันเองขอพื้นที่แบบ Size.infinite
-        // ต้องมีกรอบจำกัดชัดเจนให้เกาะ ไม่ปล่อยลอยอิสระในกล่องเดียวกับตัวฟองที่มีขนาดตามเนื้อหา)
-        if (_popping)
-          Positioned(
-            left: 24,
-            right: 24,
-            bottom: bottomPadding - 40,
-            height: 160,
-            child: IgnorePointer(
-              child: ParticleBurstOverlay(
-                particleCount: 12,
-                color: Colors.lightBlueAccent,
-                duration: const Duration(milliseconds: 280),
-              ),
-            ),
-          ),
-        Positioned(
-          left: 24,
-          right: 24,
-          bottom: bottomPadding,
-          child: AnimatedBuilder(
-            animation: Listenable.merge([_enterController, _popController]),
-            builder: (context, child) {
-              final enter = _enter.value;
-              final popT = _popController.value;
-              final scale = (0.85 + 0.15 * enter) * (1 + 0.3 * popT);
-              final opacity = (enter * (1 - popT)).clamp(0.0, 1.0);
-              final translateY = 20 * (1 - enter);
+    return Positioned(
+      left: 24,
+      right: 24,
+      bottom: bottomPadding,
+      child: AnimatedBuilder(
+        animation: Listenable.merge([_enterController, _floatController, _wobbleController, _popController]),
+        builder: (context, _) {
+          final enter = _enter.value;
+          final popT = _popController.value;
+          final wave = sin(_wobbleController.value * 2 * pi);
 
-              return Opacity(
-                opacity: opacity,
-                child: Transform.translate(
-                  offset: Offset(0, translateY),
-                  child: Transform.scale(scale: scale, child: child),
-                ),
-              );
-            },
+          final rise = _riseDistance * Curves.easeOutSine.transform(_floatController.value);
+          final sway = _swayAmplitude * sin(_floatController.value * 2.4 * pi);
+          // ยืดแนวนอน-หดแนวตั้งสลับกัน (ปริมาตรคงที่) = ดูเป็นผิวฟองที่บางและนิ่ม
+          final jiggle = 0.018 * wave * (1 - popT);
+          final grow = (0.55 + 0.45 * enter) * (1 + 0.18 * popT);
+          final opacity = (_enterController.value * (1 - popT)).clamp(0.0, 1.0);
+
+          return Transform.translate(
+            offset: Offset(sway, -rise),
             child: Center(
-              child: GestureDetector(
-                onTap: _pop,
-                child: _BubbleBody(message: widget.message),
+              child: Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.center,
+                children: [
+                  Opacity(
+                    opacity: opacity,
+                    child: Transform(
+                      alignment: Alignment.center,
+                      transform: Matrix4.diagonal3Values(grow * (1 + jiggle), grow * (1 - jiggle), 1),
+                      child: GestureDetector(
+                        onTap: _pop,
+                        child: _BubbleBody(
+                          message: widget.message,
+                          shimmer: _wobbleController.value,
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (_popping)
+                    Positioned(
+                      left: -40,
+                      right: -40,
+                      top: -70,
+                      bottom: -70,
+                      child: IgnorePointer(
+                        child: ParticleBurstOverlay(
+                          particleCount: 16,
+                          color: const Color(0xFFD8F4FF),
+                          duration: _burstDuration,
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
-          ),
-        ),
-      ],
+          );
+        },
+      ),
     );
   }
 }
 
 class _BubbleBody extends StatelessWidget {
-  final String message;
+  static const _radius = 32.0;
 
-  const _BubbleBody({required this.message});
+  final String message;
+  final double shimmer;
+
+  const _BubbleBody({required this.message, required this.shimmer});
 
   @override
   Widget build(BuildContext context) {
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 420),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(_radius),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(30),
-              // กระจกสีดำล้วนโปร่งใส ไม่ไล่สี — มองทะลุเห็นพื้นหลังจริงของหน้าจอ (liquid glass)
-              color: Colors.black.withValues(alpha: 0.42),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.22), width: 1.4),
-              boxShadow: [
-                BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 22, offset: const Offset(0, 10)),
-              ],
-            ),
-            child: Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.centerLeft,
-              children: [
-                // แสงสะท้อนมุมบนซ้าย จำลองผิวโค้งมันวาวของฟองสบู่ — จุดสำคัญที่ทำให้ดูเป็น "ฟอง" จริงๆ
-                Positioned(
-                  left: 6,
-                  top: -2,
-                  child: Container(
-                    width: 34,
-                    height: 14,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      gradient: LinearGradient(
-                        colors: [Colors.white.withValues(alpha: 0.5), Colors.white.withValues(alpha: 0.0)],
-                      ),
-                    ),
-                  ),
+          filter: ImageFilter.blur(sigmaX: 7, sigmaY: 7),
+          child: CustomPaint(
+            foregroundPainter: _BubbleSheenPainter(shimmer: shimmer, radius: _radius),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 15),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(_radius),
+                // ตรงกลางมืดนิดเดียวให้ตัวหนังสืออ่านออก ขอบใสเกือบหมด = ผิวฟองบางๆ ที่มองทะลุได้
+                gradient: RadialGradient(
+                  radius: 1.4,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.26),
+                    Colors.black.withValues(alpha: 0.10),
+                    Colors.white.withValues(alpha: 0.06),
+                  ],
+                  stops: const [0.0, 0.65, 1.0],
                 ),
-                Text(
-                  message,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w600,
-                    decoration: TextDecoration.none,
-                  ),
+              ),
+              child: Text(
+                message,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                  decoration: TextDecoration.none,
+                  shadows: [
+                    Shadow(color: Colors.black.withValues(alpha: 0.55), blurRadius: 6),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
       ),
     );
   }
+}
+
+// วาดทับหน้าตัวฟอง: ขอบรุ้ง (หมุนวนตาม shimmer) + แสงสะท้อนโค้งมุมบนซ้าย + จุดประกายเล็กมุมล่างขวา
+class _BubbleSheenPainter extends CustomPainter {
+  final double shimmer;
+  final double radius;
+
+  _BubbleSheenPainter({required this.shimmer, required this.radius});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final rrect = RRect.fromRectAndRadius(rect.deflate(0.9), Radius.circular(radius));
+
+    final rim = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.8
+      ..shader = SweepGradient(
+        transform: GradientRotation(shimmer * 2 * pi),
+        colors: [
+          const Color(0xFFFF9EDB).withValues(alpha: 0.75),
+          const Color(0xFF9EE8FF).withValues(alpha: 0.75),
+          const Color(0xFFFFF3A6).withValues(alpha: 0.65),
+          const Color(0xFFC6B3FF).withValues(alpha: 0.75),
+          const Color(0xFFFF9EDB).withValues(alpha: 0.75),
+        ],
+      ).createShader(rect);
+    canvas.drawRRect(rrect, rim);
+
+    // ขอบในสีขาวบางๆ ให้ผิวฟองดูมีความหนา
+    canvas.drawRRect(
+      rrect.deflate(2.2),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1
+        ..color = Colors.white.withValues(alpha: 0.18),
+    );
+
+    final highlight = Rect.fromLTWH(radius * 0.45, size.height * 0.12, min(64, size.width * 0.3), 9);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(highlight, const Radius.circular(8)),
+      Paint()
+        ..shader = LinearGradient(
+          colors: [Colors.white.withValues(alpha: 0.7), Colors.white.withValues(alpha: 0.0)],
+        ).createShader(highlight),
+    );
+
+    canvas.drawCircle(
+      Offset(size.width - radius * 0.6, size.height * 0.74),
+      2.6,
+      Paint()..color = Colors.white.withValues(alpha: 0.6),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _BubbleSheenPainter oldDelegate) => oldDelegate.shimmer != shimmer;
 }

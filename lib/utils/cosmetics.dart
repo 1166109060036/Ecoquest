@@ -10,6 +10,14 @@ import 'package:flutter/material.dart';
 
 enum CosmeticSlot { frame, nameStyle, background, effect }
 
+// ชื่อหมวดที่โชว์ผู้ใช้ — ใช้ทั้งหน้า Custom Profile และแท็บ Decorations ในหน้า Shop ให้เรียกเหมือนกัน
+String cosmeticSlotLabel(CosmeticSlot slot) => switch (slot) {
+  CosmeticSlot.frame => 'Avatar Frame',
+  CosmeticSlot.nameStyle => 'Name Style',
+  CosmeticSlot.background => 'Profile Background',
+  CosmeticSlot.effect => 'Ambient Effect',
+};
+
 // ต้องตรงกับรูปแบบที่ AmbientOverlay รองรับ (lib/widgets/falling_leaves_overlay.dart)
 enum AmbientEffectType { leaves, snow, rain, ember }
 

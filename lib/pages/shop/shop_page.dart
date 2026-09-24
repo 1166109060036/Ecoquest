@@ -4,8 +4,10 @@ import '../../models/inventory_item_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/inventory_provider.dart';
 import '../../services/sound_service.dart';
+import '../../utils/cosmetics.dart';
 import '../../widgets/breathing_icon.dart';
 import '../../widgets/bubble_toast.dart';
+import '../../widgets/cosmetic_preview_sheet.dart';
 import '../../widgets/inventory_card.dart';
 import '../../widgets/leaf_refresh_indicator.dart';
 import '../../widgets/skeleton_box.dart';
@@ -128,6 +130,14 @@ class _ShopPageState extends State<ShopPage> with SingleTickerProviderStateMixin
                     onBuy: (item) => _buyItem(context, item),
                     onRefresh: () => _onRefresh(context),
                     emptyMessage: 'No decorations available right now',
+                    groupBySlot: true,
+                    onPreview: (item) => showCosmeticPreview(
+                      context,
+                      item: item,
+                      owned: item.quantity > 0,
+                      canAfford: points >= (item.cost ?? 0),
+                      onBuy: () => _buyItem(context, item),
+                    ),
                   ),
                 ],
               ),
@@ -148,6 +158,10 @@ class _ShopList extends StatelessWidget {
   final ValueChanged<InventoryItemModel> onBuy;
   final Future<void> Function() onRefresh;
   final String emptyMessage;
+  // true = แบ่งหัวข้อตามหมวดของตกแต่ง (กรอบ/สีชื่อ/พื้นหลัง/เอฟเฟกต์) เรียงตาม CosmeticSlot.values
+  final bool groupBySlot;
+  // มีค่า = ทุกการ์ดมีปุ่ม Preview (ของตกแต่งเท่านั้น)
+  final ValueChanged<InventoryItemModel>? onPreview;
 
   const _ShopList({
     required this.items,
@@ -157,7 +171,22 @@ class _ShopList extends StatelessWidget {
     required this.onBuy,
     required this.onRefresh,
     required this.emptyMessage,
+    this.groupBySlot = false,
+    this.onPreview,
   });
+
+  // ผสมหัวข้อหมวด (String) กับการ์ดไอเทมไว้ในลิสต์เดียว แบบเดียวกับหน้า Custom Profile
+  List<Object> _buildRows() {
+    if (!groupBySlot) return items;
+    final rows = <Object>[];
+    for (final slot in CosmeticSlot.values) {
+      final slotItems = items.where((item) => item.slot == slot).toList();
+      if (slotItems.isEmpty) continue;
+      rows.add(cosmeticSlotLabel(slot));
+      rows.addAll(slotItems);
+    }
+    return rows;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -183,14 +212,26 @@ class _ShopList extends StatelessWidget {
       );
     }
 
+    final rows = _buildRows();
+
     return LeafRefreshIndicator(
       onRefresh: onRefresh,
       child: ListView.separated(
         padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-        itemCount: items.length,
+        itemCount: rows.length,
         separatorBuilder: (_, _) => const SizedBox(height: 14),
         itemBuilder: (context, index) {
-          final item = items[index];
+          final row = rows[index];
+          if (row is String) {
+            return Padding(
+              padding: EdgeInsets.only(top: index == 0 ? 8 : 12, bottom: 0),
+              child: Text(
+                row,
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 13, fontWeight: FontWeight.bold),
+              ),
+            );
+          }
+          final item = row as InventoryItemModel;
           // ของตกแต่งซื้อได้แค่ครั้งเดียว — มีอยู่แล้ว (quantity > 0) ไม่ต้องให้กดซื้อซ้ำอีก
           // (badge "x1" บน thumbnail ก็บอกอยู่แล้วว่ามีของชิ้นนี้ ใส่/ถอดไปกดที่หน้า Inventory แทน)
           final owned = item.isCosmetic && item.quantity > 0;
@@ -213,6 +254,8 @@ class _ShopList extends StatelessWidget {
               onAction: owned || !canAfford ? null : () => onBuy(item),
               actionBusy: inventoryProvider.busyItemType == item.itemType,
               celebrate: celebratingItemType == item.itemType,
+              secondaryActionLabel: onPreview != null ? 'Preview' : null,
+              onSecondaryAction: onPreview != null ? () => onPreview!(item) : null,
             ),
           );
         },

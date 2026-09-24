@@ -20,13 +20,6 @@ String _slotKey(CosmeticSlot slot) => switch (slot) {
   CosmeticSlot.effect => 'effect',
 };
 
-String _slotLabel(CosmeticSlot slot) => switch (slot) {
-  CosmeticSlot.frame => 'Avatar Frame',
-  CosmeticSlot.nameStyle => 'Name Style',
-  CosmeticSlot.background => 'Profile Background',
-  CosmeticSlot.effect => 'Ambient Effect',
-};
-
 // หน้าใส่/ถอดของตกแต่งโปรไฟล์ — เข้าจากปุ่ม "Custom Profile" ในหน้า Profile ของตัวเองเท่านั้น
 // (ย้ายมาจากหน้า Inventory เดิม เพราะของตกแต่งเป็นเรื่องของโปรไฟล์โดยตรง ไม่ใช่ไอเทมที่ "ใช้" แบบ
 // ไอเทม Energy) ซื้อของตกแต่งยังทำที่แท็บ Decorations ในหน้า Shop เหมือนเดิม — หน้านี้แค่ใส่/ถอด
@@ -100,7 +93,7 @@ class CustomizeProfilePage extends StatelessWidget {
         CosmeticSlot.effect => equippedCosmetics?.effect,
       };
 
-      listItems.add(_slotLabel(slot));
+      listItems.add(cosmeticSlotLabel(slot));
       for (final item in slotItems) {
         listItems.add(
           _CosmeticEntry(
