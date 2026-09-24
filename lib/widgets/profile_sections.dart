@@ -471,7 +471,7 @@ class StatsCard extends StatelessWidget {
                 StatItem(
                   icon: Icons.cloud_outlined,
                   iconColor: Colors.lightBlueAccent,
-                  value: '${formatCo2e(stats.co2eEstimateKg)} CO₂e',
+                  value: formatCo2e(stats.co2eEstimateKg),
                   label: 'CO₂ Saved',
                 ),
                 StatItem(

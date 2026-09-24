@@ -551,7 +551,7 @@ class _CompletedView extends StatelessWidget {
                         children: [
                           _RewardChip(label: '+${quest.scorePoints} P', color: Colors.amber.shade800),
                           _RewardChip(label: '+${quest.xpReward} XP', color: Colors.green.shade700),
-                          _RewardChip(label: _impactChipLabel(quest), color: Colors.blue.shade700),
+                          _RewardChip(label: formatCo2e(quest.co2eEstimateKg), color: Colors.blue.shade700),
                         ],
                       ),
                     ],
@@ -684,7 +684,7 @@ class _EventCard extends StatelessWidget {
                   children: [
                     _RewardChip(label: '+${quest.scorePoints} P', color: Colors.amber.shade800),
                     _RewardChip(label: '+${quest.xpReward} XP', color: Colors.green.shade700),
-                    _RewardChip(label: _impactChipLabel(quest), color: Colors.blue.shade700),
+                    _RewardChip(label: formatCo2e(quest.co2eEstimateKg), color: Colors.blue.shade700),
                   ],
                 ),
               ],
@@ -746,14 +746,6 @@ class _InfoLine extends StatelessWidget {
       ],
     );
   }
-}
-
-// เควสปาร์ตี้ตอนนี้ทั้ง 3 อันวัดเป็น CO2 ไม่ได้ (เก็บขยะ/ปลูกต้นไม้/รีไซเคิล — ดู CO2_RESEARCH.md)
-// เลยโชว์ประเภทผลกระทบแทนตัวเลข แต่ถ้ามีเควสใหม่ที่มีค่า CO2 ก็โชว์ค่าประมาณให้เอง
-String _impactChipLabel(PartyQuestModel quest) {
-  final co2 = quest.co2eEstimateKg;
-  if (co2 != null) return '${formatCo2e(co2)} CO₂e';
-  return quest.impactCategory.isNotEmpty ? quest.impactCategory : 'Eco impact';
 }
 
 class _RewardChip extends StatelessWidget {

@@ -63,8 +63,7 @@ class PartyQuestModel {
   final String impact;
   final int scorePoints;
   final int xpReward;
-  final double? co2eEstimateKg; // null = วัดเป็น CO2 ไม่ได้ (เช่น เก็บขยะ/ปลูกต้นไม้) โชว์ impactCategory แทน
-  final String impactCategory;
+  final double? co2eEstimateKg; // null = วัดเป็น CO2 ไม่ได้ (เช่น เก็บขยะ/ปลูกต้นไม้) แสดง/นับเป็น 0
 
   PartyQuestModel({
     required this.id,
@@ -78,7 +77,6 @@ class PartyQuestModel {
     required this.scorePoints,
     required this.xpReward,
     this.co2eEstimateKg,
-    this.impactCategory = '',
   });
 
   String? get coverImageAsset =>
@@ -97,7 +95,6 @@ class PartyQuestModel {
       scorePoints: json['scorePoints'] ?? 0,
       xpReward: json['xpReward'] ?? 0,
       co2eEstimateKg: (json['co2eEstimateKg'] as num?)?.toDouble(),
-      impactCategory: json['impactCategory'] ?? '',
     );
   }
 }

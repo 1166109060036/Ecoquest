@@ -1,7 +1,4 @@
-// ค่า kgCO2e ในแอพเป็น "ค่าประมาณ" เสมอ (ที่มาดู CO2_RESEARCH.md) — ใส่ "≈" ทุกครั้ง และต่ำกว่า 1 kg
-// แสดงเป็นกรัม (เดิมใช้ toStringAsFixed(1) ทำให้ค่าเล็กๆ แบบ 0.04 kg โชว์เป็น "0.0 kg")
-String formatCo2e(double kg) {
-  if (kg <= 0) return '0 g';
-  if (kg < 1) return '≈ ${(kg * 1000).round()} g';
-  return '≈ ${kg.toStringAsFixed(2)} kg';
-}
+// แสดงค่า CO2 เป็นตัวเลข + หน่วย kgCO2e เท่านั้นทุกจุดในแอพ ให้ตรงกับยอดรวมในหน้า Profile ที่บวกจากค่าเดียวกัน
+// ทศนิยม 2 ตำแหน่งเพราะค่าเล็กสุดของเควสคือ 0.01 (1 ตำแหน่งเดิมทำให้ 0.04 โชว์เป็น 0.0)
+// null = เควสที่วัดเป็น CO2 ไม่ได้อย่างมีหลักฐาน (ดู CO2_RESEARCH.md) นับเป็น 0 เหมือนตอนรวมยอดใน backend
+String formatCo2e(double? kg) => '${(kg ?? 0).toStringAsFixed(2)} kgCO2e';
