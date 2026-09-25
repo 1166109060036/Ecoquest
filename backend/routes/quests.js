@@ -11,23 +11,11 @@ const { syncAchievements } = require('../utils/achievements');
 const { notifyQuestCompleted, notifyStreakMilestone } = require('../utils/notifications');
 const { getUserBonuses, applyBonuses, BASE_VISIBLE_QUESTS } = require('../utils/upgrades');
 const { withEnergyBoosts } = require('../utils/inventory');
-const { startOfToday, todayKey } = require('../utils/questDay');
+const { startOfToday } = require('../utils/questDay');
 const { applyDailyQuestCompletion } = require('../utils/streak');
-const crypto = require('crypto');
+const { selectVisibleQuests } = require('../utils/questSelection');
 
 const router = express.Router();
-
-// เลือก quest 1 อันจากกลุ่มสุ่มแบบ "สุ่มแต่คงที่"
-//
-// ทำไมต้องคงที่: ถ้าสุ่มใหม่ทุกครั้งที่เรียก API ผู้ใช้จะดึงรีเฟรชรัวๆ จนได้อันที่คะแนนสูงสุด
-// และลิสต์จะเปลี่ยนไปมาต่อหน้าต่อตาซึ่งดูเหมือนแอพพัง
-// เลยใช้ hash ของ (userId + วันที่ + ชื่อกลุ่ม) เป็นตัวเลือก -> คนละคนได้คนละอัน,
-// คนเดิมได้อันเดิมทั้งวัน, พอข้ามเที่ยงคืนถึงจะเปลี่ยน
-const pickFromPool = (pool, userId, poolName) => {
-  const seed = `${userId}-${todayKey()}-${poolName}`;
-  const hash = crypto.createHash('sha256').update(seed).digest();
-  return pool[hash.readUInt32BE(0) % pool.length];
-};
 
 // แปลง quest template + bonus ของ user เป็น payload ที่ส่งให้แอพ — ใช้ร่วมกันทั้ง GET / และ
 // GET /progress เพื่อให้ scorePoints/xpReward ที่โชว์ผ่าน applyBonuses ตรงกันเป๊ะทั้ง 2 หน้า
@@ -71,25 +59,6 @@ router.get('/', authMiddleware, async (req, res) => {
   try {
     const allQuests = await Quest.find({ isActive: true }).sort({ sortOrder: 1, createdAt: 1 });
 
-    // แยก quest ที่อยู่กลุ่มสุ่มออกมา แล้วเอาแค่กลุ่มละ 1 อัน
-    const pools = new Map();
-    const quests = [];
-    for (const q of allQuests) {
-      if (!q.randomPool) {
-        quests.push(q);
-        continue;
-      }
-      if (!pools.has(q.randomPool)) pools.set(q.randomPool, []);
-      pools.get(q.randomPool).push(q);
-    }
-    for (const [poolName, poolQuests] of pools) {
-      quests.push(pickFromPool(poolQuests, req.userId, poolName));
-    }
-
-    // upgrade "Quest Unlock" จำกัดจำนวน solo quest ที่เห็นได้ (เริ่มต้น 4 อัน + 1 ต่อระดับ)
-    // ห้ามจำกัด party quest เด็ดขาด เพราะหน้าสร้างห้องปาร์ตี้เลือกเควสจากลิสต์นี้เหมือนกัน
-    // ถ้าโดนตัดไปด้วยจะสร้างห้องไม่ได้เลย — เรียงตามลำดับเดิม (createdAt) ก่อนตัด ให้ผลคงที่
-    //
     // ดึงมาแค่ 3 ฟิลด์ boost expiry ก็พอ ไม่ใช่ user ทั้งก้อน (กัน avatarData Buffer ด้วยในตัว
     // เพราะไม่ได้ select มันมา) — ใส่ withEnergyBoosts ตรงนี้เพื่อให้การ์ดเควสโชว์ตัวเลขหลังคูณบัฟ
     // Energy ที่ยังไม่หมดอายุด้วย ไม่งั้นการ์ดโชว์ตัวเลขนึง แต่กดทำจริงได้อีกตัวเลข ดูเหมือนบั๊ก
@@ -97,13 +66,9 @@ router.get('/', authMiddleware, async (req, res) => {
       'redEnergyExpiresAt blueEnergyExpiresAt greenEnergyExpiresAt'
     );
     const bonuses = withEnergyBoosts(await getUserBonuses(req.userId), boostUser);
+    // upgrade "Quest Unlock" เพิ่มจำนวน solo quest ที่เห็นได้ — วิธีสุ่ม/ปักหมุดดู utils/questSelection.js
     const soloLimit = BASE_VISIBLE_QUESTS + bonuses.questSlots;
-    let soloSeen = 0;
-    const visibleQuests = quests.filter((q) => {
-      if (q.type !== 'solo') return true;
-      soloSeen++;
-      return soloSeen <= soloLimit;
-    });
+    const visibleQuests = selectVisibleQuests(allQuests, req.userId, soloLimit);
 
     // ดึงประวัติของวันนี้ + เควสที่กำลัง Start ค้างอยู่มาทีเดียว แล้วค่อย map (ไม่ query ทีละ quest)
     const [todayHistory, progressRows] = await Promise.all([
@@ -197,7 +162,7 @@ router.get('/progress', authMiddleware, async (req, res) => {
     const bonuses = withEnergyBoosts(await getUserBonuses(req.userId), boostUser);
 
     res.json({
-      // ⚠️ จงใจไม่ใช้ pickFromPool และไม่จำกัดด้วย BASE_VISIBLE_QUESTS/questSlots แบบ GET / —
+      // ⚠️ จงใจไม่ใช้ selectVisibleQuests (สุ่มรายวัน + จำกัดจำนวน) แบบ GET / —
       // เควสที่ start ไปแล้วต้องโผล่ในหน้านี้เสมอ ไม่ว่าจะโดนสุ่มไม่ติดหรือโดนลิมิตตัดในวันถัดไป
       // ไม่งั้นผู้ใช้จะค้างเควสที่ทำต่อไม่ได้เลย
       progress: activeRows.map((p) =>

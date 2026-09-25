@@ -252,7 +252,14 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
   - **มี quest ใช้งานได้ 15 อัน** ครอบ 5 หมวด (food_waste / recycling / plastic / **energy** / community)
     seed มาจาก `Quest_list.md` ที่เจ้าของโปรเจคเขียนไว้ — แก้/เพิ่มได้ที่ `backend/scripts/seedQuests.js` แล้วรัน `npm run seed:quests`
     (สคริปต์เป็น upsert อิง `title` — รันซ้ำได้ไม่สร้างของซ้ำ แต่**ลบ quest ออกจากไฟล์แล้วจะไม่ลบออกจาก DB** ต้องลบเองใน DB หรือตั้ง `isActive: false`)
-  - 🎲 **ระบบกลุ่มสุ่ม (`Quest.randomPool`)** — quest ที่อยู่กลุ่มเดียวกันจะโผล่แค่ **วันละ 1 อัน**
+  - 🎲 **เควสใน Explore สุ่มใหม่ทุกวัน** (`backend/utils/questSelection.js`) — เควส `alwaysVisible: true`
+    (ตอนนี้คือ Check Your Food & Expiration Dates) อยู่บนสุดทุกวัน, เควส solo ที่เหลือสุ่มลำดับใหม่ทุกวันด้วย
+    hash ของ `(userId + วันที่ + questId)` แล้วตัดตามโควต้า (`BASE_VISIBLE_QUESTS` 4 + Quest Unlock — เควส pinned
+    นับเป็น 1 ในโควต้า), party quest โชว์ครบเสมอ — คงที่ทั้งวัน/คนละคนได้คนละชุด/ข้ามเที่ยงคืนเวลาญี่ปุ่นได้ชุดใหม่
+    ซื้อ Quest Unlock ระหว่างวันได้เควสเพิ่มต่อท้าย ของเดิมไม่หาย แต้มเฉลี่ยผู้เล่นใหม่ (4 เควส) ~46 P/วัน
+    (จำลอง 3,000 คน) — หน้า Progress ไม่ผ่านการสุ่มนี้ เควสที่ Start ค้างไว้โผล่เสมอแม้วันถัดไปสุ่มไม่ติด
+  - 🎲 **ระบบกลุ่มสุ่ม (`Quest.randomPool`)** — quest ที่อยู่กลุ่มเดียวกันจะโผล่แค่ **วันละ 1 อัน** (เลือกก่อน แล้ว
+    อันที่ได้ค่อยเข้าไปสุ่มรวมกับเควส solo อื่นตามข้อบน)
     ตอนนี้มีกลุ่มเดียวคือ `food_saver` (Food Saver 1 Day / 3 Days / 7 Days) — **ไม่ได้ใช้ระบบนับ streak**
     - เลือกด้วย hash ของ `(userId + วันที่ + ชื่อกลุ่ม)` → **สุ่มแต่คงที่**: คนเดิมได้อันเดิมทั้งวัน
       ดึงรีเฟรชกี่ครั้งก็ไม่เปลี่ยน (กันรีเฟรชรัวๆ จนได้อันคะแนนสูงสุด) ข้ามเที่ยงคืนถึงสุ่มใหม่
@@ -383,7 +390,8 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
     - **Red Energy** (40P) — 2x Points จากทุกเควส นาน 30 นาที
     - **Blue Energy** (40P) — 2x XP จากทุกเควส นาน 30 นาที
     - **Green Energy** (40P) — 2x Points จากเควส Party เท่านั้น นาน 30 นาที
-    - **Super Energy** (~~100P~~ **70P** — ลดราคาหลังทดสอบ balance ดู `BALANCE_REPORT.md`) —
+    - **Super Energy** (~~100P~~ ~~70P~~ **150P** — ตั้งใจให้เป็นไอเทมกลาง-ปลายเกม คุมด้วยราคาอย่างเดียว ไม่ล็อก
+      เลเวล คืนทุนเมื่อเห็นเควส ≥13 อัน ดู `BALANCE_REPORT.md`) —
       ลบประวัติเควสที่ทำวันนี้ทั้งหมด (`QuestHistory` ที่ `completedAt >= startOfToday()`)
       ทำให้ `completedToday`/gate เควสรายวันกลับมาทำได้อีกรอบทันที — แต้ม/XP ที่ได้ไปแล้วไม่ถูกหักคืน
       ⚠️ ลบ `QuestHistory` จริง แต่**ไม่แตะ `User.totalQuestsCompleted`** (ยอด Quest Completed ในหน้า
@@ -435,8 +443,10 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
 - **ร้าน Upgrade Ability ใช้งานได้จริงแล้ว** — การ์ด "Upgrade your Ability" ในหน้า Profile ซื้อได้จริง
   ผ่าน `GET /api/upgrades` + `POST /api/upgrades/:upgradeType/buy` ขาย 4 ตัว: Point Booster, XP Booster,
   Party Bonus Points (แต่ละระดับ **+5%**, สูงสุด **10 ระดับ** = +50% รวม, สะสม 1,520 P ถึง max),
-  Quest Unlock (แต่ละระดับ **+1 เควส**, สูงสุด **10 ระดับ** เพราะหลังหักกลุ่มสุ่ม `food_saver` มี
-  solo quest ให้เห็นจริงแค่ 16 อัน และ `BASE_VISIBLE_QUESTS` ตั้งต้น 6 อัน → 6+10=16 พอดี)
+  Quest Unlock (แต่ละระดับ **+1 เควส**, สูงสุด **12 ระดับ**, ราคา**ทบต้น ×1.5 ต่อเลเวล** (`costGrowth`) 20 → 1,730
+  สะสม 5,151 P — Booster ยังเป็น +20% ของ baseCost ต่อเลเวล เพราะหลังหักกลุ่มสุ่ม `food_saver` มี
+  solo quest ให้เห็นจริงแค่ 16 อัน และ `BASE_VISIBLE_QUESTS` ตั้งต้น 4 อัน → 4+12=16 พอดี — maxLevel ต้องเท่ากับ
+  16 - BASE_VISIBLE_QUESTS เสมอ แก้อันหนึ่งต้องแก้อีกอันด้วย)
   ⚠️ **เดิมเป็น 1%/ระดับ สูงสุด 50 ระดับ** แต่เควสส่วนใหญ่ราคา 10 P ทำให้ 4 เลเวลแรกโดนปัดเศษทิ้ง
   ไม่เห็นผลอะไรเลย (`Math.round(10 * 1.04) = 10`) — ปรับเป็น 5%/ระดับ max 10 หลังทดสอบ balance
   (เพดานรวมเท่าเดิม +50% แต่ใช้แต้มน้อยลงและเห็นผลตั้งแต่เลเวลแรก ดู `BALANCE_REPORT.md`)
@@ -681,9 +691,10 @@ template ปัจจุบันเสมอ แก้ตัวเลขใน 
 - ⚠️ **`scripts/seedQuests.js` เป็น upsert อิง `title`** (`Quest.findOneAndUpdate({title}, {...q}, {upsert:true})`)
   — **แก้ลำดับ object ใน array `QUESTS` ของไฟล์นี้ไม่มีผลกับเควสที่มีอยู่แล้วใน DB เลย** เพราะลำดับที่แอพ
   โชว์จริงมาจาก `Quest.sortOrder` (+ `createdAt` เป็น tie-breaker) ไม่ใช่ตำแหน่งในไฟล์/`createdAt` ที่
-  `findOneAndUpdate` ไม่ไปแตะของเดิม — จะคุมว่าเควสไหนโผล่ก่อน (สำคัญมากกับ `BASE_VISIBLE_QUESTS` เพราะ
-  กำหนดว่าผู้เล่นใหม่เห็นเควสอะไรบ้าง) ต้องแก้ที่ฟิลด์ `sortOrder` ของแต่ละ quest object ตรงๆ เท่านั้น
-  (เจอตอนทำ Game Balance รอบแรก — ดู `BALANCE_REPORT.md`)
+  `findOneAndUpdate` ไม่ไปแตะของเดิม — ต้องแก้ที่ฟิลด์ `sortOrder` ของแต่ละ quest object ตรงๆ เท่านั้น
+  (เจอตอนทำ Game Balance รอบแรก — ดู `BALANCE_REPORT.md`) ⚠️ ตอนนี้ `sortOrder` คุมแค่ลำดับเควส
+  `alwaysVisible` กับ party quest แล้ว เควส solo ทั่วไปสุ่มลำดับรายวัน (`utils/questSelection.js`) — จะให้เควสไหน
+  โผล่ทุกวันแน่ๆ ต้องตั้ง `alwaysVisible: true` แทน
 
 ## 6.5 Deploy backend (ให้แอพใช้ได้โดยไม่ต้องเปิดคอม)
 

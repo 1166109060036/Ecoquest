@@ -19,9 +19,9 @@ const User = require('../models/User');
 // ⚠️ maxLevel ของ point_booster/xp_booster/party_bonus ลดจาก 50 เหลือ 10 (5%/level × 10 = +50%
 // เท่าเดิมกับตอน 1%/level × 50) — แค่ใช้แต้มน้อยลงในการไปถึงเพดานเดิม (1,520 P แทน 5,900 P)
 //
-// ⚠️ quest_unlock ลดจาก maxLevel 14 เหลือ 10 เพราะ BASE_VISIBLE_QUESTS ปรับเป็น 6 แล้ว และหลัง
-// หักกลุ่มสุ่ม food_saver (3 เควสเหลือโชว์แค่ 1) ทั้งระบบมี solo quest ให้เห็นจริงแค่ 16 อัน
-// (18 อันในไฟล์ seed - 2 ที่โดนกลุ่มสุ่มซ่อน) → 6 + 10 = 16 พอดี ไม่มีเลเวลไหนซื้อแล้วไม่ได้อะไรเพิ่ม
+// ⚠️ quest_unlock maxLevel = 16 - BASE_VISIBLE_QUESTS เสมอ — หลังหักกลุ่มสุ่ม food_saver (3 เควสเหลือ
+// โชว์แค่ 1) ทั้งระบบมี solo quest ให้เห็นจริง 16 อัน (18 อันในไฟล์ seed - 2) → 4 + 12 = 16 พอดี ปลดได้ครบทุก
+// อันและไม่มีเลเวลไหนซื้อแล้วไม่ได้อะไรเพิ่ม (แก้ BASE_VISIBLE_QUESTS เมื่อไหร่ต้องแก้ maxLevel ตามด้วย)
 const UPGRADES = [
   {
     upgradeType: 'point_booster',
@@ -52,22 +52,28 @@ const UPGRADES = [
     title: 'Quest Unlock',
     description: 'Reveal 1 more quest in Explore per level.',
     baseCost: 20,
-    maxLevel: 10,
+    maxLevel: 12,
+    // ราคาทบต้น ×1.5 ต่อเลเวล (20, 30, 45, 68, ... 1,730 รวม 5,151 P) แทนสูตร +20% ของ baseCost แบบ
+    // booster — ผู้ใช้ตัดสินใจให้แพงขึ้นเพื่อยืดช่วงต้นเกม: สายเร็วสุดปลดครบ 16 เควสราววันที่ 36 และถึง 13 เควส
+    // (จุดคืนทุนของ Super Energy 150 P) ราววันที่ 14 แทนวันที่ 4 — ดู BALANCE_REPORT.md
+    costGrowth: 1.5,
   },
 ];
 
-// ผู้เล่นใหม่เห็น 6 เควส solo ตั้งต้น (เดิม 4) — 6 เควสแรก (sortOrder 1-6 ใน seedQuests.js) คละราคา
-// 10/10/10/15/10/15 = 70 P/วัน ให้เนื้อหาวันแรกมากพอจะเข้าใจแอพ ไม่ใช่ตันที่ 40 P ล้วนราคาถูกสุด
-const BASE_VISIBLE_QUESTS = 6;
+// ผู้เล่นใหม่เห็น 4 เควส solo ตั้งต้น = Check Your Food & Expiration Dates (ปักหมุด) + สุ่มอีก 3 อันทุกวัน
+// (utils/questSelection.js) แล้วปลดเพิ่มทีละ 1 ด้วย Quest Unlock — ผู้ใช้ตัดสินใจลดจาก 6 ให้การอัปเกรดมี
+// ความหมายมากขึ้น (ผลต่อแต้มเฉลี่ยต่อวันดู BALANCE_REPORT.md)
+const BASE_VISIBLE_QUESTS = 4;
 
 const findUpgrade = (upgradeType) => UPGRADES.find((u) => u.upgradeType === upgradeType);
 
 // ราคาของ "ระดับถัดไป" ที่กำลังจะซื้อ (currentLevel = ระดับที่มีอยู่ตอนนี้)
-// แต่ละระดับเพิ่มราคาอีก 20% ของ baseCost
-// เช่น baseCost 20 (quest_unlock): ระดับ 1 = 20, ระดับ 5 = 36, ระดับ 10 = 56 (สะสม 380 P)
-// baseCost 80 (point/xp/party booster): ระดับ 1 = 80, ระดับ 10 = 224 (สะสม 1,520 P)
+// - มี costGrowth (quest_unlock): ทบต้น baseCost × costGrowth^currentLevel — 20, 30, 45, ... 1,730 (สะสม 5,151 P)
+// - ไม่มี (point/xp/party booster): แต่ละระดับเพิ่มอีก 20% ของ baseCost — 80 ... 224 (สะสม 1,520 P)
 const costForNextLevel = (upgrade, currentLevel) =>
-  Math.round(upgrade.baseCost * (1 + 0.2 * currentLevel));
+  upgrade.costGrowth
+    ? Math.round(upgrade.baseCost * Math.pow(upgrade.costGrowth, currentLevel))
+    : Math.round(upgrade.baseCost * (1 + 0.2 * currentLevel));
 
 // แปลงแถว UserUpgrade ที่ query มาแล้วให้เป็นก้อนโบนัสพร้อมใช้
 // pctPerLevel คูณเข้ากับ level ตรงนี้ที่เดียว — ค่าที่เก็บใน UserUpgrade.level ยังเป็น "จำนวนเลเวล

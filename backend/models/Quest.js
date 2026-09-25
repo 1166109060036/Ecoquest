@@ -126,14 +126,18 @@ const QuestSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
-    // ลำดับที่เควสนี้โชว์ในหน้า Explore (เลขน้อยขึ้นก่อน) — ตัวเลขน้อยกว่า BASE_VISIBLE_QUESTS
-    // (utils/upgrades.js) คือกลุ่มเควสที่ผู้เล่นใหม่ level 1 เห็นตั้งแต่วันแรก ต้องคุมตรงนี้ชัดๆ
-    // เพราะ createdAt เพียงอย่างเดียวคุมไม่ได้ (แก้ลำดับใน seedQuests.js ไม่มีผลกับเควสที่มีอยู่แล้ว
-    // ใน DB เนื่องจาก findOneAndUpdate ไม่แตะ createdAt ของ document เดิม)
+    // ลำดับของเควสที่ไม่ได้สุ่ม (เควส alwaysVisible และ party quest) — เควส solo ทั่วไปสุ่มลำดับใหม่ทุกวัน
+    // ไม่ขึ้นกับค่านี้แล้ว (ดู utils/questSelection.js) ต้องคุมตรงนี้แทน createdAt เพราะแก้ลำดับใน
+    // seedQuests.js ไม่มีผลกับเควสที่มีอยู่แล้วใน DB (findOneAndUpdate ไม่แตะ createdAt ของ document เดิม)
     sortOrder: {
       type: Number,
       default: 0,
       index: true,
+    },
+    // true = โชว์ใน Explore ทุกวัน อยู่บนสุด ไม่เข้าการสุ่มรายวัน (ยังนับเป็นหนึ่งในโควต้าเควสที่เห็นได้)
+    alwaysVisible: {
+      type: Boolean,
+      default: false,
     },
   },
   { timestamps: true }
