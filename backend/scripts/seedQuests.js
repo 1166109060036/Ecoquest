@@ -28,7 +28,7 @@ const QUESTS = [
     detail:
       'Open your fridge and record what is inside along with each expiration date. ' +
       'Knowing what needs to be eaten first is the simplest way to stop good food from being thrown away.',
-    imageKey: 'checkfridge',
+    imageKey: 'checkfridge.jpg',
     category: 'food_waste',
     type: 'solo',
     difficulty: 'easy',
@@ -49,7 +49,7 @@ const QUESTS = [
     detail:
       'Eat everything on your plate today. Taking only what you can finish is the easiest habit '
       + 'that keeps food out of the bin.',
-    imageKey: 'finishyourmeal',
+    imageKey: 'finishyourmeal.jpg',
     category: 'food_waste',
     type: 'solo',
     difficulty: 'easy',
@@ -68,7 +68,7 @@ const QUESTS = [
     detail:
       'Cook a meal using ingredients that were about to go bad. '
       + 'Leftovers become a new dish instead of waste.',
-    imageKey: 'useleftoveringredients',
+    imageKey: 'useleftoveringredients.jpg',
     category: 'food_waste',
     type: 'solo',
     difficulty: 'easy',
@@ -84,6 +84,7 @@ const QUESTS = [
   // ------------------------------------------------------------------ recycling
   {
     title: 'Sort Waste Correctly',
+    imageKey: 'sortwastecorrectly.jpg',
     sortOrder: 2,
     description: 'Recycling Quest',
     detail:
@@ -156,6 +157,7 @@ const QUESTS = [
   },
   {
     title: 'Bring Your Own Shopping Bag',
+    imageKey: 'bringyourownshopingbag.jpg',
     sortOrder: 11,
     description: 'Plastic Reduction Quest',
     detail: 'Take your own bag to the shop and refuse the plastic one at the counter.',
@@ -172,6 +174,7 @@ const QUESTS = [
   },
   {
     title: 'Buy Refill Products',
+    imageKey: 'buyrefillproduct.jpg',
     sortOrder: 12,
     description: 'Plastic Reduction Quest',
     detail:
@@ -227,6 +230,7 @@ const QUESTS = [
   },
   {
     title: 'Use Reusable Food Containers',
+    imageKey: 'UseReusableFoodContainers.jpg',
     sortOrder: 4,
     description: 'Plastic Reduction Quest',
     detail:
@@ -244,6 +248,7 @@ const QUESTS = [
   },
   {
     title: 'Avoid Single-Use Plastic for One Day',
+    imageKey: 'AvoidSingle-UsePlasticforOneDay.jpg',
     sortOrder: 6,
     description: 'Plastic Reduction Quest',
     detail:
@@ -280,6 +285,7 @@ const QUESTS = [
   },
   {
     title: 'Unplug Unused Devices',
+    imageKey: 'UnplugUnusedDevices.jpg',
     sortOrder: 15,
     description: 'Energy Saving Quest',
     detail:
@@ -327,7 +333,7 @@ const QUESTS = [
     description: 'Food Waste Quest',
     detail: 'Commit to keeping your food waste at zero for the next 3 days.',
     // ใช้รูปเดียวกับ Finish Your Meal ตามที่ผู้ใช้ระบุ (ยังไม่มีรูปแยกของตัวเองในโฟลเดอร์ questimg)
-    imageKey: 'finishyourmeal',
+    imageKey: 'finishyourmeal.jpg',
     category: 'food_waste',
     type: 'solo',
     difficulty: 'medium',
@@ -346,7 +352,7 @@ const QUESTS = [
     description: 'Food Waste Quest',
     detail: 'Commit to keeping your food waste at zero for a full week.',
     // ใช้รูปเดียวกับ Finish Your Meal ตามที่ผู้ใช้ระบุ (ยังไม่มีรูปแยกของตัวเองในโฟลเดอร์ questimg)
-    imageKey: 'finishyourmeal',
+    imageKey: 'finishyourmeal.jpg',
     category: 'food_waste',
     type: 'solo',
     difficulty: 'hard',

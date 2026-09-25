@@ -1,6 +1,7 @@
 // ปาร์ตี้ = "ห้อง" ที่ผู้เล่นกดสร้างขึ้นจาก party quest ที่มีอยู่แล้ว (เหมือนห้องในเกม)
 // ข้อมูลจริงจาก GET /api/party (ห้องของฉัน) และ GET /api/party/rooms (ลิสต์ห้องให้เข้าร่วม)
 import '../utils/constants.dart';
+import '../utils/quest_image.dart';
 import 'cosmetics_model.dart';
 import 'quest_card_model.dart' show QuestReward;
 
@@ -80,7 +81,7 @@ class PartyQuestModel {
   });
 
   String? get coverImageAsset =>
-      imageKey == null ? null : 'lib/utils/assets/questimg/$imageKey.png';
+      questCoverAsset(imageKey);
 
   factory PartyQuestModel.fromJson(Map<String, dynamic> json) {
     return PartyQuestModel(
@@ -228,7 +229,7 @@ class PartyRoomQuestModel {
   });
 
   String? get coverImageAsset =>
-      imageKey == null ? null : 'lib/utils/assets/questimg/$imageKey.png';
+      questCoverAsset(imageKey);
 
   factory PartyRoomQuestModel.fromJson(Map<String, dynamic> json) {
     return PartyRoomQuestModel(

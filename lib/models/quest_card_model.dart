@@ -1,5 +1,6 @@
 // Model สำหรับแสดง Quest card ในหน้า Home/Explore
 import 'achievement_model.dart';
+import '../utils/quest_image.dart';
 
 enum QuestCardCategory { solo, party, event }
 
@@ -20,7 +21,7 @@ class QuestCardModel {
 
   // ---- ใช้เฉพาะในหน้ารายละเอียด quest ----
   final String detail; // ข้อความอธิบายยาวในกล่อง "Quest Detail"
-  final String? imageKey; // ชื่อไฟล์รูปปก (ไม่รวมนามสกุล) ในโฟลเดอร์ questimg
+  final String? imageKey; // ชื่อไฟล์รูปปกในโฟลเดอร์ questimg (มีนามสกุลหรือไม่ก็ได้ ดู questCoverAsset)
   final int xpReward;
   // ค่าประมาณ kgCO2e ต่อการทำ 1 ครั้ง — null = วัดเป็น CO2 ไม่ได้ แสดง/นับเป็น 0 (ดู formatCo2e)
   final double? co2eEstimateKg;
@@ -37,7 +38,7 @@ class QuestCardModel {
 
   // path รูปปกจริง — null ถ้า quest นั้นยังไม่มีรูป
   String? get coverImageAsset =>
-      imageKey == null ? null : 'lib/utils/assets/questimg/$imageKey.png';
+      questCoverAsset(imageKey);
 
   QuestCardModel({
     required this.id,

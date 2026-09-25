@@ -17,8 +17,9 @@ const QuestSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
-    // key ของรูปปก — ฝั่งแอพจะไปหาไฟล์ lib/utils/assets/questimg/<imageKey>.png เอง
-    // (เก็บเป็น key ไม่ใช่ path เต็ม เพราะ backend ไม่ควรรู้โครงสร้างโฟลเดอร์ของแอพ)
+    // ชื่อไฟล์รูปปกในโฟลเดอร์ lib/utils/assets/questimg/ ของแอพ — ใส่นามสกุลได้ (เช่น 'checkfridge.jpg')
+    // ไม่ใส่ถือเป็น .png (ดู questCoverAsset ใน lib/utils/quest_image.dart) ต้องตรงตัวพิมพ์เล็ก-ใหญ่เป๊ะ
+    // (เก็บเป็นชื่อไฟล์ไม่ใช่ path เต็ม เพราะ backend ไม่ควรรู้โครงสร้างโฟลเดอร์ของแอพ)
     imageKey: {
       type: String,
       default: null,
