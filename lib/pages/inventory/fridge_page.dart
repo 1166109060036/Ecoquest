@@ -4,9 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/fridge_item_model.dart';
+import '../../models/quest_card_model.dart';
 import '../../utils/constants.dart';
+import '../../utils/quest_completion.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/fridge_provider.dart';
+import '../../providers/quest_provider.dart';
 import '../../services/app_photo_storage.dart';
 import '../../widgets/bubble_toast.dart';
 import '../../widgets/inventory_card.dart';
@@ -20,15 +25,60 @@ import '../../widgets/staggered_fade_in.dart';
 //      -> ทางนี้เท่านั้นที่มีปุ่ม Add Item **และปุ่ม Remove ที่เห็นชัดๆ บนการ์ดแต่ละใบ**
 //      เพราะการบันทึก/แก้ไขของที่นี่ *คือ* ตัว Mini Quest จริงๆ ควรแก้ของผิดๆ ที่เคยบันทึกไว้ได้ด้วย
 //
-// กด Save แค่บันทึกของเฉยๆ ไม่จบ quest ให้อัตโนมัติ — ต้องไปกด Complete ที่หน้า Progress เอง
-// (backend เช็คอยู่ว่าต้องมีของที่บันทึกวันนี้จริงถึงจะกด Complete ผ่าน)
+// กด Save แค่บันทึกของ ไม่จบ quest ให้อัตโนมัติ — แต่เปิดผ่านเควส (มี quest) จะถามต่อทันทีว่าจะ Complete
+// เลยไหม ไม่ต้องย้อนไปหน้า Progress เอง (backend ยังเช็คอยู่ว่าต้องมีของที่บันทึกวันนี้จริงถึงจะผ่าน)
 const IconData _foodFallbackIcon = Icons.restaurant;
+
+// ทางเข้าหน้าตู้เย็นของเควส Check Your Food & Expiration Dates (actionKey 'fridge_check') — ใช้ทั้งหน้า
+// Explore และแผ่น Explore ในหน้า Home หลังกด Start สำเร็จ ครั้งแรกโชว์วิธีทำก่อน เพราะเควสนี้เป็นเควสแรกที่
+// ทุกคนเห็นแต่ไม่มีอะไรบอกว่าต้องบันทึกของในตู้เย็นก่อน — จำว่าเห็นแล้ว "แยกต่อ userId" เพราะผู้ทดสอบคนถัดไปที่
+// กด Start New Guest Account บนเครื่องเดียวกันต้องเห็นคำแนะนำนี้อีกครั้ง
+Future<void> openFridgeQuest(BuildContext context, QuestCardModel quest) async {
+  final userId = context.read<AuthProvider>().user?.id ?? 'unknown';
+  final seenKey = 'seen_fridge_quest_intro_$userId';
+  var seen = false;
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    seen = prefs.getBool(seenKey) ?? false;
+    if (!seen) await prefs.setBool(seenKey, true);
+  } catch (_) {
+    // อ่าน/เขียนค่าไม่ได้ก็แค่โชว์คำแนะนำซ้ำ ไม่ใช่เรื่องใหญ่
+  }
+  if (!context.mounted) return;
+
+  if (!seen) {
+    await LiquidGlassDialog.show<void>(
+      context: context,
+      icon: const Icon(Icons.kitchen_rounded, color: Colors.greenAccent, size: 30),
+      title: 'How this quest works',
+      content: const Text(
+        '1. Tap "Add Item" and record the food in your fridge with its expiration date\n'
+        '2. Tap "Save" at the top right\n'
+        '3. Complete the quest — that\'s it!',
+        style: LiquidGlassDialog.messageStyle,
+      ),
+      actions: [
+        LiquidGlassAction(label: 'Got it', color: Colors.green, onPressed: () => Navigator.pop(context)),
+      ],
+    );
+    if (!context.mounted) return;
+  }
+
+  // forQuest: true เพื่อให้โชว์ปุ่ม Add Item — ทางเข้านี้คือการทำเควสจริงๆ
+  // (เข้าจากหน้า Inventory จะใช้ named route '/fridge' ซึ่ง forQuest = false ดูอย่างเดียว)
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (_) => FridgePage(forQuest: true, quest: quest)),
+  );
+}
 
 class FridgePage extends StatefulWidget {
   // true = เปิดผ่านเควส (โชว์ปุ่ม Add Item ได้) / false = เปิดจากหน้า Inventory (ดูอย่างเดียว)
   final bool forQuest;
+  // เควสที่เปิดหน้านี้มา — มีค่า = หลัง Save ถามว่าจะ Complete เควสเลยไหม
+  final QuestCardModel? quest;
 
-  const FridgePage({super.key, this.forQuest = false});
+  const FridgePage({super.key, this.forQuest = false, this.quest});
 
   @override
   State<FridgePage> createState() => _FridgePageState();
@@ -65,9 +115,9 @@ class _FridgePageState extends State<FridgePage> {
     );
   }
 
-  // Save ของที่กรอกไว้เฉยๆ — ไม่จบ quest ให้อัตโนมัติอีกต่อไป (เควสนี้ถูก start ไปแล้วตั้งแต่ตอน
-  // กด Start ที่หน้า Explore/Home ก่อนเด้งมาที่นี่ — ต้องไปกด Complete ที่หน้า Progress เอง
-  // เหมือนเควสอื่นทุกใบ, backend ยังเช็คอยู่ว่าต้องมีของที่บันทึกวันนี้จริงถึงจะกด Complete ผ่าน)
+  // Save ของที่กรอกไว้ — ไม่จบ quest ให้อัตโนมัติ (เควสนี้ถูก start ไปแล้วตั้งแต่ตอนกด Start ที่หน้า
+  // Explore/Home ก่อนเด้งมาที่นี่) แต่ถ้าเปิดผ่านเควส จะถามต่อทันทีว่าจะ Complete เลยไหม — ผู้ใช้ยังเป็นคน
+  // กดยืนยันเองเหมือนเควสอื่นทุกใบ แค่ไม่ต้องย้อนไปหาหน้า Progress เอง
   Future<void> _saveFridgeItems() async {
     final fridgeProvider = context.read<FridgeProvider>();
 
@@ -80,10 +130,48 @@ class _FridgePageState extends State<FridgePage> {
     }
 
     HapticFeedback.mediumImpact();
-    showBubbleToast(
-      context,
-      widget.forQuest ? 'Fridge items saved — complete the quest on the Progress page' : 'Fridge items saved',
+
+    final quest = widget.quest;
+    if (!widget.forQuest || quest == null) {
+      showBubbleToast(context, 'Fridge items saved');
+      return;
+    }
+
+    final completeNow = await LiquidGlassDialog.show<bool>(
+      context: context,
+      icon: const Icon(Icons.check_circle_rounded, color: Colors.greenAccent, size: 30),
+      title: 'Fridge saved!',
+      content: const Text(
+        'Your quest is ready to complete.',
+        textAlign: TextAlign.center,
+        style: LiquidGlassDialog.messageStyle,
+      ),
+      actions: [
+        LiquidGlassAction(label: 'Later', onPressed: () => Navigator.pop(context, false)),
+        LiquidGlassAction(
+          label: 'Complete quest',
+          color: Colors.green,
+          onPressed: () => Navigator.pop(context, true),
+        ),
+      ],
     );
+    if (!mounted) return;
+    if (completeNow != true) {
+      showBubbleToast(context, 'You can complete the quest later on the Progress page');
+      return;
+    }
+
+    final questProvider = context.read<QuestProvider>();
+    final reward = await questProvider.completeQuest(quest.id);
+    if (!mounted) return;
+    if (reward == null) {
+      showBubbleToast(context, questProvider.errorMessage ?? 'Failed to complete quest');
+      return;
+    }
+
+    // ฉลองรางวัลบนหน้านี้ก่อน (context ต้องยัง mounted ให้ dialog เหรียญ/เลเวลอัพเด้งได้) แล้วค่อยปิดหน้าตู้เย็น
+    await handleQuestCompleted(context, reward);
+    if (mounted) Navigator.pop(context);
   }
 
   Future<void> _confirmDelete(FridgeItemModel item) async {

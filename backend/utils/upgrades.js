@@ -19,8 +19,9 @@ const User = require('../models/User');
 // ⚠️ maxLevel ของ point_booster/xp_booster/party_bonus ลดจาก 50 เหลือ 10 (5%/level × 10 = +50%
 // เท่าเดิมกับตอน 1%/level × 50) — แค่ใช้แต้มน้อยลงในการไปถึงเพดานเดิม (1,520 P แทน 5,900 P)
 //
-// ⚠️ quest_unlock maxLevel = 16 - BASE_VISIBLE_QUESTS เสมอ — หลังหักกลุ่มสุ่ม food_saver (3 เควสเหลือ
-// โชว์แค่ 1) ทั้งระบบมี solo quest ให้เห็นจริง 16 อัน (18 อันในไฟล์ seed - 2) → 4 + 12 = 16 พอดี ปลดได้ครบทุก
+// ⚠️ quest_unlock maxLevel = (จำนวน solo quest ที่เห็นได้จริง) - BASE_VISIBLE_QUESTS เสมอ — หลังหักกลุ่มสุ่ม
+// food_saver (3 เควสเหลือโชว์แค่ 1) และเควสที่ปิดใช้ (Refill Your Water Bottle รวมเข้า Use a Reusable Bottle แล้ว)
+// เหลือ solo quest ให้เห็นจริง 15 อัน (18 อันในไฟล์ seed - 2 กลุ่มสุ่ม - 1 ปิดใช้) → 4 + 11 = 15 พอดี ปลดได้ครบทุก
 // อันและไม่มีเลเวลไหนซื้อแล้วไม่ได้อะไรเพิ่ม (แก้ BASE_VISIBLE_QUESTS เมื่อไหร่ต้องแก้ maxLevel ตามด้วย)
 const UPGRADES = [
   {
@@ -52,9 +53,9 @@ const UPGRADES = [
     title: 'Quest Unlock',
     description: 'Reveal 1 more quest in Explore per level.',
     baseCost: 20,
-    maxLevel: 12,
-    // ราคาทบต้น ×1.5 ต่อเลเวล (20, 30, 45, 68, ... 1,730 รวม 5,151 P) แทนสูตร +20% ของ baseCost แบบ
-    // booster — ผู้ใช้ตัดสินใจให้แพงขึ้นเพื่อยืดช่วงต้นเกม: สายเร็วสุดปลดครบ 16 เควสราววันที่ 36 และถึง 13 เควส
+    maxLevel: 11,
+    // ราคาทบต้น ×1.5 ต่อเลเวล (20, 30, 45, 68, ... 1,153 รวม 3,421 P) แทนสูตร +20% ของ baseCost แบบ
+    // booster — ผู้ใช้ตัดสินใจให้แพงขึ้นเพื่อยืดช่วงต้นเกม: สายเร็วสุดปลดครบ 15 เควสราววันที่ 26 และถึง 13 เควส
     // (จุดคืนทุนของ Super Energy 150 P) ราววันที่ 14 แทนวันที่ 4 — ดู BALANCE_REPORT.md
     costGrowth: 1.5,
   },
@@ -68,7 +69,7 @@ const BASE_VISIBLE_QUESTS = 4;
 const findUpgrade = (upgradeType) => UPGRADES.find((u) => u.upgradeType === upgradeType);
 
 // ราคาของ "ระดับถัดไป" ที่กำลังจะซื้อ (currentLevel = ระดับที่มีอยู่ตอนนี้)
-// - มี costGrowth (quest_unlock): ทบต้น baseCost × costGrowth^currentLevel — 20, 30, 45, ... 1,730 (สะสม 5,151 P)
+// - มี costGrowth (quest_unlock): ทบต้น baseCost × costGrowth^currentLevel — 20, 30, 45, ... 1,153 (สะสม 3,421 P)
 // - ไม่มี (point/xp/party booster): แต่ละระดับเพิ่มอีก 20% ของ baseCost — 80 ... 224 (สะสม 1,520 P)
 const costForNextLevel = (upgrade, currentLevel) =>
   upgrade.costGrowth

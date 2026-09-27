@@ -264,12 +264,7 @@ class _ExploreSheetState extends State<_ExploreSheet> {
 
     // quest ที่ต้องทำ action จริงก่อน — พาไปหน้านั้นต่อ (quest ถูก start ไปแล้วข้างบน)
     if (quest.actionKey == 'fridge_check') {
-      // forQuest: true เพื่อให้โชว์ปุ่ม Add Item — ทางเข้านี้คือการทำเควสจริงๆ
-      // (เข้าจากหน้า Inventory จะใช้ named route '/fridge' ซึ่ง forQuest = false ดูอย่างเดียว)
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const FridgePage(forQuest: true)),
-      );
+      await openFridgeQuest(context, quest);
       return;
     }
 

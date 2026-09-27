@@ -260,11 +260,29 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
     (จำลอง 3,000 คน) — หน้า Progress ไม่ผ่านการสุ่มนี้ เควสที่ Start ค้างไว้โผล่เสมอแม้วันถัดไปสุ่มไม่ติด
   - 🎲 **ระบบกลุ่มสุ่ม (`Quest.randomPool`)** — quest ที่อยู่กลุ่มเดียวกันจะโผล่แค่ **วันละ 1 อัน** (เลือกก่อน แล้ว
     อันที่ได้ค่อยเข้าไปสุ่มรวมกับเควส solo อื่นตามข้อบน)
-    ตอนนี้มีกลุ่มเดียวคือ `food_saver` (Food Saver 1 Day / 3 Days / 7 Days) — **ไม่ได้ใช้ระบบนับ streak**
+    ตอนนี้มีกลุ่มเดียวคือ `food_saver` (Food Saver 1 Day / 3 Days / 7 Days)
     - เลือกด้วย hash ของ `(userId + วันที่ + ชื่อกลุ่ม)` → **สุ่มแต่คงที่**: คนเดิมได้อันเดิมทั้งวัน
       ดึงรีเฟรชกี่ครั้งก็ไม่เปลี่ยน (กันรีเฟรชรัวๆ จนได้อันคะแนนสูงสุด) ข้ามเที่ยงคืนถึงสุ่มใหม่
     - ทดสอบแล้ว: คนละคนได้คนละอัน, เรียกซ้ำได้อันเดิม, กระจายตัว ≈33% เท่ากันทั้ง 3 อัน
     - เพิ่มกลุ่มใหม่ได้แค่ใส่ `randomPool: 'ชื่อกลุ่ม'` ให้ quest หลายอัน ไม่ต้องแก้โค้ด route
+  - 📅 **เควสหลายวัน (`Quest.durationDays` > 1 — Food Saver 3/7 Days)** — กด Start ครั้งเดียว แล้วกด "Check in" ใน
+    หน้า Progress วันละครั้ง (`POST /:id/complete` เดิม) จนครบ ได้แต้ม/XP ทั้งก้อนตอนวันสุดท้าย ลืมวันไหนนับใหม่เป็น
+    วันที่ 1 (ผู้ใช้ตัดสินใจ — เหมือน Daily Streak)
+    - ความคืบหน้าเก็บที่ `QuestProgress.daysDone` + `lastCheckInDay` — กันเช็คอินซ้ำวันเดียวกันจากตรงนี้ ไม่ใช่จาก
+      QuestHistory เพราะ Super Energy ลบแค่ QuestHistory ของวันนี้ (ถ้าเช็คจาก QuestHistory จะเช็คอินซ้ำได้)
+    - เช็คอินระหว่างทางเขียน QuestHistory `checkIn: true` แต้ม 0 — ให้ gate รายวัน / CO₂ (ค่ารวม ÷ durationDays ต่อแถว)
+      / Daily Streak นับวันนั้นได้ ⚠️ **ต้องกรอง `checkIn: { $ne: true }` ทุกที่ที่นับ "ทำเควสสำเร็จ"** (ประวัติ
+      `/history` + โปรไฟล์คนอื่น, เหรียญ `countByCategory`, backfill `totalQuestsCompleted`) เพิ่ม query ใหม่ต้องจำไว้
+    - response ของ complete มี `checkIn: {daysDone, durationDays, restarted, finished}` — แอพเช็ค
+      `QuestReward.isCheckInOnly` แล้วโชว์ toast "Day 2/7" แทน `handleQuestCompleted` (ไม่งั้นเด้ง "+0 points")
+    - ทดสอบ end-to-end กับ server จริง + MongoDB ชั่วคราวบนเครื่องแล้ว (ครบวัน/ซ้ำวัน/Super Energy/ลืมวัน/CO₂/เหรียญ)
+  - 🧊 **Check Your Food & Expiration Dates** (เควสแรกที่ทุกคนเห็น) — ครั้งแรกที่กด Start โชว์วิธีทำ 3 ขั้น
+    (`openFridgeQuest` ใน `lib/pages/inventory/fridge_page.dart` ใช้ทั้ง Explore และ Home, จำว่าเห็นแล้ว **แยกต่อ
+    userId** ให้ผู้ทดสอบคนถัดไปหลัง Start New Guest Account เห็นอีก) หลัง Save ในตู้เย็นถามว่าจะ Complete เลยไหม
+    และถ้ากด Complete ในหน้า Progress ก่อนบันทึกของ ได้ dialog ปุ่ม "Open Fridge" แทน toast
+  - 🔁 **Refill Your Water Bottle ปิดใช้แล้ว** (รวมเข้า Use a Reusable Bottle) — คงไว้ในไฟล์ seed พร้อม `isActive: false`
+    ห้ามลบ object ออก (seed upsert ด้วย title ลบออกเฉยๆ เควสใน DB ยังเปิดอยู่) / Buy Refill Products คงชื่อเดิม
+    แต่ข้อความจำกัดเป็นรีฟิลของอื่นที่ไม่ใช่น้ำยาซักผ้า/ล้างจาน
   - ✅ `Community Cleanup` เปิดใช้งานแล้ว (เป็น party quest ตัวจริง) — ดูหัวข้อ "ระบบ Party" ด้านล่าง
     ถ้าเปิดตอนนี้จะกลายเป็นกดปุ่มรับ 30 แต้มฟรี
   - ✅ **ค่า `co2eEstimateKg` มีแหล่งอ้างอิงแล้ว** (ข้อมูลญี่ปุ่น — ดู `CO2_RESEARCH.md`) 6 เควสเป็น `null`
@@ -443,10 +461,10 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
 - **ร้าน Upgrade Ability ใช้งานได้จริงแล้ว** — การ์ด "Upgrade your Ability" ในหน้า Profile ซื้อได้จริง
   ผ่าน `GET /api/upgrades` + `POST /api/upgrades/:upgradeType/buy` ขาย 4 ตัว: Point Booster, XP Booster,
   Party Bonus Points (แต่ละระดับ **+5%**, สูงสุด **10 ระดับ** = +50% รวม, สะสม 1,520 P ถึง max),
-  Quest Unlock (แต่ละระดับ **+1 เควส**, สูงสุด **12 ระดับ**, ราคา**ทบต้น ×1.5 ต่อเลเวล** (`costGrowth`) 20 → 1,730
-  สะสม 5,151 P — Booster ยังเป็น +20% ของ baseCost ต่อเลเวล เพราะหลังหักกลุ่มสุ่ม `food_saver` มี
-  solo quest ให้เห็นจริงแค่ 16 อัน และ `BASE_VISIBLE_QUESTS` ตั้งต้น 4 อัน → 4+12=16 พอดี — maxLevel ต้องเท่ากับ
-  16 - BASE_VISIBLE_QUESTS เสมอ แก้อันหนึ่งต้องแก้อีกอันด้วย)
+  Quest Unlock (แต่ละระดับ **+1 เควส**, สูงสุด **11 ระดับ**, ราคา**ทบต้น ×1.5 ต่อเลเวล** (`costGrowth`) 20 → 1,153
+  สะสม 3,421 P — Booster ยังเป็น +20% ของ baseCost ต่อเลเวล เพราะหลังหักกลุ่มสุ่ม `food_saver` และเควสที่ปิดใช้
+  (Refill Your Water Bottle) มี solo quest ให้เห็นจริงแค่ 15 อัน และ `BASE_VISIBLE_QUESTS` ตั้งต้น 4 อัน → 4+11=15 พอดี
+  — maxLevel ต้องเท่ากับ (จำนวน solo quest ที่เห็นได้จริง) - BASE_VISIBLE_QUESTS เสมอ เพิ่ม/ปิดเควส solo ต้องแก้ตาม)
   ⚠️ **เดิมเป็น 1%/ระดับ สูงสุด 50 ระดับ** แต่เควสส่วนใหญ่ราคา 10 P ทำให้ 4 เลเวลแรกโดนปัดเศษทิ้ง
   ไม่เห็นผลอะไรเลย (`Math.round(10 * 1.04) = 10`) — ปรับเป็น 5%/ระดับ max 10 หลังทดสอบ balance
   (เพดานรวมเท่าเดิม +50% แต่ใช้แต้มน้อยลงและเห็นผลตั้งแต่เลเวลแรก ดู `BALANCE_REPORT.md`)

@@ -59,7 +59,8 @@ const countByCategory = async (userId) => {
   // ⚠️ aggregate ไม่ cast string -> ObjectId ให้อัตโนมัติเหมือน find() ต้องแปลงเอง
   //    ถ้าส่ง req.userId (string) เข้าไปตรงๆ จะ match ไม่เจอเลยและได้ 0 ทุกหมวดแบบเงียบๆ
   const rows = await QuestHistory.aggregate([
-    { $match: { userId: new mongoose.Types.ObjectId(String(userId)) } },
+    // แถวเช็คอินระหว่างทางของเควสหลายวันไม่นับ — เควส 7 วันนับเป็นทำสำเร็จ 1 ครั้งตอนจบเท่านั้น
+    { $match: { userId: new mongoose.Types.ObjectId(String(userId)), checkIn: { $ne: true } } },
     {
       $lookup: {
         from: 'quests',

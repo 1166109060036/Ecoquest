@@ -26,6 +26,12 @@ const QuestHistorySchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+    // true = เช็คอินระหว่างทางของเควสหลายวัน (ยังไม่ครบ ไม่ได้แต้ม) — มีไว้ให้ gate รายวัน/CO2/Daily Streak
+    // นับวันนั้นได้ แต่ห้ามนับเป็น "ทำเควสสำเร็จ" (ประวัติ, เหรียญ) — แถวของวันสุดท้ายที่ได้รางวัลเป็น false
+    checkIn: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );

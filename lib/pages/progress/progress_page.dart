@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/party_model.dart';
 import '../../models/quest_card_model.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/party_provider.dart';
 import '../../providers/quest_provider.dart';
 import '../../utils/quest_completion.dart';
 import '../../widgets/breathing_icon.dart';
 import '../../widgets/bubble_toast.dart';
+import '../../widgets/liquid_glass_dialog.dart';
+import '../inventory/fridge_page.dart';
 import '../../widgets/leaf_refresh_indicator.dart';
 import '../../widgets/quest_card.dart';
 import '../../widgets/skeleton_box.dart';
@@ -72,13 +75,55 @@ class _ProgressPageState extends State<ProgressPage> {
     if (!mounted) return;
 
     if (reward == null) {
-      showBubbleToast(context, questProvider.errorMessage ?? 'Failed to complete quest');
+      // เควสตู้เย็นที่ยังไม่ได้บันทึกของวันนี้ — แทนที่จะโชว์ toast เฉยๆ ให้มีทางไปหน้าตู้เย็นต่อได้เลย
+      final error = questProvider.errorMessage ?? '';
+      if (quest.actionKey == 'fridge_check' && error.toLowerCase().contains('fridge')) {
+        await _showFridgeFirstDialog(quest);
+        return;
+      }
+      showBubbleToast(context, error.isNotEmpty ? error : 'Failed to complete quest');
+      return;
+    }
+
+    // เควสหลายวันที่ยังไม่ครบ = แค่เช็คอิน ไม่ได้แต้ม — ห้ามเรียก handleQuestCompleted (จะเด้ง "+0 points")
+    if (reward.isCheckInOnly) {
+      final checkIn = reward.checkIn!;
+      showBubbleToast(
+        context,
+        checkIn.restarted
+            ? 'Missed a day — back to Day 1/${checkIn.durationDays}. See you tomorrow!'
+            : 'Day ${checkIn.daysDone}/${checkIn.durationDays} checked in — see you tomorrow!',
+      );
+      // เช็คอินนับ Daily Streak ด้วย — รีเฟรชโปรไฟล์ให้ตัวเลข streak ขยับ
+      context.read<AuthProvider>().refreshProfile();
       return;
     }
 
     // โชว์รางวัล + รีเฟรชโปรไฟล์/เหรียญ + เด้งแสดงความยินดีถ้าได้เหรียญใหม่ — เส้นทางเดียวกับ
     // ทุกที่ที่ทำ quest สำเร็จในแอพ
     await handleQuestCompleted(context, reward);
+  }
+
+  Future<void> _showFridgeFirstDialog(QuestCardModel quest) async {
+    final openFridge = await LiquidGlassDialog.show<bool>(
+      context: context,
+      icon: const Icon(Icons.kitchen_rounded, color: Colors.greenAccent, size: 30),
+      title: 'Add your fridge items first',
+      content: const Text(
+        'Save at least one item with its expiration date today, then complete the quest.',
+        textAlign: TextAlign.center,
+        style: LiquidGlassDialog.messageStyle,
+      ),
+      actions: [
+        LiquidGlassAction(label: 'Cancel', onPressed: () => Navigator.pop(context, false)),
+        LiquidGlassAction(label: 'Open Fridge', color: Colors.green, onPressed: () => Navigator.pop(context, true)),
+      ],
+    );
+    if (openFridge != true || !mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => FridgePage(forQuest: true, quest: quest)),
+    );
   }
 
   void _openMyParty() {

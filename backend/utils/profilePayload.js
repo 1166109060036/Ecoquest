@@ -35,7 +35,14 @@ const co2AndPartiesPipeline = (userId) => [
   {
     $project: {
       isParty: { $eq: ['$quest.type', 'party'] },
-      co2: { $ifNull: ['$quest.co2eEstimateKg', 0] },
+      // เควสหลายวัน: co2eEstimateKg เป็นค่ารวมทุกวัน ทุกแถว (เช็คอินระหว่างทาง + วันสุดท้าย) ได้ส่วนเฉลี่ยต่อวัน
+      // ครบทุกวัน = ค่าเต็มพอดี / เควสปกติ durationDays = 1 ได้เต็มเหมือนเดิม
+      co2: {
+        $divide: [
+          { $ifNull: ['$quest.co2eEstimateKg', 0] },
+          { $max: [{ $ifNull: ['$quest.durationDays', 1] }, 1] },
+        ],
+      },
       overlapGroup: '$quest.overlapGroup',
       day: { $dateToString: { format: '%Y-%m-%d', date: '$completedAt', timezone: questDayTimezone } },
     },
@@ -73,7 +80,7 @@ async function buildProfileStats(user) {
   // เพราะแถวใน QuestHistory ถูกลบได้ (เช่นตอนใช้ไอเทม Super Energy ลบของวันนี้ทิ้งเพื่อทำซ้ำ) —
   // ตัวเลขที่โชว์จริงต้องมาจาก user.totalQuestsCompleted ซึ่งสะสมตลอด ไม่มีทางลดลง
   const [liveHistoryCount, questAgg] = await Promise.all([
-    QuestHistory.countDocuments({ userId: user._id }),
+    QuestHistory.countDocuments({ userId: user._id, checkIn: { $ne: true } }),
     // partiesJoined + co2eEstimateKg ต้อง join ไปหา Quest เพราะข้อมูลอยู่ที่ template ของ quest
     // (ค่า CO2 อ่านจาก template ปัจจุบันเสมอ — แก้ตัวเลขใน seed แล้วยอดรวมย้อนหลังเปลี่ยนตามทันที)
     QuestHistory.aggregate(co2AndPartiesPipeline(user._id)),

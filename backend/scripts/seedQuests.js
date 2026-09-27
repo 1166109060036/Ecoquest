@@ -25,9 +25,12 @@ const QUESTS = [
     alwaysVisible: true,
     sortOrder: 7,
     description: 'Food Waste Quest',
+    // บอกวิธีทำให้ชัดในข้อความ — ผู้เล่นใหม่ไม่รู้ว่าต้องบันทึกของในตู้เย็นก่อนถึงจะจบเควสได้
     detail:
       'Open your fridge and record what is inside along with each expiration date. ' +
-      'Knowing what needs to be eaten first is the simplest way to stop good food from being thrown away.',
+      'Knowing what needs to be eaten first is the simplest way to stop good food from being thrown away.\n\n' +
+      'How to complete: tap Start, add your fridge items with their expiration dates, ' +
+      'tap Save, then complete the quest.',
     imageKey: 'checkfridge.jpg',
     category: 'food_waste',
     type: 'solo',
@@ -125,8 +128,10 @@ const QUESTS = [
     title: 'Use a Reusable Bottle',
     sortOrder: 3,
     description: 'Plastic Reduction Quest',
+    // รวม "Refill Your Water Bottle" เข้ามาแล้ว (การกระทำเดียวกัน) — ดูเควสนั้นด้านล่างที่ปิดใช้งานไว้
     detail:
-      'Carry your own bottle today instead of buying a drink in a single-use plastic one.',
+      'Carry your own bottle today and refill it at home or at a water station, '
+      + 'instead of buying a drink in a single-use plastic one.',
     category: 'plastic',
     type: 'solo',
     difficulty: 'easy',
@@ -140,6 +145,9 @@ const QUESTS = [
   },
   {
     title: 'Refill Your Water Bottle',
+    // ⚠️ ปิดใช้งาน — ซ้ำกับ Use a Reusable Bottle (รวมเข้าไปแล้ว) ห้ามลบ object นี้ออกจากไฟล์: seed upsert ด้วย
+    // title ลบออกเฉยๆ เควสเดิมใน DB จะยังเปิดใช้อยู่ตลอดไป ต้องคงไว้พร้อม isActive: false (ประวัติเดิมยังโชว์ชื่อได้)
+    isActive: false,
     sortOrder: 10,
     description: 'Plastic Reduction Quest',
     detail:
@@ -177,9 +185,12 @@ const QUESTS = [
     imageKey: 'buyrefillproduct.jpg',
     sortOrder: 12,
     description: 'Plastic Reduction Quest',
+    // คงชื่อเดิมไว้ (seed upsert ด้วย title — เปลี่ยนชื่อ = เควสใหม่ซ้อนกับอันเดิม) แต่จำกัดให้เป็นรีฟิลของอื่น
+    // ไม่ทับกับน้ำยาซักผ้า/น้ำยาล้างจานที่มีเควสของตัวเอง
     detail:
-      'Choose a refill pack instead of a brand new bottle. Refill packs use far less plastic '
-      + 'for the same amount of product.',
+      'Choose a refill pack instead of a brand new bottle for other everyday products, '
+      + 'like shampoo, conditioner, body soap or hand soap. Refill packs use far less plastic '
+      + 'for the same amount of product. (Laundry detergent and dish soap have their own quests.)',
     category: 'plastic',
     type: 'solo',
     difficulty: 'easy',
@@ -315,6 +326,7 @@ const QUESTS = [
     detail:
       'Get through today without throwing away any food. '
       + 'Take only what you can finish and keep leftovers for later.',
+    imageKey: 'finishyourmeal.jpg',
     category: 'food_waste',
     type: 'solo',
     difficulty: 'easy',
@@ -331,7 +343,11 @@ const QUESTS = [
     title: 'Food Saver — 3 Days',
     sortOrder: 17,
     description: 'Food Waste Quest',
-    detail: 'Commit to keeping your food waste at zero for the next 3 days.',
+    detail:
+      'Keep your food waste at zero for 3 days in a row. Check in on the Progress page once each day '
+      + '— if you miss a day, the count starts over. The reward is given when all 3 days are done.',
+    // เช็คอินวันละครั้ง 3 วันติด ได้รางวัลตอนครบ — ดู Quest.durationDays / POST /:id/complete
+    durationDays: 3,
     // ใช้รูปเดียวกับ Finish Your Meal ตามที่ผู้ใช้ระบุ (ยังไม่มีรูปแยกของตัวเองในโฟลเดอร์ questimg)
     imageKey: 'finishyourmeal.jpg',
     category: 'food_waste',
@@ -350,7 +366,10 @@ const QUESTS = [
     title: 'Food Saver — 7 Days',
     sortOrder: 18,
     description: 'Food Waste Quest',
-    detail: 'Commit to keeping your food waste at zero for a full week.',
+    detail:
+      'Keep your food waste at zero for 7 days in a row. Check in on the Progress page once each day '
+      + '— if you miss a day, the count starts over. The reward is given when all 7 days are done.',
+    durationDays: 7,
     // ใช้รูปเดียวกับ Finish Your Meal ตามที่ผู้ใช้ระบุ (ยังไม่มีรูปแยกของตัวเองในโฟลเดอร์ questimg)
     imageKey: 'finishyourmeal.jpg',
     category: 'food_waste',

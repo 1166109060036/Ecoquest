@@ -22,4 +22,8 @@ const startOfToday = () => {
 // คีย์ของ "วันนี้" ในรูปแบบ YYYY-MM-DD ตามโซนเวลาที่ใช้ตัดวัน
 const todayKey = () => startOfToday().toISOString().slice(0, 10);
 
-module.exports = { QUEST_DAY_UTC_OFFSET_HOURS, startOfToday, todayKey };
+// คีย์ของ "เมื่อวาน" รูปแบบเดียวกับ todayKey — ใช้เช็คว่าเควสหลายวันเช็คอินติดกันหรือไม่
+const yesterdayKey = () =>
+  new Date(startOfToday().getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+module.exports = { QUEST_DAY_UTC_OFFSET_HOURS, startOfToday, todayKey, yesterdayKey };

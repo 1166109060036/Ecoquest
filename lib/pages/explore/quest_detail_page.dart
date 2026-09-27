@@ -44,9 +44,23 @@ class QuestDetailPage extends StatelessWidget {
 
     // ตัดสินใจ label + สถานะปุ่มตามลำดับ: ทำไปแล้ววันนี้ปิดเสมอ -> โหมด complete ใช้ปุ่ม Complete
     // -> กำลังทำอยู่แล้ว (มาจากหน้า Explore เอง) ปิดรอไปกดที่ Progress -> ปกติใช้ปุ่ม Start เดิม
+    // เควสหลายวันมาก่อนทุกกรณี (เช็คอินแล้ว completedToday จะเป็น true ทั้งที่ยังไม่จบเควส — ดู quest_card.dart)
     final String label;
     final VoidCallback? onPressed;
-    if (done) {
+    if (quest.isMultiDay && completeMode) {
+      label = quest.checkedInToday
+          ? 'Checked in today · Day ${quest.daysDone}/${quest.durationDays}'
+          : 'Check in · Day ${quest.daysDone + 1}/${quest.durationDays}';
+      onPressed = quest.checkedInToday
+          ? null
+          : () async {
+              Navigator.pop(context);
+              await onComplete?.call(quest);
+            };
+    } else if (quest.isMultiDay && quest.inProgress) {
+      label = 'In progress';
+      onPressed = null;
+    } else if (done) {
       label = 'Completed today';
       onPressed = null;
     } else if (completeMode) {

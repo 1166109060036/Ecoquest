@@ -18,6 +18,12 @@ class QuestCardModel {
   // quest ที่ต้องทำ action จริงในแอพก่อน ('fridge_check' = ต้องบันทึกของในตู้เย็น)
   // null = กดยืนยันเองได้เลย — ฝั่งแอพใช้ค่านี้ตัดสินว่ากด Start แล้วจะพาไปหน้าไหน
   final String? actionKey;
+  // ---- เควสหลายวัน (Food Saver 3/7) — กด Complete ในหน้า Progress = เช็คอินวันละครั้ง ----
+  final int durationDays; // 1 = เควสปกติ
+  final int daysDone; // เช็คอินติดกันแล้วกี่วัน (มีค่าจริงเฉพาะข้อมูลจากหน้า Progress)
+  final bool checkedInToday;
+
+  bool get isMultiDay => durationDays > 1;
 
   // ---- ใช้เฉพาะในหน้ารายละเอียด quest ----
   final String detail; // ข้อความอธิบายยาวในกล่อง "Quest Detail"
@@ -51,6 +57,9 @@ class QuestCardModel {
     this.inProgress = false,
     this.startedAt,
     this.actionKey,
+    this.durationDays = 1,
+    this.daysDone = 0,
+    this.checkedInToday = false,
     this.detail = '',
     this.imageKey,
     this.xpReward = 0,
@@ -83,6 +92,9 @@ class QuestCardModel {
       inProgress: json['inProgress'] ?? false,
       startedAt: json['startedAt'] != null ? DateTime.parse(json['startedAt']) : null,
       actionKey: json['actionKey'],
+      durationDays: json['durationDays'] ?? 1,
+      daysDone: json['daysDone'] ?? 0,
+      checkedInToday: json['checkedInToday'] ?? false,
       detail: json['detail'] ?? '',
       imageKey: json['imageKey'],
       xpReward: json['xpReward'] ?? 0,
@@ -108,26 +120,57 @@ class QuestReward {
   final List<UnlockedMedal> newAchievements;
   // ไม่ null เฉพาะตอนวันนี้ตรง milestone ของ Daily Streak (7/14/21/30) — เอาไปเด้ง celebrate
   final StreakMilestoneReward? streakMilestone;
+  // ไม่ null เฉพาะเควสหลายวัน — ยังไม่ครบ (finished: false) = แค่เช็คอิน ไม่ได้แต้ม ห้ามเด้งฉลองรางวัล
+  final QuestCheckIn? checkIn;
 
   QuestReward({
     required this.points,
     required this.xp,
     this.newAchievements = const [],
     this.streakMilestone,
+    this.checkIn,
   });
+
+  bool get isCheckInOnly => checkIn != null && !checkIn!.finished;
 
   // รับทั้งก้อน response มาเลย เพราะ earned กับ newAchievements อยู่คนละชั้นกัน
   factory QuestReward.fromResponse(Map<String, dynamic> json) {
     final earned = (json['earned'] ?? {}) as Map<String, dynamic>;
     final medals = (json['newAchievements'] ?? []) as List;
     final streakJson = json['streakMilestone'] as Map<String, dynamic>?;
+    final checkInJson = json['checkIn'] as Map<String, dynamic>?;
 
     return QuestReward(
+      checkIn: checkInJson != null ? QuestCheckIn.fromJson(checkInJson) : null,
       points: earned['points'] ?? 0,
       xp: earned['xp'] ?? 0,
       newAchievements:
           medals.map((m) => UnlockedMedal.fromJson(m as Map<String, dynamic>)).toList(),
       streakMilestone: streakJson != null ? StreakMilestoneReward.fromJson(streakJson) : null,
+    );
+  }
+}
+
+// ผลการเช็คอินเควสหลายวัน — มาจาก POST /api/quests/:id/complete (ดู backend/routes/quests.js)
+class QuestCheckIn {
+  final int daysDone;
+  final int durationDays;
+  final bool restarted; // ลืมเช็คอินไปวันหนึ่ง = นับใหม่เป็นวันที่ 1
+  final bool finished; // ครบวันสุดท้ายแล้ว ได้รางวัลเต็ม
+
+  QuestCheckIn({
+    required this.daysDone,
+    required this.durationDays,
+    required this.restarted,
+    required this.finished,
+  });
+
+  factory QuestCheckIn.fromJson(Map<String, dynamic> json) {
+    return QuestCheckIn(
+      daysDone: json['daysDone'] ?? 0,
+      durationDays: json['durationDays'] ?? 1,
+      restarted: json['restarted'] ?? false,
+      finished: json['finished'] ?? false,
     );
   }
 }

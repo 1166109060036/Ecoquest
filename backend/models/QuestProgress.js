@@ -25,6 +25,18 @@ const QuestProgressSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    // ---- ใช้เฉพาะเควสหลายวัน (Quest.durationDays > 1) ----
+    // เช็คอินไปแล้วกี่วันติดกัน + วันล่าสุดที่เช็คอิน (รูปแบบเดียวกับ todayKey() ใน utils/questDay.js)
+    // เก็บที่นี่ไม่ใช่ใน QuestHistory เพราะ Super Energy ลบแค่ QuestHistory ของวันนี้ — lastCheckInDay ยังอยู่
+    // จึงกันเช็คอินซ้ำวันเดียวกันได้เสมอ
+    daysDone: {
+      type: Number,
+      default: 0,
+    },
+    lastCheckInDay: {
+      type: String,
+      default: null,
+    },
   },
   { timestamps: true }
 );

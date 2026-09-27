@@ -52,7 +52,12 @@ class QuestCard extends StatelessWidget {
   // ของวันนี้ ไม่ว่าจะทำผ่านห้องไหนก็ตาม) ถ้าวันนี้ทำไปแล้วก็สร้าง/เข้าร่วมห้องใหม่ไปก็ไม่ได้คะแนนซ้ำ
   // กำลังทำอยู่ (กด Start ไว้แล้วแต่ยังไม่ Complete) ก็กดปุ่มนี้ซ้ำไม่ได้เหมือนกัน — ต้องไปกด
   // Complete ที่หน้า Progress แทน
+  //
+  // เควสหลายวัน (Food Saver 3/7): ในหน้า Progress กดได้วันละครั้ง = "Check in" / เช็คอินแล้ว = "Checked in"
+  // ส่วนใน Explore ระหว่างทาง (ยังไม่ครบ) ให้เป็น "In progress" แม้วันนี้จะเช็คอินแล้ว (completedToday) — ยังไม่จบ
   String _actionLabel(_CategoryStyle style) {
+    if (quest.isMultiDay && progressMode) return quest.checkedInToday ? 'Checked in' : 'Check in';
+    if (quest.isMultiDay && quest.inProgress) return 'In progress';
     if (quest.completedToday) return 'Done';
     if (progressMode) return 'Complete';
     if (quest.inProgress) return 'In progress';
@@ -60,6 +65,8 @@ class QuestCard extends StatelessWidget {
   }
 
   bool get _actionEnabled {
+    if (quest.isMultiDay && progressMode) return !quest.checkedInToday;
+    if (quest.isMultiDay && quest.inProgress) return false;
     if (quest.completedToday) return false;
     if (progressMode) return true;
     return !quest.inProgress;
@@ -157,6 +164,10 @@ class QuestCard extends StatelessWidget {
                           ? _SoloInfoRow(
                               isDaily: quest.isDaily,
                               completedToday: quest.completedToday,
+                              durationDays: quest.durationDays,
+                              daysDone: quest.daysDone,
+                              checkedInToday: quest.checkedInToday,
+                              progressMode: progressMode,
                             )
                           : _PartyEventInfoRow(
                               location: quest.location,
@@ -342,11 +353,38 @@ class _PartyEventInfoRow extends StatelessWidget {
 class _SoloInfoRow extends StatelessWidget {
   final bool isDaily;
   final bool completedToday;
+  final int durationDays;
+  final int daysDone;
+  final bool checkedInToday;
+  final bool progressMode;
 
-  const _SoloInfoRow({required this.isDaily, required this.completedToday});
+  const _SoloInfoRow({
+    required this.isDaily,
+    required this.completedToday,
+    this.durationDays = 1,
+    this.daysDone = 0,
+    this.checkedInToday = false,
+    this.progressMode = false,
+  });
 
   @override
   Widget build(BuildContext context) {
+    // เควสหลายวัน: หน้า Progress โชว์ความคืบหน้า "Day 2/7" / หน้า Explore บอกว่าเป็นเควสกี่วัน
+    if (durationDays > 1) {
+      final label = progressMode ? 'Day $daysDone/$durationDays' : '$durationDays-day check-in';
+      final done = progressMode && checkedInToday;
+      return Row(
+        children: [
+          Icon(done ? Icons.check_circle : Icons.event_repeat, size: 12, color: done ? Colors.green : Colors.grey),
+          const SizedBox(width: 4),
+          Text(
+            done ? '$label · checked in today' : label,
+            style: TextStyle(fontSize: 10, color: done ? Colors.green : Colors.grey.shade600),
+          ),
+        ],
+      );
+    }
+
     if (!isDaily) return const SizedBox.shrink();
 
     return Row(

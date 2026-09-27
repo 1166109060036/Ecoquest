@@ -35,7 +35,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
       getAchievements(user._id),
       // ประวัติเควสล่าสุด — query + serialize แบบเดียวกับ GET /quests/history
       // ให้แอพใช้ model เดิมซ้ำได้เลย
-      QuestHistory.find({ userId: user._id })
+      QuestHistory.find({ userId: user._id, checkIn: { $ne: true } })
         .sort({ completedAt: -1 })
         .limit(20)
         .populate('questId', 'title category type'),

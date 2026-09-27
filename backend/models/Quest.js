@@ -123,6 +123,14 @@ const QuestSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // จำนวนวันที่ต้องเช็คอินติดกันถึงจะจบเควส (Food Saver 3/7 วัน) — 1 = เควสปกติ กด Complete ครั้งเดียวจบ
+    // มากกว่า 1: กด Complete วันละครั้ง = เช็คอิน, ลืมวันไหนนับใหม่ตั้งแต่วันที่ 1, ได้แต้ม/XP ทั้งก้อนตอนครบ
+    // (ดู POST /:id/complete ใน routes/quests.js) และ co2eEstimateKg เป็นค่ารวมทุกวัน หารเฉลี่ยลงแต่ละวันที่เช็คอิน
+    durationDays: {
+      type: Number,
+      default: 1,
+      min: 1,
+    },
     isActive: {
       type: Boolean,
       default: true,

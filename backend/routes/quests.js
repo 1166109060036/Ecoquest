@@ -11,7 +11,7 @@ const { syncAchievements } = require('../utils/achievements');
 const { notifyQuestCompleted, notifyStreakMilestone } = require('../utils/notifications');
 const { getUserBonuses, applyBonuses, BASE_VISIBLE_QUESTS } = require('../utils/upgrades');
 const { withEnergyBoosts } = require('../utils/inventory');
-const { startOfToday } = require('../utils/questDay');
+const { startOfToday, todayKey, yesterdayKey } = require('../utils/questDay');
 const { applyDailyQuestCompletion } = require('../utils/streak');
 const { selectVisibleQuests } = require('../utils/questSelection');
 
@@ -19,7 +19,11 @@ const router = express.Router();
 
 // แปลง quest template + bonus ของ user เป็น payload ที่ส่งให้แอพ — ใช้ร่วมกันทั้ง GET / และ
 // GET /progress เพื่อให้ scorePoints/xpReward ที่โชว์ผ่าน applyBonuses ตรงกันเป๊ะทั้ง 2 หน้า
-const toQuestPayload = (quest, bonuses, { completedToday, inProgress, startedAt, openPartyCount } = {}) => {
+const toQuestPayload = (
+  quest,
+  bonuses,
+  { completedToday, inProgress, startedAt, openPartyCount, daysDone, checkedInToday } = {}
+) => {
   const reward = applyBonuses(bonuses, quest);
   return {
     id: quest._id,
@@ -43,6 +47,10 @@ const toQuestPayload = (quest, bonuses, { completedToday, inProgress, startedAt,
     // เควสที่ user กด Start ไว้แต่ยังไม่ Complete — ดู models/QuestProgress.js
     inProgress: Boolean(inProgress),
     startedAt: startedAt || null,
+    // ---- เควสหลายวัน (Food Saver 3/7) — daysDone/checkedInToday มีค่าจริงเฉพาะใน GET /progress ----
+    durationDays: quest.durationDays || 1,
+    daysDone: daysDone || 0,
+    checkedInToday: Boolean(checkedInToday),
     // ---- เฉพาะ party quest ----
     // location/capacity ตรงนี้เป็นแค่ค่า default ให้ฟอร์มสร้างห้องดึงไปเติม
     // (ห้องจริงแต่ละห้องนัดคนละเวลา/สถานที่กันได้ ดูรายละเอียดที่ Party model)
@@ -120,7 +128,8 @@ router.get('/history', authMiddleware, async (req, res) => {
     // กัน client ขอทีเดียวเยอะเกินไป
     const limit = Math.min(parseInt(req.query.limit, 10) || 20, 100);
 
-    const history = await QuestHistory.find({ userId: req.userId })
+    // แถวเช็คอินระหว่างทางของเควสหลายวันไม่ใช่ "ทำเควสสำเร็จ" — โชว์แค่แถวที่จบเควสจริง
+    const history = await QuestHistory.find({ userId: req.userId, checkIn: { $ne: true } })
       .sort({ completedAt: -1 })
       .limit(limit)
       // ดึงเฉพาะฟิลด์ที่ต้องใช้โชว์ ไม่ต้องลาก quest มาทั้งก้อน
@@ -160,17 +169,23 @@ router.get('/progress', authMiddleware, async (req, res) => {
       'redEnergyExpiresAt blueEnergyExpiresAt greenEnergyExpiresAt'
     );
     const bonuses = withEnergyBoosts(await getUserBonuses(req.userId), boostUser);
+    const today = todayKey();
+    const yesterday = yesterdayKey();
 
     res.json({
       // ⚠️ จงใจไม่ใช้ selectVisibleQuests (สุ่มรายวัน + จำกัดจำนวน) แบบ GET / —
       // เควสที่ start ไปแล้วต้องโผล่ในหน้านี้เสมอ ไม่ว่าจะโดนสุ่มไม่ติดหรือโดนลิมิตตัดในวันถัดไป
-      // ไม่งั้นผู้ใช้จะค้างเควสที่ทำต่อไม่ได้เลย
+      // ไม่งั้นผู้ใช้จะค้างเควสที่ทำต่อไม่ได้เลย (เควสหลายวันต้องกลับมาเช็คอินที่นี่ทุกวัน)
       progress: activeRows.map((p) =>
         toQuestPayload(p.questId, bonuses, {
           // แถว progress มีอยู่ได้เฉพาะตอนยังไม่ complete เท่านั้น (ดู models/QuestProgress.js)
           completedToday: false,
           inProgress: true,
           startedAt: p.startedAt,
+          // เช็คอินล่าสุดไม่ใช่วันนี้/เมื่อวาน = ลืมไปแล้ว เช็คอินครั้งถัดไปจะนับใหม่เป็นวันที่ 1 — โชว์ 0 เลย
+          // ไม่โชว์ตัวเลขเดิมที่กำลังจะหายให้ผู้เล่นเข้าใจผิด
+          daysDone: [today, yesterday].includes(p.lastCheckInDay) ? p.daysDone : 0,
+          checkedInToday: p.lastCheckInDay === today,
         })
       ),
     });
@@ -274,6 +289,20 @@ router.post('/:id/complete', authMiddleware, async (req, res) => {
       });
     }
 
+    // เควสหลายวัน (Food Saver 3/7) — กด Complete = เช็คอินวันละครั้ง เช็คก่อน gate รายวันทั่วไป เพื่อให้ข้อความ
+    // ตรงความจริง และเช็คจาก lastCheckInDay ใน QuestProgress (Super Energy ลบแค่ QuestHistory ไม่ลบอันนี้)
+    const durationDays = quest.durationDays || 1;
+    let progressRow = null;
+    if (durationDays > 1) {
+      progressRow = await QuestProgress.findOne({ userId: req.userId, questId: quest._id });
+      if (!progressRow) {
+        return res.status(409).json({ message: 'Start this quest first' });
+      }
+      if (progressRow.lastCheckInDay === todayKey()) {
+        return res.status(409).json({ message: 'Already checked in today — come back tomorrow' });
+      }
+    }
+
     // quest รายวัน — ทำซ้ำในวันเดียวกันไม่ได้
     if (quest.isDaily) {
       const alreadyDone = await QuestHistory.findOne({
@@ -296,6 +325,62 @@ router.post('/:id/complete', authMiddleware, async (req, res) => {
       if (!savedToday) {
         return res.status(400).json({
           message: 'Save your fridge items first to complete this quest',
+        });
+      }
+    }
+
+    // ---- เช็คอินเควสหลายวัน ----
+    // เช็คอินติดจากเมื่อวาน = วันถัดไป, ไม่ติด (ลืมไป หรือเช็คอินครั้งแรก) = เริ่มนับวันที่ 1 ใหม่ (ผู้ใช้ตัดสินใจ
+    // ให้เหมือน Daily Streak) — ยังไม่ครบ: บันทึกแถว checkIn ไม่ให้แต้ม, ครบวันสุดท้าย: ไหลลงไปจบเควสแบบปกติ
+    let checkIn = null;
+    if (durationDays > 1) {
+      const continuing = progressRow.lastCheckInDay === yesterdayKey();
+      const daysDone = continuing ? progressRow.daysDone + 1 : 1;
+      checkIn = {
+        daysDone,
+        durationDays,
+        restarted: progressRow.daysDone > 0 && !continuing,
+        finished: daysDone >= durationDays,
+      };
+
+      if (!checkIn.finished) {
+        // อัปเดตแบบมีเงื่อนไข lastCheckInDay เดิม — กดรัวๆ พร้อมกันจะผ่านได้แค่ request เดียว
+        const updated = await QuestProgress.findOneAndUpdate(
+          { _id: progressRow._id, lastCheckInDay: progressRow.lastCheckInDay },
+          { $set: { daysDone, lastCheckInDay: todayKey() } },
+          { new: true }
+        );
+        if (!updated) {
+          return res.status(409).json({ message: 'Already checked in today — come back tomorrow' });
+        }
+
+        // แถวนี้ให้ gate รายวัน/CO2/Daily Streak นับวันนี้ได้ แต่ไม่ใช่ "ทำเควสสำเร็จ" (ดู QuestHistory.checkIn)
+        await QuestHistory.create({
+          userId: req.userId,
+          questId: quest._id,
+          pointsEarned: 0,
+          xpEarned: 0,
+          checkIn: true,
+        });
+
+        const checkInUser = await User.findById(req.userId).select('-avatarData');
+        const streakMilestone = await applyDailyQuestCompletion(checkInUser);
+        await checkInUser.save();
+        if (streakMilestone) {
+          try {
+            await notifyStreakMilestone(checkInUser._id, streakMilestone.day, streakMilestone);
+          } catch (notifyErr) {
+            console.error('สร้างแจ้งเตือน streak ไม่สำเร็จ:', notifyErr.message);
+          }
+        }
+
+        return res.json({
+          message: 'Checked in',
+          earned: { points: 0, xp: 0 },
+          newAchievements: [],
+          streakMilestone,
+          checkIn,
+          user: { level: checkInUser.level, xp: checkInUser.xp, points: checkInUser.points },
         });
       }
     }
@@ -364,6 +449,8 @@ router.post('/:id/complete', authMiddleware, async (req, res) => {
       newAchievements,
       // ไม่ null เฉพาะตอนวันนี้ตรง milestone ของ Daily Streak (7/14/21/30) — แอพเอาไปเด้ง celebrate
       streakMilestone,
+      // ไม่ null เฉพาะเควสหลายวันที่เพิ่งเช็คอินครบวันสุดท้าย (finished: true)
+      checkIn,
       user: {
         level: user.level,
         xp: user.xp,
