@@ -832,7 +832,12 @@ backend พร้อม deploy แล้ว (ทดสอบว่าบูต�
       (Cancel) → ลิสต์เพื่อน (ลบเพื่อนผ่าน `LiquidGlassDialog` confirm) กดแถวไหนก็เปิด
       `PlayerProfilePage` ได้เหมือนแถวสมาชิกปาร์ตี้
     - เพิ่ม `FriendProvider` ใน `lib/main.dart`'s `MultiProvider` แล้ว
-    - ⚠️ **ยังไม่ได้ทดสอบ end-to-end จริง** เหตุผลเดียวกับ Phase 2 (MongoDB Atlas connect จากเครื่อง dev
+    - ✅ **ทดสอบบนเครื่องจริงแล้ว (28 ก.ย. 2026, guest + koo)** — ค้นหา/Add→Pending/Cancel, รับคำขอ,
+      ลิสต์เพื่อน, เปิดโปรไฟล์เพื่อน, แชทเพื่อน, ลบเพื่อน (dialog ยืนยัน) ผ่านหมด — เจอแล้วแก้ 1 บั๊ก:
+      ข้อความแชทเพื่อนที่ส่ง/รับสดผ่าน socket ไม่ขึ้นจนกว่าจะเปิดแชทใหม่ เพราะ socket ส่ง `channelId` เป็น
+      pairKey (`<idA>_<idB>`) แต่ `ChatProvider` เก็บ/อ่านด้วยคีย์ `friend:<friendUserId>` — แก้ใน
+      `_channelKey()` ให้หยิบ id ฝั่งที่ไม่ใช่ตัวเองออกจาก pairKey
+    - (บันทึกเดิม) ยังไม่ได้ทดสอบ end-to-end จริง เหตุผลเดียวกับ Phase 2 (MongoDB Atlas connect จากเครื่อง dev
       ไม่ติด + backend/friends.js ยังไม่ได้ deploy ขึ้น Render) ตรวจสอบได้แค่ `flutter analyze` +
       `flutter build apk --debug` ผ่าน — **ต้องทดสอบจริงอีกทีหลัง deploy backend ขึ้น Render แล้ว**
   - ✅ **Phase 4 (Backend WebSocket + World Chat) เสร็จแล้ว**:

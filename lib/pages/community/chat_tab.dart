@@ -155,7 +155,10 @@ class _ChatTabState extends State<ChatTab> {
                       : ListView.builder(
                           controller: _scrollController,
                           itemCount: messages.length,
-                          itemBuilder: (context, index) => _MessageBubble(message: messages[index]),
+                          itemBuilder: (context, index) => _MessageBubble(
+                            message: messages[index],
+                            isMine: messages[index].fromUserId == provider.myUserId,
+                          ),
                         ),
         ),
         const SizedBox(height: 8),
@@ -312,30 +315,41 @@ class _ConnectionBanner extends StatelessWidget {
   }
 }
 
+// ข้อความของตัวเอง (isMine) ชิดขวา พื้นเขียว ตัวหนังสือขาว ไม่โชว์ชื่อ แบบแอพแชททั่วไป
+// ของคนอื่นชิดซ้าย พื้นขาว มีชื่อผู้ส่งด้านบน — จำกัดความกว้าง 75% ให้ 2 ฝั่งแยกกันชัด
 class _MessageBubble extends StatelessWidget {
   final ChatMessageModel message;
-  const _MessageBubble({required this.message});
+  final bool isMine;
+  const _MessageBubble({required this.message, required this.isMine});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
-          Text(
-            message.fromDisplayName,
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 11, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 2),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.grey.shade200),
+          if (!isMine) ...[
+            Text(
+              message.fromDisplayName,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 11, fontWeight: FontWeight.w600),
             ),
-            child: Text(message.text, style: const TextStyle(color: Colors.black87, fontSize: 13.5)),
+            const SizedBox(height: 2),
+          ],
+          ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: isMine ? Colors.green : Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: isMine ? null : Border.all(color: Colors.grey.shade200),
+              ),
+              child: Text(
+                message.text,
+                style: TextStyle(color: isMine ? Colors.white : Colors.black87, fontSize: 13.5),
+              ),
+            ),
           ),
         ],
       ),

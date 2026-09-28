@@ -23,8 +23,20 @@ class ChatProvider extends ChangeNotifier {
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
-  String _channelKey(String channelType, String channelId) =>
-      channelType == 'friend' ? 'friend:$channelId' : channelType;
+  // id ของผู้ใช้ที่ล็อกอินอยู่ — อ่านตอน connect() ใช้แยกว่าข้อความเพื่อนที่เข้ามาสดเป็นแชทกับเพื่อนคนไหน
+  // และให้ ChatTab แยกข้อความของตัวเอง (ชิดขวา สีเขียว) ออกจากของคนอื่น
+  String? _myUserId;
+  String? get myUserId => _myUserId;
+
+  // ข้อความเพื่อนจาก socket มี channelId เป็น pairKey ของ backend ("<idA>_<idB>" เรียงตามตัวอักษร ดู
+  // backend/utils/friendKey.js) ไม่ใช่ id เพื่อนตรงๆ เหมือนที่ UI ใช้เป็นคีย์ — ต้องหยิบฝั่งที่ไม่ใช่ตัวเอง
+  // ออกมาก่อน ไม่งั้นข้อความสดไปเก็บไว้คีย์ที่ไม่มีใครอ่าน (ส่งแล้วไม่ขึ้นจนกว่าจะเปิดแชทใหม่)
+  String _channelKey(String channelType, String channelId) {
+    if (channelType != 'friend') return channelType;
+    final ids = channelId.split('_');
+    final friendId = ids.firstWhere((id) => id != _myUserId, orElse: () => channelId);
+    return 'friend:$friendId';
+  }
 
   List<ChatMessageModel> _messagesFor(String key) {
     final map = _messagesByChannel[key] ?? {};
@@ -44,6 +56,8 @@ class ChatProvider extends ChangeNotifier {
     }
     final token = await _storage.getToken();
     if (token == null) return;
+    _myUserId = (await _storage.getUser())?.id;
+    notifyListeners();
 
     _socketService.connect(
       token: token,
