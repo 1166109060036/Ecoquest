@@ -9,6 +9,10 @@ class QuestCard extends StatelessWidget {
   // true เฉพาะตอนใช้ในหน้า Progress — การ์ดในหน้านั้น inProgress เป็น true ทุกใบอยู่แล้วโดยดีไซน์
   // (ไม่ใช่สถานะ "กดซ้ำไม่ได้" แบบตอนอยู่ในหน้า Explore) ปุ่มเลยต้องกดได้และเปลี่ยนเป็น Complete แทน
   final bool progressMode;
+  // ใส่มา = รูปปกบินต่อเข้าหน้ารายละเอียดตอนกดการ์ด (Hero) — ต้องตรงกับ heroTag ที่ส่งให้ QuestDetailPage
+  // สร้างด้วย questCoverHeroTag() เสมอ (แต่ละหน้าใส่ชื่อหน้าตัวเองไว้ในแท็ก เพราะแผ่น Explore ในหน้า Home กับหน้า
+  // Explore อยู่ใน IndexedStack route เดียวกัน การ์ดเควสเดียวกันจากสองที่จะได้ไม่ชนแท็กกัน)
+  final String? heroTag;
 
   const QuestCard({
     super.key,
@@ -16,6 +20,7 @@ class QuestCard extends StatelessWidget {
     this.onAction,
     this.onTap,
     this.progressMode = false,
+    this.heroTag,
   });
 
   _CategoryStyle get _style {
@@ -97,7 +102,7 @@ class QuestCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ---- รูปปก quest (ตัวเดียวกับที่ใช้ในหน้ารายละเอียด) ----
-          _QuestThumbnail(imageAsset: quest.coverImageAsset),
+          _QuestThumbnail(imageAsset: quest.coverImageAsset, heroTag: heroTag),
           const SizedBox(width: 12),
           // ---- เนื้อหา ----
           Expanded(
@@ -246,10 +251,36 @@ class DifficultyChip extends StatelessWidget {
   }
 }
 
+// แท็ก Hero ของรูปปกเควส — page = ชื่อหน้าที่การ์ดอยู่ ('home' / 'explore' / 'progress')
+String questCoverHeroTag(String page, String questId) => 'quest-cover-$page-$questId';
+
+// รูปปกระหว่างบินจากการ์ดไปหน้ารายละเอียด (และบินกลับ) — มุมมนค่อยๆ เปลี่ยน 12 -> 0 ตามทาง ไม่งั้นตอนบินจะ
+// เป็นสี่เหลี่ยมมุมแหลมตั้งแต่ออกจากการ์ด (ขากลับ animation วิ่ง 1 -> 0 มุมเลยค่อยๆ มนกลับเอง)
+// ใช้รูปฝั่งหน้ารายละเอียดเสมอทั้งขาไปและขากลับ (push = toHero, pop = fromHero) เพราะรูปฝั่งการ์ดล็อกขนาด 64×64
+// ไว้ ขยายตามกรอบที่บินไม่ได้ — รูปฝั่งหน้ารายละเอียดเป็น BoxFit.cover ไม่ล็อกขนาด
+Widget questCoverFlightShuttle(
+  BuildContext flightContext,
+  Animation<double> animation,
+  HeroFlightDirection direction,
+  BuildContext fromHeroContext,
+  BuildContext toHeroContext,
+) {
+  final hero = (direction == HeroFlightDirection.push ? toHeroContext : fromHeroContext).widget as Hero;
+  return AnimatedBuilder(
+    animation: animation,
+    builder: (_, child) => ClipRRect(
+      borderRadius: BorderRadius.circular(12 * (1 - animation.value)),
+      child: child,
+    ),
+    child: hero.child,
+  );
+}
+
 // รูปปก quest ในการ์ด — ถ้า quest ยังไม่มีรูป (หรือหาไฟล์ไม่เจอ) จะ fallback เป็นกล่องเทาเหมือนเดิม
 class _QuestThumbnail extends StatelessWidget {
   final String? imageAsset;
-  const _QuestThumbnail({required this.imageAsset});
+  final String? heroTag;
+  const _QuestThumbnail({required this.imageAsset, this.heroTag});
 
   Widget _placeholder() {
     return Container(
@@ -267,7 +298,7 @@ class _QuestThumbnail extends StatelessWidget {
   Widget build(BuildContext context) {
     if (imageAsset == null) return _placeholder();
 
-    return ClipRRect(
+    final image = ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: Image.asset(
         imageAsset!,
@@ -277,6 +308,8 @@ class _QuestThumbnail extends StatelessWidget {
         errorBuilder: (_, _, _) => _placeholder(),
       ),
     );
+    if (heroTag == null) return image;
+    return Hero(tag: heroTag!, flightShuttleBuilder: questCoverFlightShuttle, child: image);
   }
 }
 

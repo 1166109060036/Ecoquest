@@ -91,7 +91,11 @@ class _ExplorePageState extends State<ExplorePage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => QuestDetailPage(quest: quest, onStart: _onStartQuest),
+        builder: (_) => QuestDetailPage(
+          quest: quest,
+          onStart: _onStartQuest,
+          heroTag: questCoverHeroTag('explore', quest.id),
+        ),
       ),
     );
   }
@@ -302,6 +306,7 @@ class _ExplorePageState extends State<ExplorePage> {
                                   quest: quest,
                                   onAction: () => _onStartQuest(quest),
                                   onTap: () => _openQuestDetail(quest),
+                                  heroTag: questCoverHeroTag('explore', quest.id),
                                 );
                               }
                               // key ด้วย id ที่เสถียร ไม่ใช่ index — กัน animation เล่นผิดจังหวะตอนลิสต์

@@ -16,6 +16,8 @@ class QuestDetailPage extends StatelessWidget {
   final bool completeMode;
   // จำเป็นเฉพาะตอน completeMode: true (หน้า Progress เป็นคนส่งเข้ามา)
   final Future<void> Function(QuestCardModel quest)? onComplete;
+  // แท็กเดียวกับที่การ์ดต้นทางใช้ (questCoverHeroTag) — รูปปกจะบินต่อมาจากการ์ด null = เปิดแบบปกติ
+  final String? heroTag;
 
   const QuestDetailPage({
     super.key,
@@ -23,6 +25,7 @@ class QuestDetailPage extends StatelessWidget {
     required this.onStart,
     this.completeMode = false,
     this.onComplete,
+    this.heroTag,
   });
 
   _CategoryStyle get _style {
@@ -90,7 +93,7 @@ class QuestDetailPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _CoverImage(quest: quest),
+                  _CoverImage(quest: quest, heroTag: heroTag),
                   // ยกการ์ดขึ้นไปทับรูปนิดหน่อยตามดีไซน์
                   Transform.translate(
                     offset: const Offset(0, -18),
@@ -149,7 +152,8 @@ class QuestDetailPage extends StatelessWidget {
 // ---------------------------------------------------------------------------
 class _CoverImage extends StatelessWidget {
   final QuestCardModel quest;
-  const _CoverImage({required this.quest});
+  final String? heroTag;
+  const _CoverImage({required this.quest, this.heroTag});
 
   @override
   Widget build(BuildContext context) {
@@ -160,13 +164,14 @@ class _CoverImage extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          if (asset != null)
-            Image.asset(
-              asset,
-              fit: BoxFit.cover,
-              // quest ที่ยังไม่มีไฟล์รูป -> ใช้พื้นเขียวอ่อนแทน ไม่ให้หน้าพัง
-              errorBuilder: (_, _, _) => const _CoverPlaceholder(),
+          if (asset != null && heroTag != null)
+            Hero(
+              tag: heroTag!,
+              flightShuttleBuilder: questCoverFlightShuttle,
+              child: _coverImage(asset),
             )
+          else if (asset != null)
+            _coverImage(asset)
           else
             const _CoverPlaceholder(),
           // ไล่เฉดมืดด้านบน ให้ปุ่ม back อ่านออกไม่ว่ารูปจะสว่างแค่ไหน
@@ -210,6 +215,13 @@ class _CoverImage extends StatelessWidget {
     );
   }
 }
+
+Widget _coverImage(String asset) => Image.asset(
+      asset,
+      fit: BoxFit.cover,
+      // quest ที่ยังไม่มีไฟล์รูป -> ใช้พื้นเขียวอ่อนแทน ไม่ให้หน้าพัง
+      errorBuilder: (_, _, _) => const _CoverPlaceholder(),
+    );
 
 class _CoverPlaceholder extends StatelessWidget {
   const _CoverPlaceholder();

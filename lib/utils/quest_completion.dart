@@ -7,9 +7,9 @@ import '../providers/achievement_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/notification_provider.dart';
 import '../services/sound_service.dart';
-import '../widgets/bubble_toast.dart';
 import '../widgets/liquid_glass_dialog.dart';
 import '../widgets/particle_burst.dart';
+import '../widgets/reward_fly.dart';
 
 // สิ่งที่ต้องทำ "หลังทำ quest สำเร็จ" — เหมือนกันทั้ง 4 ที่ที่ทำ quest ได้
 // (หน้า Explore, แผ่น Explore ในหน้า Home, หน้า Fridge, และหัวหน้าห้องกดจบอีเวนต์ปาร์ตี้)
@@ -24,11 +24,13 @@ Future<void> handleQuestCompleted(BuildContext context, QuestReward reward) asyn
   // เลเวลอัพจริงๆ
   final levelBefore = authProvider.profile?.progress.level ?? 1;
 
-  showBubbleToast(context, 'Quest complete! +${reward.points} points, +${reward.xp} XP');
-  showParticleBurst(context, color: Colors.amber);
+  // ป้ายรางวัล + เหรียญ/ใบไม้บินเข้าป้าย (แทน bubble toast + particle burst กลางจอแบบเดิม) — รอให้ของลงป้าย
+  // ครบก่อนค่อยไปเปิด popup เหรียญ/เลเวลอัพ ไม่งั้น popup เปิดทับตอนของยังบินอยู่
+  final rewardLanded = showRewardFly(context, points: reward.points, xp: reward.xp);
   SoundService.instance.playQuestSuccess();
 
   await Future.wait([
+    rewardLanded,
     // points/XP เปลี่ยนแล้ว ต้องโหลดโปรไฟล์ใหม่ให้หน้า Profile/Home โชว์เลขล่าสุด
     authProvider.refreshProfile(),
     // ความคืบหน้าเหรียญขยับทุกครั้งที่ทำ quest ถึงจะยังไม่ปลดล็อกก็ตาม

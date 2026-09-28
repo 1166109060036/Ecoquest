@@ -28,8 +28,9 @@
 - ลบออกจากโค้ดหมดแล้ว: ฟิลด์ `energy`/`lastEnergyUpdate` ใน `User`, ฟังก์ชัน `currentEnergy` ใน `progression.js`,
   ฟิลด์ `energy` ใน `UserModel` ฝั่ง Flutter, แถบ energy ในการ์ด quest
 - ถ้าเจอเอกสารเก่าที่พูดถึง energy ให้ถือว่าเป็นของเก่าที่ไม่ได้ใช้ (เหมือนกรณี Firebase)
-- **Mini Quest "Check Your Food & Expiration Dates"** — บันทึกอาหารในตู้เย็น+วันหมดอายุ, อัปเดตได้วันละครั้ง
-  (เดิมรางวัลคือ +1 energy — ตอนนี้ต้องตัดสินใจใหม่ว่าจะให้รางวัลเป็นอะไรแทน ยังไม่ได้ข้อสรุป)
+- **Mini Quest "Check Your Food & Expiration Dates"** — บันทึกอาหารในตู้เย็น+วันหมดอายุ, ทำได้วันละครั้ง
+  รางวัลเป็น Points/XP เหมือนเควสปกติ (เดิม +1 energy — ตัดไปพร้อมระบบ Energy) ปักไว้บนสุดของ Explore ทุกวัน
+  (`alwaysVisible`) มี dialog แนะนำครั้งแรก + Save ในตู้เย็นแล้วกด Complete ได้ทันที — ดูหัวข้อ 5
 
 **XP / Level / Points / Daily Streak** (แยกกันชัดเจน อย่าสับสน):
 - **XP** — สะสมถาวร ไม่ reset ใช้คำนวณ Level
@@ -62,7 +63,7 @@
 - **ส่งอีเมล**: `nodemailer` ผ่าน Gmail SMTP (ใช้กับ OTP ลืมรหัสผ่าน) — ต้องมี `GMAIL_USER` + `GMAIL_APP_PASSWORD` ใน `backend/.env`
   โดย `GMAIL_APP_PASSWORD` ต้องเป็น App Password ที่สร้างจาก Google Account (เปิด 2FA ก่อน) **ไม่ใช่รหัสผ่าน Gmail ปกติ**
 - **State management ฝั่ง Flutter**: Provider
-- **โครงสร้างโฟลเดอร์ Flutter**: `lib/models`, `lib/pages` (auth, home, inventory, explore, party, profile, settings, notification), `lib/services`, `lib/widgets`, `lib/providers`, `lib/routes`, `lib/utils`, `main.dart` สั้นๆ (แค่ setup + routes)
+- **โครงสร้างโฟลเดอร์ Flutter**: `lib/models`, `lib/pages` (admin, auth, community, explore, home, inventory, notification, party (หน้าสร้างห้อง), profile, progress, settings, shop), `lib/services` (ทุก service เรียก server ผ่าน `api_http.dart` — ดูหัวข้อ 6.5), `lib/widgets`, `lib/providers`, `lib/routes`, `lib/utils`, `main.dart` สั้นๆ (แค่ setup + routes)
 - 🌐 **ภาษาในแอพ: อังกฤษล้วน** (ตัดสินใจแล้ว แปลงทั้งโปรเจคไปเรียบร้อยแล้ว)
   - **ทุกข้อความที่ผู้ใช้เห็นต้องเป็นภาษาอังกฤษ** — รวมถึง `message` ที่ backend ส่งกลับมาด้วย
     เพราะข้อความ error จาก API ถูกเอาไปโชว์ใน SnackBar ของแอพตรงๆ (ถ้าเขียนไทยฝั่ง backend ผู้ใช้จะเห็นไทยทันที)
@@ -83,10 +84,19 @@
 - `fridgeItems` — สำหรับ Mini Quest เช็คอาหาร (`itemName`, `expirationDate`, `quantity`, `addedAt`,
   `photoData`/`photoContentType` — รูปจริงอัปโหลดขึ้น server แล้ว ดูหัวข้อ 5, `photoPath` เป็นฟิลด์เก่า
   เก็บไว้เพื่อของก่อนหน้านี้เท่านั้น)
-- `items`/`inventory` — ไอเทมที่ผู้เล่นถือ
+- `questProgress` — เควสที่กด Start แล้วยังไม่จบ (+ `daysDone`/`lastCheckInDay` ของเควสหลายวัน)
+- `inventoryItems` — ไอเทมที่ผู้เล่นถือ
 - `achievements` — medal ที่ปลดล็อกแล้ว (unique index กันซ้ำ)
+- `userUpgrades` — ระดับ Upgrade Ability ของแต่ละคน
+- `notifications` — แจ้งเตือนในแอพ
+- `parties` / `partyMembers` — ห้องปาร์ตี้ + สมาชิก (สมาชิกแยก collection ไม่ embed)
+- `friendships` — คู่เพื่อน 1 เอกสารต่อ 1 คู่ (`pairKey` unique)
+- `chatMessages` — แชททั้ง 3 แบบ แยกด้วย `channelType` (world/party/friend)
 
-Mongoose models ทั้งหมดอยู่ใน `backend/models/` **สร้างไว้ครบแล้ว** แค่ยังไม่มี route/controller สำหรับ quest/user/inventory (มีแค่ auth routes)
+> ชื่อด้านบนเป็นชื่อเรียกในเอกสาร — ชื่อ collection จริงใน Atlas คือชื่อ model แบบตัวพิมพ์เล็กพหูพจน์ที่ Mongoose
+> ตั้งให้ (เช่น `chatmessages`, `questhistories`, `partymembers`) ใช้ชื่อนี้ตอนค้นใน Atlas Browse Collections
+
+Mongoose models ทั้งหมดอยู่ใน `backend/models/` และมี route ครบทุกระบบแล้ว (ดูรายการ "Backend routes ที่มีแล้ว" ในหัวข้อ 5)
 
 ## 5. สถานะปัจจุบัน — อะไรทำงานจริง อะไรยัง mock
 
@@ -172,15 +182,18 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
     ตัวเอง (กันเสียงชนกันเองถ้าเกิดพร้อมกันพอดี) แต่ยังผูกกับสไลเดอร์ "Sound Effects" เดียวกันใน Settings
     ⚠️ `notification.MP3`/`quess_success.MP3` เป็น `.MP3` ตัวพิมพ์ใหญ่ (ต่างจาก `buy_success.mp3` พิมพ์เล็ก)
     ต้องสะกด asset path ให้ตรงเคสเป๊ะ ไม่งั้น build ผ่านบน Windows dev machine แต่ Android จริงหาไฟล์ไม่เจอ
-- **Popup ยืนยัน/แจ้งเตือนทั้งแอพ — ธีม "Liquid Glass" แบบ macOS** — `LiquidGlassDialog` +
+- **Popup ยืนยัน/แจ้งเตือนทั้งแอพ — พื้นดำเรียบทึบ 70%** — `LiquidGlassDialog` +
   `LiquidGlassAction` (`lib/widgets/liquid_glass_dialog.dart`) เป็น widget กลางที่ใช้แทน `AlertDialog`
-  ธรรมดาทุกจุดในแอพที่ผู้เล่นเจอ ให้หน้าตาเหมือนกันหมด: กระจกฝ้าโปร่งแสง (`BackdropFilter` เบลอพื้นหลัง
-  จริงๆ ไม่ใช่แค่สีขาวโปร่งแสงเฉยๆ), ขอบมน 28px, เส้นไฮไลท์บางๆ พาดขอบบนจำลองแสงสะท้อนบนผิวกระจก, ปุ่ม
-  action ทรงแคปซูล (`LiquidGlassAction` — ไม่ใส่สี = ปุ่มรอง/กระจกใสจางๆ, ใส่สี = ปุ่มหลัก/อันตราย fill เต็ม)
+  ธรรมดาทุกจุดในแอพที่ผู้เล่นเจอ ให้หน้าตาเหมือนกันหมด: พื้นสีดำความทึบ `_backgroundOpacity = 0.70`, ขอบมน
+  28px, ปุ่ม action ทรงแคปซูล (`LiquidGlassAction` — ไม่ใส่สี = ปุ่มรอง, ใส่สี = ปุ่มหลัก/อันตราย fill เต็ม)
+  ⚠️ **เดิมเป็นกระจกฝ้าแบบ liquid glass (`BackdropFilter` + ไล่เฉดขาว + เส้นไฮไลท์) — ผู้ใช้สั่งเปลี่ยนเป็นพื้นดำ
+  เรียบเมื่อ 28 ก.ย. 2026** (ลองทึบ 30% แล้วอ่านไม่ออก ผู้ใช้เลือก 70%) ชื่อคลาสยังเป็น `LiquidGlass...` เพราะเรียกใช้
+  ทั่วแอพ ไม่ได้เปลี่ยนชื่อ
   - เปิดผ่าน `LiquidGlassDialog.show<T>(context: ..., title: ..., content: ..., actions: [...])`
     (คืนค่าเหมือน `showDialog` ปกติทุกอย่าง — เอา build จุดเดิมออก เปลี่ยนแค่ตัวเรียก)
   - ใช้อยู่ที่: ลบของในตู้เย็น (`fridge_page.dart`), Edit Display Name/About/Log out
-    (`settings_page.dart`), Leave Party/Complete Event (`party_page.dart`), Use Super Energy confirm
+    (`settings_page.dart`), Leave Party/Complete Event (`community/party_tab.dart`), ลบเพื่อน
+    (`community/friend_tab.dart`), Check Food intro/Complete quest (`fridge_page.dart`), Use Super Energy confirm
     (`inventory_page.dart`), ลบรูป EcoQuest Moment (`camera_page.dart`), popup ยินดีได้เหรียญใหม่
     (`utils/quest_completion.dart`)
   - ⚠️ **ไม่ได้ใส่ที่หน้า Admin** (`admin_page.dart`) — ตั้งใจให้หน้านั้นใช้ธีม Material เรียบๆ แยกจาก
@@ -242,8 +255,19 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
     - **Empty state หายใจเบาๆ** — ห่อไอคอนด้วย `BreathingIcon` ที่: `inventory_page.dart`,
       `shop_page.dart`, `notification_page.dart`, `eco_badge_page.dart`, `explore_page.dart`,
       `party_page.dart` (`_NoPartyState`)
-- **หน้า Party** — โชว์รายชื่อปาร์ตี้ (Party Leader บนสุดกดดูโปรไฟล์ได้ + สมาชิก) + ปุ่ม Leave Party
-  ถ้ายังไม่มีปาร์ตี้จะเป็น empty state ("You're not in a party yet") + ปุ่มพาไปแท็บ Explore (ข้อมูลยัง mock อยู่ใน `lib/models/party_model.dart`)
+- **แอนิเมชันรอบ 2 (28 ก.ย. 2026)**:
+  - **รูปเควสบินต่อเข้าหน้ารายละเอียด (Hero)** — `QuestCard.heroTag` + `QuestDetailPage.heroTag` ต้องสร้างจาก
+    `questCoverHeroTag(page, quest.id)` (`widgets/quest_card.dart`) ทั้งคู่ — page = 'home'/'explore'/'progress'
+    เพราะแผ่น Explore ในหน้า Home กับหน้า Explore อยู่ใน IndexedStack route เดียวกัน แท็กซ้ำจะพัง มุมมนเปลี่ยน
+    12→0 ระหว่างบินผ่าน `questCoverFlightShuttle` เควสที่ไม่มีรูปไม่มี Hero (เปิดหน้าแบบปกติ)
+  - **รางวัลลอยเข้าป้าย** — `lib/widgets/reward_fly.dart` `showRewardFly()` เรียกใน `handleQuestCompleted()` แทน
+    bubble toast + particle burst เดิม: ป้าย "Quest complete! +P / +XP" โผล่บนจอ เหรียญทอง 5 + ใบไม้ 5 บินโค้งเข้าป้าย
+    ตัวเลขนับขึ้นตามของที่ลง (~2.6 วิ) — `handleQuestCompleted` รอให้ของลงครบก่อนเปิด popup เหรียญ/เลเวลอัพ
+    โหมดลดการเคลื่อนไหวในเครื่อง (`disableAnimations`) = ไม่มีของบิน โชว์ตัวเลขเต็มเลย
+- **แท็บ Party (ใน Community)** — โชว์ห้องที่อยู่ (Party Leader บนสุดกดดูโปรไฟล์ได้ + สมาชิก) + ปุ่ม Leave Party
+  ถ้ายังไม่มีปาร์ตี้จะเป็น empty state ("You're not in a party yet") + ปุ่มพาไปแท็บ Explore — ข้อมูลจริงจาก
+  `GET /api/party` แล้ว (ไฟล์ย้ายจาก `party/party_page.dart` เป็น `community/party_tab.dart` — ชื่อไฟล์เก่าใน
+  หัวข้อแอนิเมชันด้านบนหมายถึงไฟล์นี้)
 - **Quest system ใช้งานได้จริงแล้ว (end-to-end)** — `GET /api/quests` + `POST /api/quests/:id/complete`
   กด Start บนการ์ด → บันทึก `QuestHistory` → บวก points/XP → อัปเดต cache `user.level` → รีเฟรชโปรไฟล์ให้เลขในหน้า Profile ขยับตาม
   - **quest รายวัน (`isDaily`)** ทำซ้ำในวันเดียวกันไม่ได้ — backend ตอบ 409 และการ์ดจะขึ้นปุ่ม "Done" กดไม่ได้
@@ -481,12 +505,12 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
     เดียวกันทั้ง `QuestHistory`, ยอดผู้ใช้, response, และข้อความแจ้งเตือน ไม่งั้นตัวเลขจะไม่ตรงกันเอง
 - **Quest History ในหน้า Profile** — การ์ดล่างสุด (ต่อจาก Upgrade your Ability) โชว์ quest ที่ทำสำเร็จ
   แต่ละแถว: ไอคอนตามหมวด + ชื่อ quest + วันที่สำเร็จ + คะแนนที่ได้ (`+10 P`) ข้อมูลจริงจาก `GET /api/quests/history`
-  ⚠️ **ยังไม่มี "รูป quest" จริงในระบบ** (`Quest` model ไม่มีฟิลด์รูป, ไม่มีไฟล์ภาพใน assets)
-  ตอนนี้ใช้ไอคอนตามหมวดแทน (food_waste / recycling / plastic / community) — ถ้าเพิ่มฟิลด์รูปทีหลัง
-  แก้แค่ตรง `_QuestHistoryRow` ในหน้า Profile จุดเดียว (การ์ด quest ในหน้า Explore ก็ยังเป็นกล่องเทา placeholder เหมือนกัน)
+  แถวประวัติยังใช้ไอคอนตามหมวด (food_waste / recycling / plastic / community) ตั้งใจ — ส่วนการ์ดเควสใน
+  Explore/Progress/หน้ารายละเอียดใช้**รูปเควสจริงแล้ว** (`Quest.imageKey` → `lib/utils/quest_image.dart` →
+  `lib/utils/assets/questimg/*.jpg`) เควสที่ยังไม่มีรูปโชว์กล่องเทา placeholder
 - **หน้า Profile ใช้ข้อมูลจริงแล้ว** — level / xp / points / streak / stats ดึงจาก `GET /api/auth/me`
   (หน้า Home ได้ตามไปด้วยอัตโนมัติ เพราะใช้ `ProfilePage` ตัวจริงเป็นพื้นหลัง) ดึงลงเพื่อ refresh ได้ในแท็บ Profile
-- Bottom nav (`MainShell` + `IndexedStack`) สลับ 5 แท็บ: Home, Inventory, Explore, Party, Profile
+- Bottom nav (`MainShell` + `IndexedStack`) สลับ 5 แท็บ: Home, Inventory, Explore, Community, Profile
 - หน้า Profile — UI ครบ, background เปลี่ยนรูปเองได้ (`lib/utils/assets/background.png`)
 - หน้า Home — พื้นหลังคือหน้า Profile จริง + แผ่น "Explore" ลากขึ้น/ลงได้ (ลากขึ้นสุด→ไปแท็บ Explore, ลากลงสุด→ไปแท็บ Profile) มี animation + haptic + perf optimization (RepaintBoundary, ไม่ rebuild เนื้อหาหนักทุกเฟรม)
 - หน้า Explore เต็มจอ — search bar, filter chips (All/Solo/Party/Event), quest list, pull-to-refresh, empty state
@@ -604,12 +628,19 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` **ส�
   `POST /display-name`, `POST /notification-preference`,
   `POST /verify-password`, `POST /change-password`,
   `POST /forgot-password`, `POST /verify-reset-otp`, `POST /reset-password`
-- `backend/routes/quests.js` → mount ที่ `/api/quests`: `GET /`, `GET /history?limit=` , `POST /:id/complete` (ต้อง login ทั้งหมด)
-  (`/history` ต้องประกาศก่อน route ที่มี `:id` ไม่งั้นคำว่า history จะถูกจับเป็น id)
-- `backend/routes/fridgeItems.js` → mount ที่ `/api/fridge-items`: `GET /`, `POST /`, `DELETE /:id` (ต้อง login ทั้งหมด)
+- `backend/routes/quests.js` → mount ที่ `/api/quests`: `GET /`, `GET /history?limit=`, `GET /progress`,
+  `POST /:id/start`, `DELETE /:id/start` (ยกเลิก), `POST /:id/complete` (ต้อง login ทั้งหมด)
+  (`/history`/`/progress` ต้องประกาศก่อน route ที่มี `:id` ไม่งั้นจะถูกจับเป็น id)
+- `backend/routes/fridgeItems.js` → mount ที่ `/api/fridge-items`: `GET /`, `POST /`, `DELETE /:id` (ต้อง login),
+  `GET /:id/photo` (เสิร์ฟรูป — ไม่ต้อง login)
 - `backend/routes/achievements.js` → mount ที่ `/api/achievements`: `GET /` (ต้อง login)
 - `backend/routes/party.js` → mount ที่ `/api/party`: `GET /`, `GET /rooms`, `POST /`, `POST /join/:partyId`,
-  `POST /leave`, `POST /complete` (ต้อง login ทั้งหมด)
+  `POST /start`, `POST /leave`, `POST /complete` (ต้อง login ทั้งหมด) — สมาชิกที่บัญชีถูกลบไปแล้วไม่ถูกนับ
+  และ `/leave` ข้ามคนพวกนี้ (ห้องไม่เหลือคนจริง = ลบห้องทิ้ง) แก้เมื่อ 28 ก.ย. 2026 หลังเจอห้องทดสอบค้าง
+- `backend/routes/friends.js` → mount ที่ `/api/friends`: ค้นหา/ส่ง-รับ-ปฏิเสธ-ยกเลิกคำขอ/ลิสต์/ลบเพื่อน
+  (รายละเอียดหัวข้อ 8 ข้อ 5 Phase 2)
+- `backend/routes/chat.js` → mount ที่ `/api/chat`: `GET /world/messages`, `GET /party/messages`,
+  `GET /friend/:friendUserId/messages` (ดึงประวัติเท่านั้น — ส่งข้อความทาง socket `chat:send`)
 - `backend/routes/users.js` → mount ที่ `/api/users`: `GET /:id` (โปรไฟล์สาธารณะของผู้เล่นคนอื่น, ต้อง login),
   `GET /:id/avatar` (เสิร์ฟรูปโปรไฟล์ — **ไม่ต้อง login**, ดูหัวข้อ avatar ด้านบน)
 - `backend/routes/inventory.js` → mount ที่ `/api/inventory`: `GET /` (แจกไอเทมตั้งต้น Camera/Fridge
@@ -685,10 +716,12 @@ template ปัจจุบันเสมอ แก้ตัวเลขใน 
   - `camera.png` / `fridge.png` (Inventory) และ `trophy.png` / `fridge_expired.png` (แจ้งเตือน) — โชว์จริง
     แค่ 72×72 logical px เท่านั้น → ย่อเหลือ **216×216** (3x ของ 72 พอสำหรับจอความหนาแน่นสูงสุด)
     ไฟล์ละ ~2MB เหลือแค่ **~25-43KB** (ลดลง ~98%)
-  - รูปปกเควส `lib/utils/assets/questimg/*.png` (checkfridge/finishyourmeal/useleftoveringredients) —
+  - รูปปกเควส `lib/utils/assets/questimg/*.jpg` (9 รูป — ชื่อไฟล์ตรงกับ `Quest.imageKey` ใน seed) —
     ⚠️ **ไม่ได้ย่อเหลือ 216 เหมือนกลุ่มบน** เพราะใช้ 2 ที่: thumbnail 64×64 ในลิสต์เควส **และ**
     แบนเนอร์เต็มความกว้างจอสูง 260dp ในหน้ารายละเอียดเควส (`quest_detail_page.dart` `_CoverImage`)
-    ย่อ 216 จะเบลอมากตอนโชว์เป็นแบนเนอร์ — ย่อเป็น **900×900** แทน (พอสำหรับ cover แต่ลดขนาดไฟล์ลงได้เกินครึ่ง)
+    ย่อ 216 จะเบลอมากตอนโชว์เป็นแบนเนอร์ — ย่อเป็น **900×900** แทน และแปลงเป็น JPEG (ไฟล์ละ ~200-300KB)
+    เพิ่มรูปเควสใหม่: ย่อ 900×900 + JPEG แล้วใส่ `imageKey` ใน seed ให้ตรงชื่อไฟล์
+  - รูปไอเทม Energy `lib/utils/assets/items/{red,blue,green,super}energy.png` — โชว์ในร้านค้าและ Inventory
   - `background.png` — **ไม่ได้ย่อขนาดพิกเซล** (941×1672 เหมาะสมกับพื้นหลังเต็มจอ BoxFit.cover อยู่แล้ว
     ที่ใช้กันหลายหน้า เช่น Profile/Settings/Party) แค่บีบอัด PNG ใหม่ให้เบาลงเล็กน้อยเท่านั้น
   - ถ้าจะเพิ่มรูปใหม่ในกลุ่ม 72×72 (ไอเทม/แจ้งเตือน) ในอนาคต ควรย่อเหลือ ~216×216 ตั้งแต่ต้นเช่นกัน
@@ -698,11 +731,12 @@ template ปัจจุบันเสมอ แก้ตัวเลขใน 
     และมี**เงาที่วิ่งตามรูปทรงของภาพ** (ก๊อปรูปมาย้อมดำด้วย `srcIn` แล้วเบลอ วางเหลื่อมลง 3px) ไม่ใช่เงาสี่เหลี่ยม
   - **ไม่มีรูป (โชว์ icon)** → ยังใช้กล่องสีอ่อนรอง (`iconColor` opacity 0.1) เหมือนเดิม เพราะ Achievement medal พึ่งลุคนี้อยู่
   - เหตุผลที่แยก: เดิมกล่องสีรองถูกวาดเสมอ ทำให้รูปพื้นหลังโปร่ง (Camera/Fridge ที่ใช้ `iconColor: black87`) มีกรอบเทาติดมาด้วย
-- ทดสอบบนเครื่องจริงผ่าน USB ต้องใช้ `adb reverse tcp:5000 tcp:5000` ทุกครั้งที่เสียบสายใหม่ (ไม่ persist ข้าม session)
-- ⚠️ **`AppConstants.baseUrl` ต้องสลับค่าตามอุปกรณ์ที่ทดสอบ** (เคยเสียเวลากับเรื่องนี้มาแล้ว — อาการคือ `SocketException: Connection timed out`)
-  - **เครื่องจริง + `adb reverse`** → `http://127.0.0.1:5000/api` ← ค่าปัจจุบัน
-  - **Android Emulator** → `http://10.0.2.2:5000/api` (`10.0.2.2` เป็น IP พิเศษของ emulator เท่านั้น บนเครื่องจริงไม่มี IP นี้อยู่จริง เลย timeout)
-  - เปลี่ยนค่านี้แล้วต้อง **hot restart** ไม่ใช่แค่ hot reload
+- **`AppConstants.baseUrl` ชี้ไป backend บน Render เป็นค่าเริ่มต้นแล้ว** — build ธรรมดาใช้ได้เลย ไม่ต้องเปิดคอม
+  จะต่อ backend ในเครื่องตอน dev ให้ส่ง `--dart-define=API_BASE_URL=...` (ไม่ต้องแก้โค้ด — ดูคอมเมนต์ใน
+  `lib/utils/constants.dart`):
+  - **เครื่องจริง** → `http://127.0.0.1:5000/api` + ต้อง `adb reverse tcp:5000 tcp:5000` ทุกครั้งที่เสียบสายใหม่
+  - **Android Emulator** → `http://10.0.2.2:5000/api` (`10.0.2.2` มีเฉพาะ emulator — ใช้บนเครื่องจริงจะ
+    `SocketException: Connection timed out` เคยเสียเวลากับเรื่องนี้มาแล้ว)
 - ถ้าทดสอบผ่าน WiFi มหาวิทยาลัย/องค์กร อาจเจอ firewall บล็อกการเชื่อม MongoDB Atlas — ใช้ hotspot มือถือแทนได้
 - `IndexedStack` ต้องครอบด้วย `SizedBox.expand` ไม่งั้นบางทีไม่ยอมขยายเต็มพื้นที่ (เจอปัญหาช่องว่างสีขาวมาก่อน)
 - Gradle JDK ต้องเป็น JDK 17 (ไม่ใช่ JDK ใหม่กว่านี้) ไม่งั้น Gradle sync fail
@@ -741,7 +775,12 @@ backend พร้อม deploy แล้ว (ทดสอบว่าบูต�
 ⚠️ **ข้อจำกัด free tier: service หลับหลังไม่มีคนใช้ ~15 นาที คำขอแรกหลังหลับช้า 30-60 วิ**
 - `AuthProvider.checkSession()` เลย **จงใจไม่ await `refreshProfile()`** — ไม่งั้นหน้า splash จะค้างรอ
   จนกว่า backend จะตื่น ตอนนี้เข้าแอพด้วยค่าที่ cache ไว้ก่อน แล้วตัวเลขค่อยอัปเดตเอง **อย่าเผลอใส่ `await` กลับเข้าไป**
-- ส่วนอื่นยังไม่ได้ใส่ timeout ให้ http request — ถ้าเจอปัญหาค้างนานตอน cold start ค่อยมาเพิ่มทีหลัง
+- ✅ **ทุก http request มี timeout แล้ว (28 ก.ย. 2026)** — `lib/services/api_http.dart` เป็นตัวกลางที่มี
+  get/post/put/delete ชื่อเดียวกับ package:http ทุก service import เป็น `import 'api_http.dart' as http;`
+  (เพิ่ม service ใหม่ต้อง import ตัวนี้ ห้าม import `package:http` ตรงๆ) timeout 60 วิ (ยาวกว่าเวลาที่ Render
+  ตื่นจากหลับ ~50 วิ) และแปลง error ดิบเป็นข้อความอ่านรู้เรื่อง: timeout / ต่อ server ไม่ได้ (เน็ตหลุด, หา host
+  ไม่เจอ) / 5xx ที่เป็นหน้า HTML (Render ล่ม/กำลัง deploy) — 5xx ที่เป็น JSON จาก backend ยังส่งต่อให้ service
+  อ่าน `message` ตามปกติ หน้าจอที่มี error state + ปัดลงโหลดใหม่อยู่แล้วเลยใช้ได้ทันทีแทนที่จะหมุนค้าง
 
 ### seed quest ตอน server boot
 `server.js` เรียก `seedQuests()` ทุกครั้งที่ backend สตาร์ท (upsert อิง `title` เลยรันซ้ำได้ ไม่สร้างของซ้ำ)
@@ -754,8 +793,15 @@ backend พร้อม deploy แล้ว (ทดสอบว่าบูต�
 
 ## 7. งานถัดไปที่แนะนำ
 
-ทุกฟีเจอร์หลักต่อ backend จริงครบแล้ว ไม่มี mock เหลืออยู่ในแอพ (✅ รูปโปรไฟล์และรูปของในตู้เย็นอัปโหลด
-ขึ้น server จริงแล้วทั้งคู่ ดูหัวข้อ 5) งานที่เหลือเป็นงานเสริม/ปรับแต่ง เช่น:
+ทุกฟีเจอร์หลักต่อ backend จริงครบแล้ว ไม่มี mock เหลืออยู่ในแอพ และทดสอบบนเครื่องจริงครบทุกระบบแล้ว
+(ระบบเพื่อน/แชทเพื่อนทดสอบเมื่อ 28 ก.ย. 2026) งานที่เหลือ (อัปเดต 28 ก.ย. 2026):
+- **ช่องกรอก kg ให้ Neighborhood Recycling Drive** — ตอนนี้ `co2eEstimateKg: null` (ไม่นับ CO₂) เพราะไม่มีที่กรอก
+  ปริมาณที่เก็บได้จริง ถ้าเพิ่มช่องกรอกตอนหัวหน้ากดจบอีเวนต์ คำนวณได้ตามวิธีใน `CO2_RESEARCH.md`
+- **User Testing ต่อ** — ทำไป 2 คนแล้ว (ดู `BALANCE_REPORT.md`) หยุดไว้ก่อนคนที่ 3
+- **ของในตู้เย็นที่บันทึกก่อนแก้บั๊ก timezone** (ก่อน `2664e9c`) วันหมดอายุยังเลื่อนไป 1 วัน — ผู้ใช้เลือกปล่อยไว้
+  (หมดอายุไปเอง) ถ้าจะซ่อม: ของที่เวลา UTC เป็น 23:59:59 พอดี ลบ 9 ชั่วโมง
+- popup `LiquidGlassDialog` พื้นดำทึบ 70% (ผู้ใช้เลือกเอง) — บนหน้าพื้นขาวตัวหนังสือข้างหลังทะลุขึ้นมาค่อนข้างชัด
+  ปรับได้ที่ `_backgroundOpacity` บรรทัดเดียวถ้าผู้ใช้ขอ
 - ปรับสมดุลราคา/ผลของ upgrade ถ้าเทสแล้วรู้สึกไม่ลงตัว (แก้ที่ `backend/utils/upgrades.js` ไฟล์เดียว)
 
 ## 8. สิ่งที่ฉันคิดออกและต้องการ
@@ -768,7 +814,8 @@ backend พร้อม deploy แล้ว (ทดสอบว่าบูต�
   แยกกันได้ในหน้า Settings (Background Music / Sound Effects คนละสไลเดอร์ เหมือนเกม) — ดูหัวข้อ 5
 4.✅ เอฟเฟคใบไม้ลอยตกในพื้นหลัง — เพิ่มแล้วทุกหน้าที่มีพื้นหลังธีม (`lib/widgets/falling_leaves_overlay.dart`)
   ยังไม่ได้ทำเอฟเฟคอย่างอื่นเพิ่มเติม (เสียงกดปุ่ม, การเคลื่อนไหวจุดอื่นๆ) ถ้าอยากได้เพิ่มบอกได้เลย
-5.✅ **ทำครบทั้ง 8 Phase แล้ว (Phase 0-7) — แผนเต็มที่ `C:\Users\parto\.claude\plans\wild-knitting-nova.md`** เดิม: "ฉันอยากแก้หน้า
+5.✅ **ทำครบทั้ง 8 Phase แล้ว (Phase 0-7)** (แผนเดิมเคยอยู่ที่ `C:\Users\parto\.claude\plans\wild-knitting-nova.md`
+  แต่ไฟล์นั้นถูกเขียนทับด้วยแผนงานอื่นไปแล้ว — รายละเอียดที่เหลืออยู่คือที่เขียนไว้ด้านล่างนี้) เดิม: "ฉันอยากแก้หน้า
   Party เปลี่ยนเป็น Community โดยจะมีหน้าแยกคือ Friend เพื่อให้คนเพิ่มเพื่อนค้นหาเพื่อนได้ , Party เพื่อ
   แสดงว่าตัวเองอยู่ Party อะไรถ้ายังไม่มีก็จะแสดง Party ที่ว่างและให้คนเข้าร่วมได้อยู่ , Chat จะเป็นหน้า
   ที่คนสามารถพูดคุยได้ เป็น Chatโลก Chatปาร์ตี Chatเพื่อน" — ตัดสินใจแล้ว: Chat = real-time ผ่าน
@@ -893,15 +940,17 @@ backend พร้อม deploy แล้ว (ทดสอบว่าบูต�
       เปลี่ยน `PartyMember` — ไม่มี room membership ให้ sync)
     - `backend/routes/chat.js` เพิ่ม `GET /party/messages` (หา partyId จาก membership เอง) และ
       `GET /friend/:friendUserId/messages` (เช็ค Friendship accepted ก่อนเสมอ)
-    - Fronten✅ ทดสอบ boot server + WebSocket handshake ผ่าน socket client จริงอีกรอบ ยืนยันว่า `chat:send`
-      channelType `party` ทำงานตามลอจิก (query DB แล้ว fail อย่างสุภาพเพราะ Atlas connect ไม่ติด
-      เหมือนทุก Phase ก่อนหน้า ไม่ crash) — **ยังไม่เคยทดสอบกับ Dart client จริงและยังไม่เคยเห็น
-      ข้อความ persisd: `chat_service.dart` เพิ่ม `fetchPartyHistory()`/`fetchFriendHistory(friendUserId)`,
+    - Frontend: `chat_service.dart` เพิ่ม `fetchPartyHistory()`/`fetchFriendHistory(friendUserId)`,
       `chat_provider.dart` เก็บข้อความแยกคีย์ต่อ channel (`'world'`/`'party'`/`'friend:<userId>'` —
       แชทเพื่อนต้องแยกคีย์ต่อคนคุย เพราะคุยได้หลายคน) เพิ่ม `sendPartyMessage`/`sendFriendMessage`/
       `loadPartyHistory`/`loadFriendHistory`
+      ⚠️ ข้อความเพื่อนที่มาทาง socket มี `channelId` เป็น pairKey (`<idA>_<idB>`) ไม่ใช่ id เพื่อน —
+      `_channelKey()` หยิบ id ฝั่งที่ไม่ใช่ตัวเองออกมาก่อน (อ่าน id ตัวเองจาก `StorageService.getUser()` ตอน
+      `connect()`) ไม่งั้นข้อความสดไม่ขึ้น (บั๊กจริงที่เจอตอนทดสอบบนเครื่อง 28 ก.ย. 2026)
     - `lib/pages/community/chat_tab.dart` — เปิดใช้ครบทั้ง 3 chip แล้ว: Party enable เฉพาะตอน
       `PartyProvider.hasParty`, Friend enable เฉพาะตอนมีเพื่อนอย่างน้อย 1 คน (กดแล้วเปิด bottom
       sheet เลือกว่าจะคุยกับเพื่อนคนไหน) — ออกจากปาร์ตี้ระหว่างอยู่แท็บ Party chat จะเด้งกลับ World
-      เองอัตโนมัติ
-    - t ลง DB จริงเลยทั้งโปรเจค Chat** ต้องทดสอบเต็มรูปแบบอีกทีหลัง deploy ขึ้น Render
+      เองอัตโนมัติ — ข้อความของตัวเองชิดขวาพื้นเขียว ของคนอื่นชิดซ้ายพื้นขาวมีชื่อผู้ส่ง (`_MessageBubble.isMine`
+      เทียบ `fromUserId` กับ `ChatProvider.myUserId`)
+    - ✅ ทดสอบบนเครื่องจริงแล้ว (28 ก.ย. 2026): World chat + แชทเพื่อน ส่ง/รับ/ประวัติ ทำงานกับ Render + Atlas
+      จริง (บันทึกเดิมตอนทำ Phase นี้ยังทดสอบกับ Dart client/DB จริงไม่ได้เพราะ Atlas connect จากเครื่อง dev ไม่ติด)

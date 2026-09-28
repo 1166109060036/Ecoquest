@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:http/http.dart' as http;
+import 'api_http.dart' as http;
 import '../models/user_model.dart';
 import '../models/profile_model.dart';
 import '../utils/constants.dart';

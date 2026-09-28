@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'api_http.dart' as http;
 import '../models/party_model.dart';
 import '../models/quest_card_model.dart';
 import '../utils/constants.dart';

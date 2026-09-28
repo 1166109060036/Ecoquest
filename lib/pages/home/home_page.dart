@@ -241,7 +241,11 @@ class _ExploreSheetState extends State<_ExploreSheet> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => QuestDetailPage(quest: quest, onStart: _onStartQuest),
+        builder: (_) => QuestDetailPage(
+          quest: quest,
+          onStart: _onStartQuest,
+          heroTag: questCoverHeroTag('home', quest.id),
+        ),
       ),
     );
   }
@@ -448,6 +452,7 @@ class _ExploreSheetState extends State<_ExploreSheet> {
                             quest: quest,
                             onAction: () => _onStartQuest(quest),
                             onTap: () => _openQuestDetail(quest),
+                            heroTag: questCoverHeroTag('home', quest.id),
                           );
                         },
                       ),

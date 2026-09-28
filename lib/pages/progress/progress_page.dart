@@ -63,6 +63,7 @@ class _ProgressPageState extends State<ProgressPage> {
           onStart: (_) async {},
           completeMode: true,
           onComplete: _onCompleteQuest,
+          heroTag: questCoverHeroTag('progress', quest.id),
         ),
       ),
     );
@@ -199,6 +200,7 @@ class _ProgressPageState extends State<ProgressPage> {
                                   progressMode: true,
                                   onAction: () => _openQuestDetail(quest),
                                   onTap: () => _openQuestDetail(quest),
+                                  heroTag: questCoverHeroTag('progress', quest.id),
                                 ),
                               );
                             },
