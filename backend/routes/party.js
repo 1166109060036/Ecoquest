@@ -110,8 +110,11 @@ router.get('/rooms', authMiddleware, async (req, res) => {
 
     // นับจำนวนสมาชิกทีเดียวทุกห้อง ไม่ query ทีละห้อง
     const partyIds = parties.map((p) => p._id);
+    // นับเฉพาะสมาชิกที่ยังมีบัญชีอยู่จริง ให้ตรงกับ toPartyPayload (ไม่งั้นการ์ดใน Explore โชว์เกินจริง)
     const counts = await PartyMember.aggregate([
       { $match: { partyId: { $in: partyIds } } },
+      { $lookup: { from: 'users', localField: 'userId', foreignField: '_id', as: 'user' } },
+      { $match: { 'user.0': { $exists: true } } },
       { $group: { _id: '$partyId', count: { $sum: 1 } } },
     ]);
     const memberCounts = new Map(counts.map((c) => [c._id.toString(), c.count]));
@@ -352,16 +355,20 @@ router.post('/leave', authMiddleware, async (req, res) => {
     await PartyMember.deleteOne({ _id: membership._id });
     syncPartyRoomForUser(req.userId, partyId, 'leave');
 
-    const remaining = await PartyMember.findOne({ partyId }).sort({ joinedAt: 1 });
+    // ข้าม record ค้างของบัญชีที่ถูกลบไปแล้ว (populate ได้ null) — ไม่งั้นห้องที่ไม่มีคนจริงเหลือจะไม่ถูกลบ
+    // และบัญชีที่ไม่มีอยู่จริงถูกเลื่อนเป็นหัวหน้า (เจอจริงกับห้องทดสอบที่ user ถูกลบไปแล้ว)
+    const others = await PartyMember.find({ partyId }).sort({ joinedAt: 1 }).populate('userId', '_id');
+    const remaining = others.find((m) => m.userId);
 
     if (!remaining) {
-      // ห้องว่างแล้ว ไม่มีเหตุผลจะเก็บไว้
+      // ห้องว่างแล้ว ไม่มีเหตุผลจะเก็บไว้ — ลบ record ค้างของบัญชีที่ถูกลบไปด้วย
+      await PartyMember.deleteMany({ partyId });
       await Party.deleteOne({ _id: partyId });
     } else if (isLeader) {
       // หัวหน้าออกไปก่อน -> เลื่อนคนที่เข้าร่วมนานที่สุดถัดมาเป็นหัวหน้าแทน
       remaining.isLeader = true;
       await remaining.save();
-      await Party.updateOne({ _id: partyId }, { leaderId: remaining.userId });
+      await Party.updateOne({ _id: partyId }, { leaderId: remaining.userId._id });
     }
 
     res.json({ message: 'Left the party' });
