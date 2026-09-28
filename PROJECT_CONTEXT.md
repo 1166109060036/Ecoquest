@@ -810,7 +810,13 @@ backend พร้อม deploy แล้ว (ทดสอบว่าบูต�
       + `notifyFriendRequest`/`notifyFriendAccepted` ใน `backend/utils/notifications.js` (รูปแบบเดียวกับ
       `notifyQuestCompleted` เดิม) เรียกจาก `friends.js` ตอนส่งคำขอ/ตอบรับ (รวม auto-accept)
     - mount ที่ `backend/server.js` แล้ว (`app.use('/api/friends', friendRoutes)`)
-    - ⚠️ **ยังไม่ได้ทดสอบผ่าน HTTP จริงแบบ end-to-end** — ตอนลงมือทำ MongoDB Atlas connect ไม่ติดจาก
+    - ✅ **ทดสอบ end-to-end แล้ว (28 ก.ย. 2026)** — server จริง + MongoDB ชั่วคราวบนเครื่อง guest 3 คน 44 เคส
+      ผ่านหมด: ค้นหา (ไม่สนตัวพิมพ์, ไม่เจอตัวเอง, ไม่หลุด email, อักขระ regex ไม่พัง), ส่ง/ซ้ำ/ตัวเอง/id ผิด,
+      สถานะ pending_outgoing/incoming/friends, แจ้งเตือนทั้ง 2 แบบ, คนอื่น accept/cancel แทนไม่ได้, auto-accept
+      ตอนขอสวนกัน, reject แล้วขอใหม่ได้, cancel, ลบเพื่อน, แชทเพื่อนผ่าน socket (ส่ง/รับสด/ประวัติ, ไม่ใช่เพื่อน
+      หรือลบเพื่อนแล้วส่งไม่ได้) — เจอแล้วแก้ 2 บั๊ก: request id ผิดรูปแบบใน accept/reject/cancel ตอบ 500
+      (ตอนนี้ 400) และ `GET /api/friends` พังทั้งลิสต์ (500) ถ้าบัญชีเพื่อนถูกลบไปจาก DB
+    - (บันทึกเดิม) ตอนลงมือทำ MongoDB Atlas connect ไม่ติดจาก
       เครื่อง dev (ปัญหา IP whitelist ที่เจอมาก่อนแล้วในโปรเจคนี้ ดูหัวข้อ 6) ทำได้แค่ `node --check`
       ทุกไฟล์ + boot server จริงเช็คว่าไม่ crash + ยืนยันว่า `authMiddleware` reject request ไม่มี token
       ถูกต้อง (401) ส่วน logic ที่พึ่ง DB (ค้นหา/ส่งคำขอ/accept ฯลฯ) ตรวจสอบด้วยการอ่านโค้ดทวนซ้ำเทียบกับ

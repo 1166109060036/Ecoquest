@@ -176,6 +176,9 @@ router.get('/requests', authMiddleware, async (req, res) => {
 // @route   POST /api/friends/requests/:id/accept
 router.post('/requests/:id/accept', authMiddleware, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid request id' });
+    }
     // atomic CAS แบบเดียวกับ party.js's /start และ /complete — กันกดซ้อน/กดหลัง cancel ไปแล้ว
     const friendship = await Friendship.findOneAndUpdate(
       { _id: req.params.id, recipientId: req.userId, status: 'pending' },
@@ -205,6 +208,9 @@ router.post('/requests/:id/accept', authMiddleware, async (req, res) => {
 // @desc    ผู้รับปฏิเสธคำขอ — ลบทิ้งเลย ไม่เก็บ log (อีกฝ่ายส่งคำขอใหม่ได้อีกทีหลัง)
 router.post('/requests/:id/reject', authMiddleware, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid request id' });
+    }
     const { deletedCount } = await Friendship.deleteOne({
       _id: req.params.id,
       recipientId: req.userId,
@@ -224,6 +230,9 @@ router.post('/requests/:id/reject', authMiddleware, async (req, res) => {
 // @desc    ผู้ส่งยกเลิกคำขอของตัวเองก่อนอีกฝ่ายตอบ
 router.post('/requests/:id/cancel', authMiddleware, async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid request id' });
+    }
     const { deletedCount } = await Friendship.deleteOne({
       _id: req.params.id,
       requesterId: req.userId,
@@ -253,7 +262,9 @@ router.get('/', authMiddleware, async (req, res) => {
 
     const friends = friendships
       .map((f) => {
-        const isRequester = f.requesterId._id.toString() === String(req.userId);
+        // populate ได้ null ถ้าบัญชีอีกฝ่ายถูกลบไปแล้ว — เช็คก่อน ไม่งั้น ._id พังทั้งลิสต์ (500)
+        const isRequester =
+          !!f.requesterId && f.requesterId._id.toString() === String(req.userId);
         const other = isRequester ? f.recipientId : f.requesterId;
         return other ? { ...toPublicUser(other), friendSince: f.respondedAt } : null;
       })
