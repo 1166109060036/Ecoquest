@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/quest_card_model.dart';
 import '../../utils/co2_format.dart';
+import '../../widgets/check_in_ring.dart';
 import '../../widgets/quest_card.dart';
 
 // หน้ารายละเอียด quest — เข้าโดยกดที่ตัวการ์ด quest (ปุ่ม Start บนการ์ดยังทำงานเหมือนเดิม)
@@ -104,6 +105,11 @@ class QuestDetailPage extends StatelessWidget {
                         children: [
                           _MainCard(quest: quest, style: style),
                           const SizedBox(height: 14),
+                          // เควสหลายวันที่เริ่มแล้ว — วงแหวนใหญ่บอกว่าเช็คอินไปกี่วัน
+                          if (quest.isMultiDay && quest.inProgress) ...[
+                            _CheckInProgressCard(quest: quest),
+                            const SizedBox(height: 14),
+                          ],
                           _RewardCard(quest: quest),
                           const SizedBox(height: 14),
                           _AboutCard(quest: quest),
@@ -339,6 +345,76 @@ class _MainCard extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// ความคืบหน้าเควสหลายวัน (Food Saver 3/7) — วงแหวนเติมจาก 0 ตอนเปิดหน้า + สถานะเช็คอินของวันนี้
+// ---------------------------------------------------------------------------
+class _CheckInProgressCard extends StatelessWidget {
+  final QuestCardModel quest;
+  const _CheckInProgressCard({required this.quest});
+
+  @override
+  Widget build(BuildContext context) {
+    final today = quest.checkedInToday;
+    return _SectionCard(
+      title: 'Your progress',
+      child: Row(
+        children: [
+          CheckInRing(
+            total: quest.durationDays,
+            done: quest.daysDone,
+            size: 92,
+            strokeWidth: 9,
+            animateIn: true,
+            center: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${quest.daysDone}/${quest.durationDays}',
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Colors.black87),
+                ),
+                Text('days', style: TextStyle(fontSize: 10.5, color: Colors.grey.shade600)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 18),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      today ? Icons.check_circle : Icons.radio_button_unchecked,
+                      size: 16,
+                      color: today ? Colors.green : Colors.grey.shade500,
+                    ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        today ? 'Checked in today' : 'Not checked in yet today',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: today ? Colors.green : Colors.black87,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Check in once a day on the Progress page. Missing a day restarts from Day 1.',
+                  style: TextStyle(fontSize: 11.5, color: Colors.grey.shade600, height: 1.4),
+                ),
+              ],
+            ),
           ),
         ],
       ),

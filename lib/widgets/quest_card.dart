@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/quest_card_model.dart';
+import 'check_in_ring.dart';
 import 'pressable_scale.dart';
 
 class QuestCard extends StatelessWidget {
@@ -409,7 +410,11 @@ class _SoloInfoRow extends StatelessWidget {
       final done = progressMode && checkedInToday;
       return Row(
         children: [
-          Icon(done ? Icons.check_circle : Icons.event_repeat, size: 12, color: done ? Colors.green : Colors.grey),
+          // หน้า Progress = วงแหวนเล็กบอกว่าเช็คอินไปกี่ช่องแล้ว (ช่องใหม่เติมสีเองตอนเช็คอินแล้วลิสต์โหลดใหม่)
+          if (progressMode)
+            CheckInRing(total: durationDays, done: daysDone, size: 14, strokeWidth: 2.4)
+          else
+            const Icon(Icons.event_repeat, size: 12, color: Colors.grey),
           const SizedBox(width: 4),
           Flexible(
             child: Text(

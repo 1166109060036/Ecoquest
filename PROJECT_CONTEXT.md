@@ -264,6 +264,12 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` แล
     bubble toast + particle burst เดิม: ป้าย "Quest complete! +P / +XP" โผล่บนจอ เหรียญทอง 5 + ใบไม้ 5 บินโค้งเข้าป้าย
     ตัวเลขนับขึ้นตามของที่ลง (~2.6 วิ) — `handleQuestCompleted` รอให้ของลงครบก่อนเปิด popup เหรียญ/เลเวลอัพ
     โหมดลดการเคลื่อนไหวในเครื่อง (`disableAnimations`) = ไม่มีของบิน โชว์ตัวเลขเต็มเลย
+  - **วงแหวนเช็คอินเควสหลายวัน** — `lib/widgets/check_in_ring.dart`: `CheckInRing` (แบ่งช่องตามจำนวนวัน ค่า `done`
+    เปลี่ยนเมื่อไหร่ช่องใหม่เติมสีเอง ครบทุกช่องเรืองแสง 2 รอบ) ใช้ที่ วงเล็กในการ์ดหน้า Progress (`_SoloInfoRow`),
+    การ์ด "Your progress" ในหน้ารายละเอียด (เฉพาะเควสหลายวันที่ Start แล้ว — เติมจาก 0 ตอนเปิดหน้า) และ
+    `showCheckInCelebration()` การ์ดกลางจอตอนกดเช็คอินในหน้า Progress แทน bubble toast เดิม (ปกติ = ช่องของวันนี้
+    เติมเข้าไป, `restarted` = ข้อความส้ม "Missed a day", วันสุดท้าย = เติมครบ + เรืองแสงก่อนแล้วค่อยไป
+    `handleQuestCompleted` ต่อ)
 - **แท็บ Party (ใน Community)** — โชว์ห้องที่อยู่ (Party Leader บนสุดกดดูโปรไฟล์ได้ + สมาชิก) + ปุ่ม Leave Party
   ถ้ายังไม่มีปาร์ตี้จะเป็น empty state ("You're not in a party yet") + ปุ่มพาไปแท็บ Explore — ข้อมูลจริงจาก
   `GET /api/party` แล้ว (ไฟล์ย้ายจาก `party/party_page.dart` เป็น `community/party_tab.dart` — ชื่อไฟล์เก่าใน

@@ -7,6 +7,7 @@ import '../../providers/party_provider.dart';
 import '../../providers/quest_provider.dart';
 import '../../utils/quest_completion.dart';
 import '../../widgets/breathing_icon.dart';
+import '../../widgets/check_in_ring.dart';
 import '../../widgets/bubble_toast.dart';
 import '../../widgets/liquid_glass_dialog.dart';
 import '../inventory/fridge_page.dart';
@@ -87,17 +88,30 @@ class _ProgressPageState extends State<ProgressPage> {
     }
 
     // เควสหลายวันที่ยังไม่ครบ = แค่เช็คอิน ไม่ได้แต้ม — ห้ามเรียก handleQuestCompleted (จะเด้ง "+0 points")
+    // การ์ดฉลองวงแหวนเช็คอินแทน bubble toast เดิม (ดู widgets/check_in_ring.dart)
     if (reward.isCheckInOnly) {
       final checkIn = reward.checkIn!;
-      showBubbleToast(
-        context,
-        checkIn.restarted
-            ? 'Missed a day — back to Day 1/${checkIn.durationDays}. See you tomorrow!'
-            : 'Day ${checkIn.daysDone}/${checkIn.durationDays} checked in — see you tomorrow!',
-      );
       // เช็คอินนับ Daily Streak ด้วย — รีเฟรชโปรไฟล์ให้ตัวเลข streak ขยับ
       context.read<AuthProvider>().refreshProfile();
+      await showCheckInCelebration(
+        context,
+        daysDone: checkIn.daysDone,
+        total: checkIn.durationDays,
+        restarted: checkIn.restarted,
+      );
       return;
+    }
+
+    // วันสุดท้ายของเควสหลายวัน — โชว์วงแหวนเติมจนครบ + เรืองแสงก่อน แล้วค่อยไปรางวัลตามปกติ
+    final checkIn = reward.checkIn;
+    if (checkIn != null && checkIn.finished) {
+      await showCheckInCelebration(
+        context,
+        daysDone: checkIn.durationDays,
+        total: checkIn.durationDays,
+        finished: true,
+      );
+      if (!mounted) return;
     }
 
     // โชว์รางวัล + รีเฟรชโปรไฟล์/เหรียญ + เด้งแสดงความยินดีถ้าได้เหรียญใหม่ — เส้นทางเดียวกับ
