@@ -153,9 +153,15 @@ class _BubbleToastState extends State<_BubbleToast> with TickerProviderStateMixi
                       transform: Matrix4.diagonal3Values(grow * (1 + jiggle), grow * (1 - jiggle), 1),
                       child: GestureDetector(
                         onTap: _pop,
-                        child: _BubbleBody(
-                          message: widget.message,
-                          shimmer: _wobbleController.value,
+                        // ฟองวาดบน Overlay นอก Scaffold — ไม่มี Material ด้านบนเลยไม่ได้ฟอนต์ของธีม ตัวหนังสือออกมา
+                        // เป็นฟอนต์ fallback หน้าตาเหมือนพิมพ์ดีด (เจอบนเครื่องจริง) Material โปร่งใสให้ DefaultTextStyle
+                        // ของธีมกลับมาโดยไม่เปลี่ยนหน้าตาฟอง
+                        child: Material(
+                          type: MaterialType.transparency,
+                          child: _BubbleBody(
+                            message: widget.message,
+                            shimmer: _wobbleController.value,
+                          ),
                         ),
                       ),
                     ),

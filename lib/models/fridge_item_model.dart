@@ -64,7 +64,10 @@ class FridgeItemDraft {
 
   Map<String, dynamic> toJson() => {
         'itemName': name,
-        'expirationDate': expirationDate.toIso8601String(),
+        // ⚠️ ต้อง toUtc() ก่อนเสมอ — DateTime เวลาเครื่องได้ string ไม่มีโซนเวลา ("...T23:59:59.000") แล้ว
+        // backend บน Render (UTC) อ่านเป็น 23:59 UTC = วันถัดไปตามเวลาญี่ปุ่น วันหมดอายุเลยเลื่อนไป 1 วัน
+        // (แบบเดียวกับ eventDate ใน party_service.dart / before ใน chat_service.dart)
+        'expirationDate': expirationDate.toUtc().toIso8601String(),
         'quantity': quantity,
         if (photoBytes != null) 'photoBase64': base64Encode(photoBytes!),
         if (photoContentType != null) 'photoContentType': photoContentType,

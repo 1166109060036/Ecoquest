@@ -371,15 +371,20 @@ class _SoloInfoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     // เควสหลายวัน: หน้า Progress โชว์ความคืบหน้า "Day 2/7" / หน้า Explore บอกว่าเป็นเควสกี่วัน
     if (durationDays > 1) {
+      // เช็คอินวันนี้แล้ว = ไอคอนติ๊กสีเขียวบอกอยู่แล้ว ไม่ต่อข้อความยาว (ช่องนี้แคบ ปุ่มด้านขวากินที่เยอะ)
       final label = progressMode ? 'Day $daysDone/$durationDays' : '$durationDays-day check-in';
       final done = progressMode && checkedInToday;
       return Row(
         children: [
           Icon(done ? Icons.check_circle : Icons.event_repeat, size: 12, color: done ? Colors.green : Colors.grey),
           const SizedBox(width: 4),
-          Text(
-            done ? '$label · checked in today' : label,
-            style: TextStyle(fontSize: 10, color: done ? Colors.green : Colors.grey.shade600),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 10, color: done ? Colors.green : Colors.grey.shade600),
+            ),
           ),
         ],
       );

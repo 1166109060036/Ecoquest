@@ -1,10 +1,9 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'pressable_scale.dart';
 
-// Dialog ทรง "Liquid Glass" แบบ macOS — กระจกฝ้าโปร่งแสงที่เบลอทุกอย่างข้างหลังตัวมันเองจริงๆ
-// (BackdropFilter) ไม่ใช่แค่พื้นหลังสีขาวโปร่งแสงเฉยๆ ขอบมีเส้นไฮไลท์บางๆ พาดด้านบนจำลองแสงสะท้อนบนผิวกระจก
-// ใช้แทน AlertDialog ธรรมดาทุกจุดในแอพที่เป็น popup ยืนยัน/แจ้งเตือน ให้หน้าตาเหมือนกันทั้งแอพ
+// Dialog กลางของแอพ — ใช้แทน AlertDialog ธรรมดาทุกจุดที่เป็น popup ยืนยัน/แจ้งเตือน ให้หน้าตาเหมือนกันทั้งแอพ
+// หน้าตา: พื้นสีดำเรียบๆ ทึบ 70% ตามที่ผู้ใช้เลือก — เดิมเป็นกระจกฝ้าแบบ liquid glass (เบลอข้างหลัง +
+// ไล่เฉดขาว + เส้นไฮไลท์) เอาออกหมดแล้ว ชื่อคลาสยังเป็น LiquidGlassDialog เพราะถูกเรียกใช้ทั่วแอพ
 // (ดูตัวอย่างการใช้งานใน fridge_page.dart, settings_page.dart, community/party_tab.dart, inventory_page.dart,
 // camera_page.dart, utils/quest_completion.dart)
 class LiquidGlassDialog extends StatelessWidget {
@@ -24,6 +23,10 @@ class LiquidGlassDialog extends StatelessWidget {
     this.actions = const [],
     this.backgroundEffect,
   });
+
+  // ความทึบของพื้นหลังสีดำ 70% — ลองทึบ 30% (โปร่งใส 70%) บนเครื่องจริงแล้ว ตัวหนังสือชนกับเมนูด้านหลังจนอ่านไม่ออก
+  // ผู้ใช้เลือกทึบ 70% แทน
+  static const double _backgroundOpacity = 0.70;
 
   // สไตล์ข้อความเนื้อหามาตรฐาน — ใช้กับ Text ธรรมดาที่ส่งเข้า content ได้เลย
   // ตัวหนังสือขาว + shadow ดำจางๆ ช่วยให้อ่านออกแม้พื้นหลังที่โชว์ทะลุกระจกเข้ามาจะสว่าง/ลายเยอะแค่ไหนก็ตาม
@@ -84,93 +87,59 @@ class LiquidGlassDialog extends StatelessWidget {
                 MediaQuery.of(context).viewInsets.bottom -
                 48,
           ),
+          // ClipRRect ยังต้องมี — backgroundEffect (อนุภาคฉลองเลเวลอัพ/เหรียญ) ต้องโดนตัดตามขอบมนของ dialog
           child: ClipRRect(
             borderRadius: BorderRadius.circular(28),
-            // เบลอทุกอย่างที่อยู่ข้างหลัง dialog นี้จริงๆ — หัวใจของเอฟเฟค "กระจกฝ้า" แบบ macOS
-            // ⚠️ ตั้งใจเบลอน้อยๆ + โปร่งใสมากๆ (แทนที่จะเบลอจัด+ทึบขาว) ให้รู้สึกเหมือน "กระจกใส" จริงๆ
-            // มองทะลุเห็นพื้นหลังชัดเจน ไม่ใช่กระจกฝ้าที่มัวจนแทบไม่เห็นข้างหลัง
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(28),
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.white.withValues(alpha: 0.32),
-                      Colors.white.withValues(alpha: 0.14),
-                    ],
-                  ),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.55), width: 1.2),
-                  boxShadow: [
-                    BoxShadow(color: Colors.black.withValues(alpha: 0.20), blurRadius: 48, offset: const Offset(0, 22)),
-                  ],
-                ),
-                child: Stack(
-                  children: [
-                    if (backgroundEffect != null) Positioned.fill(child: backgroundEffect!),
-                    // เส้นไฮไลท์บางๆ พาดตามขอบบน — จำลองแสงสะท้อนบนผิวกระจกโค้งแบบ liquid glass ของ macOS
-                    Positioned(
-                      top: 0,
-                      left: 24,
-                      right: 24,
-                      child: Container(
-                        height: 1,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.white.withValues(alpha: 0),
-                              Colors.white.withValues(alpha: 0.9),
-                              Colors.white.withValues(alpha: 0),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 28, 24, 18),
-                      // ห่อด้วย SingleChildScrollView ให้ content ที่สูงเกินพื้นที่ที่เหลือ (เช่นตอน
-                      // คีย์บอร์ดเปิดอยู่ ดู maxHeight ของ ConstrainedBox ด้านบน) เลื่อนดูได้แทนที่จะ
-                      // ล้นออกมาเป็น RenderFlex overflow — ปุ่ม actions เลื่อนตามไปด้วยได้ ไม่ใช่ปัญหา
-                      // เพราะ dialog พวกนี้เนื้อหาสั้นอยู่แล้วปกติไม่ต้องเลื่อน
-                      child: SingleChildScrollView(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (icon != null) ...[icon!, const SizedBox(height: 14)],
-                            Text(
-                              title,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                                letterSpacing: -0.2,
-                                shadows: [Shadow(color: Colors.black45, blurRadius: 6)],
-                              ),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(28),
+                color: Colors.black.withValues(alpha: _backgroundOpacity),
+              ),
+              child: Stack(
+                children: [
+                  if (backgroundEffect != null) Positioned.fill(child: backgroundEffect!),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 28, 24, 18),
+                    // ห่อด้วย SingleChildScrollView ให้ content ที่สูงเกินพื้นที่ที่เหลือ (เช่นตอน
+                    // คีย์บอร์ดเปิดอยู่ ดู maxHeight ของ ConstrainedBox ด้านบน) เลื่อนดูได้แทนที่จะ
+                    // ล้นออกมาเป็น RenderFlex overflow — ปุ่ม actions เลื่อนตามไปด้วยได้ ไม่ใช่ปัญหา
+                    // เพราะ dialog พวกนี้เนื้อหาสั้นอยู่แล้วปกติไม่ต้องเลื่อน
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (icon != null) ...[icon!, const SizedBox(height: 14)],
+                          Text(
+                            title,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                              letterSpacing: -0.2,
+                              shadows: [Shadow(color: Colors.black45, blurRadius: 6)],
                             ),
-                            if (content != null) ...[
-                              const SizedBox(height: 10),
-                              content!,
-                            ],
-                            if (actions.isNotEmpty) ...[
-                              const SizedBox(height: 22),
-                              Row(
-                                children: [
-                                  for (int i = 0; i < actions.length; i++) ...[
-                                    if (i > 0) const SizedBox(width: 10),
-                                    Expanded(child: actions[i]),
-                                  ],
-                                ],
-                              ),
-                            ],
+                          ),
+                          if (content != null) ...[
+                            const SizedBox(height: 10),
+                            content!,
                           ],
-                        ),
+                          if (actions.isNotEmpty) ...[
+                            const SizedBox(height: 22),
+                            Row(
+                              children: [
+                                for (int i = 0; i < actions.length; i++) ...[
+                                  if (i > 0) const SizedBox(width: 10),
+                                  Expanded(child: actions[i]),
+                                ],
+                              ],
+                            ),
+                          ],
+                        ],
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
