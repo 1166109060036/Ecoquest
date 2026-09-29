@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../models/party_model.dart';
 import '../models/quest_card_model.dart';
@@ -145,13 +146,13 @@ class PartyProvider extends ChangeNotifier {
 
   // หัวหน้าห้องกดจบอีเวนต์ — คืน reward ของหัวหน้าเอง (null ถ้าล้มเหลว) ให้หน้า Party
   // เอาไปเข้า handleQuestCompleted แบบเดียวกับ quest ทั่วไป
-  Future<QuestReward?> complete() async {
+  Future<QuestReward?> complete({required Uint8List photoBytes, required String photoContentType}) async {
     _isBusy = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      final result = await _service.completeParty();
+      final result = await _service.completeParty(photoBytes: photoBytes, photoContentType: photoContentType);
       _party = result.party;
       _isBusy = false;
       notifyListeners();

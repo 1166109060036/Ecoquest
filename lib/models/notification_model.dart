@@ -10,6 +10,9 @@ class NotificationModel {
   final String message;
   final bool isRead;
   final DateTime createdAt;
+  // เฉพาะ quest_approved — แต้ม/XP ที่ได้ตอนหลักฐานผ่านการตรวจ (ให้ main_shell.dart เล่นเอฟเฟครางวัลบินเข้าป้าย)
+  final int rewardPoints;
+  final int rewardXp;
 
   const NotificationModel({
     required this.id,
@@ -18,10 +21,15 @@ class NotificationModel {
     required this.message,
     required this.isRead,
     required this.createdAt,
+    this.rewardPoints = 0,
+    this.rewardXp = 0,
   });
 
   factory NotificationModel.fromJson(Map<String, dynamic> json) {
+    final data = json['data'] is Map<String, dynamic> ? json['data'] as Map<String, dynamic> : const {};
     return NotificationModel(
+      rewardPoints: (data['points'] as num?)?.toInt() ?? 0,
+      rewardXp: (data['xp'] as num?)?.toInt() ?? 0,
       id: (json['id'] ?? '').toString(),
       type: json['type'] ?? '',
       title: json['title'] ?? '',
@@ -36,6 +44,8 @@ class NotificationModel {
   // fallback ถ้าหาไฟล์รูปไม่เจอ (ยังไม่ได้ใส่รูป/ลืมประกาศใน pubspec)
   IconData get icon => switch (type) {
         'quest_complete' => Icons.emoji_events,
+        'quest_approved' => Icons.verified_rounded,
+        'quest_rejected' => Icons.cancel_outlined,
         'fridge_expiring' => Icons.kitchen,
         'achievement' => Icons.military_tech,
         _ => Icons.notifications,
@@ -43,6 +53,8 @@ class NotificationModel {
 
   Color get iconColor => switch (type) {
         'quest_complete' => Colors.amber,
+        'quest_approved' => Colors.green,
+        'quest_rejected' => Colors.redAccent,
         'fridge_expiring' => Colors.blueGrey,
         'achievement' => Colors.purple,
         _ => Colors.black87,
@@ -51,6 +63,8 @@ class NotificationModel {
   // path รูปจริง ถ้ามี — ใช้แทน icon (ยังไม่มีรูปเหรียญ Achievement เลยใช้ icon ไปก่อน)
   String? get imageAsset => switch (type) {
         'quest_complete' => 'lib/utils/assets/notifications/trophy.png',
+        // หลักฐานผ่าน = ได้รางวัลจริง ใช้ถ้วยเดียวกับทำเควสสำเร็จ (ไม่ผ่านใช้ไอคอนสีแดงแทน)
+        'quest_approved' => 'lib/utils/assets/notifications/trophy.png',
         'fridge_expiring' => 'lib/utils/assets/notifications/fridge_expired.png',
         _ => null,
       };

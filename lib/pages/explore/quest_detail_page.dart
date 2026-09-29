@@ -44,17 +44,16 @@ class QuestDetailPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = _style;
-    final done = quest.completedToday;
 
-    // ตัดสินใจ label + สถานะปุ่มตามลำดับ: ทำไปแล้ววันนี้ปิดเสมอ -> โหมด complete ใช้ปุ่ม Complete
-    // -> กำลังทำอยู่แล้ว (มาจากหน้า Explore เอง) ปิดรอไปกดที่ Progress -> ปกติใช้ปุ่ม Start เดิม
-    // เควสหลายวันมาก่อนทุกกรณี (เช็คอินแล้ว completedToday จะเป็น true ทั้งที่ยังไม่จบเควส — ดู quest_card.dart)
+    // ตัดสินใจ label + สถานะปุ่มตามลำดับ: โหมด complete ใช้ปุ่ม Complete -> กำลังทำอยู่แล้ว (มาจากหน้า Explore เอง)
+    // ปิดรอไปกดที่ Progress -> ปกติใช้ปุ่ม Start เดิม (เควสทำซ้ำได้ไม่จำกัดต่อวันแล้ว ไม่มีสถานะ "ทำแล้ววันนี้")
+    // เควสหลายวันมาก่อนทุกกรณี
     final String label;
     final VoidCallback? onPressed;
     if (quest.isMultiDay && completeMode) {
       label = quest.checkedInToday
           ? 'Checked in today · Day ${quest.daysDone}/${quest.durationDays}'
-          : 'Check in · Day ${quest.daysDone + 1}/${quest.durationDays}';
+          : 'Check in with a photo · Day ${quest.daysDone + 1}/${quest.durationDays}';
       onPressed = quest.checkedInToday
           ? null
           : () async {
@@ -64,11 +63,9 @@ class QuestDetailPage extends StatelessWidget {
     } else if (quest.isMultiDay && quest.inProgress) {
       label = 'In progress';
       onPressed = null;
-    } else if (done) {
-      label = 'Completed today';
-      onPressed = null;
     } else if (completeMode) {
-      label = 'Complete';
+      // เควสที่ต้องมีหลักฐาน — กดแล้วเปิดแผ่นถ่ายรูป (ระบบตรวจสอบภารกิจ) บอกไว้ตั้งแต่บนปุ่มเลย
+      label = quest.requiresProof ? 'Complete with a photo' : 'Complete';
       onPressed = () async {
         Navigator.pop(context);
         await onComplete?.call(quest);
@@ -538,17 +535,15 @@ class _AboutCard extends StatelessWidget {
             label: 'Impact',
             value: _pretty(quest.impact),
           ),
-          if (quest.isDaily) ...[
+          // เควสหลายวันเช็คอินได้วันละครั้งตามธรรมชาติของเควส — นอกนั้นทำซ้ำได้ไม่จำกัดต่อวัน
+          if (!quest.isMultiDay) ...[
             const SizedBox(height: 10),
             _InfoRow(
-              icon: quest.completedToday ? Icons.check_circle : Icons.refresh_rounded,
+              icon: quest.timesToday > 0 ? Icons.check_circle : Icons.refresh_rounded,
               label: 'Repeat',
-              value: 'Once per day',
-              // บอกให้ชัดว่ารอบใหม่เริ่มตอนเที่ยงคืน ไม่ใช่ครบ 24 ชั่วโมงหลังทำ
-              note: quest.completedToday
-                  ? 'Done today — available again after midnight'
-                  : 'Resets at midnight',
-              highlight: quest.completedToday,
+              value: 'Anytime',
+              note: quest.timesToday > 0 ? 'Done ${quest.timesToday}× today' : 'No daily limit',
+              highlight: quest.timesToday > 0,
             ),
           ],
         ],

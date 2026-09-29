@@ -9,14 +9,14 @@ const { startOfToday } = require('./questDay');
 //
 // เช็ค notificationsEnabled ตรงนี้จุดเดียว (ทุกที่ที่เรียกแจ้งเตือนผ่าน createNotification หมด) แทนที่จะ
 // เช็คซ้ำทุกจุดที่อยากส่งแจ้งเตือน — ปิดสวิตช์แล้วแค่หยุดสร้างใบใหม่ ใบเก่าที่มีอยู่แล้วไม่ถูกลบ
-const createNotification = async ({ userId, type, title, message, dedupeKey }) => {
+const createNotification = async ({ userId, type, title, message, dedupeKey, data = null }) => {
   try {
     const user = await User.findById(userId).select('notificationsEnabled');
     if (!user || !user.notificationsEnabled) return;
 
     await Notification.updateOne(
       { userId, dedupeKey },
-      { $setOnInsert: { userId, type, title, message, dedupeKey } },
+      { $setOnInsert: { userId, type, title, message, dedupeKey, data } },
       { upsert: true }
     );
   } catch (err) {
@@ -87,6 +87,36 @@ const notifyStreakMilestone = async (userId, day, reward) => {
   });
 };
 
+// หลักฐานภารกิจผ่านการตรวจ — dedupeKey อิง submissionId (ส่งหลักฐาน 1 ครั้ง = ตัดสิน 1 ครั้ง)
+// reward = { points, xp } ที่ได้จริงหลังคูณ upgrade แล้ว (0/0 = เช็คอินวันระหว่างทางของเควสหลายวัน)
+const notifyQuestApproved = async (userId, quest, submissionId, reward, checkIn = null) => {
+  const isDayCheckIn = checkIn && !checkIn.finished;
+  await createNotification({
+    userId,
+    type: 'quest_approved',
+    title: isDayCheckIn ? 'Check-in Approved' : 'Quest Approved',
+    message: isDayCheckIn
+      ? `${quest.title} · Day ${checkIn.daysDone}/${checkIn.durationDays} verified`
+      : `${quest.title} · +${reward.points} points, +${reward.xp} XP`,
+    dedupeKey: `submission:${submissionId}`,
+    data: { points: reward.points, xp: reward.xp },
+  });
+};
+
+// หลักฐานไม่ผ่าน — บอกให้ส่งใหม่ (เควสหลายวันวันระหว่างทางไม่ผ่าน = นับใหม่วันที่ 1)
+const notifyQuestRejected = async (userId, quest, submissionId, checkIn = null) => {
+  const restart = checkIn && checkIn.durationDays > 1;
+  await createNotification({
+    userId,
+    type: 'quest_rejected',
+    title: 'Proof Not Approved',
+    message: restart
+      ? `${quest.title} · your proof was not approved, so this quest restarts from Day 1`
+      : `${quest.title} · your proof was not approved. Try again with a clearer photo`,
+    dedupeKey: `submission:${submissionId}`,
+  });
+};
+
 // ของในตู้เย็นที่เหลือไม่เกิน 24 ชม. หรือหมดอายุไปแล้ว — สร้างตอนอ่าน (lazy) เพราะ backend ไม่มี
 // scheduler/cron และ Render free tier หลับเมื่อไม่มีคนใช้ เลยพึ่ง cron จริงไม่ได้
 // bucket 'soon'/'expired' แยกกัน เลยได้แจ้งเตือนคนละใบตอนของเลยกำหนดจากที่เคยเตือนไว้ก่อนหน้า
@@ -148,6 +178,8 @@ module.exports = {
   notifyFriendRequest,
   notifyFriendAccepted,
   notifyStreakMilestone,
+  notifyQuestApproved,
+  notifyQuestRejected,
   ensureExpiryNotifications,
   getNotifications,
   markAllRead,

@@ -10,8 +10,8 @@ class QuestCardModel {
   final String subtitle; // "Place" สำหรับ party/event หรือ "Quest Detail" สำหรับ solo
   final QuestCardCategory category;
   final int pointsReward;
-  final bool isDaily; // ทำได้วันละครั้ง
-  final bool completedToday; // วันนี้ทำไปแล้วหรือยัง (ใช้กับ quest ที่ isDaily)
+  final bool isDaily; // ⚠️ ไม่ใช้บังคับแล้ว — เควสทำซ้ำได้ไม่จำกัดต่อวัน (28 ก.ย. 2026)
+  final int timesToday; // วันนี้ทำเควสนี้สำเร็จไปแล้วกี่ครั้ง (แค่โชว์ ไม่ได้ล็อกอะไร)
   // กด Start ไว้แล้วแต่ยังไม่กด Complete ที่หน้า Progress — ค้างได้ไม่จำกัดวัน
   final bool inProgress;
   final DateTime? startedAt; // เวลาที่กด Start — null ถ้ายังไม่ได้ start
@@ -24,6 +24,12 @@ class QuestCardModel {
   final bool checkedInToday;
 
   bool get isMultiDay => durationDays > 1;
+
+  // ---- ระบบตรวจสอบภารกิจ (28 ก.ย. 2026) ----
+  // ต้องถ่ายรูปหลักฐานตอน Complete ไหม (ทุก solo ยกเว้น Check Food ที่ระบบตรวจจากตู้เย็นเอง)
+  final bool requiresProof;
+  // หลักฐานของเควสนี้ที่ส่งไปแล้วยังรอตรวจอยู่กี่ครั้ง
+  final int pendingReview;
 
   // ---- ใช้เฉพาะในหน้ารายละเอียด quest ----
   final String detail; // ข้อความอธิบายยาวในกล่อง "Quest Detail"
@@ -53,13 +59,15 @@ class QuestCardModel {
     required this.category,
     required this.pointsReward,
     this.isDaily = false,
-    this.completedToday = false,
+    this.timesToday = 0,
     this.inProgress = false,
     this.startedAt,
     this.actionKey,
     this.durationDays = 1,
     this.daysDone = 0,
     this.checkedInToday = false,
+    this.requiresProof = false,
+    this.pendingReview = 0,
     this.detail = '',
     this.imageKey,
     this.xpReward = 0,
@@ -88,13 +96,15 @@ class QuestCardModel {
       category: category,
       pointsReward: json['scorePoints'] ?? 0,
       isDaily: json['isDaily'] ?? false,
-      completedToday: json['completedToday'] ?? false,
+      timesToday: json['timesToday'] ?? 0,
       inProgress: json['inProgress'] ?? false,
       startedAt: json['startedAt'] != null ? DateTime.parse(json['startedAt']) : null,
       actionKey: json['actionKey'],
       durationDays: json['durationDays'] ?? 1,
       daysDone: json['daysDone'] ?? 0,
       checkedInToday: json['checkedInToday'] ?? false,
+      requiresProof: json['requiresProof'] ?? false,
+      pendingReview: json['pendingReview'] ?? 0,
       detail: json['detail'] ?? '',
       imageKey: json['imageKey'],
       xpReward: json['xpReward'] ?? 0,
@@ -122,6 +132,8 @@ class QuestReward {
   final StreakMilestoneReward? streakMilestone;
   // ไม่ null เฉพาะเควสหลายวัน — ยังไม่ครบ (finished: false) = แค่เช็คอิน ไม่ได้แต้ม ห้ามเด้งฉลองรางวัล
   final QuestCheckIn? checkIn;
+  // true = ส่งหลักฐานไปรอตรวจ ยังไม่ได้แต้ม (ระบบตรวจสอบภารกิจ) — ห้ามเด้งฉลองรางวัล รอแจ้งเตือน quest_approved
+  final bool isPending;
 
   QuestReward({
     required this.points,
@@ -129,6 +141,7 @@ class QuestReward {
     this.newAchievements = const [],
     this.streakMilestone,
     this.checkIn,
+    this.isPending = false,
   });
 
   bool get isCheckInOnly => checkIn != null && !checkIn!.finished;
@@ -141,6 +154,7 @@ class QuestReward {
     final checkInJson = json['checkIn'] as Map<String, dynamic>?;
 
     return QuestReward(
+      isPending: json['status'] == 'pending',
       checkIn: checkInJson != null ? QuestCheckIn.fromJson(checkInJson) : null,
       points: earned['points'] ?? 0,
       xp: earned['xp'] ?? 0,

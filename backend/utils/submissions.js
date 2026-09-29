@@ -1,0 +1,207 @@
+// ระบบตรวจสอบภารกิจ (28 ก.ย. 2026 — อาจารย์ให้เปลี่ยนจากผู้ใช้กดยืนยันเอง) ดู models/QuestSubmission.js
+//
+// กติกา (ผู้ใช้เลือกแล้ว):
+//   ผู้เล่นคนอื่นกดผ่าน APPROVALS_NEEDED คน = ผ่าน / กดไม่ผ่าน REJECTIONS_NEEDED คน = ไม่ผ่าน
+//   แอดมิน (ADMIN_EMAILS) โหวตครั้งเดียวตัดสินเลย
+//   ไม่มีข้อสรุปใน AUTO_DECIDE_AFTER_MS = ตัดสินอัตโนมัติ (ผ่านถ้าเสียงผ่าน >= ไม่ผ่าน) — กันค้างตอนคนใช้น้อย
+// แต้ม/XP/CO2 ได้ตอนผ่านเท่านั้น (utils/questRewards.js#awardQuest)
+const crypto = require('crypto');
+const QuestSubmission = require('../models/QuestSubmission');
+const QuestHistory = require('../models/QuestHistory');
+const QuestProgress = require('../models/QuestProgress');
+const Quest = require('../models/Quest');
+const Party = require('../models/Party');
+const { awardQuest } = require('./questRewards');
+const { notifyQuestApproved, notifyQuestRejected } = require('./notifications');
+const { avatarUrlFor, cosmeticsFor } = require('./avatar');
+
+// ฟิลด์สาธารณะของผู้ใช้ที่ populate มากับ submission — allow-list เดียวกับ routes/friends.js (ห้ามหลุด email ฯลฯ)
+const PUBLIC_USER_FIELDS = 'displayName level avatarContentType avatarUpdatedAt cosmetics';
+const toPublicUser = (u) => ({
+  id: u._id,
+  displayName: u.displayName,
+  level: u.level,
+  avatarUrl: avatarUrlFor(u),
+  cosmetics: cosmeticsFor(u),
+});
+// ฟิลด์เควสที่ payload ใช้
+const QUEST_FIELDS = 'title detail category co2eEstimateKg durationDays';
+
+const APPROVALS_NEEDED = 2;
+const REJECTIONS_NEEDED = 2;
+const AUTO_DECIDE_AFTER_MS = 48 * 60 * 60 * 1000;
+
+const photoHashOf = (buffer) => crypto.createHash('sha256').update(buffer).digest('hex');
+
+// รูปเดิมของตัวเองส่งซ้ำไม่ได้ (ยกเว้นครั้งก่อนไม่ผ่าน — ถ่ายใหม่แต่ได้รูปเดิมไม่มีทางเกิด ส่วนส่งรูปเดิมที่ไม่ผ่าน
+// ซ้ำก็ควรไม่ผ่านอีกอยู่ดี เลยกันทุกสถานะ)
+const isDuplicatePhoto = async (userId, photoHash) =>
+  Boolean(await QuestSubmission.exists({ userId, photoHash }));
+
+// ผู้ใช้ปลายทางที่ได้ผลของ submission นี้ (party = สมาชิกทุกคน, อื่นๆ = คนส่ง)
+const recipientsOf = (submission) =>
+  submission.kind === 'party' && submission.memberIds.length > 0
+    ? submission.memberIds
+    : [submission.userId];
+
+// ตัดสิน 1 ครั้งแบบ compare-and-swap (pending -> approved/rejected) — โหวตพร้อมกันหลายคน/แอดมินกดซ้อนกับ
+// sweep อัตโนมัติ มีแค่ request เดียวที่ชนะ ได้รางวัลครั้งเดียวแน่นอน (แพทเทิร์นเดียวกับ /party/start)
+// คืน submission หลังตัดสิน หรือ null ถ้ามีคนตัดสินไปแล้ว
+const finalizeSubmission = async (submissionId, status, decidedBy) => {
+  const submission = await QuestSubmission.findOneAndUpdate(
+    { _id: submissionId, status: 'pending' },
+    { $set: { status, decidedBy, decidedAt: new Date() } },
+    { new: true, projection: { photoData: 0 } }
+  );
+  if (!submission) return null;
+
+  // อ่าน template แม้เควสถูกปิดไปแล้วก็ยังให้รางวัล (ทำไปแล้วจริงก่อนปิด) — ถูกลบทิ้งจริงเท่านั้นถึงข้าม
+  const quest = await Quest.findById(submission.questId);
+  if (!quest) return submission;
+
+  const checkIn = submission.kind === 'check_in' ? submission.checkIn : null;
+
+  if (status === 'approved') {
+    if (checkIn && !checkIn.finished) {
+      // เช็คอินวันระหว่างทาง — ไม่ได้แต้ม แต่ได้แถว checkIn ที่นับ CO2 ของวันนั้น (ดู QuestHistory.checkIn)
+      await QuestHistory.create({
+        userId: submission.userId,
+        questId: quest._id,
+        pointsEarned: 0,
+        xpEarned: 0,
+        checkIn: true,
+        completedAt: submission.createdAt,
+      });
+      await safeNotify(() =>
+        notifyQuestApproved(submission.userId, quest, submission._id, { points: 0, xp: 0 }, checkIn)
+      );
+      return submission;
+    }
+
+    // เควสปกติ / วันสุดท้ายของเควสหลายวัน / ปาร์ตี้ (ทุกคนในห้อง)
+    for (const userId of recipientsOf(submission)) {
+      const result = await awardQuest(userId, quest, { completedAt: submission.createdAt });
+      if (!result) continue; // user ถูกลบไปแล้ว
+      if (String(userId) === String(submission.userId)) {
+        await QuestSubmission.updateOne(
+          { _id: submission._id },
+          { $set: { reward: { points: result.reward.points, xp: result.reward.xp } } }
+        );
+        submission.reward = { points: result.reward.points, xp: result.reward.xp };
+      }
+      await safeNotify(() =>
+        notifyQuestApproved(userId, quest, submission._id, result.reward, checkIn)
+      );
+    }
+
+    if (submission.kind === 'party' && submission.partyId) {
+      await Party.updateOne(
+        { _id: submission.partyId, status: 'reviewing' },
+        { $set: { status: 'completed', completedAt: new Date() } }
+      );
+    }
+    return submission;
+  }
+
+  // ---- ไม่ผ่าน ----
+  if (checkIn && !checkIn.finished) {
+    // เช็คอินวันระหว่างทางไม่ผ่าน = นับใหม่วันที่ 1 (เหมือนลืมเช็คอิน — ผู้ใช้ตัดสินใจแล้ว)
+    await QuestProgress.updateOne(
+      { userId: submission.userId, questId: quest._id },
+      { $set: { daysDone: 0, lastCheckInDay: null } }
+    );
+  }
+  if (submission.kind === 'party' && submission.partyId) {
+    // ห้องกลับเป็น started ให้หัวหน้าถ่ายรูปกลุ่มส่งใหม่
+    await Party.updateOne({ _id: submission.partyId, status: 'reviewing' }, { $set: { status: 'started' } });
+  }
+  await safeNotify(() => notifyQuestRejected(submission.userId, quest, submission._id, checkIn));
+  return submission;
+};
+
+// แจ้งเตือนพังไม่ควรทำให้การตัดสิน/ให้รางวัลที่บันทึกไปแล้วพังตาม
+const safeNotify = async (fn) => {
+  try {
+    await fn();
+  } catch (err) {
+    console.error('สร้างแจ้งเตือนผลตรวจภารกิจไม่สำเร็จ:', err.message);
+  }
+};
+
+// ตัดสินอัตโนมัติ submission ที่ค้างเกิน 48 ชม. — ไม่มี scheduler (Render free tier หลับ) เลยเรียกแบบ lazy จาก
+// route ที่คนเปิดบ่อย (GET /quests, /auth/me, /reviews/queue, /feed) แนวเดียวกับแจ้งเตือนของใกล้หมดอายุ
+// throttle ไว้นาทีละครั้งทั้ง server ไม่ให้ทุก request ต้อง query เพิ่ม
+let lastSweepAt = 0;
+const SWEEP_EVERY_MS = 60 * 1000;
+
+const sweepExpiredSubmissions = async ({ force = false } = {}) => {
+  const now = Date.now();
+  if (!force && now - lastSweepAt < SWEEP_EVERY_MS) return 0;
+  lastSweepAt = now;
+
+  const expired = await QuestSubmission.find({
+    status: 'pending',
+    createdAt: { $lt: new Date(now - AUTO_DECIDE_AFTER_MS) },
+  })
+    .select('_id approvals rejections')
+    .limit(50);
+
+  let decided = 0;
+  for (const s of expired) {
+    const status = s.approvals.length >= s.rejections.length ? 'approved' : 'rejected';
+    if (await finalizeSubmission(s._id, status, 'auto')) decided += 1;
+  }
+  return decided;
+};
+
+// เรียกจาก route แบบไม่ให้ request หลักพังถ้า sweep มีปัญหา
+const sweepQuietly = async () => {
+  try {
+    await sweepExpiredSubmissions();
+  } catch (err) {
+    console.error('ตัดสินหลักฐานที่ค้างเกินเวลาไม่สำเร็จ:', err.message);
+  }
+};
+
+// payload ที่แอพใช้ร่วมกันทุกหน้า (คิวตรวจ, รอตรวจของฉัน, ฟีด) — ไม่มีรูปจริงในนี้ มีแค่ URL
+// ⚠️ ต้อง populate('userId', PUBLIC_USER_FIELDS) และ populate('questId', QUEST_FIELDS) มาก่อน
+const toSubmissionPayload = (s, viewerId = null) => ({
+  id: s._id,
+  kind: s.kind,
+  status: s.status,
+  photoUrl: `/submissions/${s._id}/photo?v=${s.createdAt ? s.createdAt.getTime() : 0}`,
+  submittedAt: s.createdAt,
+  decidedAt: s.decidedAt,
+  approvals: s.approvals.length,
+  rejections: s.rejections.length,
+  approvalsNeeded: APPROVALS_NEEDED,
+  checkIn: s.kind === 'check_in' ? s.checkIn : null,
+  reward: s.reward || { points: 0, xp: 0 },
+  quest: s.questId && s.questId.title
+    ? {
+        id: s.questId._id,
+        title: s.questId.title,
+        detail: s.questId.detail,
+        category: s.questId.category,
+        co2eEstimateKg: s.questId.co2eEstimateKg ?? null,
+        durationDays: s.questId.durationDays || 1,
+      }
+    : null,
+  user: s.userId && s.userId.displayName !== undefined ? toPublicUser(s.userId) : null,
+  cheers: s.cheers ? s.cheers.length : 0,
+  cheeredByMe: Boolean(viewerId && s.cheers && s.cheers.some((id) => String(id) === String(viewerId))),
+});
+
+module.exports = {
+  APPROVALS_NEEDED,
+  REJECTIONS_NEEDED,
+  AUTO_DECIDE_AFTER_MS,
+  photoHashOf,
+  isDuplicatePhoto,
+  finalizeSubmission,
+  sweepExpiredSubmissions,
+  sweepQuietly,
+  toSubmissionPayload,
+  PUBLIC_USER_FIELDS,
+  QUEST_FIELDS,
+};

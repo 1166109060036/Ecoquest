@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'api_http.dart' as http;
 import '../models/quest_card_model.dart';
 import '../models/quest_history_model.dart';
@@ -7,7 +8,7 @@ import 'storage_service.dart';
 
 // เรียก API ฝั่ง quest ทั้งหมด (ลิสต์ quest / ทำ quest สำเร็จ)
 // ทั้ง 2 endpoint ต้องแนบ token เพราะ backend ต้องรู้ว่าเป็น quest ของ user คนไหน
-// (โดยเฉพาะ completedToday ที่คิดจากประวัติของ user คนนั้น)
+// (โดยเฉพาะ timesToday ที่คิดจากประวัติของ user คนนั้น)
 class QuestService {
   final StorageService _storage = StorageService();
 
@@ -48,7 +49,13 @@ class QuestService {
         .toList();
   }
 
-  Future<QuestReward> completeQuest(String questId) async {
+  // เควสที่ requiresProof ต้องส่งรูปหลักฐานมาด้วย (base64 ใน JSON แบบรูปในตู้เย็น) -> backend ตอบ 201 status: 'pending'
+  // (รอตรวจ ยังไม่ได้แต้ม) / Check Food ไม่ต้องมีรูป -> 200 status: 'completed' ได้แต้มทันทีเหมือนเดิม
+  Future<QuestReward> completeQuest(
+    String questId, {
+    Uint8List? photoBytes,
+    String? photoContentType,
+  }) async {
     final token = await _storage.getToken();
     final response = await http.post(
       Uri.parse('${AppConstants.baseUrl}/quests/$questId/complete'),
@@ -56,11 +63,15 @@ class QuestService {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       },
+      body: jsonEncode({
+        if (photoBytes != null) 'photoBase64': base64Encode(photoBytes),
+        if (photoContentType != null) 'photoContentType': photoContentType,
+      }),
     );
 
     final data = jsonDecode(response.body);
 
-    if (response.statusCode != 200) {
+    if (response.statusCode != 200 && response.statusCode != 201) {
       throw Exception(data['message'] ?? 'Failed to complete quest');
     }
 

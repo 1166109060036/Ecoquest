@@ -2,16 +2,12 @@ const express = require('express');
 const Party = require('../models/Party');
 const PartyMember = require('../models/PartyMember');
 const Quest = require('../models/Quest');
-const QuestHistory = require('../models/QuestHistory');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
-const progression = require('../utils/progression');
-const { syncAchievements } = require('../utils/achievements');
-const { notifyQuestCompleted, notifyStreakMilestone } = require('../utils/notifications');
-const { getUserBonusesMap, applyBonuses } = require('../utils/upgrades');
-const { withEnergyBoosts } = require('../utils/inventory');
-const { startOfToday } = require('../utils/questDay');
-const { applyDailyQuestCompletion } = require('../utils/streak');
+const QuestSubmission = require('../models/QuestSubmission');
+const { applyStreakNow } = require('../utils/questRewards');
+const { decodeImageBase64 } = require('../utils/imageUpload');
+const { photoHashOf, isDuplicatePhoto } = require('../utils/submissions');
 const { avatarUrlFor, cosmeticsFor } = require('../utils/avatar');
 const { requiredMembers, canStart, canComplete } = require('../utils/partyGate');
 const { syncPartyRoomForUser } = require('../sockets');
@@ -379,8 +375,13 @@ router.post('/leave', authMiddleware, async (req, res) => {
 });
 
 // @route   POST /api/party/complete
-// @desc    หัวหน้าห้องกดจบอีเวนต์ — ทุกคนในห้อง (รวมหัวหน้า) ได้คะแนน/XP พร้อมกัน
-//          ทำได้วันละครั้งต่อคนต่อ quest เหมือน quest รายวันทั่วไป
+// @desc    หัวหน้าห้องกดจบอีเวนต์ + ส่งรูปกลุ่ม 1 รูปเป็นหลักฐาน (28 ก.ย. 2026 ระบบตรวจสอบภารกิจ) — ห้องเป็นสถานะ
+//          reviewing รอผู้เล่นคนอื่น/แอดมินตรวจ ผ่าน = ทุกคนในห้อง (รวมหัวหน้า) ได้คะแนน/XP พร้อมกัน
+//          (utils/submissions.js#finalizeSubmission) ไม่ผ่าน = ห้องกลับเป็น started ให้ส่งรูปใหม่
+//          ทำซ้ำได้ไม่จำกัดต่อวัน (ไม่ข้ามคนที่ทำเควสนี้แล้ววันนี้อีกต่อไป)
+//          body: { photoBase64, photoContentType }
+const MAX_PARTY_PHOTO_BYTES = 4 * 1024 * 1024;
+
 router.post('/complete', authMiddleware, async (req, res) => {
   try {
     const membership = await PartyMember.findOne({ userId: req.userId });
@@ -395,8 +396,7 @@ router.post('/complete', authMiddleware, async (req, res) => {
     }
 
     // เช็คเงื่อนไข (ต้องผ่าน /start มาก่อน + รอครบ 15 นาที) กับเช็ค quest ยังเปิดใช้งานอยู่ไหม "ก่อน" latch
-    // เสมอ — ถ้าเช็คทีหลัง (โค้ดเดิมเคยเช็ค quest.isActive หลัง latch) ห้องจะถูก flip เป็น completed ทิ้ง
-    // ไปโดยไม่มีใครได้คะแนนเลยถ้าเงื่อนไขไม่ผ่าน
+    // เสมอ — ถ้าเช็คทีหลัง ห้องจะถูก flip สถานะทิ้งไปโดยไม่มีใครได้อะไรถ้าเงื่อนไขไม่ผ่าน
     const check = canComplete(current);
     if (!check.ok) {
       return res.status(409).json({ message: check.reason });
@@ -406,11 +406,28 @@ router.post('/complete', authMiddleware, async (req, res) => {
       return res.status(409).json({ message: 'This quest is no longer available' });
     }
 
-    // ล็อกสถานะเป็น completed ใน query เดียว (findOneAndUpdate) — ถ้ามีคนกดซ้อนหรือกดซ้ำ
-    // request รอบถัดไปจะหา party ที่ status ยังเป็น 'started' ไม่เจอแล้ว กันคะแนนซ้ำได้แน่นอน
+    // ---- รูปกลุ่ม ----
+    if (!req.body || !req.body.photoBase64) {
+      return res.status(400).json({ message: 'Take a group photo as proof to complete this event' });
+    }
+    let photo;
+    try {
+      const data = decodeImageBase64(req.body.photoBase64, req.body.photoContentType, MAX_PARTY_PHOTO_BYTES);
+      photo = { data, contentType: req.body.photoContentType, hash: photoHashOf(data) };
+    } catch (err) {
+      return res.status(err.status || 400).json({
+        message: err.message === 'Image is too large' ? 'Photo is too large' : 'Invalid photo data',
+      });
+    }
+    if (await isDuplicatePhoto(req.userId, photo.hash)) {
+      return res.status(409).json({ message: 'This photo was already used — take a new photo' });
+    }
+
+    // ล็อกสถานะเป็น reviewing ใน query เดียว (findOneAndUpdate) — ถ้ามีคนกดซ้อนหรือกดซ้ำ
+    // request รอบถัดไปจะหา party ที่ status ยังเป็น 'started' ไม่เจอแล้ว กันส่งซ้ำ/ได้รางวัลซ้ำ
     const party = await Party.findOneAndUpdate(
       { _id: current._id, leaderId: req.userId, status: 'started' },
-      { status: 'completed', completedAt: new Date() },
+      { status: 'reviewing' },
       { new: true }
     ).populate('questId');
 
@@ -419,83 +436,35 @@ router.post('/complete', authMiddleware, async (req, res) => {
     }
 
     const members = await PartyMember.find({ partyId: party._id });
-    const startOfDay = startOfToday();
+    const memberIds = members.map((m) => m.userId);
 
-    // ดึง upgrade ของสมาชิกทุกคนมาทีเดียวก่อนเข้าลูป ไม่ query ต่อคนต่อรอบ
-    // แต่ละคนมี upgrade ไม่เท่ากัน เลยต้องคิด bonus แยกรายคน ไม่ใช่ค่าเดียวทั้งห้อง
-    const bonusesMap = await getUserBonusesMap(members.map((m) => m.userId));
+    await QuestSubmission.create({
+      userId: req.userId,
+      questId: quest._id,
+      kind: 'party',
+      partyId: party._id,
+      memberIds,
+      photoData: photo.data,
+      photoContentType: photo.contentType,
+      photoHash: photo.hash,
+    });
 
-    let awardedCount = 0;
-    let leaderReward = { points: 0, xp: 0 };
-    let leaderNewAchievements = [];
+    // สมาชิกทุกคนร่วมอีเวนต์วันนี้จริง -> นับ Daily Streak ของแต่ละคนตอนนี้เลย (แต้มรอผลตรวจ)
     let leaderStreakMilestone = null;
-
-    for (const m of members) {
-      // เควส party ทำซ้ำได้วันละครั้งเหมือน quest รายวัน — ใครทำเควสนี้ไปแล้ววันนี้ ข้ามไป
-      const already = await QuestHistory.findOne({
-        userId: m.userId,
-        questId: quest._id,
-        completedAt: { $gte: startOfDay },
-      });
-      if (already) continue;
-
-      // -avatarData กันดึง Buffer รูปโปรไฟล์มาทุกคนในลูปนี้โดยไม่ได้ใช้ (ยิ่งห้องใหญ่ยิ่งเปลือง)
-      const user = await User.findById(m.userId).select('-avatarData');
-      if (!user) continue; // user ถูกลบไปแล้ว
-
-      const baseBonuses = bonusesMap.get(String(user._id)) || {
-        pointPct: 0,
-        xpPct: 0,
-        partyPct: 0,
-        questSlots: 0,
-      };
-      // withEnergyBoosts เติมตัวคูณจากไอเทม Energy ที่ยังไม่หมดอายุ (ถ้ามี) — ใช้ user ที่โหลดสดแล้วด้านบน
-      // ไม่ query ซ้ำ (Green Energy คือตัวที่มีผลตรงนี้จริงๆ เพราะเควสในลูปนี้เป็น party เสมอ)
-      const bonuses = withEnergyBoosts(baseBonuses, user);
-      const reward = applyBonuses(bonuses, quest);
-
-      const history = await QuestHistory.create({
-        userId: user._id,
-        questId: quest._id,
-        pointsEarned: reward.points,
-        xpEarned: reward.xp,
-      });
-
-      user.points += reward.points;
-      user.xp += reward.xp;
-      user.level = progression.levelFromXp(user.xp);
-      // ยอดรวมตลอดชีพ +1 เสมอ ไม่มีทางลดลง (ต่างจาก QuestHistory ที่ลบแถวได้ตอนใช้ Super Energy)
-      user.totalQuestsCompleted = (user.totalQuestsCompleted || 0) + 1;
-      // สมาชิกแต่ละคนนับ Daily Streak ของตัวเองแยกกัน ไม่ผูกกับใครเป็นหัวหน้า
-      const streakMilestone = await applyDailyQuestCompletion(user);
-      await user.save();
-
-      const unlocked = await syncAchievements(user._id);
-      awardedCount += 1;
-
-      // สมาชิกทุกคนที่ได้คะแนนรอบนี้ ไม่ใช่แค่หัวหน้า ต้องได้แจ้งเตือนของตัวเอง
-      try {
-        await notifyQuestCompleted(user._id, quest, history._id, reward.points);
-        if (streakMilestone) {
-          await notifyStreakMilestone(user._id, streakMilestone.day, streakMilestone);
-        }
-      } catch (notifyErr) {
-        console.error('สร้างแจ้งเตือนทำเควสสำเร็จไม่สำเร็จ:', notifyErr.message);
-      }
-
-      if (String(user._id) === String(req.userId)) {
-        leaderReward = { points: reward.points, xp: reward.xp };
-        leaderNewAchievements = unlocked;
-        leaderStreakMilestone = streakMilestone;
-      }
+    for (const userId of memberIds) {
+      const user = await User.findById(userId).select('-avatarData');
+      if (!user) continue;
+      const milestone = await applyStreakNow(user);
+      if (String(userId) === String(req.userId)) leaderStreakMilestone = milestone;
     }
 
-    res.json({
-      message: 'Event completed',
-      earned: leaderReward,
-      newAchievements: leaderNewAchievements,
+    res.status(201).json({
+      message: 'Group photo submitted for review',
+      status: 'pending',
+      earned: { points: 0, xp: 0 },
+      newAchievements: [],
       streakMilestone: leaderStreakMilestone,
-      awardedCount,
+      awardedCount: 0,
       party: await toPartyPayload(party, req.userId),
     });
   } catch (err) {

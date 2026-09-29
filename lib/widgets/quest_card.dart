@@ -54,17 +54,14 @@ class QuestCard extends StatelessWidget {
     }
   }
 
-  // ป้ายบนปุ่ม — เควส party ทำซ้ำได้วันละครั้งเหมือน quest รายวัน (เช็คจาก QuestHistory
-  // ของวันนี้ ไม่ว่าจะทำผ่านห้องไหนก็ตาม) ถ้าวันนี้ทำไปแล้วก็สร้าง/เข้าร่วมห้องใหม่ไปก็ไม่ได้คะแนนซ้ำ
-  // กำลังทำอยู่ (กด Start ไว้แล้วแต่ยังไม่ Complete) ก็กดปุ่มนี้ซ้ำไม่ได้เหมือนกัน — ต้องไปกด
-  // Complete ที่หน้า Progress แทน
+  // ป้ายบนปุ่ม — เควสทำซ้ำได้ไม่จำกัดต่อวันแล้ว (ไม่มีสถานะ "Done" อีก) ล็อกแค่ตอนกำลังทำอยู่ (กด Start ไว้แล้ว
+  // แต่ยังไม่ Complete) — ต้องไปกด Complete ที่หน้า Progress แทน
   //
   // เควสหลายวัน (Food Saver 3/7): ในหน้า Progress กดได้วันละครั้ง = "Check in" / เช็คอินแล้ว = "Checked in"
-  // ส่วนใน Explore ระหว่างทาง (ยังไม่ครบ) ให้เป็น "In progress" แม้วันนี้จะเช็คอินแล้ว (completedToday) — ยังไม่จบ
+  // ส่วนใน Explore ระหว่างทาง (ยังไม่ครบ) ให้เป็น "In progress" แม้วันนี้จะเช็คอินแล้ว — ยังไม่จบ
   String _actionLabel(_CategoryStyle style) {
     if (quest.isMultiDay && progressMode) return quest.checkedInToday ? 'Checked in' : 'Check in';
     if (quest.isMultiDay && quest.inProgress) return 'In progress';
-    if (quest.completedToday) return 'Done';
     if (progressMode) return 'Complete';
     if (quest.inProgress) return 'In progress';
     return style.actionLabel;
@@ -73,7 +70,6 @@ class QuestCard extends StatelessWidget {
   bool get _actionEnabled {
     if (quest.isMultiDay && progressMode) return !quest.checkedInToday;
     if (quest.isMultiDay && quest.inProgress) return false;
-    if (quest.completedToday) return false;
     if (progressMode) return true;
     return !quest.inProgress;
   }
@@ -168,8 +164,7 @@ class QuestCard extends StatelessWidget {
                     Expanded(
                       child: quest.category == QuestCardCategory.solo
                           ? _SoloInfoRow(
-                              isDaily: quest.isDaily,
-                              completedToday: quest.completedToday,
+                              timesToday: quest.timesToday,
                               durationDays: quest.durationDays,
                               daysDone: quest.daysDone,
                               checkedInToday: quest.checkedInToday,
@@ -385,16 +380,14 @@ class _PartyEventInfoRow extends StatelessWidget {
 // เดิมช่องนี้เคยเป็นแถบ Energy แต่ระบบ Energy ถูกตัดออกจากดีไซน์แล้ว
 // ตอนนี้ใช้บอกสถานะ quest รายวันแทน (ยังทำได้ / วันนี้ทำไปแล้ว)
 class _SoloInfoRow extends StatelessWidget {
-  final bool isDaily;
-  final bool completedToday;
+  final int timesToday;
   final int durationDays;
   final int daysDone;
   final bool checkedInToday;
   final bool progressMode;
 
   const _SoloInfoRow({
-    required this.isDaily,
-    required this.completedToday,
+    required this.timesToday,
     this.durationDays = 1,
     this.daysDone = 0,
     this.checkedInToday = false,
@@ -428,21 +421,25 @@ class _SoloInfoRow extends StatelessWidget {
       );
     }
 
-    if (!isDaily) return const SizedBox.shrink();
-
+    // ทำซ้ำได้ไม่จำกัดต่อวัน — บอกแค่ว่าวันนี้ทำไปแล้วกี่ครั้ง (ยังไม่เคยทำวันนี้ = "Repeatable")
+    final done = timesToday > 0;
     return Row(
       children: [
         Icon(
-          completedToday ? Icons.check_circle : Icons.refresh,
+          done ? Icons.check_circle : Icons.refresh,
           size: 12,
-          color: completedToday ? Colors.green : Colors.grey,
+          color: done ? Colors.green : Colors.grey,
         ),
         const SizedBox(width: 4),
-        Text(
-          completedToday ? 'Completed today' : 'Once per day',
-          style: TextStyle(
-            fontSize: 10,
-            color: completedToday ? Colors.green : Colors.grey.shade600,
+        Flexible(
+          child: Text(
+            done ? 'Done $timesToday× today' : 'Repeatable',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 10,
+              color: done ? Colors.green : Colors.grey.shade600,
+            ),
           ),
         ),
       ],

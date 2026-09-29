@@ -310,7 +310,7 @@ class _ExplorePageState extends State<ExplorePage> {
                                 );
                               }
                               // key ด้วย id ที่เสถียร ไม่ใช่ index — กัน animation เล่นผิดจังหวะตอนลิสต์
-                              // เรียงลำดับใหม่ (เช่น quest.completedToday เปลี่ยน) หรือลิสต์ยาวขึ้น/สั้นลง
+                              // เรียงลำดับใหม่ (เช่น quest.timesToday เปลี่ยน) หรือลิสต์ยาวขึ้น/สั้นลง
                               return FadeSlideIn(
                                 key: ValueKey(id),
                                 delay: Duration(milliseconds: 40 * index.clamp(0, 10)),

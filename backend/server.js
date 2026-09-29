@@ -17,6 +17,12 @@ const notificationRoutes = require('./routes/notifications');
 const friendRoutes = require('./routes/friends');
 const chatRoutes = require('./routes/chat');
 const upgradeRoutes = require('./routes/upgrades');
+// ระบบตรวจสอบภารกิจ (28 ก.ย. 2026) — ดู utils/submissions.js
+const reviewRoutes = require('./routes/reviews');
+const submissionRoutes = require('./routes/submissions');
+// ฟีดกิจกรรมชุมชน + ผลกระทบรวมของเมือง (28 ก.ย. 2026)
+const feedRoutes = require('./routes/feed');
+const impactRoutes = require('./routes/impact');
 const adminRoutes = require('./routes/admin');
 const { initSocket } = require('./sockets');
 
@@ -72,6 +78,10 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/friends', friendRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/upgrades', upgradeRoutes);
+app.use('/api/reviews', reviewRoutes);
+app.use('/api/submissions', submissionRoutes);
+app.use('/api/feed', feedRoutes);
+app.use('/api/impact', impactRoutes);
 // dev/QA เท่านั้น — เข้าได้เฉพาะอีเมลใน ADMIN_EMAILS (ดู middleware/admin.js), ปิดโดย default ถ้าไม่ตั้งค่า
 app.use('/api/admin', adminRoutes);
 

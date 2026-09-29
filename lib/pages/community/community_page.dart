@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'chat_tab.dart';
+import 'feed_tab.dart';
 import 'friend_tab.dart';
 import 'party_tab.dart';
 
 // หน้า Community — แทนที่หน้า Party เดิมในแท็บล่างสุด (index 3 เหมือนเดิม แค่เปลี่ยนชื่อ/ไอคอน
-// ดู bottom_nav_bar.dart) มี 3 แท็บย่อยผ่าน TabBar (⚠️ เป็น TabBar ตัวแรกในโปรเจคนี้ ไม่เคยมีมาก่อน):
+// ดู bottom_nav_bar.dart) มี 4 แท็บย่อยผ่าน TabBar (⚠️ เป็น TabBar ตัวแรกในโปรเจคนี้ ไม่เคยมีมาก่อน):
+//   0) Feed — ภารกิจที่ผ่านการตรวจของทุกคน + ผลกระทบรวมของเมือง + ชวนตรวจหลักฐาน (28 ก.ย. 2026 ดู feed_tab.dart)
 //   1) Friend — เพิ่ม/ค้นหาเพื่อน
 //   2) Party — ของเดิมจาก party_page.dart ย้ายมาอยู่ตรงนี้ (ดู party_tab.dart)
 //   3) Chat — แชทโลก/ปาร์ตี้/เพื่อน
@@ -23,7 +25,7 @@ class CommunityPage extends StatefulWidget {
 }
 
 class _CommunityPageState extends State<CommunityPage> with SingleTickerProviderStateMixin {
-  late final TabController _tabController = TabController(length: 3, vsync: this);
+  late final TabController _tabController = TabController(length: 4, vsync: this);
 
   @override
   void dispose() {
@@ -57,6 +59,7 @@ class _CommunityPageState extends State<CommunityPage> with SingleTickerProvider
               indicatorSize: TabBarIndicatorSize.label,
               labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
               tabs: const [
+                Tab(text: 'Feed'),
                 Tab(text: 'Friend'),
                 Tab(text: 'Party'),
                 Tab(text: 'Chat'),
@@ -68,6 +71,7 @@ class _CommunityPageState extends State<CommunityPage> with SingleTickerProvider
                 child: TabBarView(
                   controller: _tabController,
                   children: [
+                    const FeedTab(),
                     const FriendTab(),
                     PartyTab(onNavigateToTab: widget.onNavigateToTab),
                     const ChatTab(),

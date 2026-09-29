@@ -28,4 +28,12 @@ const adminMiddleware = async (req, res, next) => {
   }
 };
 
-module.exports = { adminMiddleware, adminEmails };
+// ใช้ในที่ที่ต้องรู้ว่าเป็นแอดมินไหมโดยไม่บล็อก request (เช่นโหวตตรวจภารกิจ — แอดมินโหวตครั้งเดียวตัดสินเลย)
+const isAdminUser = async (userId) => {
+  const emails = adminEmails();
+  if (emails.length === 0) return false;
+  const user = await User.findById(userId).select('email');
+  return Boolean(user?.email) && emails.includes(user.email.toLowerCase());
+};
+
+module.exports = { adminMiddleware, adminEmails, isAdminUser };

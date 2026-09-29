@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../models/quest_card_model.dart';
 import '../models/quest_history_model.dart';
@@ -93,12 +94,20 @@ class QuestProvider extends ChangeNotifier {
   }
 
   // คืนรางวัลที่ได้กลับไปให้หน้า UI เอาไปโชว์ (null = ทำไม่สำเร็จ ดูสาเหตุที่ errorMessage)
-  Future<QuestReward?> completeQuest(String questId) async {
+  Future<QuestReward?> completeQuest(
+    String questId, {
+    Uint8List? photoBytes,
+    String? photoContentType,
+  }) async {
     _errorMessage = null;
 
     try {
-      final reward = await _questService.completeQuest(questId);
-      // โหลดลิสต์ใหม่เพื่อให้ completedToday ของ quest รายวันอัปเดตตาม, โหลดประวัติใหม่เพราะเพิ่งมี
+      final reward = await _questService.completeQuest(
+        questId,
+        photoBytes: photoBytes,
+        photoContentType: photoContentType,
+      );
+      // โหลดลิสต์ใหม่เพื่อให้ timesToday ของการ์ดอัปเดตตาม, โหลดประวัติใหม่เพราะเพิ่งมี
       // รายการใหม่เพิ่มเข้าไป (หน้า Profile จะได้เห็นทันที) และโหลด Progress ใหม่เพราะเควสนี้หลุด
       // ออกจากรายการ "กำลังทำ" ไปแล้ว
       await Future.wait([loadQuests(), loadHistory(), loadProgress()]);

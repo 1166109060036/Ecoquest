@@ -12,6 +12,7 @@ import '../../widgets/bubble_toast.dart';
 import '../../widgets/decorated_avatar.dart';
 import '../../widgets/liquid_glass_dialog.dart';
 import '../../widgets/pressable_scale.dart';
+import '../../widgets/proof_capture_sheet.dart';
 import '../../widgets/pulse_glow.dart';
 import '../../widgets/skeleton_box.dart';
 import '../../widgets/staggered_fade_in.dart';
@@ -119,31 +120,18 @@ class _PartyTabState extends State<PartyTab> {
     }
   }
 
+  // หัวหน้าห้องจบอีเวนต์ = ถ่ายรูปกลุ่มส่งตรวจ (ระบบตรวจสอบภารกิจ 28 ก.ย. 2026) — แผ่นถ่ายรูปเป็นการยืนยันในตัว
+  // ไม่ต้องมี dialog ยืนยันแยกอีก ทุกคนในห้องได้รางวัลตอนรูปผ่านการตรวจ (แจ้งเตือน quest_approved)
   Future<void> _confirmCompleteEvent() async {
-    final confirmed = await LiquidGlassDialog.show<bool>(
-      context: context,
-      icon: const Icon(Icons.task_alt_rounded, color: Colors.green, size: 30),
-      title: 'Complete this event?',
-      content: const Text(
-        'Every member in this party (including you) will receive the reward. '
-        'This cannot be undone.',
-        textAlign: TextAlign.center,
-        style: LiquidGlassDialog.messageStyle,
-      ),
-      actions: [
-        LiquidGlassAction(label: 'Cancel', onPressed: () => Navigator.pop(context, false)),
-        LiquidGlassAction(
-          label: 'Complete',
-          color: Colors.green,
-          onPressed: () => Navigator.pop(context, true),
-        ),
-      ],
+    final proof = await showProofCaptureSheet(
+      context,
+      title: 'Group photo',
+      hint: 'Take one photo of your group at the event. Every member gets the reward once it is approved.',
     );
-
-    if (confirmed != true || !mounted) return;
+    if (proof == null || !mounted) return;
 
     final partyProvider = context.read<PartyProvider>();
-    final reward = await partyProvider.complete();
+    final reward = await partyProvider.complete(photoBytes: proof.bytes, photoContentType: proof.contentType);
 
     if (!mounted) return;
 
@@ -152,10 +140,14 @@ class _PartyTabState extends State<PartyTab> {
       return;
     }
 
-    // โชว์รางวัลของหัวหน้าเอง + รีเฟรชโปรไฟล์/เหรียญ + เด้งแสดงความยินดีถ้าได้เหรียญใหม่
+    if (reward.isPending) {
+      showBubbleToast(context, 'Group photo sent for review — everyone gets the reward once it is approved');
+      return;
+    }
+
+    // (เผื่อ backend เก่าที่ยังให้รางวัลทันที) โชว์รางวัลของหัวหน้าเอง + รีเฟรชโปรไฟล์/เหรียญ
     await handleQuestCompleted(context, reward);
     if (!mounted) return;
-    // เควสนี้ถือว่าทำไปแล้ววันนี้ (สำหรับหัวหน้า) -> รีเฟรชให้การ์ดใน Explore/ประวัติใน Profile ตรงกัน
     final questProvider = context.read<QuestProvider>();
     await Future.wait([questProvider.loadQuests(), questProvider.loadHistory()]);
   }
@@ -372,6 +364,10 @@ class _PartyActionArea extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // หัวหน้าส่งรูปกลุ่มแล้ว รอผู้เล่นคนอื่น/แอดมินตรวจ (ระบบตรวจสอบภารกิจ) — ทุกคนในห้องเห็นเหมือนกัน
+    if (party.isReviewing) {
+      return const _WaitingPill(text: 'Group photo sent — waiting for review');
+    }
     if (party.isStarted) {
       final countdown = party.completeCountdownAt(now);
       final ready = countdown == null;

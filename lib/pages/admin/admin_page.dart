@@ -9,6 +9,7 @@ import '../../providers/inventory_provider.dart';
 import '../../providers/upgrade_provider.dart';
 import '../../providers/fridge_provider.dart';
 import '../../providers/notification_provider.dart';
+import '../community/review_page.dart';
 
 // หน้า Admin/Debug — dev/QA เท่านั้น เข้าได้เฉพาะ user.isAdmin (เช็คซ้ำจริงที่ backend ทุก request
 // ผ่าน backend/middleware/admin.js) ใช้ "รีโมตคอนโทรล" ค่า/สถานะของระบบต่างๆ ตรงๆ ข้ามการเล่นเกมจริง
@@ -158,6 +159,18 @@ class _AdminPageState extends State<AdminPage> {
           const Text(
             'dev/QA only — actions here bypass normal game rules and affect your own account directly.',
             style: TextStyle(fontSize: 12, color: Colors.black54, fontStyle: FontStyle.italic),
+          ),
+          const SizedBox(height: 8),
+
+          // ---- ตรวจหลักฐานภารกิจ (ใช้หน้าเดียวกับผู้เล่นทั่วไป — backend รู้เองว่าเป็นแอดมิน โหวตครั้งเดียวตัดสินเลย) ----
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.fact_check_outlined),
+              title: const Text('Review quest proofs'),
+              subtitle: const Text('Your vote decides right away'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReviewPage())),
+            ),
           ),
           const SizedBox(height: 8),
 

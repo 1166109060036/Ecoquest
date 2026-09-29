@@ -8,6 +8,9 @@ import '../../providers/quest_provider.dart';
 import '../../utils/quest_completion.dart';
 import '../../widgets/breathing_icon.dart';
 import '../../widgets/check_in_ring.dart';
+import '../../widgets/proof_capture_sheet.dart';
+import '../../models/submission_model.dart';
+import '../../services/submission_service.dart';
 import '../../widgets/bubble_toast.dart';
 import '../../widgets/liquid_glass_dialog.dart';
 import '../inventory/fridge_page.dart';
@@ -39,6 +42,9 @@ class _ProgressPageState extends State<ProgressPage> {
   static const int _partyTabIndex = 3;
 
   bool _isLoading = true;
+  // หลักฐานที่ส่งไปแล้วยังรอตรวจ (ระบบตรวจสอบภารกิจ) — โชว์ใต้เควสที่กำลังทำ
+  List<SubmissionModel> _pending = [];
+  final _submissionService = SubmissionService();
 
   @override
   void initState() {
@@ -50,8 +56,17 @@ class _ProgressPageState extends State<ProgressPage> {
     await Future.wait([
       context.read<QuestProvider>().loadProgress(),
       context.read<PartyProvider>().loadParty(),
+      _loadPending(),
     ]);
     if (mounted) setState(() => _isLoading = false);
+  }
+
+  // โหลดไม่สำเร็จก็แค่ไม่โชว์ส่วนนี้ ไม่ให้ทั้งหน้าพัง
+  Future<void> _loadPending() async {
+    try {
+      final pending = await _submissionService.fetchMine(status: 'pending');
+      if (mounted) setState(() => _pending = pending);
+    } catch (_) {}
   }
 
   void _openQuestDetail(QuestCardModel quest) {
@@ -72,7 +87,23 @@ class _ProgressPageState extends State<ProgressPage> {
 
   Future<void> _onCompleteQuest(QuestCardModel quest) async {
     final questProvider = context.read<QuestProvider>();
-    final reward = await questProvider.completeQuest(quest.id);
+
+    // ระบบตรวจสอบภารกิจ — เควสที่ต้องมีหลักฐานต้องถ่ายรูปก่อน (Check Food ไม่ต้อง ระบบตรวจจากตู้เย็นเอง)
+    ProofPhoto? proof;
+    if (quest.requiresProof) {
+      proof = await showProofCaptureSheet(
+        context,
+        title: quest.isMultiDay ? 'Check in with a photo' : 'Show that you did it',
+        hint: quest.detail.isNotEmpty ? quest.detail : 'Take a clear photo that shows you completed "${quest.title}".',
+      );
+      if (proof == null || !mounted) return;
+    }
+
+    final reward = await questProvider.completeQuest(
+      quest.id,
+      photoBytes: proof?.bytes,
+      photoContentType: proof?.contentType,
+    );
 
     if (!mounted) return;
 
@@ -93,12 +124,34 @@ class _ProgressPageState extends State<ProgressPage> {
       final checkIn = reward.checkIn!;
       // เช็คอินนับ Daily Streak ด้วย — รีเฟรชโปรไฟล์ให้ตัวเลข streak ขยับ
       context.read<AuthProvider>().refreshProfile();
+      _loadPending();
       await showCheckInCelebration(
         context,
         daysDone: checkIn.daysDone,
         total: checkIn.durationDays,
         restarted: checkIn.restarted,
+        pending: reward.isPending,
       );
+      return;
+    }
+
+    // ส่งหลักฐานไปรอตรวจ — ยังไม่ได้แต้ม ห้ามเรียก handleQuestCompleted (จะเด้ง "+0 points") รางวัลมาตอนผ่าน
+    // ผ่านแจ้งเตือน quest_approved (main_shell.dart เล่นเอฟเฟครางวัลให้ตอนนั้น)
+    if (reward.isPending) {
+      context.read<AuthProvider>().refreshProfile(); // streak นับตั้งแต่ตอนส่ง
+      _loadPending();
+      final checkIn = reward.checkIn;
+      if (checkIn != null && checkIn.finished) {
+        await showCheckInCelebration(
+          context,
+          daysDone: checkIn.durationDays,
+          total: checkIn.durationDays,
+          finished: true,
+          pending: true,
+        );
+      } else {
+        showBubbleToast(context, 'Sent for review — you get +${quest.pointsReward} P once it is approved');
+      }
       return;
     }
 
@@ -152,7 +205,30 @@ class _ProgressPageState extends State<ProgressPage> {
     final partyProvider = context.watch<PartyProvider>();
     final quests = questProvider.inProgress;
     final party = partyProvider.party;
-    final isEmpty = quests.isEmpty && party == null;
+    final isEmpty = quests.isEmpty && party == null && _pending.isEmpty;
+
+    // ลิสต์แบนๆ: ห้อง party (ถ้ามี) -> เควสที่กำลังทำ -> หัวข้อ + หลักฐานที่รอตรวจ
+    final items = <Widget>[
+      if (party != null)
+        FadeSlideIn(
+          key: ValueKey('party-${party.id}'),
+          child: _MyPartyCard(party: party, onTap: _openMyParty),
+        ),
+      for (var i = 0; i < quests.length; i++)
+        FadeSlideIn(
+          key: ValueKey(quests[i].id),
+          delay: Duration(milliseconds: 40 * (i + (party != null ? 1 : 0)).clamp(0, 10)),
+          child: QuestCard(
+            quest: quests[i],
+            progressMode: true,
+            onAction: () => _openQuestDetail(quests[i]),
+            onTap: () => _openQuestDetail(quests[i]),
+            heroTag: questCoverHeroTag('progress', quests[i].id),
+          ),
+        ),
+      if (_pending.isNotEmpty) const _SectionHeader(text: 'Waiting for review'),
+      for (final s in _pending) _PendingSubmissionTile(submission: s),
+    ];
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
@@ -196,33 +272,106 @@ class _ProgressPageState extends State<ProgressPage> {
                           onRefresh: _load,
                           child: ListView.separated(
                             padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-                            itemCount: (party != null ? 1 : 0) + quests.length,
-                            separatorBuilder: (_, __) => const SizedBox(height: 12),
-                            itemBuilder: (context, index) {
-                              if (party != null && index == 0) {
-                                return FadeSlideIn(
-                                  key: ValueKey('party-${party.id}'),
-                                  child: _MyPartyCard(party: party, onTap: _openMyParty),
-                                );
-                              }
-                              final quest = quests[party != null ? index - 1 : index];
-                              return FadeSlideIn(
-                                key: ValueKey(quest.id),
-                                delay: Duration(milliseconds: 40 * index.clamp(0, 10)),
-                                child: QuestCard(
-                                  quest: quest,
-                                  progressMode: true,
-                                  onAction: () => _openQuestDetail(quest),
-                                  onTap: () => _openQuestDetail(quest),
-                                  heroTag: questCoverHeroTag('progress', quest.id),
-                                ),
-                              );
-                            },
+                            itemCount: items.length,
+                            separatorBuilder: (_, _) => const SizedBox(height: 12),
+                            itemBuilder: (context, index) => items[index],
                           ),
                         ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// หลักฐานที่ส่งไปแล้วรอตรวจ — รูปย่อ + ชื่อเควส + ความคืบหน้าการตรวจ (ระบบตรวจสอบภารกิจ)
+// ---------------------------------------------------------------------------
+class _SectionHeader extends StatelessWidget {
+  final String text;
+  const _SectionHeader({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8, left: 2),
+      child: Text(
+        text.toUpperCase(),
+        style: TextStyle(
+          fontSize: 11.5,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.6,
+          color: Colors.grey.shade600,
+        ),
+      ),
+    );
+  }
+}
+
+class _PendingSubmissionTile extends StatelessWidget {
+  final SubmissionModel submission;
+  const _PendingSubmissionTile({required this.submission});
+
+  @override
+  Widget build(BuildContext context) {
+    final s = submission;
+    final title = s.quest?.title ?? 'Quest';
+    final subtitle = s.isParty
+        ? 'Group photo'
+        : s.isCheckIn
+            ? 'Day ${s.checkInDay}/${s.checkInTotal} check-in'
+            : 'Proof photo';
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Image.network(
+              s.photoUrl,
+              width: 56,
+              height: 56,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => Container(
+                width: 56,
+                height: 56,
+                color: Colors.grey.shade200,
+                child: Icon(Icons.image_outlined, color: Colors.grey.shade400),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87)),
+                const SizedBox(height: 2),
+                Text(subtitle, style: TextStyle(fontSize: 11.5, color: Colors.grey.shade600)),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Icon(Icons.hourglass_top_rounded, size: 13, color: Colors.orange.shade700),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Approved ${s.approvals}/${s.approvalsNeeded}',
+                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Colors.orange.shade800),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -242,6 +391,8 @@ class _MyPartyCard extends StatelessWidget {
     switch (party.status) {
       case 'started':
         return 'In progress';
+      case 'reviewing':
+        return 'Waiting for review';
       case 'completed':
         return 'Completed';
       default:

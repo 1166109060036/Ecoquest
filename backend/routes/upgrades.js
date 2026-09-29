@@ -1,6 +1,7 @@
 const express = require('express');
 const authMiddleware = require('../middleware/auth');
 const { getUpgrades, buyUpgrade } = require('../utils/upgrades');
+const { shopEnabled, SHOP_CLOSED_MESSAGE } = require('../utils/featureFlags');
 
 const router = express.Router();
 
@@ -20,6 +21,7 @@ router.get('/', authMiddleware, async (req, res) => {
 // @desc    ซื้อ upgrade 1 ระดับ — หักแต้มแบบ atomic กันแต้มติดลบและกดซื้อซ้อนกัน
 router.post('/:upgradeType/buy', authMiddleware, async (req, res) => {
   try {
+    if (!shopEnabled()) return res.status(403).json({ message: SHOP_CLOSED_MESSAGE });
     const result = await buyUpgrade(req.userId, req.params.upgradeType);
     if (result.error) {
       return res.status(result.error.status).json({ message: result.error.message });

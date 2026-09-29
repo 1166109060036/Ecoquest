@@ -8,6 +8,7 @@ const { buildProfileStats } = require('../utils/profilePayload');
 const { avatarUrlFor, cosmeticsFor } = require('../utils/avatar');
 const { adminEmails } = require('../middleware/admin');
 const { decodeImageBase64 } = require('../utils/imageUpload');
+const { sweepQuietly } = require('../utils/submissions');
 
 const router = express.Router();
 
@@ -129,6 +130,8 @@ router.post('/guest', async (req, res) => {
 // @desc    ดึงข้อมูล user ปัจจุบัน + ความคืบหน้า (level/xp) + Daily Streak + สถิติ สำหรับหน้า Profile/Home
 router.get('/me', authMiddleware, async (req, res) => {
   try {
+    // ตัดสินหลักฐานภารกิจที่ค้างเกิน 48 ชม. ก่อน (lazy — ไม่มี scheduler) ให้แต้ม/สถิติที่ตอบกลับเป็นค่าล่าสุด
+    await sweepQuietly();
     // -avatarData กัน Buffer รูปโปรไฟล์ (อาจหนักหลายร้อย KB) ถูกดึงมาด้วยทั้งที่ route นี้
     // ไม่ได้ใช้ตัวไฟล์เลย ใช้แค่ avatarContentType/avatarUpdatedAt ไปสร้าง avatarUrl พอ
     const user = await User.findById(req.userId).select('-password -avatarData');

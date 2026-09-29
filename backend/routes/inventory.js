@@ -1,6 +1,7 @@
 const express = require('express');
 const authMiddleware = require('../middleware/auth');
 const { getInventory, buyItem, useItem, equipCosmetics } = require('../utils/inventory');
+const { shopEnabled, SHOP_CLOSED_MESSAGE } = require('../utils/featureFlags');
 
 const router = express.Router();
 
@@ -42,6 +43,8 @@ router.put('/cosmetics', authMiddleware, async (req, res) => {
 // @desc    ซื้อไอเทม 1 ชิ้นด้วย Points (ตอนนี้มีแค่ไอเทม Energy ที่ซื้อได้ ดู utils/inventory.js#ITEMS)
 router.post('/:itemType/buy', authMiddleware, async (req, res) => {
   try {
+    // ร้านปิดอยู่ (utils/featureFlags.js) — แอพซ่อนปุ่มแล้ว ตรงนี้กันคนยิง API ตรง
+    if (!shopEnabled()) return res.status(403).json({ message: SHOP_CLOSED_MESSAGE });
     const result = await buyItem(req.userId, req.params.itemType);
     if (result.error) {
       return res.status(result.error.status).json({ message: result.error.message });
@@ -57,6 +60,9 @@ router.post('/:itemType/buy', authMiddleware, async (req, res) => {
 // @desc    ใช้ไอเทม 1 ชิ้น — หักจาก inventory แล้วใส่ผลทันที (บัฟชั่วคราว หรือรีเซ็ทเควสวันนี้)
 router.post('/:itemType/use', authMiddleware, async (req, res) => {
   try {
+    // ไอเทมที่ใช้ได้มีแค่ Energy ซึ่งเป็นของจากร้าน — ร้านปิด = ใช้ไม่ได้ด้วย (Super Energy รีเซ็ตเควสวันนี้
+    // ก็ไม่มีความหมายแล้วเพราะเควสทำซ้ำได้ไม่จำกัด)
+    if (!shopEnabled()) return res.status(403).json({ message: SHOP_CLOSED_MESSAGE });
     const result = await useItem(req.userId, req.params.itemType);
     if (result.error) {
       return res.status(result.error.status).json({ message: result.error.message });

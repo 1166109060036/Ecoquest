@@ -20,6 +20,9 @@ const NotificationSchema = new mongoose.Schema(
         'friend_request',
         'friend_accepted',
         'streak_milestone',
+        // ระบบตรวจสอบภารกิจ (models/QuestSubmission.js) — หลักฐานผ่าน/ไม่ผ่าน
+        'quest_approved',
+        'quest_rejected',
       ],
     },
     title: {
@@ -35,6 +38,12 @@ const NotificationSchema = new mongoose.Schema(
     dedupeKey: {
       type: String,
       required: true,
+    },
+    // ข้อมูลเสริมให้แอพใช้ต่อ (ไม่ใช่ข้อความโชว์) — ตอนนี้ใช้แค่ quest_approved: { points, xp } ให้แอพเล่น
+    // เอฟเฟครางวัลบินเข้าป้ายตอนเจอแจ้งเตือนผ่านใบใหม่
+    data: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
     },
     // null = ยังไม่ได้อ่าน (ใช้นับจุดแดงบนไอคอนกระดิ่ง)
     readAt: {

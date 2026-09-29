@@ -44,7 +44,9 @@ const PartySchema = new mongoose.Schema(
     // ⚠️ เพิ่ม state 'started' เพื่อกันปั๊มคะแนน (สร้างห้อง->กดจบทันที) — ดู utils/partyGate.js
     status: {
       type: String,
-      enum: ['open', 'started', 'completed'],
+      // reviewing = หัวหน้าส่งรูปกลุ่มแล้ว รอผู้เล่นคนอื่น/แอดมินตรวจ (models/QuestSubmission.js) — ผ่าน = completed,
+      // ไม่ผ่าน = กลับเป็น started ให้หัวหน้าส่งรูปใหม่
+      enum: ['open', 'started', 'reviewing', 'completed'],
       default: 'open',
       index: true,
     },

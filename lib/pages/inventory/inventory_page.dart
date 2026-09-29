@@ -4,6 +4,7 @@ import '../../models/inventory_item_model.dart';
 import '../../providers/achievement_provider.dart';
 import '../../providers/inventory_provider.dart';
 import '../../providers/quest_provider.dart';
+import '../../utils/constants.dart';
 import '../../widgets/breathing_icon.dart';
 import '../../widgets/bubble_toast.dart';
 import '../../widgets/inventory_card.dart';
@@ -65,7 +66,7 @@ class InventoryPage extends StatelessWidget {
       return;
     }
 
-    // Super Energy เปลี่ยนสถานะ completedToday ของเควส -> ต้องโหลดลิสต์เควสใหม่ให้การ์ดอัปเดตตาม
+    // Super Energy ลบประวัติวันนี้ของเควส (timesToday เปลี่ยน) -> ต้องโหลดลิสต์เควสใหม่ให้การ์ดอัปเดตตาม
     if (item.itemType == 'super_energy') {
       await context.read<QuestProvider>().loadQuests();
     }
@@ -87,7 +88,11 @@ class InventoryPage extends StatelessWidget {
     final inventoryProvider = context.watch<InventoryProvider>();
     // ไอเทมที่ซื้อได้แต่ยังไม่เคยซื้อ (quantity 0) ไม่โชว์ในกระเป๋า — โชว์แค่ของที่มีอยู่จริง
     // ของตกแต่ง (isCosmetic) ก็ไม่โชว์ที่นี่เหมือนกัน — ย้ายไปหน้า Custom Profile แทนแล้ว
-    final ownedItems = inventoryProvider.items.where((item) => item.quantity > 0 && !item.isCosmetic);
+    // ร้านปิด (AppConstants.shopEnabled) = ซ่อนไอเทม Energy (isUsable) ที่เคยซื้อไว้ด้วย — backend ก็ไม่ให้ใช้แล้ว
+    final ownedItems = inventoryProvider.items.where(
+      (item) =>
+          item.quantity > 0 && !item.isCosmetic && (AppConstants.shopEnabled || !item.isUsable),
+    );
 
     final allEntries = <_InventoryEntry>[
       for (final item in ownedItems)

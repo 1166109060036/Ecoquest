@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/notification_model.dart';
 import '../services/notification_service.dart';
 import '../services/sound_service.dart';
@@ -44,6 +45,34 @@ class NotificationProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ---- ฉลองหลักฐานภารกิจที่ผ่านการตรวจ (ระบบตรวจสอบภารกิจ) ----
+  // แจ้งเตือน quest_approved ที่มีแต้มและยังไม่เคยฉลอง -> main_shell.dart เล่นเอฟเฟครางวัลบินเข้าป้ายให้ครั้งเดียว
+  // จำ id ที่ฉลองแล้วใน SharedPreferences (ไม่ใช้ isRead เพราะผู้ใช้อาจไม่เคยเปิดหน้า Notification เลย) — เก็บแค่
+  // 100 อันล่าสุดพอ แจ้งเตือนจาก backend ส่งมาแค่ 50 ใบอยู่แล้ว
+  static const _celebratedKey = 'celebrated_approval_ids';
+
+  // คืนผลรวมแต้ม/XP ของที่ผ่านแล้วยังไม่ได้ฉลอง (null = ไม่มี) แล้วจำว่าฉลองแล้วทันที กันเล่นซ้ำ
+  Future<({int points, int xp, int count})?> takeUncelebratedApprovals() async {
+    final approvals = _items.where((n) => n.type == 'quest_approved' && n.rewardPoints > 0).toList();
+    if (approvals.isEmpty) return null;
+
+    final prefs = await SharedPreferences.getInstance();
+    final celebrated = prefs.getStringList(_celebratedKey) ?? [];
+    final fresh = approvals.where((n) => !celebrated.contains(n.id)).toList();
+    if (fresh.isEmpty) return null;
+
+    final updated = [...celebrated, ...fresh.map((n) => n.id)];
+    await prefs.setStringList(
+      _celebratedKey,
+      updated.length > 100 ? updated.sublist(updated.length - 100) : updated,
+    );
+    return (
+      points: fresh.fold<int>(0, (sum, n) => sum + n.rewardPoints),
+      xp: fresh.fold<int>(0, (sum, n) => sum + n.rewardXp),
+      count: fresh.length,
+    );
+  }
+
   // เข้าหน้า Notification แล้วถือว่าอ่านหมด — อัปเดตในเครื่องทันทีไม่ต้องรอโหลดใหม่
   Future<void> markAllRead() async {
     if (unreadCount == 0) return;
@@ -59,6 +88,8 @@ class NotificationProvider extends ChangeNotifier {
             message: n.message,
             isRead: true,
             createdAt: n.createdAt,
+            rewardPoints: n.rewardPoints,
+            rewardXp: n.rewardXp,
           ),
       ];
       notifyListeners();

@@ -26,14 +26,18 @@ const questDayTimezone = (() => {
 })();
 
 // รวม co2eEstimateKg ของประวัติเควสทั้งหมด: แถวที่อยู่ overlapGroup เดียวกันในวันเดียวกันรวมกันแล้ว
-// ตัดที่เพดานของกลุ่ม ส่วนแถวที่ไม่มีกลุ่มนับเต็มทุกแถว (_id ของแถวเองเป็น "กลุ่ม" ของมัน = ไม่ถูกตัด)
+// ตัดที่เพดานของกลุ่ม ส่วนแถวที่ไม่มีกลุ่ม **นับเควสละครั้งต่อวัน** (bucket = questId, ใช้ค่ามากสุดไม่ใช่ผลรวม)
+// — เควสทำซ้ำได้ไม่จำกัดต่อวันแล้ว (28 ก.ย. 2026) แต่ปิดไฟ 10 รอบในวันเดียวไม่ได้ลด CO2 10 เท่าจริง แต้ม/XP ยังได้ทุกครั้ง
 // เควสที่ co2eEstimateKg เป็น null นับเป็น 0
-const co2AndPartiesPipeline = (userId) => [
-  { $match: { userId } },
+// match = เงื่อนไขของแถว QuestHistory ที่จะรวม — โปรไฟล์ใช้ { userId } / ผลกระทบรวมของเมือง (routes/impact.js) ใช้ทุกคน
+// (อาจจำกัดช่วงเวลา) — เพดานต่อวันคิดแยก "ต่อคน" เสมอ (bucket มี userId) ผลรวมทั้งเมืองจึงเท่ากับผลรวมโปรไฟล์ทุกคนพอดี
+const co2AndPartiesPipeline = (match) => [
+  { $match: match },
   { $lookup: { from: 'quests', localField: 'questId', foreignField: '_id', as: 'quest' } },
   { $unwind: '$quest' },
   {
     $project: {
+      userId: 1,
       isParty: { $eq: ['$quest.type', 'party'] },
       // เควสหลายวัน: co2eEstimateKg เป็นค่ารวมทุกวัน ทุกแถว (เช็คอินระหว่างทาง + วันสุดท้าย) ได้ส่วนเฉลี่ยต่อวัน
       // ครบทุกวัน = ค่าเต็มพอดี / เควสปกติ durationDays = 1 ได้เต็มเหมือนเดิม
@@ -44,13 +48,15 @@ const co2AndPartiesPipeline = (userId) => [
         ],
       },
       overlapGroup: '$quest.overlapGroup',
+      questKey: { $toString: '$questId' },
       day: { $dateToString: { format: '%Y-%m-%d', date: '$completedAt', timezone: questDayTimezone } },
     },
   },
   {
     $group: {
-      _id: { day: '$day', bucket: { $ifNull: ['$overlapGroup', '$_id'] } },
+      _id: { user: '$userId', day: '$day', bucket: { $ifNull: ['$overlapGroup', '$questKey'] } },
       co2: { $sum: '$co2' },
+      co2Max: { $max: '$co2' },
       parties: { $sum: { $cond: ['$isParty', 1, 0] } },
     },
   },
@@ -63,7 +69,8 @@ const co2AndPartiesPipeline = (userId) => [
             case: { $eq: ['$_id.bucket', group] },
             then: { $min: ['$co2', cap] },
           })),
-          default: '$co2',
+          // ไม่มีกลุ่ม = bucket ของเควสเดียว -> ทำกี่ครั้งก็ได้ค่าของครั้งเดียว
+          default: '$co2Max',
         },
       },
     },
@@ -83,7 +90,7 @@ async function buildProfileStats(user) {
     QuestHistory.countDocuments({ userId: user._id, checkIn: { $ne: true } }),
     // partiesJoined + co2eEstimateKg ต้อง join ไปหา Quest เพราะข้อมูลอยู่ที่ template ของ quest
     // (ค่า CO2 อ่านจาก template ปัจจุบันเสมอ — แก้ตัวเลขใน seed แล้วยอดรวมย้อนหลังเปลี่ยนตามทันที)
-    QuestHistory.aggregate(co2AndPartiesPipeline(user._id)),
+    QuestHistory.aggregate(co2AndPartiesPipeline({ userId: user._id })),
   ]);
 
   const { partiesJoined = 0, co2eEstimateKg: rawCo2 = 0 } = questAgg[0] || {};
@@ -111,4 +118,4 @@ async function buildProfileStats(user) {
   };
 }
 
-module.exports = { buildProfileStats };
+module.exports = { buildProfileStats, co2AndPartiesPipeline };

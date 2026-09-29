@@ -21,6 +21,7 @@ Future<void> showRewardFly(
   required int points,
   required int xp,
   Offset? origin,
+  String title = 'Quest complete!',
 }) {
   _activeDismiss?.call();
 
@@ -34,6 +35,7 @@ Future<void> showRewardFly(
       points: points,
       xp: xp,
       origin: origin,
+      title: title,
       onLanded: () {
         if (!landed.isCompleted) landed.complete();
       },
@@ -54,6 +56,7 @@ class _RewardFly extends StatefulWidget {
   final int points;
   final int xp;
   final Offset? origin;
+  final String title;
   final VoidCallback onLanded;
   final VoidCallback onDone;
   final ValueChanged<VoidCallback> registerDismiss;
@@ -62,6 +65,7 @@ class _RewardFly extends StatefulWidget {
     required this.points,
     required this.xp,
     required this.origin,
+    required this.title,
     required this.onLanded,
     required this.onDone,
     required this.registerDismiss,
@@ -199,6 +203,7 @@ class _RewardFlyState extends State<_RewardFly> with SingleTickerProviderStateMi
                     child: Transform.scale(
                       scale: (0.7 + 0.3 * enter) * (1 + 0.07 * bump),
                       child: _RewardPill(
+                        title: widget.title,
                         points: shown(true, widget.points),
                         xp: shown(false, widget.xp),
                         showPoints: widget.points > 0,
@@ -246,12 +251,14 @@ class _RewardFlyState extends State<_RewardFly> with SingleTickerProviderStateMi
 }
 
 class _RewardPill extends StatelessWidget {
+  final String title;
   final int points;
   final int xp;
   final bool showPoints;
   final bool showXp;
 
   const _RewardPill({
+    required this.title,
     required this.points,
     required this.xp,
     required this.showPoints,
@@ -284,9 +291,9 @@ class _RewardPill extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Text(
-            'Quest complete!',
-            style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w600),
+          Text(
+            title,
+            style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 2),
           Row(

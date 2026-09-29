@@ -6,6 +6,8 @@ import '../providers/inventory_provider.dart';
 import '../providers/notification_provider.dart';
 import '../providers/party_provider.dart';
 import '../providers/upgrade_provider.dart';
+import '../providers/auth_provider.dart';
+import '../widgets/reward_fly.dart';
 import '../widgets/bottom_nav_bar.dart';
 import 'home/home_page.dart';
 import 'inventory/inventory_page.dart';
@@ -25,10 +27,18 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
+  // ระบบตรวจสอบภารกิจ: รางวัลมาตอนหลักฐานผ่าน (อาจเป็นตอนแอพปิดอยู่) — โหลดแจ้งเตือนใหม่ทุกครั้งที่กลับเข้าแอพ
+  // แล้วฉลองของที่ผ่านใหม่ด้วยเอฟเฟครางวัลบินเข้าป้าย
+  late final AppLifecycleListener _lifecycle;
+  late final NotificationProvider _notifications;
+  bool _celebrating = false;
 
   @override
   void initState() {
     super.initState();
+    _notifications = context.read<NotificationProvider>();
+    _notifications.addListener(_celebrateApprovals);
+    _lifecycle = AppLifecycleListener(onResume: () => _notifications.loadNotifications());
     // โหลด quest ครั้งเดียวตรงนี้ ไม่ให้หน้า Explore กับแผ่น Explore ใน Home ต่างคนต่างยิง API
     // (ทั้งคู่อยู่ใน IndexedStack พร้อมกันตลอด ถ้าโหลดในหน้าตัวเองจะยิงซ้ำ 2 รอบ)
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -46,6 +56,38 @@ class _MainShellState extends State<MainShell> {
       partyProvider.loadRooms(); // ลิสต์ห้องให้เลือกเข้าร่วม ตอนยังไม่มีห้อง
       context.read<UpgradeProvider>().loadUpgrades(); // การ์ด Upgrade your Ability ในหน้า Profile
     });
+  }
+
+  @override
+  void dispose() {
+    _notifications.removeListener(_celebrateApprovals);
+    _lifecycle.dispose();
+    super.dispose();
+  }
+
+  // เรียกทุกครั้งที่ NotificationProvider แจ้งเปลี่ยน — มีหลักฐานผ่านใหม่ที่ยังไม่ฉลอง -> เล่นเอฟเฟค + รีเฟรชแต้ม/เควส/เหรียญ
+  Future<void> _celebrateApprovals() async {
+    if (_celebrating || _notifications.isLoading) return;
+    _celebrating = true;
+    try {
+      final approved = await _notifications.takeUncelebratedApprovals();
+      if (approved == null || !mounted) return;
+      showRewardFly(
+        context,
+        points: approved.points,
+        xp: approved.xp,
+        title: approved.count > 1 ? '${approved.count} quests approved!' : 'Quest approved!',
+      );
+      final questProvider = context.read<QuestProvider>();
+      await Future.wait([
+        context.read<AuthProvider>().refreshProfile(),
+        questProvider.loadQuests(),
+        questProvider.loadHistory(),
+        context.read<AchievementProvider>().loadAchievements(),
+      ]);
+    } finally {
+      _celebrating = false;
+    }
   }
 
   void _navigateToTab(int index) => setState(() => _currentIndex = index);

@@ -46,6 +46,9 @@ const canComplete = (party, now = new Date()) => {
   if (party.status === 'open') {
     return { ok: false, reason: 'Start the event first' };
   }
+  if (party.status === 'reviewing') {
+    return { ok: false, reason: 'Your group photo is waiting for review' };
+  }
   if (party.status !== 'started') {
     return { ok: false, reason: 'This event is already completed' };
   }

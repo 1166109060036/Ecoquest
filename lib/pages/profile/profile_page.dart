@@ -10,6 +10,7 @@ import '../../models/upgrade_model.dart';
 import '../../services/sound_service.dart';
 import '../../utils/cosmetics.dart';
 import 'customize_profile_page.dart';
+import '../../utils/constants.dart';
 import '../../widgets/profile_sections.dart';
 import '../../widgets/bubble_toast.dart';
 import '../../widgets/falling_leaves_overlay.dart';
@@ -113,13 +114,16 @@ class ProfilePage extends StatelessWidget {
                       const SizedBox(height: 16),
                       StatsCard(stats: profileStats),
                       const SizedBox(height: 16),
-                      _UpgradeAbilityCard(
-                        upgrades: upgradeProvider.items,
-                        isBusy: upgradeProvider.isBusy,
-                        points: points,
-                        onBuy: (upgrade) => _buyUpgrade(context, upgrade),
-                      ),
-                      const SizedBox(height: 16),
+                      // ร้านปิด (AppConstants.shopEnabled) = ซ่อนการ์ด Upgrade Ability ด้วย (ใช้แต้มซื้อเหมือนกัน)
+                      if (AppConstants.shopEnabled) ...[
+                        _UpgradeAbilityCard(
+                          upgrades: upgradeProvider.items,
+                          isBusy: upgradeProvider.isBusy,
+                          points: points,
+                          onBuy: (upgrade) => _buyUpgrade(context, upgrade),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
                       QuestHistoryCard(history: questHistory),
                     ],
                   ),
@@ -352,11 +356,13 @@ class _TopBar extends StatelessWidget {
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _CircleIconButton(
-              icon: Icons.storefront,
-              onTap: () => Navigator.pushNamed(context, '/shop'),
-            ),
-            const SizedBox(width: 10),
+            if (AppConstants.shopEnabled) ...[
+              _CircleIconButton(
+                icon: Icons.storefront,
+                onTap: () => Navigator.pushNamed(context, '/shop'),
+              ),
+              const SizedBox(width: 10),
+            ],
             _CircleIconButton(
               icon: Icons.notifications_none_rounded,
               showBadge: hasUnread,

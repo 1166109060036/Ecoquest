@@ -104,7 +104,7 @@ class PartyQuestModel {
 class PartyModel {
   final String id;
   final String name; // ชื่อห้องที่ผู้สร้างตั้งเอง
-  final String status; // 'open' | 'started' | 'completed'
+  final String status; // 'open' | 'started' | 'reviewing' (รูปกลุ่มรอตรวจ) | 'completed'
   final DateTime? startedAt;
   final DateTime? completedAt;
   final DateTime eventDate;
@@ -144,6 +144,7 @@ class PartyModel {
 
   bool get isOpen => status == 'open';
   bool get isStarted => status == 'started';
+  bool get isReviewing => status == 'reviewing';
   bool get isCompleted => status == 'completed';
   // เต็มห้อง = ใช้ capacity (requiredMembers) — เกณฑ์นี้คุมแค่ "รับคนเข้าห้องเพิ่มได้ไหม" คนละเรื่องกับ
   // "เริ่มงานได้เลยไหม" ที่ minMembersToStart ด้านล่างดูแล

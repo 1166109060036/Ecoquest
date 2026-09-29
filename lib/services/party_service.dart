@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'api_http.dart' as http;
 import '../models/party_model.dart';
 import '../models/quest_card_model.dart';
@@ -126,15 +127,24 @@ class PartyService {
   }
 
   // หัวหน้าห้องกดจบอีเวนต์ — ทุกคนในห้องได้คะแนนพร้อมกัน
-  Future<PartyCompleteReward> completeParty() async {
+  // หัวหน้าส่งรูปกลุ่มเป็นหลักฐาน (ระบบตรวจสอบภารกิจ) -> backend ตอบ 201 status: 'pending' ห้องเป็น reviewing
+  // รางวัลของทุกคนมาตอนรูปผ่านการตรวจ
+  Future<PartyCompleteReward> completeParty({
+    required Uint8List photoBytes,
+    required String photoContentType,
+  }) async {
     final response = await http.post(
       Uri.parse('${AppConstants.baseUrl}/party/complete'),
       headers: await _headers(),
+      body: jsonEncode({
+        'photoBase64': base64Encode(photoBytes),
+        'photoContentType': photoContentType,
+      }),
     );
 
     final data = jsonDecode(response.body);
 
-    if (response.statusCode != 200) {
+    if (response.statusCode != 200 && response.statusCode != 201) {
       throw Exception(data['message'] ?? 'Failed to complete this event');
     }
 

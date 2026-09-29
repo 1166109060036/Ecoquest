@@ -17,6 +17,11 @@ class AppConstants {
   // สำหรับแค่โชว์เลขเวอร์ชันเฉยๆ เพิ่ม dependency ใหม่ยังไม่คุ้ม)
   static const String appVersion = '1.0.0';
 
+  // ร้านค้า (หน้า Shop, การ์ด Upgrade Ability ในหน้า Profile, ไอเทม Energy ใน Inventory) — อาจารย์ให้ตัดออกไปก่อน
+  // (28 ก.ย. 2026) ซ่อนไว้เฉยๆ ไม่ได้ลบโค้ด เปิดกลับ = true ที่นี่ + ตั้ง env SHOP_ENABLED=true ฝั่ง backend
+  // (backend/utils/featureFlags.js) คู่กัน ไม่งั้นกดซื้อจะได้ 403
+  static const bool shopEnabled = false;
+
   static const String tokenKey = 'auth_token';
   static const String userKey = 'auth_user';
   // จำบัญชี guest ล่าสุดไว้แยกจาก session หลัก (คนละ key ตั้งใจ) เพื่อให้ logout (ซึ่งลบแค่

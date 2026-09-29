@@ -54,6 +54,35 @@
 
 **Inventory/Items**: ได้จาก quest/achievement/reward/event เช่นไอเทม Energy Drink (คูณคะแนน quest x2) — **ไอเทมนี้ถูกตัดออกจากดีไซน์จริงแล้ว ไม่ต้องใส่กลับมา**
 
+## 2.5 ปรับตามคอมเมนต์อาจารย์ (28 ก.ย. 2026) — ⚠️ สำคัญ กลไกหลักเปลี่ยน
+
+อาจารย์ให้ (1) ตัดร้านค้าออกไปก่อน (2) มีระบบตรวจสอบภารกิจแทนผู้ใช้กดยืนยันเอง (3) ให้คนอื่นเห็นภารกิจและรู้สึกว่าช่วยโลก
++ ผู้ใช้สั่งเพิ่ม (4) เลิกจำกัดเควสวันละครั้ง แผนเต็ม: `C:\Users\parto\.claude\plans\wild-knitting-nova.md`
+
+- **ร้านค้าปิด (ซ่อน ไม่ได้ลบโค้ด)** — หน้า Shop, การ์ด Upgrade Ability, ไอเทม Energy/ปุ่ม Use ใน Inventory ซ่อนหมด
+  เปิดกลับต้องเปิด **2 ที่คู่กัน**: `AppConstants.shopEnabled = true` (แอพ) + env `SHOP_ENABLED=true` (backend
+  `utils/featureFlags.js` — ไม่ตั้ง = ปิด: buy/use/upgrade ตอบ 403) ร้านปิด = Explore เห็นเควส solo ครบทุกอัน (Quest Unlock
+  ซื้อไม่ได้แล้ว) ของตกแต่ง/upgrade ที่ซื้อไปแล้วยังใช้ได้ Points ยังเป็นคะแนนสะสม
+- **ทำเควสซ้ำได้ไม่จำกัดต่อวัน** — gate `isDaily` ถูกลบทั้ง start/complete/party (`Quest.isDaily` ยังอยู่แต่ไม่บังคับ)
+  การ์ดโชว์ `timesToday` ("Done 2× today") แทน Done / แต้ม-XP ได้ทุกครั้ง แต่ **CO₂ ต่อเควสนับวันละครั้ง** (`profilePayload.js`
+  bucket = questId ใช้ `$max`) / Check Food ต้องมีของในตู้เย็นใหม่ทุกครั้ง / Food Saver ยังเช็คอินวันละครั้ง (ธรรมชาติของเควส)
+- **ระบบตรวจสอบภารกิจ** (`utils/submissions.js` + `models/QuestSubmission.js`):
+  - เควส solo ทุกอัน (ยกเว้น Check Food ที่ระบบตรวจจากตู้เย็นเอง) กด Complete ต้องถ่ายรูปหลักฐาน (`widgets/proof_capture_sheet.dart`)
+    → `pending` ยังไม่ได้แต้ม / Food Saver ส่งรูปทุกวัน / ปาร์ตี้ = หัวหน้าส่งรูปกลุ่ม 1 รูป ห้องเป็นสถานะ `reviewing`
+  - ผู้เล่นคนอื่นกดผ่าน 2 = approved, ไม่ผ่าน 2 = rejected, **แอดมินโหวตครั้งเดียวตัดสิน**, ค้างเกิน 48 ชม. = ตัดสินอัตโนมัติ
+    (lazy `sweepQuietly()` ใน GET /quests, /auth/me, /reviews/queue, /feed — ไม่มี scheduler)
+  - แต้ม/XP/CO₂/เหรียญ ได้ตอน approved (`utils/questRewards.js#awardQuest` — ที่เดียวทั้งระบบ Check Food ก็ใช้) ประวัติลงเวลา
+    ตอนส่ง / **Daily Streak นับตั้งแต่ตอนส่ง** / Food Saver วันไหนไม่ผ่าน = นับใหม่วันที่ 1 / ปาร์ตี้ไม่ผ่าน = ห้องกลับเป็น started
+  - รูปเดิมของตัวเองส่งซ้ำไม่ได้ (sha256) / ตัดสินแบบ CAS — โหวตพร้อมกันให้รางวัลครั้งเดียว
+  - แอพ: หน้า Progress มีส่วน "Waiting for review", หน้าตรวจ `pages/community/review_page.dart` (เข้าจากแท็บ Feed + Admin),
+    ผ่านแล้ว `main_shell.dart` เล่น `showRewardFly` "Quest approved!" ครั้งเดียว (จำ id ที่ฉลองแล้วใน SharedPreferences)
+  - ⚠️ ข้อจำกัดที่ตกลงไว้: ใครก็ตรวจได้รวม guest ยกเว้นเจ้าของ/สมาชิกห้อง — สร้าง guest หลายบัญชีมาอนุมัติตัวเองได้ในทางทฤษฎี
+    แอดมินตัดสินทับได้เสมอ
+- **ฟีดชุมชน + ผลกระทบรวมของเมือง** — Community มีแท็บ **Feed** เป็นแท็บแรก (`pages/community/feed_tab.dart`): การ์ด
+  "Ebetsu's impact" (CO₂ ทั้งเมือง = ผลรวมโปรไฟล์ทุกคนพอดี + เทียบต้นสนดูดซับ `utils/impactEquivalents.js`), แบนเนอร์ชวนตรวจ,
+  ฟีดรูปภารกิจที่ approved ของทุกคน + Cheer
+- ⚠️ **deploy ต้องไปพร้อมกัน** — backend ใหม่ต้องการรูปตอน Complete แอพเวอร์ชันเก่ากด Complete ไม่ผ่าน
+
 ## 3. Tech stack ที่ตัดสินใจแล้ว (สำคัญ — อย่าเปลี่ยนโดยไม่ถาม)
 
 - **Frontend**: Flutter
@@ -656,6 +685,10 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` แล
   (สร้างแจ้งเตือนของใกล้หมดอายุแบบ lazy ตอน `GET /` เพราะไม่มี scheduler — ดูหัวข้อ "ระบบแจ้งเตือน" ด้านบน)
 - `backend/routes/upgrades.js` → mount ที่ `/api/upgrades`: `GET /`, `POST /:upgradeType/buy`
   (ดูหัวข้อ "ร้าน Upgrade Ability" ด้านบน)
+- `backend/routes/reviews.js` → `/api/reviews`: `GET /queue`, `POST /:id/vote` `{approve}` (ดูหัวข้อ 2.5)
+- `backend/routes/submissions.js` → `/api/submissions`: `GET /mine?status=`, `GET /:id/photo` (ไม่ต้อง login)
+- `backend/routes/feed.js` → `/api/feed`: `GET /?before=&limit=`, `POST /:id/cheer` (toggle)
+- `backend/routes/impact.js` → `/api/impact`: `GET /summary` (ตลอดกาล + 7 วันล่าสุด, cache 5 นาที)
 - สคริปต์: `npm run seed:quests` (`backend/scripts/seedQuests.js`)
 - `backend/routes/admin.js` → mount ที่ `/api/admin`: **dev/QA เท่านั้น** ทุก route ต้องผ่าน
   `authMiddleware` + `adminMiddleware` (`backend/middleware/admin.js`) คู่กันเสมอ — เข้าได้เฉพาะบัญชีจริง

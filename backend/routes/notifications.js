@@ -10,6 +10,7 @@ const toClient = (n) => ({
   title: n.title,
   message: n.message,
   isRead: n.readAt != null,
+  data: n.data ?? null,
   createdAt: n.createdAt,
 });
 

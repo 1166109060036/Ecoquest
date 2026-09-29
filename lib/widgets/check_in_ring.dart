@@ -157,6 +157,7 @@ class _RingPainter extends CustomPainter {
 // แทน bubble toast ข้อความ "Day 2/7 checked in" เดิม
 // - restarted (ลืมเช็คอินไปวันหนึ่ง) -> วงเหลือช่องเดียว ข้อความสีส้มบอกว่านับใหม่
 // - finished (วันสุดท้าย) -> เติมจนครบ + เรืองแสง แล้วปิดเร็วกว่า ให้ผู้เรียกไปต่อที่รางวัล (handleQuestCompleted)
+// - pending (ระบบตรวจสอบภารกิจ) -> รูปวันนี้ส่งไปรอตรวจ ข้อความบอกว่า "sent for review" แทน "checked in"
 // คืน Future ที่เสร็จตอนการ์ดหายไปแล้ว
 Future<void> showCheckInCelebration(
   BuildContext context, {
@@ -164,6 +165,7 @@ Future<void> showCheckInCelebration(
   required int total,
   bool restarted = false,
   bool finished = false,
+  bool pending = false,
 }) {
   final overlay = Overlay.of(context);
   final done = Completer<void>();
@@ -181,6 +183,7 @@ Future<void> showCheckInCelebration(
       total: total,
       restarted: restarted,
       finished: finished,
+      pending: pending,
       onClose: close,
     ),
   );
@@ -194,6 +197,7 @@ class _CheckInCelebration extends StatefulWidget {
   final int total;
   final bool restarted;
   final bool finished;
+  final bool pending;
   final VoidCallback onClose;
 
   const _CheckInCelebration({
@@ -201,6 +205,7 @@ class _CheckInCelebration extends StatefulWidget {
     required this.total,
     required this.restarted,
     required this.finished,
+    required this.pending,
     required this.onClose,
   });
 
@@ -246,14 +251,16 @@ class _CheckInCelebrationState extends State<_CheckInCelebration> with SingleTic
     final Color titleColor;
     if (widget.finished) {
       title = 'All ${widget.total} days done!';
-      subtitle = 'Quest complete';
+      subtitle = widget.pending ? 'Sent for review — your reward comes once it is approved' : 'Quest complete';
       titleColor = Colors.greenAccent;
     } else if (widget.restarted) {
       title = 'Missed a day';
       subtitle = 'Back to Day 1/${widget.total} — see you tomorrow!';
       titleColor = Colors.orangeAccent;
     } else {
-      title = 'Day ${widget.daysDone}/${widget.total} checked in';
+      title = widget.pending
+          ? 'Day ${widget.daysDone}/${widget.total} sent for review'
+          : 'Day ${widget.daysDone}/${widget.total} checked in';
       subtitle = 'See you tomorrow!';
       titleColor = Colors.white;
     }
