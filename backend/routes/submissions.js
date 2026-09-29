@@ -38,7 +38,8 @@ router.get('/:id/photo', async (req, res) => {
       return res.status(400).json({ message: 'Invalid submission id' });
     }
     const submission = await QuestSubmission.findById(req.params.id).select('photoData photoContentType');
-    if (!submission) return res.status(404).json({ message: 'Photo not found' });
+    // ไม่มีรูปแล้ว = ไม่ผ่านการตรวจ ถูกลบทิ้งไปแล้ว (utils/submissions.js#purgeRejectedPhoto)
+    if (!submission || !submission.photoData) return res.status(404).json({ message: 'Photo not found' });
 
     res.set('Content-Type', submission.photoContentType);
     // รูปของ submission ไม่เคยเปลี่ยน — cache ได้ตลอด

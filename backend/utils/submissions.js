@@ -104,6 +104,9 @@ const finalizeSubmission = async (submissionId, status, decidedBy) => {
   }
 
   // ---- ไม่ผ่าน ----
+  // ลบรูปทิ้งทันที — รูปที่ไม่ผ่านไม่มีใครต้องดูอีกแล้ว (ไม่ขึ้นฟีด ไม่อยู่ในคิว) และอาจเป็นรูปที่ไม่ควรเก็บไว้ (เจอจริง:
+  // ผู้ทดสอบเลือกรูปสลิปโอนเงินที่มีชื่อ/เลขบัญชีส่งมา) คง photoHash ไว้ กันส่งรูปเดิมซ้ำเหมือนเดิม
+  await purgeRejectedPhoto(submission._id);
   if (checkIn && !checkIn.finished) {
     // เช็คอินวันระหว่างทางไม่ผ่าน = นับใหม่วันที่ 1 (เหมือนลืมเช็คอิน — ผู้ใช้ตัดสินใจแล้ว)
     await QuestProgress.updateOne(
@@ -118,6 +121,10 @@ const finalizeSubmission = async (submissionId, status, decidedBy) => {
   await safeNotify(() => notifyQuestRejected(submission.userId, quest, submission._id, checkIn));
   return submission;
 };
+
+// ลบรูปของ submission ที่ไม่ผ่าน (คง photoHash/contentType ไว้) — GET /submissions/:id/photo จะตอบ 404
+const purgeRejectedPhoto = (submissionId) =>
+  QuestSubmission.updateOne({ _id: submissionId, status: 'rejected' }, { $unset: { photoData: 1 } });
 
 // แจ้งเตือนพังไม่ควรทำให้การตัดสิน/ให้รางวัลที่บันทึกไปแล้วพังตาม
 const safeNotify = async (fn) => {
@@ -138,6 +145,13 @@ const sweepExpiredSubmissions = async ({ force = false } = {}) => {
   const now = Date.now();
   if (!force && now - lastSweepAt < SWEEP_EVERY_MS) return 0;
   lastSweepAt = now;
+
+  // เก็บกวาดรูปของ submission ที่ไม่ผ่านซึ่งยังค้างรูปอยู่ (ถูกตัดสินก่อนมีการลบรูปตอน reject — 29 ก.ย. 2026)
+  // query เปล่าแทบไม่มีต้นทุนเมื่อไม่มีอะไรให้ลบ
+  await QuestSubmission.updateMany(
+    { status: 'rejected', photoData: { $exists: true } },
+    { $unset: { photoData: 1 } }
+  );
 
   const expired = await QuestSubmission.find({
     status: 'pending',
