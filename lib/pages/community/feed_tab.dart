@@ -319,7 +319,7 @@ class _ReviewBanner extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('$count quest${count == 1 ? '' : 's'} need your review',
+                      Text(count == 1 ? '1 quest needs your review' : '$count quests need your review',
                           style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: Colors.orange.shade900)),
                       Text('Help other players get their rewards',
                           style: TextStyle(fontSize: 11.5, color: Colors.orange.shade800)),
