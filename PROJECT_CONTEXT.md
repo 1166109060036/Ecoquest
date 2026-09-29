@@ -63,6 +63,9 @@
   เปิดกลับต้องเปิด **2 ที่คู่กัน**: `AppConstants.shopEnabled = true` (แอพ) + env `SHOP_ENABLED=true` (backend
   `utils/featureFlags.js` — ไม่ตั้ง = ปิด: buy/use/upgrade ตอบ 403) ร้านปิด = Explore เห็นเควส solo ครบทุกอัน (Quest Unlock
   ซื้อไม่ได้แล้ว) ของตกแต่ง/upgrade ที่ซื้อไปแล้วยังใช้ได้ Points ยังเป็นคะแนนสะสม
+  - ⚠️ **การ์ด Upgrade Ability กลับมาแล้ว (29 ก.ย. 2026 ผู้ใช้ขอคืน)** แยก flag จากร้านไอเทม: `AppConstants.upgradesEnabled`
+    + env `UPGRADES_ENABLED` (ไม่ตั้ง = เปิด) — มีแค่ Point/XP/Party Booster, **Quest Unlock ถูกซ่อน/ซื้อไม่ได้ตอนร้านปิด**
+    (`SHOP_ONLY_UPGRADES` ใน featureFlags.js) เพราะทุกคนเห็นเควสครบ 15 อันอยู่แล้ว (ผู้ใช้เลือกไม่เอา Quest Unlock)
 - **ทำเควสซ้ำได้ไม่จำกัดต่อวัน** — gate `isDaily` ถูกลบทั้ง start/complete/party (`Quest.isDaily` ยังอยู่แต่ไม่บังคับ)
   การ์ดโชว์ `timesToday` ("Done 2× today") แทน Done / แต้ม-XP ได้ทุกครั้ง แต่ **CO₂ ต่อเควสนับวันละครั้ง** (`profilePayload.js`
   bucket = questId ใช้ `$max`) / Check Food ต้องมีของในตู้เย็นใหม่ทุกครั้ง / Food Saver ยังเช็คอินวันละครั้ง (ธรรมชาติของเควส)

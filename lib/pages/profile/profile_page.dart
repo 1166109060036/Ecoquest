@@ -114,8 +114,8 @@ class ProfilePage extends StatelessWidget {
                       const SizedBox(height: 16),
                       StatsCard(stats: profileStats),
                       const SizedBox(height: 16),
-                      // ร้านปิด (AppConstants.shopEnabled) = ซ่อนการ์ด Upgrade Ability ด้วย (ใช้แต้มซื้อเหมือนกัน)
-                      if (AppConstants.shopEnabled) ...[
+                      // การ์ด Upgrade Ability เปิด/ปิดแยกจากร้านไอเทม (AppConstants.upgradesEnabled)
+                      if (AppConstants.upgradesEnabled) ...[
                         _UpgradeAbilityCard(
                           upgrades: upgradeProvider.items,
                           isBusy: upgradeProvider.isBusy,

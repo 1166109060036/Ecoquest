@@ -22,6 +22,10 @@ class AppConstants {
   // (backend/utils/featureFlags.js) คู่กัน ไม่งั้นกดซื้อจะได้ 403
   static const bool shopEnabled = false;
 
+  // การ์ด Upgrade Ability ในหน้า Profile (Point/XP/Party Booster) — ผู้ใช้ขอคืน (29 ก.ย. 2026) แยกจากร้านไอเทม
+  // ร้านปิดอยู่ backend ซ่อน Quest Unlock ให้เอง (ทุกคนเห็นเควสครบ) — คู่กับ env UPGRADES_ENABLED ฝั่ง backend
+  static const bool upgradesEnabled = true;
+
   static const String tokenKey = 'auth_token';
   static const String userKey = 'auth_user';
   // จำบัญชี guest ล่าสุดไว้แยกจาก session หลัก (คนละ key ตั้งใจ) เพื่อให้ logout (ซึ่งลบแค่
