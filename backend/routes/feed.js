@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const QuestSubmission = require('../models/QuestSubmission');
 const authMiddleware = require('../middleware/auth');
+const { startOfToday } = require('../utils/questDay');
 const {
   sweepQuietly,
   toSubmissionPayload,
@@ -12,6 +13,8 @@ const {
 // ฟีดกิจกรรมชุมชน (อาจารย์ให้คนอื่นเห็นข้อมูลภารกิจ 28 ก.ย. 2026) — หลักฐานภารกิจที่ผ่านการตรวจแล้วของทุกคน
 // ใหม่สุดก่อน + ปุ่ม cheer — แท็บ Feed ใน Community (lib/pages/community/feed_tab.dart)
 // ใช้ QuestSubmission ตัวเดียวกับระบบตรวจ (ไม่มี collection ฟีดแยก) — เห็นเฉพาะ approved
+// Today Feed (30 ก.ย. 2026): เห็นแค่ที่ผ่านการตรวจวันนี้ (decidedAt >= เที่ยงคืนเวลาญี่ปุ่น) — ขึ้นวันใหม่รูปของเมื่อวาน
+// ถูกลบทิ้ง (utils/submissions.js#purgeExpiredPhotos) ฟีดเลยต้องไม่โชว์โพสต์ที่ไม่มีรูปแล้ว
 const router = express.Router();
 
 // @route   GET /api/feed?before=<ISO date>&limit=20
@@ -20,7 +23,7 @@ router.get('/', authMiddleware, async (req, res) => {
   try {
     await sweepQuietly();
     const limit = Math.min(parseInt(req.query.limit, 10) || 20, 50);
-    const filter = { status: 'approved' };
+    const filter = { status: 'approved', decidedAt: { $gte: startOfToday() } };
     const before = req.query.before ? new Date(req.query.before) : null;
     if (before && !Number.isNaN(before.getTime())) filter.createdAt = { $lt: before };
 

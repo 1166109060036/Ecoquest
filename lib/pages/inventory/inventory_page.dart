@@ -12,6 +12,7 @@ import '../../widgets/leaf_refresh_indicator.dart';
 import '../../widgets/liquid_glass_dialog.dart';
 import '../../widgets/skeleton_box.dart';
 import '../../widgets/staggered_fade_in.dart';
+import '../../widgets/state_cross_fade.dart';
 
 // หน้า Inventory — ไอเทมที่มีอยู่จริงเท่านั้น (Camera, Fridge, Eco Badge, ไอเทม Energy ที่ซื้อไว้)
 // สูงสุด 100 ช่อง (capacity) ตามดีไซน์
@@ -140,54 +141,57 @@ class InventoryPage extends StatelessWidget {
               ),
             ),
             Expanded(
-              child: inventoryProvider.isLoading && allEntries.isEmpty
-                  ? ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-                      itemCount: 5,
-                      separatorBuilder: (_, _) => const SizedBox(height: 14),
-                      itemBuilder: (_, _) => const InventoryCardSkeleton(),
-                    )
-                  : allEntries.isEmpty
-                      ? LeafRefreshIndicator(
-                          onRefresh: () => _onRefresh(context),
-                          // ต้อง scrollable เสมอ ไม่งั้นตอนลิสต์ว่างจะดึงลง refresh ไม่ได้
-                          child: ListView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            children: [
-                              SizedBox(height: MediaQuery.of(context).size.height * 0.15),
-                              _EmptyState(errorMessage: inventoryProvider.errorMessage),
-                            ],
+              child: StateCrossFade(
+                stateKey: inventoryProvider.isLoading && allEntries.isEmpty ? 'loading' : allEntries.isEmpty ? 'empty' : 'list',
+                child: inventoryProvider.isLoading && allEntries.isEmpty
+                    ? ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+                        itemCount: 5,
+                        separatorBuilder: (_, _) => const SizedBox(height: 14),
+                        itemBuilder: (_, _) => const InventoryCardSkeleton(),
+                      )
+                    : allEntries.isEmpty
+                        ? LeafRefreshIndicator(
+                            onRefresh: () => _onRefresh(context),
+                            // ต้อง scrollable เสมอ ไม่งั้นตอนลิสต์ว่างจะดึงลง refresh ไม่ได้
+                            child: ListView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              children: [
+                                SizedBox(height: MediaQuery.of(context).size.height * 0.15),
+                                _EmptyState(errorMessage: inventoryProvider.errorMessage),
+                              ],
+                            ),
+                          )
+                        : LeafRefreshIndicator(
+                            onRefresh: () => _onRefresh(context),
+                            child: ListView.separated(
+                              padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+                              itemCount: allEntries.length,
+                              separatorBuilder: (_, __) => const SizedBox(height: 14),
+                              itemBuilder: (context, index) {
+                                final entry = allEntries[index];
+                                return FadeSlideIn(
+                                  key: ValueKey('${entry.itemType}-${entry.title}'),
+                                  delay: Duration(milliseconds: 40 * index.clamp(0, 10)),
+                                  child: InventoryCard(
+                                    icon: entry.icon,
+                                    iconColor: entry.iconColor,
+                                    imageAsset: entry.imageAsset,
+                                    title: entry.title,
+                                    description: entry.description,
+                                    quantity: entry.quantity,
+                                    onTap: entry.onTap,
+                                    actionLabel: 'Use',
+                                    actionColor: entry.actionColor,
+                                    onAction: entry.onUse,
+                                    actionBusy: entry.onUse != null &&
+                                        inventoryProvider.busyItemType == entry.itemType,
+                                  ),
+                                );
+                              },
+                            ),
                           ),
-                        )
-                      : LeafRefreshIndicator(
-                          onRefresh: () => _onRefresh(context),
-                          child: ListView.separated(
-                            padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-                            itemCount: allEntries.length,
-                            separatorBuilder: (_, __) => const SizedBox(height: 14),
-                            itemBuilder: (context, index) {
-                              final entry = allEntries[index];
-                              return FadeSlideIn(
-                                key: ValueKey('${entry.itemType}-${entry.title}'),
-                                delay: Duration(milliseconds: 40 * index.clamp(0, 10)),
-                                child: InventoryCard(
-                                  icon: entry.icon,
-                                  iconColor: entry.iconColor,
-                                  imageAsset: entry.imageAsset,
-                                  title: entry.title,
-                                  description: entry.description,
-                                  quantity: entry.quantity,
-                                  onTap: entry.onTap,
-                                  actionLabel: 'Use',
-                                  actionColor: entry.actionColor,
-                                  onAction: entry.onUse,
-                                  actionBusy: entry.onUse != null &&
-                                      inventoryProvider.busyItemType == entry.itemType,
-                                ),
-                              );
-                            },
-                          ),
-                        ),
+              ),
             ),
           ],
         ),

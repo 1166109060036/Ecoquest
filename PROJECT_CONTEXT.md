@@ -86,6 +86,11 @@
 - **ฟีดชุมชน + ผลกระทบรวมของเมือง** — Community มีแท็บ **Feed** เป็นแท็บแรก (`pages/community/feed_tab.dart`): การ์ด
   "Ebetsu's impact" (CO₂ ทั้งเมือง = ผลรวมโปรไฟล์ทุกคนพอดี + เทียบต้นสนดูดซับ `utils/impactEquivalents.js`), แบนเนอร์ชวนตรวจ,
   ฟีดรูปภารกิจที่ approved ของทุกคน + Cheer
+  - **Today Feed** (ผู้ใช้ออกแบบ 30 ก.ย. 2026 — กัน Atlas ฟรี 512MB เต็มจากรูปหลักฐาน): ฟีดโชว์แค่ที่ approved **วันนี้**
+    (`decidedAt` >= เที่ยงคืนเวลาญี่ปุ่น `utils/questDay.js`) / ขึ้นวันใหม่ sweep ลบรูปของที่ approved ก่อนวันนี้
+    (`purgeExpiredPhotos` ใน `utils/submissions.js`, คง photoHash) / pending เก็บรูปไว้จนตัดสิน (ผู้ตรวจต้องเห็น)
+  - รูปหลักฐานย่อตอนถ่ายเหลือด้านยาวสุด 960px quality 70 (~100-200KB) / backend รับไม่เกิน 2MB ต่อรูป
+  - ⚠️ ยังเหลือรูปอื่นใน MongoDB ที่ไม่ถูกลบอัตโนมัติ: รูปของในตู้เย็น (`FridgeItem.photoData`) + รูปโปรไฟล์
 - ⚠️ **deploy ต้องไปพร้อมกัน** — backend ใหม่ต้องการรูปตอน Complete แอพเวอร์ชันเก่ากด Complete ไม่ผ่าน
 
 ## 3. Tech stack ที่ตัดสินใจแล้ว (สำคัญ — อย่าเปลี่ยนโดยไม่ถาม)
@@ -197,6 +202,9 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` แล
     - เดิมเคยลองใช้ `PlayerMode.lowLatency` (SoundPool) กับเสียงคลิก แต่ SoundPool บน Android decode
       mp3 ที่มี ID3 tag (เช่นไฟล์ export จาก LAME) ไม่ผ่านแบบเงียบๆ ไม่มี error เลย — เปลี่ยนกลับมาใช้
       `PlayerMode.mediaPlayer` (ค่า default) แทนแล้ว รองรับฟอร์แมตได้กว้างกว่ามาก
+    - ⚠️ audioplayers ตั้งต้นทุก player ด้วย `FramePositionUpdater` = ขอเฟรมใหม่ทุกเฟรมตลอดที่เพลงเล่น แอพเลยวาดจอ
+      60 เฟรม/วิ ตลอดแม้หน้านิ่ง (ต้นเหตุหลักที่แอพกระตุก/กินแบต เจอ 30 ก.ย. 2026) — ทุก player สร้างผ่าน `_newPlayer()`
+      ที่ตั้ง `positionUpdater = null` (แอพไม่ใช้ตำแหน่งเพลง) ห้ามสร้าง `AudioPlayer()` ตรงๆ
     - ค่า default ของ audioplayers คือขอ Android audio focus แบบ `gain` (ผูกขาด) ทุกครั้งที่ `play()`
       ถูกเรียก — ทำให้ player อีกตัวในแอพเดียวกัน (เช่นเพลงพื้นหลังตอนกดปุ่ม) โดน pause ไปเงียบๆ ต้องตั้ง
       `AudioContextConfig(focus: AudioContextConfigFocus.mixWithOthers)` ให้ทั้งคู่เสมอ ถึงจะเล่นซ้อนกัน

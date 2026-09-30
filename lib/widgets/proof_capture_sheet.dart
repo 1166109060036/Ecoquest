@@ -15,8 +15,9 @@ class ProofPhoto {
 // ใช้ 2 ที่: Complete เควส solo (หน้า Progress/หน้ารายละเอียด) และหัวหน้าห้องกดจบอีเวนต์ปาร์ตี้ (รูปกลุ่ม)
 // คืน null ถ้าผู้ใช้ปิดไปก่อน
 //
-// ย่อรูปตั้งแต่ตอนถ่าย (maxWidth 1200 / quality 85 แบบรูปในตู้เย็น fridge_page.dart) — ผู้ตรวจดูบนมือถือ
-// พอแล้ว และ backend จำกัด 4MB
+// ย่อรูปตั้งแต่ตอนถ่าย: ด้านยาวสุด 960px / quality 70 (~100-200KB ต่อรูป) — ผู้ตรวจดูบนมือถือพอแล้ว
+// เล็กกว่ารูปในตู้เย็น (1200/85) เพราะรูปหลักฐานเก็บใน MongoDB และส่งได้ไม่จำกัดต่อวัน ต้องประหยัดที่ (30 ก.ย. 2026)
+// ต้องจำกัดทั้ง maxWidth และ maxHeight ไม่งั้นรูปแนวตั้งได้สูงเกิน — backend จำกัด 2MB
 Future<ProofPhoto?> showProofCaptureSheet(
   BuildContext context, {
   required String title,
@@ -45,7 +46,7 @@ class _ProofCaptureSheetState extends State<_ProofCaptureSheet> {
 
   Future<void> _pick(ImageSource source) async {
     try {
-      final shot = await _picker.pickImage(source: source, maxWidth: 1200, imageQuality: 85);
+      final shot = await _picker.pickImage(source: source, maxWidth: 960, maxHeight: 960, imageQuality: 70);
       if (shot == null || !mounted) return;
       final bytes = await shot.readAsBytes();
       if (!mounted) return;

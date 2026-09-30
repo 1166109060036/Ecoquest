@@ -48,17 +48,23 @@ class SoundService {
   static final AudioContext _mixContext =
       AudioContextConfig(focus: AudioContextConfigFocus.mixWithOthers).build();
 
-  final AudioPlayer _music = AudioPlayer();
+  // ⚠️ audioplayers ตั้งต้นทุก player ด้วย FramePositionUpdater = ขอเฟรมใหม่ทุกเฟรมเพื่ออัปเดตตำแหน่งเพลง
+  // ตลอดเวลาที่เล่นอยู่ (เพลงพื้นหลังวนไม่จบ) — แอพเลยวาดจอ 60 เฟรม/วิ ตลอดแม้หน้านิ่งสนิท กินแบตและทำให้
+  // แอนิเมชันจริงกระตุก (เจอจาก debugPrintScheduleFrameStacks 30 ก.ย. 2026) แอพไม่ได้ใช้ตำแหน่งเพลงเลย
+  // เลยปิดทิ้ง (null = ไม่มี positionStream แต่ play/pause/loop ทำงานปกติ)
+  static AudioPlayer _newPlayer() => AudioPlayer()..positionUpdater = null;
+
+  final AudioPlayer _music = _newPlayer();
   // ⚠️ เคยลองใช้ PlayerMode.lowLatency (SoundPool บน Android) เพื่อลด delay ตอนกดรัวๆ แต่ SoundPool
   // เข้มงวดเรื่องฟอร์แมต mp3 มาก — ไฟล์เสียงบางแบบ (เช่น VBR/มี ID3 tag แปลกๆ) ทำให้ decode ไม่ผ่านแล้ว
   // เงียบไปเลยไม่มี error ให้เห็น (โหลดไม่สำเร็จ กด play ก็ไม่มีเสียงออกโดยไม่ throw) เปลี่ยนกลับมาใช้
   // PlayerMode.mediaPlayer (ค่า default เดียวกับ _music) เพราะรองรับไฟล์เสียงได้กว้างกว่ามาก
-  final AudioPlayer _click = AudioPlayer();
+  final AudioPlayer _click = _newPlayer();
   // เสียงเอฟเฟคสั้นๆ อีก 3 อย่าง — คนละ player กับ _click กันเสียงชนกันตัดกันเองถ้าเกิดพร้อมกันพอดี
   // (เช่น ซื้อของสำเร็จแล้วมีแจ้งเตือนโผล่มาพร้อมกัน) อยู่กลุ่มระดับเสียง "Sound Effects" เดียวกับ _click
-  final AudioPlayer _buySuccess = AudioPlayer();
-  final AudioPlayer _notification = AudioPlayer();
-  final AudioPlayer _questSuccess = AudioPlayer();
+  final AudioPlayer _buySuccess = _newPlayer();
+  final AudioPlayer _notification = _newPlayer();
+  final AudioPlayer _questSuccess = _newPlayer();
 
   // ---- ระดับเสียง — แยกเพลงพื้นหลัง/เสียงระบบ (ปุ่มกด) ออกจากกัน ปรับได้ในหน้า Settings ----
   static const _musicVolumeKey = 'sound_music_volume';

@@ -84,19 +84,19 @@ class _AmbientOverlayState extends State<AmbientOverlay> with SingleTickerProvid
     if (widget.effect == null) return const SizedBox.shrink();
 
     // IgnorePointer กันไว้อีกชั้น (ปกติแตะทะลุอยู่แล้วเพราะ paint อยู่หลังเนื้อหาจริงใน Stack)
+    // ⚠️ RepaintBoundary + painter ผูก repaint กับ controller ตรงๆ (ไม่ใช้ AnimatedBuilder) — เดิม rebuild widget
+    // ทุกเฟรม และไม่มี RepaintBoundary ทำให้การวาดอนุภาคแต่ละเฟรมลาก paint ทั้งหน้าที่อยู่ layer เดียวกัน (รูปพื้นหลัง
+    // + การ์ดทั้งหน้า Profile/Home) ตามไปด้วย = กระตุก (ผู้ใช้ขอให้แอพสมูทขึ้น 30 ก.ย. 2026) ตอนนี้วาดใหม่แค่ layer ของอนุภาค
     return IgnorePointer(
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) {
-          return CustomPaint(
-            size: Size.infinite,
-            painter: _ParticlePainter(
-              particles: _particles,
-              progress: _controller.value,
-              risesUp: _risesUp,
-            ),
-          );
-        },
+      child: RepaintBoundary(
+        child: CustomPaint(
+          size: Size.infinite,
+          painter: _ParticlePainter(
+            particles: _particles,
+            progress: _controller,
+            risesUp: _risesUp,
+          ),
+        ),
       ),
     );
   }
@@ -226,13 +226,16 @@ class _Particle {
 
 class _ParticlePainter extends CustomPainter {
   final List<_Particle> particles;
-  final double progress;
+  // อ่านค่าสดตอน paint — super(repaint:) ให้ painter วาดใหม่เองทุกครั้งที่ controller ขยับ โดยไม่ต้อง rebuild widget
+  final Animation<double> progress;
   final bool risesUp;
 
-  _ParticlePainter({required this.particles, required this.progress, required this.risesUp});
+  _ParticlePainter({required this.particles, required this.progress, required this.risesUp})
+      : super(repaint: progress);
 
   @override
   void paint(Canvas canvas, Size size) {
+    final progress = this.progress.value;
     for (final particle in particles) {
       // t วนซ้ำ 0-1 ต่อรอบของอนุภาคนี้เอง — คาบต่างกันตาม speedFactor และเริ่มไม่พร้อมกันตาม phaseOffset
       final t = (progress * particle.speedFactor + particle.phaseOffset) % 1.0;
@@ -254,7 +257,8 @@ class _ParticlePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _ParticlePainter oldDelegate) => oldDelegate.progress != progress;
+  bool shouldRepaint(covariant _ParticlePainter oldDelegate) =>
+      oldDelegate.particles != particles || oldDelegate.risesUp != risesUp;
 }
 
 // alias ของเดิม — ใบไม้ร่วงฟรีที่ใช้อยู่ใน settings/change_password/upgrade_account/create_party

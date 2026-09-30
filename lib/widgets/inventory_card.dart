@@ -156,23 +156,21 @@ class InventoryCard extends StatelessWidget {
                             ),
                           ],
                         ),
-                        // เลเยอร์ในสุด: ตัวกระจกฝ้าจริงๆ — clip ให้โค้งมน + เบลอพื้นหลัง
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(20),
-                          child: BackdropFilter(
-                            filter: ui.ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                            child: Container(
-                              alignment: Alignment.center,
-                              // D9D9D9 โปร่งใส 80% = เหลือความทึบ 20%
-                              color: const Color(0xFFD9D9D9).withValues(alpha: 0.2),
-                              child: Text(
-                                'x$quantity',
-                                style: const TextStyle(
-                                  color: Colors.black87,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                        // เลเยอร์ในสุด: ป้ายสีเทาอ่อนทึบเกือบเต็ม — ⚠️ เดิมเป็นกระจกฝ้า (BackdropFilter เบลอ 8) แต่เบลอสด
+                        // ทุกเฟรมทุกการ์ดตอนเลื่อนลิสต์หนักมาก (saveLayer ต่อการ์ด) ทั้งที่การ์ดพื้นขาวเบลอแล้วก็ได้สีเทาอ่อน
+                        // หน้าตาเท่าเดิม — เปลี่ยนเป็นสีทึบตอนทำแอพให้สมูทขึ้น (30 ก.ย. 2026)
+                        child: Container(
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEFEFEF).withValues(alpha: 0.94),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            'x$quantity',
+                            style: const TextStyle(
+                              color: Colors.black87,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
@@ -268,7 +266,9 @@ class _ShadowedImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
+    // RepaintBoundary — รูป+เงาเบลอไม่เคยเปลี่ยน ให้ engine cache layer นี้ไว้ ไม่ต้องเบลอใหม่ทุกครั้งที่ลิสต์เลื่อน/การ์ดขยับ
+    return RepaintBoundary(
+      child: Stack(
       fit: StackFit.expand,
       children: [
         Transform.translate(
@@ -291,6 +291,7 @@ class _ShadowedImage extends StatelessWidget {
           errorBuilder: (_, _, _) => fallback,
         ),
       ],
+      ),
     );
   }
 }

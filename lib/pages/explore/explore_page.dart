@@ -13,6 +13,8 @@ import '../../widgets/staggered_fade_in.dart';
 import '../inventory/fridge_page.dart';
 import '../progress/progress_page.dart';
 import 'quest_detail_page.dart';
+import '../../widgets/skeleton_box.dart';
+import '../../widgets/state_cross_fade.dart';
 
 // หน้า Explore เต็มจอ — เจอได้ 2 ทาง: กด "Explore" ที่ bottom nav ตรงๆ
 // หรือลากแผ่น Explore ในหน้า Home ขึ้นสุดจอ (ซึ่งจะสลับมาที่แท็บนี้)
@@ -259,8 +261,18 @@ class _ExplorePageState extends State<ExplorePage> {
             ),
             const SizedBox(height: 8),
             Expanded(
-              child: isLoading
-                  ? const Center(child: CircularProgressIndicator(color: Colors.green))
+              // เฟดสลับ skeleton -> ลิสต์ -> ว่าง และตอนเปลี่ยนตัวกรอง แทนตัดฉับ (ผู้ใช้ขอให้แอพสมูทขึ้น)
+              child: StateCrossFade(
+                stateKey: isLoading
+                    ? 'loading'
+                    : '${items.isEmpty ? 'empty' : 'list'}-$_selectedFilter',
+                child: isLoading
+                  ? ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+                      itemCount: 5,
+                      separatorBuilder: (_, _) => const SizedBox(height: 12),
+                      itemBuilder: (_, _) => const QuestCardSkeleton(),
+                    )
                   : items.isEmpty
                       ? RefreshIndicator(
                           onRefresh: _onRefresh,
@@ -319,6 +331,7 @@ class _ExplorePageState extends State<ExplorePage> {
                             },
                           ),
                         ),
+              ),
             ),
           ],
         ),

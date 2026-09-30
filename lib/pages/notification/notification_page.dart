@@ -7,6 +7,7 @@ import '../../widgets/breathing_icon.dart';
 import '../../widgets/leaf_refresh_indicator.dart';
 import '../../widgets/skeleton_box.dart';
 import '../../widgets/staggered_fade_in.dart';
+import '../../widgets/state_cross_fade.dart';
 
 // หน้า Notification — เข้าจากปุ่มกระดิ่งมุมขวาบนของหน้า Profile
 // push ทับ MainShell เลยไม่มี bottom nav ให้เห็น (เหมือนหน้า Settings)
@@ -45,32 +46,35 @@ class _NotificationPageState extends State<NotificationPage> {
               child: _TopBar(),
             ),
             Expanded(
-              child: provider.isLoading && notifications.isEmpty
-                  ? ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-                      itemCount: 5,
-                      separatorBuilder: (_, _) => const SizedBox(height: 14),
-                      itemBuilder: (_, _) => const InventoryCardSkeleton(),
-                    )
-                  : notifications.isEmpty
-                      ? _EmptyState(errorMessage: provider.errorMessage)
-                      : LeafRefreshIndicator(
-                          onRefresh: () => context.read<NotificationProvider>().loadNotifications(),
-                          child: ListView.separated(
-                            padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            itemCount: notifications.length,
-                            separatorBuilder: (_, _) => const SizedBox(height: 14),
-                            itemBuilder: (context, index) {
-                              final notification = notifications[index];
-                              return FadeSlideIn(
-                                key: ValueKey(notification.id),
-                                delay: Duration(milliseconds: 40 * index.clamp(0, 10)),
-                                child: _NotificationCard(notification: notification),
-                              );
-                            },
+              child: StateCrossFade(
+                stateKey: provider.isLoading && notifications.isEmpty ? 'loading' : notifications.isEmpty ? 'empty' : 'list',
+                child: provider.isLoading && notifications.isEmpty
+                    ? ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+                        itemCount: 5,
+                        separatorBuilder: (_, _) => const SizedBox(height: 14),
+                        itemBuilder: (_, _) => const InventoryCardSkeleton(),
+                      )
+                    : notifications.isEmpty
+                        ? _EmptyState(errorMessage: provider.errorMessage)
+                        : LeafRefreshIndicator(
+                            onRefresh: () => context.read<NotificationProvider>().loadNotifications(),
+                            child: ListView.separated(
+                              padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              itemCount: notifications.length,
+                              separatorBuilder: (_, _) => const SizedBox(height: 14),
+                              itemBuilder: (context, index) {
+                                final notification = notifications[index];
+                                return FadeSlideIn(
+                                  key: ValueKey(notification.id),
+                                  delay: Duration(milliseconds: 40 * index.clamp(0, 10)),
+                                  child: _NotificationCard(notification: notification),
+                                );
+                              },
+                            ),
                           ),
-                        ),
+              ),
             ),
           ],
         ),

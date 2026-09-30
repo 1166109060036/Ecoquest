@@ -291,7 +291,8 @@ router.delete('/:id/start', authMiddleware, async (req, res) => {
 //            -> สร้าง QuestSubmission 'pending' ยังไม่ได้แต้ม ต้องรอผู้เล่นคนอื่น/แอดมินตรวจ (ตอบ status: 'pending')
 //          - Check Food: ระบบตรวจจากของในตู้เย็นเอง -> ได้รางวัลทันทีเหมือนเดิม (ตอบ status: 'completed')
 //          body: { photoBase64?, photoContentType? }
-const MAX_PROOF_PHOTO_BYTES = 4 * 1024 * 1024;
+// แอพย่อเหลือด้านยาวสุด 960px quality 70 (~100-200KB, lib/widgets/proof_capture_sheet.dart) — 2MB เผื่อ PNG/แอพรุ่นเก่า
+const MAX_PROOF_PHOTO_BYTES = 2 * 1024 * 1024;
 
 router.post('/:id/complete', authMiddleware, async (req, res) => {
   try {

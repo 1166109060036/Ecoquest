@@ -380,7 +380,8 @@ router.post('/leave', authMiddleware, async (req, res) => {
 //          (utils/submissions.js#finalizeSubmission) ไม่ผ่าน = ห้องกลับเป็น started ให้ส่งรูปใหม่
 //          ทำซ้ำได้ไม่จำกัดต่อวัน (ไม่ข้ามคนที่ทำเควสนี้แล้ววันนี้อีกต่อไป)
 //          body: { photoBase64, photoContentType }
-const MAX_PARTY_PHOTO_BYTES = 4 * 1024 * 1024;
+// ขนาดเดียวกับรูปหลักฐานเควส solo (routes/quests.js MAX_PROOF_PHOTO_BYTES)
+const MAX_PARTY_PHOTO_BYTES = 2 * 1024 * 1024;
 
 router.post('/complete', authMiddleware, async (req, res) => {
   try {

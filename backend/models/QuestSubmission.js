@@ -48,7 +48,8 @@ const QuestSubmissionSchema = new mongoose.Schema(
     },
     // ---- รูปหลักฐาน ---- เก็บเป็น Buffer ในเอกสารเลยแบบรูปในตู้เย็น (FridgeItem.photoData) — Render free tier
     // เก็บไฟล์ถาวรไม่ได้ เสิร์ฟผ่าน GET /api/submissions/:id/photo (ไม่ต้อง login แบบรูปโปรไฟล์)
-    // ⚠️ ไม่ required — ไม่ผ่านการตรวจแล้วถูกลบทิ้ง ($unset ใน utils/submissions.js) เอกสารที่ไม่มีรูปต้อง save ได้
+    // ⚠️ ไม่ required — ไม่ผ่านการตรวจ/ผ่านแล้วข้ามวัน ถูกลบทิ้ง (purgeExpiredPhotos ใน utils/submissions.js)
+    // เอกสารที่ไม่มีรูปต้อง save ได้
     // ตอนสร้างใหม่ route บังคับให้มีรูปเองอยู่แล้ว (routes/quests.js, routes/party.js)
     photoData: {
       type: Buffer,
@@ -101,5 +102,7 @@ const QuestSubmissionSchema = new mongoose.Schema(
 QuestSubmissionSchema.index({ status: 1, createdAt: -1 });
 QuestSubmissionSchema.index({ userId: 1, createdAt: -1 });
 QuestSubmissionSchema.index({ userId: 1, photoHash: 1 });
+// Today Feed + ลบรูปของที่ผ่านแล้วข้ามวัน (routes/feed.js, utils/submissions.js#purgeExpiredPhotos)
+QuestSubmissionSchema.index({ status: 1, decidedAt: -1 });
 
 module.exports = mongoose.model('QuestSubmission', QuestSubmissionSchema);

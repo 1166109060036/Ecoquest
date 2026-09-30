@@ -15,6 +15,7 @@ import '../explore/quest_detail_page.dart';
 import '../inventory/fridge_page.dart';
 import '../profile/profile_page.dart';
 import '../progress/progress_page.dart';
+import '../../widgets/state_cross_fade.dart';
 
 // Home = หน้า Profile จริง (เต็มจอ) เป็นพื้นหลัง + แผ่น "Explore" ลอยทับด้านล่าง
 // ใช้หน้า Profile ตัวจริงเป็นพื้นหลังเลย (ไม่ใช่เวอร์ชันย่อ) เพื่อให้ขนาด/หน้าตา
@@ -411,7 +412,12 @@ class _ExploreSheetState extends State<_ExploreSheet> {
           ),
           const SizedBox(height: 8),
           Expanded(
-            child: (questProvider.isLoading || partyProvider.isLoadingRooms) && items.isEmpty
+            // เฟดสลับ skeleton -> ลิสต์ -> ว่าง และตอนเปลี่ยนตัวกรอง แทนตัดฉับ (ผู้ใช้ขอให้แอพสมูทขึ้น)
+            child: StateCrossFade(
+              stateKey: (questProvider.isLoading || partyProvider.isLoadingRooms) && items.isEmpty
+                  ? 'loading'
+                  : '${items.isEmpty ? 'empty' : 'list'}-$_selectedFilter',
+              child: (questProvider.isLoading || partyProvider.isLoadingRooms) && items.isEmpty
                 ? ListView.separated(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                     itemCount: 5,
@@ -456,6 +462,7 @@ class _ExploreSheetState extends State<_ExploreSheet> {
                           );
                         },
                       ),
+            ),
           ),
         ],
       ),

@@ -25,8 +25,15 @@ class MainShell extends StatefulWidget {
   State<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+class _MainShellState extends State<MainShell> with SingleTickerProviderStateMixin {
   int _currentIndex = 0;
+  // สลับแท็บล่าง = เฟดหน้าใหม่เข้ามา + เลื่อนขึ้นนิดเดียว แทนโผล่แบบตัดฉับ (ผู้ใช้ขอให้แอพสมูทขึ้น 30 ก.ย. 2026)
+  // เริ่มที่ 1 = หน้าแรกตอนเปิดแอพไม่ต้องเฟด
+  late final AnimationController _tabFade =
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 220), value: 1);
+  late final Animation<double> _tabOpacity = CurvedAnimation(parent: _tabFade, curve: Curves.easeOut);
+  late final Animation<Offset> _tabSlide = Tween(begin: const Offset(0, 0.015), end: Offset.zero)
+      .animate(CurvedAnimation(parent: _tabFade, curve: Curves.easeOutCubic));
   // ระบบตรวจสอบภารกิจ: รางวัลมาตอนหลักฐานผ่าน (อาจเป็นตอนแอพปิดอยู่) — โหลดแจ้งเตือนใหม่ทุกครั้งที่กลับเข้าแอพ
   // แล้วฉลองของที่ผ่านใหม่ด้วยเอฟเฟครางวัลบินเข้าป้าย
   late final AppLifecycleListener _lifecycle;
@@ -62,6 +69,7 @@ class _MainShellState extends State<MainShell> {
   void dispose() {
     _notifications.removeListener(_celebrateApprovals);
     _lifecycle.dispose();
+    _tabFade.dispose();
     super.dispose();
   }
 
@@ -90,7 +98,13 @@ class _MainShellState extends State<MainShell> {
     }
   }
 
-  void _navigateToTab(int index) => setState(() => _currentIndex = index);
+  void _navigateToTab(int index) {
+    if (index == _currentIndex) return;
+    setState(() => _currentIndex = index);
+    // เคารพโหมดลดการเคลื่อนไหวในเครื่อง — สลับทันทีไม่เฟด
+    if (MediaQuery.of(context).disableAnimations) return;
+    _tabFade.forward(from: 0);
+  }
 
   // ลำดับต้องตรงกับลำดับปุ่มใน AppBottomNavBar (Home, Inventory, Explore, Community, Profile)
   // HomePage/ExplorePage/CommunityPage ต้อง build ใหม่ทุกครั้ง (ไม่ใช่ static const) เพราะต้องส่ง
@@ -110,9 +124,22 @@ class _MainShellState extends State<MainShell> {
       // ที่ Scaffold.body มีให้ ทำให้เหลือช่องว่างสีขาว (background default ของ Scaffold)
       // โผล่มาระหว่างเนื้อหากับ bottomNavigationBar
       body: SizedBox.expand(
-        child: IndexedStack(
-          index: _currentIndex,
-          children: _pages,
+        child: FadeTransition(
+          opacity: _tabOpacity,
+          child: SlideTransition(
+            position: _tabSlide,
+            child: IndexedStack(
+              index: _currentIndex,
+              // ⚠️ IndexedStack ไม่หยุดแอนิเมชันของแท็บที่ซ่อนอยู่ให้เอง (เช็คใน Flutter 3.47 แล้ว — แค่ไม่ paint)
+              // แอนิเมชันวนไม่รู้จบ (ใบไม้/เอฟเฟกต์โปรไฟล์ใน Home+Profile, skeleton, ไอคอนหายใจ) เลยเดินต่อทุกเฟรม
+              // ทั้งที่มองไม่เห็น = แอพสร้างเฟรมตลอดเวลาและกระตุกในแท็บที่เปิดอยู่ — TickerMode ปิด ticker ของแท็บที่ซ่อน
+              // (state/ตำแหน่งเลื่อนยังอยู่ครบ กลับมาแอนิเมชันเดินต่อเอง)
+              children: [
+                for (final (i, page) in _pages.indexed)
+                  TickerMode(enabled: i == _currentIndex, child: page),
+              ],
+            ),
+          ),
         ),
       ),
       bottomNavigationBar: AppBottomNavBar(

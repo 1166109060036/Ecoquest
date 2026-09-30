@@ -10,7 +10,9 @@ import '../../widgets/count_up_text.dart';
 import '../../widgets/decorated_avatar.dart';
 import '../../widgets/leaf_refresh_indicator.dart';
 import '../../widgets/pressable_scale.dart';
+import '../../widgets/skeleton_box.dart';
 import '../../widgets/staggered_fade_in.dart';
+import '../../widgets/state_cross_fade.dart';
 import '../profile/player_profile_page.dart';
 import 'review_page.dart';
 
@@ -132,8 +134,13 @@ class _FeedTabState extends State<FeedTab> with AutomaticKeepAliveClientMixin {
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    if (_isLoading) return const Center(child: CircularProgressIndicator(color: Colors.green));
+    return StateCrossFade(
+      stateKey: _isLoading ? 'loading' : 'feed',
+      child: _isLoading ? const _FeedSkeleton() : _buildFeed(),
+    );
+  }
 
+  Widget _buildFeed() {
     final children = <Widget>[
       if (_impact != null) _ImpactCard(impact: _impact!),
       if (_reviewCount > 0) ...[
@@ -141,15 +148,18 @@ class _FeedTabState extends State<FeedTab> with AutomaticKeepAliveClientMixin {
         _ReviewBanner(count: _reviewCount, onTap: _openReview),
       ],
       const SizedBox(height: 16),
-      const Text('Verified quests',
+      // Today Feed — backend ส่งมาแค่ที่ผ่านการตรวจวันนี้ ขึ้นวันใหม่ (เที่ยงคืนเวลาญี่ปุ่น) รูปเมื่อวานถูกลบ (backend/routes/feed.js)
+      const Text("Today's verified quests",
           style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87)),
+      const SizedBox(height: 2),
+      Text('Starts fresh every midnight', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
       const SizedBox(height: 10),
       if (_error != null)
         _FeedEmpty(icon: Icons.cloud_off, text: _error!)
       else if (_posts.isEmpty)
         const _FeedEmpty(
           icon: Icons.eco_outlined,
-          text: 'No verified quests yet — complete one and it will show up here',
+          text: 'No verified quests today yet — complete one and it will show up here',
         )
       else
         for (var i = 0; i < _posts.length; i++) ...[
@@ -175,6 +185,27 @@ class _FeedTabState extends State<FeedTab> with AutomaticKeepAliveClientMixin {
         physics: const AlwaysScrollableScrollPhysics(),
         children: children,
       ),
+    );
+  }
+}
+
+// โครงรอโหลด (การ์ดผลกระทบ + โพสต์ 2 ใบ) แทนวงหมุน — เฟดเป็นเนื้อหาจริงผ่าน StateCrossFade
+class _FeedSkeleton extends StatelessWidget {
+  const _FeedSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const NeverScrollableScrollPhysics(),
+      children: const [
+        SkeletonBox(height: 150, borderRadius: 22),
+        SizedBox(height: 28),
+        SkeletonBox(width: 120, height: 16),
+        SizedBox(height: 12),
+        SkeletonBox(height: 240, borderRadius: 18),
+        SizedBox(height: 12),
+        SkeletonBox(height: 240, borderRadius: 18),
+      ],
     );
   }
 }

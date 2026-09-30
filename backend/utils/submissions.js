@@ -14,6 +14,7 @@ const Party = require('../models/Party');
 const { awardQuest } = require('./questRewards');
 const { notifyQuestApproved, notifyQuestRejected } = require('./notifications');
 const { avatarUrlFor, cosmeticsFor } = require('./avatar');
+const { startOfToday } = require('./questDay');
 
 // ฟิลด์สาธารณะของผู้ใช้ที่ populate มากับ submission — allow-list เดียวกับ routes/friends.js (ห้ามหลุด email ฯลฯ)
 const PUBLIC_USER_FIELDS = 'displayName level avatarContentType avatarUpdatedAt cosmetics';
@@ -126,6 +127,21 @@ const finalizeSubmission = async (submissionId, status, decidedBy) => {
 const purgeRejectedPhoto = (submissionId) =>
   QuestSubmission.updateOne({ _id: submissionId, status: 'rejected' }, { $unset: { photoData: 1 } });
 
+// Today Feed (ผู้ใช้ออกแบบ 30 ก.ย. 2026) — ฟีดโชว์แค่ของที่ผ่านการตรวจ "วันนี้" (ตัดวันตาม utils/questDay.js = เที่ยงคืน
+// เวลาญี่ปุ่น) ขึ้นวันใหม่ = ลบรูปของที่ตัดสินแล้วตั้งแต่เมื่อวานทิ้ง ให้ Atlas ฟรี (512MB) ไม่เต็มจากรูปหลักฐาน
+// - pending: เก็บรูปไว้จนกว่าจะตัดสิน (ผู้ตรวจต้องเห็น) แม้ข้ามวัน — ค้างได้ไม่เกิน 48 ชม. อยู่แล้ว
+// - rejected: ลบทันทีตอนตัดสิน (purgeRejectedPhoto) + เก็บกวาดตัวที่หลุดตรงนี้
+// - approved: ลบเมื่อ decidedAt ก่อนเที่ยงคืนวันนี้ (ฟีดเลิกโชว์พอดี) — photoHash ยังอยู่ กันเอารูปเดิมมาส่งซ้ำได้เหมือนเดิม
+// เรียกจาก sweep แบบ lazy (ไม่มี scheduler) — รูปเมื่อวานอาจค้างถึง request แรกของวันใหม่ แต่ฟีดไม่โชว์แล้ว
+const purgeExpiredPhotos = () =>
+  QuestSubmission.updateMany(
+    {
+      photoData: { $exists: true },
+      $or: [{ status: 'rejected' }, { status: 'approved', decidedAt: { $lt: startOfToday() } }],
+    },
+    { $unset: { photoData: 1 } }
+  );
+
 // แจ้งเตือนพังไม่ควรทำให้การตัดสิน/ให้รางวัลที่บันทึกไปแล้วพังตาม
 const safeNotify = async (fn) => {
   try {
@@ -146,12 +162,7 @@ const sweepExpiredSubmissions = async ({ force = false } = {}) => {
   if (!force && now - lastSweepAt < SWEEP_EVERY_MS) return 0;
   lastSweepAt = now;
 
-  // เก็บกวาดรูปของ submission ที่ไม่ผ่านซึ่งยังค้างรูปอยู่ (ถูกตัดสินก่อนมีการลบรูปตอน reject — 29 ก.ย. 2026)
-  // query เปล่าแทบไม่มีต้นทุนเมื่อไม่มีอะไรให้ลบ
-  await QuestSubmission.updateMany(
-    { status: 'rejected', photoData: { $exists: true } },
-    { $unset: { photoData: 1 } }
-  );
+  await purgeExpiredPhotos();
 
   const expired = await QuestSubmission.find({
     status: 'pending',
@@ -215,6 +226,7 @@ module.exports = {
   finalizeSubmission,
   sweepExpiredSubmissions,
   sweepQuietly,
+  purgeExpiredPhotos,
   toSubmissionPayload,
   PUBLIC_USER_FIELDS,
   QUEST_FIELDS,

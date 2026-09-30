@@ -19,6 +19,7 @@ import '../../widgets/quest_card.dart';
 import '../../widgets/skeleton_box.dart';
 import '../../widgets/staggered_fade_in.dart';
 import '../explore/quest_detail_page.dart';
+import '../../widgets/state_cross_fade.dart';
 
 // หน้า Progress — เควสที่กด Start ไว้แล้วแต่ยังไม่กด Complete (ค้างได้ไม่จำกัดวัน จนกว่าจะกด
 // Complete เอง) เข้าได้จากปุ่มมุมขวาบนของหน้า Explore และแผ่น Explore ในหน้า Home
@@ -250,33 +251,36 @@ class _ProgressPageState extends State<ProgressPage> {
               ),
             ),
             Expanded(
-              child: _isLoading
-                  ? ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-                      itemCount: 4,
-                      separatorBuilder: (_, _) => const SizedBox(height: 12),
-                      itemBuilder: (_, _) => const QuestCardSkeleton(),
-                    )
-                  : isEmpty
-                      ? LeafRefreshIndicator(
-                          onRefresh: _load,
-                          child: ListView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            children: [
-                              SizedBox(height: MediaQuery.of(context).size.height * 0.15),
-                              const _EmptyState(),
-                            ],
+              child: StateCrossFade(
+                stateKey: _isLoading ? 'loading' : isEmpty ? 'empty' : 'list',
+                child: _isLoading
+                    ? ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+                        itemCount: 4,
+                        separatorBuilder: (_, _) => const SizedBox(height: 12),
+                        itemBuilder: (_, _) => const QuestCardSkeleton(),
+                      )
+                    : isEmpty
+                        ? LeafRefreshIndicator(
+                            onRefresh: _load,
+                            child: ListView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              children: [
+                                SizedBox(height: MediaQuery.of(context).size.height * 0.15),
+                                const _EmptyState(),
+                              ],
+                            ),
+                          )
+                        : LeafRefreshIndicator(
+                            onRefresh: _load,
+                            child: ListView.separated(
+                              padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+                              itemCount: items.length,
+                              separatorBuilder: (_, _) => const SizedBox(height: 12),
+                              itemBuilder: (context, index) => items[index],
+                            ),
                           ),
-                        )
-                      : LeafRefreshIndicator(
-                          onRefresh: _load,
-                          child: ListView.separated(
-                            padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-                            itemCount: items.length,
-                            separatorBuilder: (_, _) => const SizedBox(height: 12),
-                            itemBuilder: (context, index) => items[index],
-                          ),
-                        ),
+              ),
             ),
           ],
         ),

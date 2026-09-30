@@ -58,6 +58,13 @@ class MyApp extends StatelessWidget {
           // แตะหน้าจอเหมือนที่เคยลองด้วย Listener ก่อนหน้านี้ — ดูเหตุผลเต็มๆ ที่ SoundSplashFactory
           // ใน sound_service.dart
           splashFactory: SoundSplashFactory(InkRipple.splashFactory),
+          // เปลี่ยนหน้า (push/pop) แบบเลื่อน+เฟดนุ่มๆ แบบ Android รุ่นใหม่ แทน zoom เดิมที่ดูแข็ง (ผู้ใช้ขอให้แอพสมูทขึ้น
+          // 30 ก.ย. 2026) — Hero รูปเควส (quest_card.dart) ยังบินได้ปกติ
+          pageTransitionsTheme: const PageTransitionsTheme(
+            builders: {
+              TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+            },
+          ),
         ),
         initialRoute: '/splash',
         routes: appRoutes,
