@@ -12,6 +12,8 @@ class SubmissionModel {
   final int approvals;
   final int rejections;
   final int approvalsNeeded;
+  // ค้างเกิน 48 ชม. ไม่มีข้อสรุป — รอแอดมินตัดสินคนเดียว (ผู้เล่นทั่วไปโหวตต่อไม่ได้แล้ว)
+  final bool escalated;
   final int rewardPoints;
   final int rewardXp;
   final SubmissionQuest? quest;
@@ -31,6 +33,7 @@ class SubmissionModel {
     this.approvals = 0,
     this.rejections = 0,
     this.approvalsNeeded = 2,
+    this.escalated = false,
     this.rewardPoints = 0,
     this.rewardXp = 0,
     this.quest,
@@ -58,6 +61,7 @@ class SubmissionModel {
       approvals: json['approvals'] ?? 0,
       rejections: json['rejections'] ?? 0,
       approvalsNeeded: json['approvalsNeeded'] ?? 2,
+      escalated: json['escalated'] == true,
       rewardPoints: reward['points'] ?? 0,
       rewardXp: reward['xp'] ?? 0,
       quest: questJson != null ? SubmissionQuest.fromJson(questJson) : null,
@@ -78,6 +82,7 @@ class SubmissionModel {
         approvals: approvals,
         rejections: rejections,
         approvalsNeeded: approvalsNeeded,
+        escalated: escalated,
         rewardPoints: rewardPoints,
         rewardXp: rewardXp,
         quest: quest,
@@ -125,6 +130,16 @@ class ReviewQueue {
   final List<SubmissionModel> submissions;
   final int pendingCount;
   final bool isAdmin;
+  // guest ตรวจไม่ได้ (บัญชีจริงเท่านั้น) — แอพชวนสมัครบัญชีแทนแบนเนอร์ตรวจ
+  final bool canReview;
+  // แอดมินเท่านั้น: จำนวนที่ค้างเกิน 48 ชม. รอแอดมินตัดสิน
+  final int escalatedCount;
 
-  ReviewQueue({required this.submissions, required this.pendingCount, required this.isAdmin});
+  ReviewQueue({
+    required this.submissions,
+    required this.pendingCount,
+    required this.isAdmin,
+    this.canReview = true,
+    this.escalatedCount = 0,
+  });
 }

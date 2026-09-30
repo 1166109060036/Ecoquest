@@ -46,6 +46,8 @@ class SubmissionService {
       submissions: _parseList(data['submissions']),
       pendingCount: data['pendingCount'] ?? 0,
       isAdmin: data['isAdmin'] ?? false,
+      canReview: data['canReview'] ?? true,
+      escalatedCount: data['escalatedCount'] ?? 0,
     );
   }
 

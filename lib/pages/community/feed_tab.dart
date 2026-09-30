@@ -35,6 +35,8 @@ class _FeedTabState extends State<FeedTab> with AutomaticKeepAliveClientMixin {
 
   ImpactSummary? _impact;
   int _reviewCount = 0;
+  int _escalatedCount = 0; // แอดมิน: ค้างเกิน 48 ชม. รอแอดมินตัดสิน
+  bool _canReview = true; // guest = false → ชวนสมัครบัญชีแทนแบนเนอร์ตรวจ
   List<SubmissionModel> _posts = [];
   bool _hasMore = false;
   bool _isLoading = true;
@@ -65,7 +67,7 @@ class _FeedTabState extends State<FeedTab> with AutomaticKeepAliveClientMixin {
       final results = await Future.wait([
         _feedService.fetchFeed(),
         _feedService.fetchImpact().then<ImpactSummary?>((v) => v).catchError((_) => null),
-        _submissionService.fetchQueue().then<int>((q) => q.pendingCount).catchError((_) => 0),
+        _submissionService.fetchQueue().then<ReviewQueue?>((q) => q).catchError((_) => null),
       ]);
       if (!mounted) return;
       final feed = results[0] as ({List<SubmissionModel> items, bool hasMore});
@@ -73,7 +75,10 @@ class _FeedTabState extends State<FeedTab> with AutomaticKeepAliveClientMixin {
         _posts = feed.items;
         _hasMore = feed.hasMore;
         _impact = results[1] as ImpactSummary?;
-        _reviewCount = results[2] as int;
+        final queue = results[2] as ReviewQueue?;
+        _reviewCount = queue?.pendingCount ?? 0;
+        _escalatedCount = queue?.escalatedCount ?? 0;
+        _canReview = queue?.canReview ?? true;
         _isLoading = false;
       });
     } catch (e) {
@@ -131,6 +136,12 @@ class _FeedTabState extends State<FeedTab> with AutomaticKeepAliveClientMixin {
     if (mounted) _load();
   }
 
+  // guest สมัครบัญชีจริงแล้วตรวจได้เลย (บัญชีเดิมถูกอัปเกรด ไม่ต้องล็อกอินใหม่) — โหลดคิวใหม่ตอนกลับมา
+  Future<void> _openUpgradeAccount() async {
+    await Navigator.pushNamed(context, '/upgrade-account');
+    if (mounted) _load();
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
@@ -145,7 +156,10 @@ class _FeedTabState extends State<FeedTab> with AutomaticKeepAliveClientMixin {
       if (_impact != null) _ImpactCard(impact: _impact!),
       if (_reviewCount > 0) ...[
         const SizedBox(height: 12),
-        _ReviewBanner(count: _reviewCount, onTap: _openReview),
+        _ReviewBanner(count: _reviewCount, escalatedCount: _escalatedCount, onTap: _openReview),
+      ] else if (!_canReview) ...[
+        const SizedBox(height: 12),
+        _JoinToReviewBanner(onTap: _openUpgradeAccount),
       ],
       const SizedBox(height: 16),
       // Today Feed — backend ส่งมาแค่ที่ผ่านการตรวจวันนี้ ขึ้นวันใหม่ (เที่ยงคืนเวลาญี่ปุ่น) รูปเมื่อวานถูกลบ (backend/routes/feed.js)
@@ -324,8 +338,9 @@ class _ImpactStat extends StatelessWidget {
 // ---------------------------------------------------------------------------
 class _ReviewBanner extends StatelessWidget {
   final int count;
+  final int escalatedCount;
   final VoidCallback onTap;
-  const _ReviewBanner({required this.count, required this.onTap});
+  const _ReviewBanner({required this.count, this.escalatedCount = 0, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -352,12 +367,62 @@ class _ReviewBanner extends StatelessWidget {
                     children: [
                       Text(count == 1 ? '1 quest needs your review' : '$count quests need your review',
                           style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: Colors.orange.shade900)),
-                      Text('Help other players get their rewards',
+                      Text(
+                          escalatedCount > 0
+                              ? '$escalatedCount waited over 48 hours — only an admin can decide these'
+                              : 'Help other players get their rewards',
                           style: TextStyle(fontSize: 11.5, color: Colors.orange.shade800)),
                     ],
                   ),
                 ),
                 Icon(Icons.chevron_right_rounded, color: Colors.orange.shade700),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// guest ตรวจหลักฐานไม่ได้ (บัญชีจริงเท่านั้น) — ชวนสมัครบัญชีแทนแบนเนอร์ตรวจ
+// ---------------------------------------------------------------------------
+class _JoinToReviewBanner extends StatelessWidget {
+  final VoidCallback onTap;
+  const _JoinToReviewBanner({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return PressableScale(
+      child: Material(
+        color: Colors.green.shade50,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.green.shade200),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.how_to_reg_rounded, color: Colors.green.shade700),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Want to help review quests?',
+                          style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: Colors.green.shade900)),
+                      Text('Only registered accounts can review — create one to join',
+                          style: TextStyle(fontSize: 11.5, color: Colors.green.shade800)),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right_rounded, color: Colors.green.shade700),
               ],
             ),
           ),

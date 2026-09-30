@@ -3,7 +3,9 @@
 // กติกา (ผู้ใช้เลือกแล้ว):
 //   ผู้เล่นคนอื่นกดผ่าน APPROVALS_NEEDED คน = ผ่าน / กดไม่ผ่าน REJECTIONS_NEEDED คน = ไม่ผ่าน
 //   แอดมิน (ADMIN_EMAILS) โหวตครั้งเดียวตัดสินเลย
-//   ไม่มีข้อสรุปใน AUTO_DECIDE_AFTER_MS = ตัดสินอัตโนมัติ (ผ่านถ้าเสียงผ่าน >= ไม่ผ่าน) — กันค้างตอนคนใช้น้อย
+//   ตรวจได้เฉพาะบัญชีจริง — guest โหวตไม่ได้ (กันสร้าง guest หลายบัญชีมาอนุมัติตัวเอง, ผู้ใช้กำหนด 30 ก.ย. 2026)
+//   ไม่มีข้อสรุปใน ESCALATE_AFTER_MS (48 ชม.) = ส่งต่อให้แอดมินตัดสินคนเดียว ผู้เล่นทั่วไปโหวตต่อไม่ได้แล้ว
+//   (เดิมตัดสินอัตโนมัติ "ผ่านถ้าเสียงผ่าน >= ไม่ผ่าน" ซึ่งไม่มีใครตรวจเลย 0-0 ก็ผ่าน = ส่งรูปอะไรก็ได้แล้วรอ 2 วัน)
 // แต้ม/XP/CO2 ได้ตอนผ่านเท่านั้น (utils/questRewards.js#awardQuest)
 const crypto = require('crypto');
 const QuestSubmission = require('../models/QuestSubmission');
@@ -30,7 +32,11 @@ const QUEST_FIELDS = 'title detail category co2eEstimateKg durationDays';
 
 const APPROVALS_NEEDED = 2;
 const REJECTIONS_NEEDED = 2;
-const AUTO_DECIDE_AFTER_MS = 48 * 60 * 60 * 1000;
+const ESCALATE_AFTER_MS = 48 * 60 * 60 * 1000;
+
+// ส่งมาเกิน 48 ชม. แล้วยังไม่มีข้อสรุป = รอแอดมิน — คิดจาก createdAt ตรงๆ ไม่มีฟิลด์/งานเบื้องหลังต้องอัปเดต
+const escalationCutoff = () => new Date(Date.now() - ESCALATE_AFTER_MS);
+const isEscalated = (s) => s.status === 'pending' && Boolean(s.createdAt) && s.createdAt < escalationCutoff();
 
 const photoHashOf = (buffer) => crypto.createHash('sha256').update(buffer).digest('hex');
 
@@ -151,9 +157,9 @@ const safeNotify = async (fn) => {
   }
 };
 
-// ตัดสินอัตโนมัติ submission ที่ค้างเกิน 48 ชม. — ไม่มี scheduler (Render free tier หลับ) เลยเรียกแบบ lazy จาก
-// route ที่คนเปิดบ่อย (GET /quests, /auth/me, /reviews/queue, /feed) แนวเดียวกับแจ้งเตือนของใกล้หมดอายุ
-// throttle ไว้นาทีละครั้งทั้ง server ไม่ให้ทุก request ต้อง query เพิ่ม
+// งานเก็บกวาดเบื้องหลัง (ตอนนี้เหลือแค่ลบรูปหมดอายุ — ค้างเกิน 48 ชม. ไม่ตัดสินอัตโนมัติแล้ว ส่งให้แอดมินแทน)
+// ไม่มี scheduler (Render free tier หลับ) เลยเรียกแบบ lazy จาก route ที่คนเปิดบ่อย (GET /quests, /auth/me,
+// /reviews/queue, /feed) throttle ไว้นาทีละครั้งทั้ง server ไม่ให้ทุก request ต้อง query เพิ่ม
 let lastSweepAt = 0;
 const SWEEP_EVERY_MS = 60 * 1000;
 
@@ -162,21 +168,8 @@ const sweepExpiredSubmissions = async ({ force = false } = {}) => {
   if (!force && now - lastSweepAt < SWEEP_EVERY_MS) return 0;
   lastSweepAt = now;
 
-  await purgeExpiredPhotos();
-
-  const expired = await QuestSubmission.find({
-    status: 'pending',
-    createdAt: { $lt: new Date(now - AUTO_DECIDE_AFTER_MS) },
-  })
-    .select('_id approvals rejections')
-    .limit(50);
-
-  let decided = 0;
-  for (const s of expired) {
-    const status = s.approvals.length >= s.rejections.length ? 'approved' : 'rejected';
-    if (await finalizeSubmission(s._id, status, 'auto')) decided += 1;
-  }
-  return decided;
+  const res = await purgeExpiredPhotos();
+  return res.modifiedCount || 0;
 };
 
 // เรียกจาก route แบบไม่ให้ request หลักพังถ้า sweep มีปัญหา
@@ -184,7 +177,7 @@ const sweepQuietly = async () => {
   try {
     await sweepExpiredSubmissions();
   } catch (err) {
-    console.error('ตัดสินหลักฐานที่ค้างเกินเวลาไม่สำเร็จ:', err.message);
+    console.error('เก็บกวาดหลักฐาน (ลบรูปหมดอายุ) ไม่สำเร็จ:', err.message);
   }
 };
 
@@ -200,6 +193,8 @@ const toSubmissionPayload = (s, viewerId = null) => ({
   approvals: s.approvals.length,
   rejections: s.rejections.length,
   approvalsNeeded: APPROVALS_NEEDED,
+  // ค้างเกิน 48 ชม. — รอแอดมินตัดสิน (แอพโชว์ "Waiting for an admin" / ป้ายในคิวของแอดมิน)
+  escalated: isEscalated(s),
   checkIn: s.kind === 'check_in' ? s.checkIn : null,
   reward: s.reward || { points: 0, xp: 0 },
   quest: s.questId && s.questId.title
@@ -220,7 +215,9 @@ const toSubmissionPayload = (s, viewerId = null) => ({
 module.exports = {
   APPROVALS_NEEDED,
   REJECTIONS_NEEDED,
-  AUTO_DECIDE_AFTER_MS,
+  ESCALATE_AFTER_MS,
+  escalationCutoff,
+  isEscalated,
   photoHashOf,
   isDuplicatePhoto,
   finalizeSubmission,

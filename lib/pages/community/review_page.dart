@@ -261,8 +261,15 @@ class _SubmissionCard extends StatelessWidget {
                 ],
                 const SizedBox(height: 10),
                 Text(
-                  'Approved ${s.approvals}/${s.approvalsNeeded} so far',
-                  style: TextStyle(fontSize: 11.5, color: Colors.grey.shade500),
+                  // ค้างเกิน 48 ชม. — แอดมินเท่านั้นที่เห็นอันนี้ในคิว (backend/routes/reviews.js)
+                  s.escalated
+                      ? 'Waited over 48 hours — ${s.approvals} approved, ${s.rejections} not approved. Your call.'
+                      : 'Approved ${s.approvals}/${s.approvalsNeeded} so far',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: s.escalated ? Colors.red.shade400 : Colors.grey.shade500,
+                    fontWeight: s.escalated ? FontWeight.w600 : FontWeight.normal,
+                  ),
                 ),
               ],
             ),

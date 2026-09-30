@@ -364,10 +364,15 @@ class _PendingSubmissionTile extends StatelessWidget {
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    Icon(Icons.hourglass_top_rounded, size: 13, color: Colors.orange.shade700),
+                    Icon(
+                      s.escalated ? Icons.admin_panel_settings_rounded : Icons.hourglass_top_rounded,
+                      size: 13,
+                      color: Colors.orange.shade700,
+                    ),
                     const SizedBox(width: 4),
                     Text(
-                      'Approved ${s.approvals}/${s.approvalsNeeded}',
+                      // ค้างเกิน 48 ชม. = ส่งต่อให้แอดมินตัดสิน
+                      s.escalated ? 'Waiting for an admin' : 'Approved ${s.approvals}/${s.approvalsNeeded}',
                       style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Colors.orange.shade800),
                     ),
                   ],
