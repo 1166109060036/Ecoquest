@@ -46,14 +46,18 @@ class NotificationProvider extends ChangeNotifier {
   }
 
   // ---- ฉลองหลักฐานภารกิจที่ผ่านการตรวจ (ระบบตรวจสอบภารกิจ) ----
-  // แจ้งเตือน quest_approved ที่มีแต้มและยังไม่เคยฉลอง -> main_shell.dart เล่นเอฟเฟครางวัลบินเข้าป้ายให้ครั้งเดียว
+  // แจ้งเตือน quest_approved / bingo (Eco Bingo ครบแถว) ที่มีแต้มและยังไม่เคยฉลอง -> main_shell.dart เล่นเอฟเฟค
+  // รางวัลบินเข้าป้ายให้ครั้งเดียว
   // จำ id ที่ฉลองแล้วใน SharedPreferences (ไม่ใช้ isRead เพราะผู้ใช้อาจไม่เคยเปิดหน้า Notification เลย) — เก็บแค่
   // 100 อันล่าสุดพอ แจ้งเตือนจาก backend ส่งมาแค่ 50 ใบอยู่แล้ว
   static const _celebratedKey = 'celebrated_approval_ids';
 
   // คืนผลรวมแต้ม/XP ของที่ผ่านแล้วยังไม่ได้ฉลอง (null = ไม่มี) แล้วจำว่าฉลองแล้วทันที กันเล่นซ้ำ
-  Future<({int points, int xp, int count})?> takeUncelebratedApprovals() async {
-    final approvals = _items.where((n) => n.type == 'quest_approved' && n.rewardPoints > 0).toList();
+  // count = จำนวนหลักฐานที่ผ่าน / bingo = มีแจ้งเตือน Eco Bingo รวมอยู่ด้วยไหม (เปลี่ยนหัวป้าย)
+  Future<({int points, int xp, int count, bool bingo})?> takeUncelebratedApprovals() async {
+    final approvals = _items
+        .where((n) => (n.type == 'quest_approved' || n.type == 'bingo') && n.rewardPoints > 0)
+        .toList();
     if (approvals.isEmpty) return null;
 
     final prefs = await SharedPreferences.getInstance();
@@ -69,7 +73,8 @@ class NotificationProvider extends ChangeNotifier {
     return (
       points: fresh.fold<int>(0, (sum, n) => sum + n.rewardPoints),
       xp: fresh.fold<int>(0, (sum, n) => sum + n.rewardXp),
-      count: fresh.length,
+      count: fresh.where((n) => n.type == 'quest_approved').length,
+      bingo: fresh.any((n) => n.type == 'bingo'),
     );
   }
 

@@ -10,7 +10,7 @@ class NotificationModel {
   final String message;
   final bool isRead;
   final DateTime createdAt;
-  // เฉพาะ quest_approved — แต้ม/XP ที่ได้ตอนหลักฐานผ่านการตรวจ (ให้ main_shell.dart เล่นเอฟเฟครางวัลบินเข้าป้าย)
+  // quest_approved / bingo — แต้ม/XP ที่ได้ (ให้ main_shell.dart เล่นเอฟเฟครางวัลบินเข้าป้าย)
   final int rewardPoints;
   final int rewardXp;
 
@@ -46,6 +46,7 @@ class NotificationModel {
         'quest_complete' => Icons.emoji_events,
         'quest_approved' => Icons.verified_rounded,
         'quest_rejected' => Icons.cancel_outlined,
+        'bingo' => Icons.grid_on_rounded,
         'fridge_expiring' => Icons.kitchen,
         'achievement' => Icons.military_tech,
         _ => Icons.notifications,
@@ -55,6 +56,7 @@ class NotificationModel {
         'quest_complete' => Colors.amber,
         'quest_approved' => Colors.green,
         'quest_rejected' => Colors.redAccent,
+        'bingo' => Colors.orange,
         'fridge_expiring' => Colors.blueGrey,
         'achievement' => Colors.purple,
         _ => Colors.black87,

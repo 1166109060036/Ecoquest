@@ -30,6 +30,9 @@ class QuestCardModel {
   final bool requiresProof;
   // หลักฐานของเควสนี้ที่ส่งไปแล้วยังรอตรวจอยู่กี่ครั้ง
   final int pendingReview;
+  // Daily Variety Combo (backend/utils/combo.js) — ตัวคูณแต้มถ้าทำเควสนี้ตอนนี้ (null = เควสนี้ไม่มีคอมโบ)
+  // เควสใหม่ของวัน > 1 / ทำซ้ำ < 1
+  final double? comboMultiplier;
 
   // ---- ใช้เฉพาะในหน้ารายละเอียด quest ----
   final String detail; // ข้อความอธิบายยาวในกล่อง "Quest Detail"
@@ -68,6 +71,7 @@ class QuestCardModel {
     this.checkedInToday = false,
     this.requiresProof = false,
     this.pendingReview = 0,
+    this.comboMultiplier,
     this.detail = '',
     this.imageKey,
     this.xpReward = 0,
@@ -105,6 +109,7 @@ class QuestCardModel {
       checkedInToday: json['checkedInToday'] ?? false,
       requiresProof: json['requiresProof'] ?? false,
       pendingReview: json['pendingReview'] ?? 0,
+      comboMultiplier: (json['comboMultiplier'] as num?)?.toDouble(),
       detail: json['detail'] ?? '',
       imageKey: json['imageKey'],
       xpReward: json['xpReward'] ?? 0,
@@ -134,6 +139,10 @@ class QuestReward {
   final QuestCheckIn? checkIn;
   // true = ส่งหลักฐานไปรอตรวจ ยังไม่ได้แต้ม (ระบบตรวจสอบภารกิจ) — ห้ามเด้งฉลองรางวัล รอแจ้งเตือน quest_approved
   final bool isPending;
+  // Daily Variety Combo ของการทำครั้งนี้ (ถ้า pending = ตัวอย่าง ตัวจริงคิดตอนผ่าน) — null = เควสนี้ไม่มีคอมโบ
+  final ComboInfo? combo;
+  // Eco Bingo ครบแถว/การ์ดจากเควสนี้ (เฉพาะรางวัลทันทีแบบ Check Food) — null = ไม่มี
+  final BingoReward? bingo;
 
   QuestReward({
     required this.points,
@@ -142,6 +151,8 @@ class QuestReward {
     this.streakMilestone,
     this.checkIn,
     this.isPending = false,
+    this.combo,
+    this.bingo,
   });
 
   bool get isCheckInOnly => checkIn != null && !checkIn!.finished;
@@ -152,6 +163,8 @@ class QuestReward {
     final medals = (json['newAchievements'] ?? []) as List;
     final streakJson = json['streakMilestone'] as Map<String, dynamic>?;
     final checkInJson = json['checkIn'] as Map<String, dynamic>?;
+    final comboJson = json['combo'] as Map<String, dynamic>?;
+    final bingoJson = json['bingo'] as Map<String, dynamic>?;
 
     return QuestReward(
       isPending: json['status'] == 'pending',
@@ -161,8 +174,66 @@ class QuestReward {
       newAchievements:
           medals.map((m) => UnlockedMedal.fromJson(m as Map<String, dynamic>)).toList(),
       streakMilestone: streakJson != null ? StreakMilestoneReward.fromJson(streakJson) : null,
+      combo: comboJson != null ? ComboInfo.fromJson(comboJson) : null,
+      bingo: bingoJson != null ? BingoReward.fromJson(bingoJson) : null,
     );
   }
+}
+
+// ---- Daily Variety Combo (backend/utils/combo.js) ----
+// ทำเควสไม่ซ้ำกันในวันเดียวกัน = แต้มคูณเพิ่ม (×1.1, ×1.2 … เพดาน ×1.5) / ทำเควสเดิมซ้ำ = ลดลง (×0.75, ×0.5, ×0.25)
+class ComboInfo {
+  final double multiplier;
+  final bool repeat;
+  final int distinctToday;
+  final double nextNewMultiplier;
+
+  ComboInfo({required this.multiplier, this.repeat = false, this.distinctToday = 0, this.nextNewMultiplier = 1});
+
+  factory ComboInfo.fromJson(Map<String, dynamic> json) => ComboInfo(
+        multiplier: (json['multiplier'] as num?)?.toDouble() ?? 1,
+        repeat: json['repeat'] == true,
+        distinctToday: json['distinctToday'] ?? 0,
+        nextNewMultiplier: (json['nextNewMultiplier'] as num?)?.toDouble() ?? 1,
+      );
+}
+
+// สรุปคอมโบวันนี้จาก GET /api/quests — แถบบนลิสต์เควส
+class ComboSummary {
+  final int distinctToday;
+  final double nextNewMultiplier;
+  final double maxMultiplier;
+
+  ComboSummary({required this.distinctToday, required this.nextNewMultiplier, required this.maxMultiplier});
+
+  factory ComboSummary.fromJson(Map<String, dynamic> json) => ComboSummary(
+        distinctToday: json['distinctToday'] ?? 0,
+        nextNewMultiplier: (json['nextNewMultiplier'] as num?)?.toDouble() ?? 1,
+        maxMultiplier: (json['maxMultiplier'] as num?)?.toDouble() ?? 1.5,
+      );
+}
+
+// Eco Bingo ครบแถว/การ์ด (backend/utils/bingo.js#settleCard)
+class BingoReward {
+  final int lines;
+  final bool full;
+  final int points;
+  final int xp;
+
+  BingoReward({required this.lines, required this.full, required this.points, required this.xp});
+
+  factory BingoReward.fromJson(Map<String, dynamic> json) => BingoReward(
+        lines: ((json['lines'] ?? []) as List).length,
+        full: json['full'] == true,
+        points: json['points'] ?? 0,
+        xp: json['xp'] ?? 0,
+      );
+}
+
+// ตัวคูณแบบอ่านง่าย: 1.1 -> "×1.1", 0.75 -> "×0.75", 1.5 -> "×1.5"
+String formatMultiplier(double m) {
+  final s = m.toStringAsFixed(2).replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '');
+  return '×$s';
 }
 
 // ผลการเช็คอินเควสหลายวัน — มาจาก POST /api/quests/:id/complete (ดู backend/routes/quests.js)

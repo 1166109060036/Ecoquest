@@ -23,6 +23,7 @@ const submissionRoutes = require('./routes/submissions');
 // ฟีดกิจกรรมชุมชน + ผลกระทบรวมของเมือง (28 ก.ย. 2026)
 const feedRoutes = require('./routes/feed');
 const impactRoutes = require('./routes/impact');
+const bingoRoutes = require('./routes/bingo');
 const adminRoutes = require('./routes/admin');
 const { initSocket } = require('./sockets');
 
@@ -82,6 +83,7 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/submissions', submissionRoutes);
 app.use('/api/feed', feedRoutes);
 app.use('/api/impact', impactRoutes);
+app.use('/api/bingo', bingoRoutes);
 // dev/QA เท่านั้น — เข้าได้เฉพาะอีเมลใน ADMIN_EMAILS (ดู middleware/admin.js), ปิดโดย default ถ้าไม่ตั้งค่า
 app.use('/api/admin', adminRoutes);
 

@@ -7,6 +7,7 @@ import '../providers/notification_provider.dart';
 import '../providers/party_provider.dart';
 import '../providers/upgrade_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/bingo_provider.dart';
 import '../widgets/reward_fly.dart';
 import '../widgets/bottom_nav_bar.dart';
 import 'home/home_page.dart';
@@ -45,7 +46,11 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
     super.initState();
     _notifications = context.read<NotificationProvider>();
     _notifications.addListener(_celebrateApprovals);
-    _lifecycle = AppLifecycleListener(onResume: () => _notifications.loadNotifications());
+    // กลับเข้าแอพ: แจ้งเตือนใหม่ (ฉลองของที่ผ่าน) + การ์ด Bingo (อาจขึ้นสัปดาห์ใหม่ระหว่างปิดแอพ)
+    _lifecycle = AppLifecycleListener(onResume: () {
+      _notifications.loadNotifications();
+      if (mounted) context.read<BingoProvider>().loadBingo();
+    });
     // โหลด quest ครั้งเดียวตรงนี้ ไม่ให้หน้า Explore กับแผ่น Explore ใน Home ต่างคนต่างยิง API
     // (ทั้งคู่อยู่ใน IndexedStack พร้อมกันตลอด ถ้าโหลดในหน้าตัวเองจะยิงซ้ำ 2 รอบ)
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -62,6 +67,7 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
       partyProvider.loadParty(); // ห้องที่ฉันอยู่ตอนนี้ (ถ้ามี)
       partyProvider.loadRooms(); // ลิสต์ห้องให้เลือกเข้าร่วม ตอนยังไม่มีห้อง
       context.read<UpgradeProvider>().loadUpgrades(); // การ์ด Upgrade your Ability ในหน้า Profile
+      context.read<BingoProvider>().loadBingo(); // แถบ Eco Bingo บนลิสต์เควส
     });
   }
 
@@ -84,7 +90,11 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
         context,
         points: approved.points,
         xp: approved.xp,
-        title: approved.count > 1 ? '${approved.count} quests approved!' : 'Quest approved!',
+        title: approved.bingo
+            ? 'Eco Bingo!'
+            : approved.count > 1
+                ? '${approved.count} quests approved!'
+                : 'Quest approved!',
       );
       final questProvider = context.read<QuestProvider>();
       await Future.wait([
@@ -92,6 +102,8 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
         questProvider.loadQuests(),
         questProvider.loadHistory(),
         context.read<AchievementProvider>().loadAchievements(),
+        // ช่อง Bingo ของเควสที่เพิ่งผ่านติดแล้ว
+        context.read<BingoProvider>().loadBingo(),
       ]);
     } finally {
       _celebrating = false;

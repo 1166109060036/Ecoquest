@@ -13,6 +13,7 @@ class QuestProvider extends ChangeNotifier {
   List<QuestCardModel> _quests = [];
   List<QuestCardModel> _inProgress = [];
   List<QuestHistoryEntry> _history = [];
+  ComboSummary? _combo;
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -21,6 +22,8 @@ class QuestProvider extends ChangeNotifier {
   List<QuestCardModel> get inProgress => _inProgress;
   // ประวัติ quest ที่ทำสำเร็จ ใช้โชว์ในหน้า Profile
   List<QuestHistoryEntry> get history => _history;
+  // Daily Variety Combo วันนี้ — แถบบนลิสต์เควส (widgets/quest_boost_bar.dart)
+  ComboSummary? get combo => _combo;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
@@ -41,7 +44,9 @@ class QuestProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _quests = await _questService.fetchQuests();
+      final result = await _questService.fetchQuests();
+      _quests = result.quests;
+      _combo = result.combo;
     } catch (e) {
       // ไม่ throw ต่อ — เน็ตหลุดแล้วไม่ควรทำให้แอพพัง แค่โชว์ลิสต์ว่างกับข้อความ error
       _errorMessage = e.toString().replaceFirst('Exception: ', '');

@@ -169,6 +169,7 @@ class QuestCard extends StatelessWidget {
                               daysDone: quest.daysDone,
                               checkedInToday: quest.checkedInToday,
                               progressMode: progressMode,
+                              comboMultiplier: quest.comboMultiplier,
                             )
                           : _PartyEventInfoRow(
                               location: quest.location,
@@ -385,6 +386,8 @@ class _SoloInfoRow extends StatelessWidget {
   final int daysDone;
   final bool checkedInToday;
   final bool progressMode;
+  // Daily Variety Combo ถ้าทำเควสนี้ตอนนี้ (backend/utils/combo.js) — โชว์เฉพาะตอนไม่ใช่ ×1
+  final double? comboMultiplier;
 
   const _SoloInfoRow({
     required this.timesToday,
@@ -392,6 +395,7 @@ class _SoloInfoRow extends StatelessWidget {
     this.daysDone = 0,
     this.checkedInToday = false,
     this.progressMode = false,
+    this.comboMultiplier,
   });
 
   @override
@@ -423,8 +427,30 @@ class _SoloInfoRow extends StatelessWidget {
 
     // ทำซ้ำได้ไม่จำกัดต่อวัน — บอกแค่ว่าวันนี้ทำไปแล้วกี่ครั้ง (ยังไม่เคยทำวันนี้ = "Repeatable")
     final done = timesToday > 0;
+    final combo = comboMultiplier;
+    final showCombo = !progressMode && combo != null && combo != 1;
     return Row(
       children: [
+        // คอมโบ: เขียว = เควสใหม่ของวันได้แต้มเพิ่ม / ส้ม = ทำซ้ำได้แต้มลดลง
+        if (showCombo) ...[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+            decoration: BoxDecoration(
+              color: combo > 1 ? Colors.green.shade50 : Colors.orange.shade50,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: combo > 1 ? Colors.green.shade300 : Colors.orange.shade300),
+            ),
+            child: Text(
+              formatMultiplier(combo),
+              style: TextStyle(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w800,
+                color: combo > 1 ? Colors.green.shade700 : Colors.orange.shade800,
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+        ],
         Icon(
           done ? Icons.check_circle : Icons.refresh,
           size: 12,

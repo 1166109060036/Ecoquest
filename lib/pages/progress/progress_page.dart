@@ -151,7 +151,7 @@ class _ProgressPageState extends State<ProgressPage> {
           pending: true,
         );
       } else {
-        showBubbleToast(context, 'Sent for review — you get +${quest.pointsReward} P once it is approved');
+        showBubbleToast(context, _sentForReviewMessage(quest, reward.combo));
       }
       return;
     }
@@ -530,4 +530,17 @@ class _EmptyState extends StatelessWidget {
       ),
     );
   }
+}
+
+// ข้อความหลังส่งหลักฐาน — บอกแต้มที่จะได้หลังคูณคอมโบ (ตัวอย่าง ตัวจริงคิดตอนผ่านการตรวจ backend/utils/combo.js)
+String _sentForReviewMessage(QuestCardModel quest, ComboInfo? combo) {
+  if (combo == null || combo.multiplier == 1) {
+    return 'Sent for review — you get +${quest.pointsReward} P once it is approved';
+  }
+  final points = (quest.pointsReward * combo.multiplier).round().clamp(1, 1 << 30);
+  if (combo.repeat) {
+    return 'Sent for review — +$points P once approved (repeat ${formatMultiplier(combo.multiplier)}). '
+        'Try a new quest for ${formatMultiplier(combo.nextNewMultiplier)}!';
+  }
+  return 'Sent for review — combo ${formatMultiplier(combo.multiplier)}: +$points P once it is approved';
 }

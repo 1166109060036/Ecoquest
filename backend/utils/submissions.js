@@ -14,6 +14,7 @@ const QuestProgress = require('../models/QuestProgress');
 const Quest = require('../models/Quest');
 const Party = require('../models/Party');
 const { awardQuest } = require('./questRewards');
+const { comboForSubmission } = require('./combo');
 const { notifyQuestApproved, notifyQuestRejected } = require('./notifications');
 const { avatarUrlFor, cosmeticsFor } = require('./avatar');
 const { startOfToday } = require('./questDay');
@@ -85,16 +86,19 @@ const finalizeSubmission = async (submissionId, status, decidedBy) => {
       return submission;
     }
 
+    // Daily Variety Combo เฉพาะเควส solo ธรรมดา (ไม่ใช่ปาร์ตี้ / วันสุดท้ายของเควสหลายวัน) — คิดตอนผ่าน
+    // ไม่นับอันที่ไม่ผ่าน (utils/combo.js)
+    const comboMultiplier =
+      submission.kind === 'quest' ? (await comboForSubmission(submission)).multiplier : 1;
+
     // เควสปกติ / วันสุดท้ายของเควสหลายวัน / ปาร์ตี้ (ทุกคนในห้อง)
     for (const userId of recipientsOf(submission)) {
-      const result = await awardQuest(userId, quest, { completedAt: submission.createdAt });
+      const result = await awardQuest(userId, quest, { completedAt: submission.createdAt, comboMultiplier });
       if (!result) continue; // user ถูกลบไปแล้ว
       if (String(userId) === String(submission.userId)) {
-        await QuestSubmission.updateOne(
-          { _id: submission._id },
-          { $set: { reward: { points: result.reward.points, xp: result.reward.xp } } }
-        );
-        submission.reward = { points: result.reward.points, xp: result.reward.xp };
+        const reward = { points: result.reward.points, xp: result.reward.xp, comboMultiplier };
+        await QuestSubmission.updateOne({ _id: submission._id }, { $set: { reward } });
+        submission.reward = reward;
       }
       await safeNotify(() =>
         notifyQuestApproved(userId, quest, submission._id, result.reward, checkIn)

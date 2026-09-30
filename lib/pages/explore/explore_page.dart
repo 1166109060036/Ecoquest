@@ -15,6 +15,7 @@ import '../progress/progress_page.dart';
 import 'quest_detail_page.dart';
 import '../../widgets/skeleton_box.dart';
 import '../../widgets/state_cross_fade.dart';
+import '../../widgets/quest_boost_bar.dart';
 
 // หน้า Explore เต็มจอ — เจอได้ 2 ทาง: กด "Explore" ที่ bottom nav ตรงๆ
 // หรือลากแผ่น Explore ในหน้า Home ขึ้นสุดจอ (ซึ่งจะสลับมาที่แท็บนี้)
@@ -256,6 +257,9 @@ class _ExplorePageState extends State<ExplorePage> {
                       },
                     ),
                   ),
+                  // Eco Bingo + Daily Variety Combo (30 ก.ย. 2026 — ให้อยากทำเควสต่อ)
+                  const SizedBox(height: 10),
+                  QuestBoostBar(onStartQuest: _onStartQuest),
                 ],
               ),
             ),

@@ -89,6 +89,8 @@ const QuestSubmissionSchema = new mongoose.Schema(
     reward: {
       points: { type: Number, default: 0 },
       xp: { type: Number, default: 0 },
+      // ตัวคูณ Daily Variety Combo ที่ใช้ตอนให้รางวัล (utils/combo.js) — 1 = ไม่มีคอมโบ
+      comboMultiplier: { type: Number, default: 1 },
     },
     // ฟีดชุมชน — ใครกด cheer ให้บ้าง (1 คน 1 ครั้ง)
     cheers: {

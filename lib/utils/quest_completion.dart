@@ -5,6 +5,7 @@ import '../models/achievement_model.dart';
 import '../models/quest_card_model.dart';
 import '../providers/achievement_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/bingo_provider.dart';
 import '../providers/notification_provider.dart';
 import '../services/sound_service.dart';
 import '../widgets/liquid_glass_dialog.dart';
@@ -18,6 +19,7 @@ Future<void> handleQuestCompleted(BuildContext context, QuestReward reward) asyn
   final authProvider = context.read<AuthProvider>();
   final achievementProvider = context.read<AchievementProvider>();
   final notificationProvider = context.read<NotificationProvider>();
+  final bingoProvider = context.read<BingoProvider>();
 
   // ⚠️ ต้องอ่าน level ปัจจุบันไว้ "ก่อน" เรียก refreshProfile() เท่านั้น เพราะ refreshProfile()
   // แทนที่ _profile ทั้งก้อนด้วยของใหม่ — ถ้าอ่านหลัง await จะเจอค่าใหม่ทั้งคู่ เทียบแล้วไม่มีทางเห็นว่า
@@ -26,7 +28,20 @@ Future<void> handleQuestCompleted(BuildContext context, QuestReward reward) asyn
 
   // ป้ายรางวัล + เหรียญ/ใบไม้บินเข้าป้าย (แทน bubble toast + particle burst กลางจอแบบเดิม) — รอให้ของลงป้าย
   // ครบก่อนค่อยไปเปิด popup เหรียญ/เลเวลอัพ ไม่งั้น popup เปิดทับตอนของยังบินอยู่
-  final rewardLanded = showRewardFly(context, points: reward.points, xp: reward.xp);
+  // Eco Bingo ครบแถวจากเควสนี้ (รางวัลทันทีแบบ Check Food) รวมแต้มโบนัสเข้าไปในป้ายเดียวกัน
+  // คอมโบ > ×1 บอกบนหัวป้ายว่าทำไมได้แต้มมากกว่าที่การ์ดเขียน
+  final bingo = reward.bingo;
+  final combo = reward.combo;
+  final rewardLanded = showRewardFly(
+    context,
+    points: reward.points + (bingo?.points ?? 0),
+    xp: reward.xp + (bingo?.xp ?? 0),
+    title: bingo != null
+        ? (bingo.full ? 'Eco Bingo — full card!' : 'Eco Bingo!')
+        : combo != null && combo.multiplier > 1
+            ? 'Combo ${formatMultiplier(combo.multiplier)}!'
+            : 'Quest complete!',
+  );
   SoundService.instance.playQuestSuccess();
 
   await Future.wait([
@@ -37,6 +52,8 @@ Future<void> handleQuestCompleted(BuildContext context, QuestReward reward) asyn
     achievementProvider.loadAchievements(),
     // เควสสำเร็จ (และเหรียญที่เพิ่งปลดล็อกถ้ามี) มีแจ้งเตือนใหม่รอโหลดอยู่เสมอ
     notificationProvider.loadNotifications(),
+    // ช่อง Bingo ของเควสนี้อาจเพิ่งติด
+    bingoProvider.loadBingo(),
   ]);
 
   if (!context.mounted) return;

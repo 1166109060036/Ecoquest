@@ -12,7 +12,8 @@ import 'storage_service.dart';
 class QuestService {
   final StorageService _storage = StorageService();
 
-  Future<List<QuestCardModel>> fetchQuests() async {
+  // combo = สรุป Daily Variety Combo วันนี้ (backend/utils/combo.js) — null ถ้า backend รุ่นเก่ายังไม่ส่งมา
+  Future<({List<QuestCardModel> quests, ComboSummary? combo})> fetchQuests() async {
     final token = await _storage.getToken();
     final response = await http.get(
       Uri.parse('${AppConstants.baseUrl}/quests'),
@@ -25,9 +26,13 @@ class QuestService {
       throw Exception(data['message'] ?? 'Failed to load quests');
     }
 
-    return (data['quests'] as List)
-        .map((q) => QuestCardModel.fromJson(q as Map<String, dynamic>))
-        .toList();
+    final comboJson = data['combo'] as Map<String, dynamic>?;
+    return (
+      quests: (data['quests'] as List)
+          .map((q) => QuestCardModel.fromJson(q as Map<String, dynamic>))
+          .toList(),
+      combo: comboJson != null ? ComboSummary.fromJson(comboJson) : null,
+    );
   }
 
   // ประวัติ quest ที่ทำสำเร็จ (ล่าสุดขึ้นก่อน) — ใช้โชว์ในหน้า Profile

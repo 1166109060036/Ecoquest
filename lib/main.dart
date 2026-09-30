@@ -11,6 +11,7 @@ import 'providers/friend_provider.dart';
 import 'providers/chat_provider.dart';
 import 'providers/upgrade_provider.dart';
 import 'providers/admin_provider.dart';
+import 'providers/bingo_provider.dart';
 import 'routes/app_routes.dart';
 import 'services/app_photo_storage.dart';
 import 'services/sound_service.dart';
@@ -47,6 +48,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ChatProvider()),
         ChangeNotifierProvider(create: (_) => UpgradeProvider()),
         ChangeNotifierProvider(create: (_) => AdminProvider()),
+        ChangeNotifierProvider(create: (_) => BingoProvider()),
       ],
       child: MaterialApp(
         title: 'EcoQuest',

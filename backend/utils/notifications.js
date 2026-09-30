@@ -97,7 +97,9 @@ const notifyQuestApproved = async (userId, quest, submissionId, reward, checkIn 
     title: isDayCheckIn ? 'Check-in Approved' : 'Quest Approved',
     message: isDayCheckIn
       ? `${quest.title} · Day ${checkIn.daysDone}/${checkIn.durationDays} verified`
-      : `${quest.title} · +${reward.points} points, +${reward.xp} XP`,
+      : `${quest.title} · +${reward.points} points, +${reward.xp} XP${
+          reward.comboMultiplier && reward.comboMultiplier !== 1 ? ` (combo ×${reward.comboMultiplier})` : ''
+        }`,
     dedupeKey: `submission:${submissionId}`,
     data: { points: reward.points, xp: reward.xp },
   });
@@ -114,6 +116,24 @@ const notifyQuestRejected = async (userId, quest, submissionId, checkIn = null) 
       ? `${quest.title} · your proof was not approved, so this quest restarts from Day 1`
       : `${quest.title} · your proof was not approved. Try again with a clearer photo`,
     dedupeKey: `submission:${submissionId}`,
+  });
+};
+
+// Eco Bingo ครบแถว/ครบการ์ด (utils/bingo.js) — 1 ใบต่อการรับรางวัล 1 ครั้ง (อาจได้หลายแถวพร้อมกัน)
+// data.points/xp ให้แอพเล่นเอฟเฟครางวัลบินเข้าป้ายแบบเดียวกับหลักฐานผ่าน (main_shell.dart)
+const notifyBingo = async (userId, { weekKey, lines, full, points, xp }) => {
+  const what = full
+    ? 'Full card complete!'
+    : lines.length > 1
+      ? `${lines.length} lines complete!`
+      : 'Line complete!';
+  await createNotification({
+    userId,
+    type: 'bingo',
+    title: 'Eco Bingo!',
+    message: `${what} · +${points} points, +${xp} XP`,
+    dedupeKey: `bingo:${weekKey}:${lines.join('-')}:${full ? 'full' : ''}`,
+    data: { points, xp },
   });
 };
 
@@ -180,6 +200,7 @@ module.exports = {
   notifyStreakMilestone,
   notifyQuestApproved,
   notifyQuestRejected,
+  notifyBingo,
   ensureExpiryNotifications,
   getNotifications,
   markAllRead,

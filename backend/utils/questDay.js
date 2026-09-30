@@ -6,18 +6,28 @@
 // แยกออกมาจาก routes/quests.js เพราะ routes/party.js ก็ต้องเช็ค "วันนี้ทำไปหรือยัง" เหมือนกัน
 const QUEST_DAY_UTC_OFFSET_HOURS = Number(process.env.QUEST_DAY_UTC_OFFSET_HOURS ?? 9);
 
-// เที่ยงคืนของ "วันนี้" ตามโซนเวลาข้างบน คืนออกมาเป็นเวลา UTC จริงเพื่อเอาไป query Mongo
-// วิธีคิด: เลื่อนเวลาปัจจุบันไปเป็นเวลาท้องถิ่นก่อน -> ตัดเอาเฉพาะวันที่ -> เลื่อนกลับเป็น UTC
-const startOfToday = () => {
-  const offsetMs = QUEST_DAY_UTC_OFFSET_HOURS * 60 * 60 * 1000;
-  const localNow = new Date(Date.now() + offsetMs);
-  const localMidnight = Date.UTC(
-    localNow.getUTCFullYear(),
-    localNow.getUTCMonth(),
-    localNow.getUTCDate()
-  );
-  return new Date(localMidnight - offsetMs);
+const OFFSET_MS = QUEST_DAY_UTC_OFFSET_HOURS * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// เที่ยงคืนของวันที่ `date` อยู่ ตามโซนเวลาข้างบน คืนออกมาเป็นเวลา UTC จริงเพื่อเอาไป query Mongo
+// วิธีคิด: เลื่อนเวลาไปเป็นเวลาท้องถิ่นก่อน -> ตัดเอาเฉพาะวันที่ -> เลื่อนกลับเป็น UTC
+const startOfDayFor = (date) => {
+  const local = new Date(new Date(date).getTime() + OFFSET_MS);
+  const localMidnight = Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate());
+  return new Date(localMidnight - OFFSET_MS);
 };
+
+const startOfToday = () => startOfDayFor(Date.now());
+
+// ต้นสัปดาห์ = เที่ยงคืนวันจันทร์ (เวลาญี่ปุ่น) ของสัปดาห์ที่ `date` อยู่ — Eco Bingo รายสัปดาห์ (utils/bingo.js)
+const startOfWeekFor = (date) => {
+  const dayStart = startOfDayFor(date);
+  const dow = (new Date(dayStart.getTime() + OFFSET_MS).getUTCDay() + 6) % 7; // จันทร์ = 0
+  return new Date(dayStart.getTime() - dow * DAY_MS);
+};
+
+// คีย์ของสัปดาห์ = วันที่ (เวลาท้องถิ่น) ของวันจันทร์ รูปแบบ YYYY-MM-DD
+const weekKeyFor = (date) => new Date(startOfWeekFor(date).getTime() + OFFSET_MS).toISOString().slice(0, 10);
 
 // คีย์ของ "วันนี้" ในรูปแบบ YYYY-MM-DD ตามโซนเวลาที่ใช้ตัดวัน
 const todayKey = () => startOfToday().toISOString().slice(0, 10);
@@ -26,4 +36,13 @@ const todayKey = () => startOfToday().toISOString().slice(0, 10);
 const yesterdayKey = () =>
   new Date(startOfToday().getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
-module.exports = { QUEST_DAY_UTC_OFFSET_HOURS, startOfToday, todayKey, yesterdayKey };
+module.exports = {
+  QUEST_DAY_UTC_OFFSET_HOURS,
+  DAY_MS,
+  startOfDayFor,
+  startOfToday,
+  startOfWeekFor,
+  weekKeyFor,
+  todayKey,
+  yesterdayKey,
+};

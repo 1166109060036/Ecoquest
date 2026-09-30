@@ -23,6 +23,8 @@ const NotificationSchema = new mongoose.Schema(
         // ระบบตรวจสอบภารกิจ (models/QuestSubmission.js) — หลักฐานผ่าน/ไม่ผ่าน
         'quest_approved',
         'quest_rejected',
+        // Eco Bingo รายสัปดาห์ (utils/bingo.js) — ครบแถว/ครบการ์ดได้โบนัส
+        'bingo',
       ],
     },
     title: {

@@ -16,6 +16,7 @@ import '../inventory/fridge_page.dart';
 import '../profile/profile_page.dart';
 import '../progress/progress_page.dart';
 import '../../widgets/state_cross_fade.dart';
+import '../../widgets/quest_boost_bar.dart';
 
 // Home = หน้า Profile จริง (เต็มจอ) เป็นพื้นหลัง + แผ่น "Explore" ลอยทับด้านล่าง
 // ใช้หน้า Profile ตัวจริงเป็นพื้นหลังเลย (ไม่ใช่เวอร์ชันย่อ) เพื่อให้ขนาด/หน้าตา
@@ -407,6 +408,9 @@ class _ExploreSheetState extends State<_ExploreSheet> {
                     },
                   ),
                 ),
+                // Eco Bingo + Daily Variety Combo (30 ก.ย. 2026 — ให้อยากทำเควสต่อ)
+                const SizedBox(height: 10),
+                QuestBoostBar(onStartQuest: _onStartQuest),
               ],
             ),
           ),

@@ -17,6 +17,10 @@ const { decodeImageBase64 } = require('../utils/imageUpload');
 const { photoHashOf, isDuplicatePhoto, sweepQuietly } = require('../utils/submissions');
 const { selectVisibleQuests } = require('../utils/questSelection');
 const { shopEnabled } = require('../utils/featureFlags');
+const { comboForNow, comboForSubmission, comboSummaryToday, nextNewMultiplier } = require('../utils/combo');
+
+// เควสที่นับ Daily Variety Combo (utils/combo.js): solo ที่จบในครั้งเดียว — party/เควสหลายวันไม่มีคอมโบ
+const hasCombo = (quest) => quest.type === 'solo' && (quest.durationDays || 1) <= 1;
 
 const router = express.Router();
 
@@ -92,7 +96,7 @@ router.get('/', authMiddleware, async (req, res) => {
     const visibleQuests = selectVisibleQuests(allQuests, req.userId, soloLimit);
 
     // ดึงประวัติของวันนี้ + เควสที่กำลัง Start ค้างอยู่มาทีเดียว แล้วค่อย map (ไม่ query ทีละ quest)
-    const [todayHistory, progressRows, pendingRows] = await Promise.all([
+    const [todayHistory, progressRows, pendingRows, combo] = await Promise.all([
       QuestHistory.find({
         userId: req.userId,
         completedAt: { $gte: startOfToday() },
@@ -103,6 +107,7 @@ router.get('/', authMiddleware, async (req, res) => {
         { $match: { userId: new mongoose.Types.ObjectId(String(req.userId)), status: 'pending' } },
         { $group: { _id: '$questId', count: { $sum: 1 } } },
       ]),
+      comboSummaryToday(req.userId),
     ]);
     const pendingByQuest = new Map(pendingRows.map((r) => [String(r._id), r.count]));
 
@@ -130,13 +135,23 @@ router.get('/', authMiddleware, async (req, res) => {
     res.json({
       quests: visibleQuests.map((q) => {
         const id = q._id.toString();
-        return toQuestPayload(q, bonuses, {
-          timesToday: timesToday.get(id) || 0,
-          pendingReview: pendingByQuest.get(id) || 0,
-          inProgress: inProgressIds.has(id),
-          openPartyCount: openPartyCounts.get(id) || 0,
-        });
+        return {
+          ...toQuestPayload(q, bonuses, {
+            timesToday: timesToday.get(id) || 0,
+            pendingReview: pendingByQuest.get(id) || 0,
+            inProgress: inProgressIds.has(id),
+            openPartyCount: openPartyCounts.get(id) || 0,
+          }),
+          // ตัวคูณที่จะได้ถ้าทำเควสนี้ตอนนี้ (null = เควสนี้ไม่มีคอมโบ) — ยังไม่ได้คิดอันที่อาจไม่ผ่านการตรวจ
+          comboMultiplier: hasCombo(q) ? combo.previewFor(id) : null,
+        };
       }),
+      // Daily Variety Combo วันนี้ — แอพโชว์ "3 different quests today · next new quest ×1.3"
+      combo: {
+        distinctToday: combo.distinctToday,
+        nextNewMultiplier: combo.nextNewMultiplier,
+        maxMultiplier: combo.maxMultiplier,
+      },
     });
   } catch (err) {
     console.error(err);
@@ -410,11 +425,15 @@ router.post('/:id/complete', authMiddleware, async (req, res) => {
     }
 
     // ---- ระบบตรวจเองได้ (Check Food) -> รางวัลทันที ----
-    const result = await awardQuest(req.userId, quest, { applyStreak: true });
+    const combo = hasCombo(quest) ? await comboForNow(req.userId, quest._id) : null;
+    const result = await awardQuest(req.userId, quest, {
+      applyStreak: true,
+      comboMultiplier: combo ? combo.multiplier : 1,
+    });
     if (!result) {
       return res.status(404).json({ message: 'User not found' });
     }
-    const { user, reward, history, newAchievements, streakMilestone } = result;
+    const { user, reward, history, newAchievements, streakMilestone, bingo } = result;
 
     // แจ้งเตือนว่าทำเควสสำเร็จ — ไม่ทำให้ทั้ง request พังถ้าสร้างแจ้งเตือนไม่สำเร็จ
     try {
@@ -435,10 +454,13 @@ router.post('/:id/complete', authMiddleware, async (req, res) => {
       // ไม่ null เฉพาะตอนวันนี้ตรง milestone ของ Daily Streak (7/14/21/30) — แอพเอาไปเด้ง celebrate
       streakMilestone,
       checkIn,
+      combo: combo && { ...combo, nextNewMultiplier: nextNewMultiplier(combo.distinctToday) },
+      // Eco Bingo — ครบแถว/การ์ดจากเควสนี้ (null = ไม่มี) แต้มโบนัสบวกเข้า user แยกแล้ว
+      bingo,
       user: {
         level: user.level,
-        xp: user.xp,
-        points: user.points,
+        xp: user.xp + (bingo ? bingo.xp : 0),
+        points: user.points + (bingo ? bingo.points : 0),
       },
     });
   } catch (err) {
@@ -464,6 +486,8 @@ async function submitForReview(req, res, quest, photo, kind, checkIn) {
 
   const user = await User.findById(req.userId).select('-avatarData');
   const streakMilestone = user ? await applyStreakNow(user) : null;
+  // ตัวอย่างคอมโบ (ตัวจริงคิดตอนผ่านการตรวจ ไม่นับอันที่ไม่ผ่าน) — ให้แอพโชว์ทันทีว่า "Combo ×1.2"
+  const combo = kind === 'quest' && hasCombo(quest) ? await comboForSubmission(submission) : null;
 
   res.status(201).json({
     message: 'Submitted for review',
@@ -473,6 +497,7 @@ async function submitForReview(req, res, quest, photo, kind, checkIn) {
     newAchievements: [],
     streakMilestone,
     checkIn,
+    combo: combo && { ...combo, nextNewMultiplier: nextNewMultiplier(combo.distinctToday) },
     user: user ? { level: user.level, xp: user.xp, points: user.points } : null,
   });
 }
