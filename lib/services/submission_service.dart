@@ -48,11 +48,15 @@ class SubmissionService {
       isAdmin: data['isAdmin'] ?? false,
       canReview: data['canReview'] ?? true,
       escalatedCount: data['escalatedCount'] ?? 0,
+      rewardPoints: data['reviewReward']?['points'] ?? 0,
+      rewardXp: data['reviewReward']?['xp'] ?? 0,
+      rewardsToday: data['reviewRewardsToday'] ?? 0,
+      rewardsCap: data['reviewRewardsCap'] ?? 0,
     );
   }
 
-  // คืนสถานะหลังโหวต (pending / approved / rejected)
-  Future<String> vote(String submissionId, {required bool approve}) async {
+  // คืนสถานะหลังโหวต (pending / approved / rejected) + รางวัลคนตรวจที่ได้จากโหวตนี้
+  Future<VoteResult> vote(String submissionId, {required bool approve}) async {
     final response = await http.post(
       Uri.parse('${AppConstants.baseUrl}/reviews/$submissionId/vote'),
       headers: await _headers(),
@@ -62,6 +66,12 @@ class SubmissionService {
     if (response.statusCode != 200) {
       throw Exception(data['message'] ?? 'Failed to send your review');
     }
-    return data['status'] ?? 'pending';
+    return VoteResult(
+      status: data['status'] ?? 'pending',
+      rewardPoints: data['reward']?['points'] ?? 0,
+      rewardXp: data['reward']?['xp'] ?? 0,
+      rewardsToday: data['reviewRewardsToday'] ?? 0,
+      rewardsCap: data['reviewRewardsCap'] ?? 0,
+    );
   }
 }

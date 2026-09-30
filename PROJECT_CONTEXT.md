@@ -79,6 +79,10 @@
     `escalated` (หน้า Progress โชว์ "Waiting for an admin") / ⚠️ ไม่มีแอดมินมาตรวจ = ค้าง pending ไปเรื่อยๆ
   - **ตรวจได้เฉพาะบัญชีจริง** (ไม่มีเลเวลขั้นต่ำ) — guest: `GET /reviews/queue` ได้คิวว่าง + `canReview: false` (แท็บ Feed
     โชว์แบนเนอร์ชวนสมัครบัญชีแทน), โหวต = 403 / guest อัปเกรดบัญชีแล้วตรวจได้ทันที (`isGuest` เป็น false)
+  - **รางวัลคนตรวจ** (`utils/reviewRewards.js`, 30 ก.ย. 2026): โหวตสำเร็จ 1 ครั้ง = +2 P +2 XP ไม่ว่ากดผ่าน/ไม่ผ่าน
+    (ให้เฉพาะกดผ่าน = จูงใจให้กดผ่านมั่ว) วันละไม่เกิน 10 ครั้ง (= 20 P/วัน ไม่แซงการทำเควส) ตัดวันแบบเควส — นับใน
+    `User.reviewRewardDay/reviewRewardCount` เพดานอยู่ใน query เดียวกับการบวกแต้ม (กดพร้อมกันไม่เกิน) / เกินเพดานยังโหวตได้
+    แค่ไม่ได้แต้ม / แอพ: แถบ "+2 P · +2 XP per review · 3/10 today" ในหน้าตรวจ + toast ทุกโหวต + แบนเนอร์ฟีด "Earn +2 P…"
   - lazy `sweepQuietly()` ใน GET /quests, /auth/me, /reviews/queue, /feed (ไม่มี scheduler) — ตอนนี้เหลือแค่ลบรูปหมดอายุ
   - แต้ม/XP/CO₂/เหรียญ ได้ตอน approved (`utils/questRewards.js#awardQuest` — ที่เดียวทั้งระบบ Check Food ก็ใช้) ประวัติลงเวลา
     ตอนส่ง / **Daily Streak นับตั้งแต่ตอนส่ง** / Food Saver วันไหนไม่ผ่าน = นับใหม่วันที่ 1 / ปาร์ตี้ไม่ผ่าน = ห้องกลับเป็น started

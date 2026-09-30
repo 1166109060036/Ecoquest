@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../models/submission_model.dart';
+import '../../providers/auth_provider.dart';
 import '../../services/submission_service.dart';
 import '../../utils/date_format.dart';
 import '../../widgets/breathing_icon.dart';
@@ -11,6 +13,7 @@ import '../../widgets/pressable_scale.dart';
 // ทีละใบ: รูปหลักฐาน + ชื่อเควส + "ต้องเห็นอะไรในรูป" (Quest Detail) + ผู้ส่ง -> Not approved / Approve
 // ผ่าน 2 คน = ผ่าน, ไม่ผ่าน 2 คน = ไม่ผ่าน — แอดมินโหวตครั้งเดียวตัดสินเลย (โชว์ป้ายบอก)
 // เข้าได้จากแบนเนอร์ในแท็บ Feed ของ Community และจากหน้า Admin
+// ตรวจ 1 ครั้ง = +P/+XP (วันละไม่เกินเพดาน, backend/utils/reviewRewards.js) — ออกจากหน้าแล้วรีเฟรชแต้มในโปรไฟล์
 class ReviewPage extends StatefulWidget {
   const ReviewPage({super.key});
 
@@ -26,11 +29,27 @@ class _ReviewPageState extends State<ReviewPage> {
   bool _isVoting = false;
   String? _error;
   int _reviewedCount = 0;
+  // รางวัลคนตรวจ — ค่าจากคิว แล้วอัปเดตตามผลโหวตแต่ละครั้ง
+  int _rewardPoints = 0;
+  int _rewardXp = 0;
+  int _rewardsToday = 0;
+  int _rewardsCap = 0;
+  bool _earnedAny = false;
+  // เก็บ provider ไว้ตั้งแต่ initState — ใช้ใน dispose ได้โดยไม่ต้องแตะ context ที่ถูกถอดแล้ว
+  late final AuthProvider _auth;
 
   @override
   void initState() {
     super.initState();
+    _auth = context.read<AuthProvider>();
     _load();
+  }
+
+  @override
+  void dispose() {
+    // แต้ม/XP จากการตรวจเข้าไปที่ server แล้ว — ให้ป้ายแต้มในโปรไฟล์ตรงกัน
+    if (_earnedAny) _auth.refreshProfile();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -44,6 +63,10 @@ class _ReviewPageState extends State<ReviewPage> {
       setState(() {
         _queue = queue.submissions;
         _isAdmin = queue.isAdmin;
+        _rewardPoints = queue.rewardPoints;
+        _rewardXp = queue.rewardXp;
+        _rewardsToday = queue.rewardsToday;
+        _rewardsCap = queue.rewardsCap;
         _isLoading = false;
       });
     } catch (e) {
@@ -60,13 +83,19 @@ class _ReviewPageState extends State<ReviewPage> {
     final current = _queue.first;
     setState(() => _isVoting = true);
     try {
-      await _service.vote(current.id, approve: approve);
+      final result = await _service.vote(current.id, approve: approve);
       if (!mounted) return;
       setState(() {
         _queue = _queue.skip(1).toList();
         _reviewedCount += 1;
         _isVoting = false;
+        _rewardsToday = result.rewardsToday;
+        if (result.rewardsCap > 0) _rewardsCap = result.rewardsCap;
+        if (result.rewardPoints > 0) _earnedAny = true;
       });
+      if (result.rewardPoints > 0) {
+        showBubbleToast(context, '+${result.rewardPoints} P · +${result.rewardXp} XP for reviewing');
+      }
       // คิวหมดแล้วลองโหลดใหม่ — ระหว่างตรวจอาจมีคนส่งเข้ามาเพิ่ม
       if (_queue.isEmpty) _load();
     } catch (e) {
@@ -129,6 +158,12 @@ class _ReviewPageState extends State<ReviewPage> {
               style: TextStyle(color: Colors.blue.shade800, fontSize: 12, fontWeight: FontWeight.w600),
             ),
           ),
+        if (_rewardsCap > 0) _RewardStrip(
+          points: _rewardPoints,
+          xp: _rewardXp,
+          today: _rewardsToday,
+          cap: _rewardsCap,
+        ),
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
@@ -375,6 +410,51 @@ class _EmptyReview extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// รางวัลคนตรวจวันนี้ — "+2 P · +2 XP per review · 3/10 today" / ครบเพดานแล้วบอกว่ายังตรวจต่อได้แต่ไม่ได้แต้ม
+class _RewardStrip extends StatelessWidget {
+  final int points;
+  final int xp;
+  final int today;
+  final int cap;
+  const _RewardStrip({required this.points, required this.xp, required this.today, required this.cap});
+
+  @override
+  Widget build(BuildContext context) {
+    final done = today >= cap;
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: done ? Colors.grey.shade100 : Colors.green.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: done ? Colors.grey.shade300 : Colors.green.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(done ? Icons.check_circle_rounded : Icons.stars_rounded,
+              size: 16, color: done ? Colors.grey.shade500 : Colors.green.shade700),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              done
+                  ? 'Daily review rewards collected ($cap/$cap) — thanks for helping!'
+                  : '+$points P · +$xp XP per review',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: done ? Colors.grey.shade600 : Colors.green.shade800,
+              ),
+            ),
+          ),
+          if (!done)
+            Text('$today/$cap today', style: TextStyle(fontSize: 11.5, color: Colors.green.shade700)),
+        ],
       ),
     );
   }

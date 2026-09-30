@@ -84,6 +84,9 @@ const UserSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    // ---- รางวัลคนตรวจหลักฐาน (utils/reviewRewards.js) — นับรายวัน ตัดวันแบบเดียวกับเควส (todayKey) ----
+    reviewRewardDay: { type: String, default: null }, // YYYY-MM-DD ของวันที่นับ reviewRewardCount
+    reviewRewardCount: { type: Number, default: 0 }, // จำนวนโหวตที่ได้รางวัลไปแล้วในวันนั้น (เพดาน REVIEW_REWARD_DAILY_CAP)
     // ---- Daily Streak — นับวันติดต่อกันที่ทำเควสสำเร็จอย่างน้อย 1 อัน (ดู utils/streak.js) ----
     streakCount: { type: Number, default: 0 }, // จำนวนวันติดต่อกันในรอบปัจจุบัน (1-30)
     lastStreakDate: { type: Date, default: null }, // วันล่าสุดที่นับไปแล้ว (ค่าจาก startOfToday())

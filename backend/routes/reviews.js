@@ -14,18 +14,25 @@ const {
   PUBLIC_USER_FIELDS,
   QUEST_FIELDS,
 } = require('../utils/submissions');
+const {
+  REVIEW_REWARD,
+  REVIEW_REWARD_DAILY_CAP,
+  rewardedToday,
+  awardReviewer,
+} = require('../utils/reviewRewards');
 
 // ตรวจหลักฐานภารกิจของผู้เล่นคนอื่น (ระบบตรวจสอบภารกิจ 28 ก.ย. 2026 — กติกาดู utils/submissions.js)
 // ตรวจได้เฉพาะบัญชีจริง (guest ไม่ได้ — ผู้ใช้กำหนด 30 ก.ย. 2026 ไม่มีเลเวลขั้นต่ำ) ยกเว้นเจ้าของหลักฐาน / สมาชิกห้อง
 // ของปาร์ตี้นั้น / ค้างเกิน 48 ชม. = แอดมินเท่านั้น
+// โหวตสำเร็จ = ได้รางวัลคนตรวจ +P/+XP วันละไม่เกินเพดาน (utils/reviewRewards.js)
 const router = express.Router();
 
 // บทบาทของคนตรวจ — query ผู้ใช้ครั้งเดียวได้ทั้ง guest และแอดมิน (แอดมินต้องเป็นบัญชีจริงที่มี email อยู่แล้ว)
 const reviewerRole = async (userId) => {
-  const user = await User.findById(userId).select('email isGuest');
-  if (!user) return { canReview: false, isAdmin: false };
+  const user = await User.findById(userId).select('email isGuest reviewRewardDay reviewRewardCount');
+  if (!user) return { canReview: false, isAdmin: false, rewardedToday: 0 };
   const isAdmin = Boolean(user.email) && adminEmails().includes(user.email.toLowerCase());
-  return { canReview: isAdmin || !user.isGuest, isAdmin };
+  return { canReview: isAdmin || !user.isGuest, isAdmin, rewardedToday: rewardedToday(user) };
 };
 
 // submission ที่คนนี้ตรวจได้: pending + ไม่ใช่ของตัวเอง + ไม่ใช่ห้องที่ตัวเองอยู่ + ยังไม่เคยโหวต
@@ -44,6 +51,13 @@ const reviewableFilter = (userId, { isAdmin }) => {
 
 const GUEST_REVIEW_MESSAGE = 'Create an account to help review quests';
 
+// ข้อมูลรางวัลคนตรวจที่แอพโชว์ (แบนเนอร์ในฟีด / หัวหน้าตรวจ) — utils/reviewRewards.js
+const rewardInfo = (today) => ({
+  reviewReward: REVIEW_REWARD,
+  reviewRewardsToday: today,
+  reviewRewardsCap: REVIEW_REWARD_DAILY_CAP,
+});
+
 // @route   GET /api/reviews/queue
 // @desc    หลักฐานที่รอให้คนนี้ตรวจ 20 อัน + จำนวนทั้งหมดที่รอ (ให้แบนเนอร์ในฟีดโชว์)
 //          ผู้เล่นทั่วไป: ใหม่สุดก่อน / แอดมิน: ที่ค้างเกิน 48 ชม. (รอแอดมิน) ขึ้นก่อน เก่าสุดก่อน แล้วค่อยของใหม่
@@ -59,6 +73,7 @@ router.get('/queue', authMiddleware, async (req, res) => {
         escalatedCount: 0,
         isAdmin: false,
         canReview: false,
+        ...rewardInfo(0),
         approvalsNeeded: APPROVALS_NEEDED,
         rejectionsNeeded: REJECTIONS_NEEDED,
       });
@@ -96,6 +111,7 @@ router.get('/queue', authMiddleware, async (req, res) => {
       pendingCount,
       escalatedCount,
       canReview: true,
+      ...rewardInfo(role.rewardedToday),
       // แอดมินโหวตครั้งเดียวตัดสินเลย — แอพโชว์ป้ายบอก
       isAdmin: role.isAdmin,
       approvalsNeeded: APPROVALS_NEEDED,
@@ -147,6 +163,14 @@ router.post('/:id/vote', authMiddleware, async (req, res) => {
       return res.status(409).json({ message: 'You have already reviewed this proof' });
     }
 
+    // โหวตบันทึกแล้ว = ได้รางวัลคนตรวจ (ไม่ว่าผ่าน/ไม่ผ่าน, วันละไม่เกินเพดาน) — พังก็ไม่ควรทำให้โหวตพัง
+    let reward = { points: 0, xp: 0, rewardedToday: role.rewardedToday };
+    try {
+      reward = await awardReviewer(req.userId);
+    } catch (err) {
+      console.error('ให้รางวัลคนตรวจไม่สำเร็จ:', err.message);
+    }
+
     // แอดมินตัดสินเลย / คนทั่วไปรอครบเกณฑ์
     let decision = null;
     let decidedBy = 'peers';
@@ -173,6 +197,9 @@ router.post('/:id/vote', authMiddleware, async (req, res) => {
       status,
       approvals: updated.approvals.length,
       rejections: updated.rejections.length,
+      reward: { points: reward.points, xp: reward.xp },
+      reviewRewardsToday: reward.rewardedToday,
+      reviewRewardsCap: REVIEW_REWARD_DAILY_CAP,
     });
   } catch (err) {
     console.error(err);

@@ -37,6 +37,7 @@ class _FeedTabState extends State<FeedTab> with AutomaticKeepAliveClientMixin {
   int _reviewCount = 0;
   int _escalatedCount = 0; // แอดมิน: ค้างเกิน 48 ชม. รอแอดมินตัดสิน
   bool _canReview = true; // guest = false → ชวนสมัครบัญชีแทนแบนเนอร์ตรวจ
+  ReviewQueue? _queue; // รางวัลคนตรวจที่เหลือวันนี้ — โชว์ในแบนเนอร์
   List<SubmissionModel> _posts = [];
   bool _hasMore = false;
   bool _isLoading = true;
@@ -79,6 +80,7 @@ class _FeedTabState extends State<FeedTab> with AutomaticKeepAliveClientMixin {
         _reviewCount = queue?.pendingCount ?? 0;
         _escalatedCount = queue?.escalatedCount ?? 0;
         _canReview = queue?.canReview ?? true;
+        _queue = queue;
         _isLoading = false;
       });
     } catch (e) {
@@ -156,7 +158,12 @@ class _FeedTabState extends State<FeedTab> with AutomaticKeepAliveClientMixin {
       if (_impact != null) _ImpactCard(impact: _impact!),
       if (_reviewCount > 0) ...[
         const SizedBox(height: 12),
-        _ReviewBanner(count: _reviewCount, escalatedCount: _escalatedCount, onTap: _openReview),
+        _ReviewBanner(
+          count: _reviewCount,
+          escalatedCount: _escalatedCount,
+          rewardPoints: _queue != null && _queue!.hasRewardsLeft ? _queue!.rewardPoints : 0,
+          onTap: _openReview,
+        ),
       ] else if (!_canReview) ...[
         const SizedBox(height: 12),
         _JoinToReviewBanner(onTap: _openUpgradeAccount),
@@ -339,8 +346,9 @@ class _ImpactStat extends StatelessWidget {
 class _ReviewBanner extends StatelessWidget {
   final int count;
   final int escalatedCount;
+  final int rewardPoints; // 0 = วันนี้ได้รางวัลครบเพดานแล้ว / ไม่มีรางวัล
   final VoidCallback onTap;
-  const _ReviewBanner({required this.count, this.escalatedCount = 0, required this.onTap});
+  const _ReviewBanner({required this.count, this.escalatedCount = 0, this.rewardPoints = 0, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -370,7 +378,9 @@ class _ReviewBanner extends StatelessWidget {
                       Text(
                           escalatedCount > 0
                               ? '$escalatedCount waited over 48 hours — only an admin can decide these'
-                              : 'Help other players get their rewards',
+                              : rewardPoints > 0
+                                  ? 'Earn +$rewardPoints P for each review'
+                                  : 'Help other players get their rewards',
                           style: TextStyle(fontSize: 11.5, color: Colors.orange.shade800)),
                     ],
                   ),

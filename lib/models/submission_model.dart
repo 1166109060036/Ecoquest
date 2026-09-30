@@ -134,6 +134,11 @@ class ReviewQueue {
   final bool canReview;
   // แอดมินเท่านั้น: จำนวนที่ค้างเกิน 48 ชม. รอแอดมินตัดสิน
   final int escalatedCount;
+  // รางวัลคนตรวจ (backend/utils/reviewRewards.js) — ต่อโหวต 1 ครั้ง, วันละไม่เกิน rewardsCap ครั้ง
+  final int rewardPoints;
+  final int rewardXp;
+  final int rewardsToday;
+  final int rewardsCap;
 
   ReviewQueue({
     required this.submissions,
@@ -141,5 +146,28 @@ class ReviewQueue {
     required this.isAdmin,
     this.canReview = true,
     this.escalatedCount = 0,
+    this.rewardPoints = 0,
+    this.rewardXp = 0,
+    this.rewardsToday = 0,
+    this.rewardsCap = 0,
+  });
+
+  bool get hasRewardsLeft => rewardsCap > 0 && rewardsToday < rewardsCap && rewardPoints > 0;
+}
+
+// ผลการโหวต 1 ครั้ง — สถานะหลักฐานหลังโหวต + รางวัลคนตรวจที่ได้ (0 = วันนี้ครบเพดานแล้ว)
+class VoteResult {
+  final String status; // pending / approved / rejected
+  final int rewardPoints;
+  final int rewardXp;
+  final int rewardsToday;
+  final int rewardsCap;
+
+  VoteResult({
+    required this.status,
+    this.rewardPoints = 0,
+    this.rewardXp = 0,
+    this.rewardsToday = 0,
+    this.rewardsCap = 0,
   });
 }
