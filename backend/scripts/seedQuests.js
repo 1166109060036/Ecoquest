@@ -111,6 +111,7 @@ const QUESTS = [
     detail:
       'Give a plastic bottle a second life before recycling it — use it as a water bottle, '
       + 'a storage container, or a plant pot.',
+    imageKey: 'ReuseaPlasticBottle.png',
     category: 'recycling',
     type: 'solo',
     difficulty: 'easy',
@@ -212,6 +213,7 @@ const QUESTS = [
     detail:
       'Refill your detergent container instead of buying a new plastic bottle. '
       + 'Detergent bottles are among the largest plastic items in a household.',
+    imageKey: 'UseRefillableLaundryDetergent.png',
     category: 'plastic',
     type: 'solo',
     difficulty: 'easy',
@@ -228,6 +230,7 @@ const QUESTS = [
     sortOrder: 14,
     description: 'Plastic Reduction Quest',
     detail: 'Refill your dish soap bottle rather than replacing it with a new one.',
+    imageKey: 'UseRefillableDishSoap.png',
     category: 'plastic',
     type: 'solo',
     difficulty: 'easy',
@@ -283,6 +286,7 @@ const QUESTS = [
     sortOrder: 5,
     description: 'Energy Saving Quest',
     detail: 'Switch off the lights in rooms nobody is using.',
+    imageKey: 'TurnOffUnusedLights.png',
     category: 'energy',
     type: 'solo',
     difficulty: 'easy',

@@ -56,7 +56,10 @@ class QuestBoostBar extends StatelessWidget {
               color: Colors.orange.shade800,
               background: Colors.orange.shade50,
               title: combo.distinctToday == 0 ? 'Daily combo' : 'Combo · ${combo.distinctToday} today',
-              subtitle: 'Next new quest ${formatMultiplier(combo.nextNewMultiplier)}',
+              // ต้นวันยังไม่มีคอมโบ (×1) — บอกกติกาแทนตัวเลขที่ไม่ชวนทำ
+              subtitle: combo.distinctToday == 0
+                  ? 'Mix quests = bonus'
+                  : 'Next new quest ${formatMultiplier(combo.nextNewMultiplier)}',
               onTap: () => _showComboRules(context, combo),
             ),
           ),

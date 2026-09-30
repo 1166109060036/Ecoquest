@@ -221,10 +221,11 @@ class _BingoTile extends StatelessWidget {
               : Stack(
                   fit: StackFit.expand,
                   children: [
+                    // เควสที่ยังไม่มีรูปปก (หรือหารูปไม่เจอ) = พื้นเขียวอ่อน + ใบไม้ แทนสีเทาโล่งๆ
                     if (cover != null)
-                      Image.asset(cover, fit: BoxFit.cover, errorBuilder: (_, _, _) => const SizedBox())
+                      Image.asset(cover, fit: BoxFit.cover, errorBuilder: (_, _, _) => const _NoCoverTile())
                     else
-                      Container(color: Colors.grey.shade100),
+                      const _NoCoverTile(),
                     // ไล่สีเข้มด้านล่างให้ชื่อเควสอ่านออกบนรูป
                     const DecoratedBox(
                       decoration: BoxDecoration(
@@ -280,6 +281,20 @@ class _BingoTile extends StatelessWidget {
                 ),
         ),
       ),
+    );
+  }
+}
+
+// พื้นช่องของเควสที่ไม่มีรูปปก — ไอคอนอยู่ครึ่งบน ไม่ให้ทับชื่อเควสที่อยู่ล่างสุด
+class _NoCoverTile extends StatelessWidget {
+  const _NoCoverTile();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.green.shade100,
+      alignment: const Alignment(0, -0.35),
+      child: Icon(Icons.eco_rounded, size: 34, color: Colors.green.shade400),
     );
   }
 }
