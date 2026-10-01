@@ -6,9 +6,11 @@ import '../../services/submission_service.dart';
 import '../../utils/co2_format.dart';
 import '../../utils/date_format.dart';
 import '../../widgets/breathing_icon.dart';
+import '../../widgets/bubble_toast.dart';
 import '../../widgets/count_up_text.dart';
 import '../../widgets/decorated_avatar.dart';
 import '../../widgets/leaf_refresh_indicator.dart';
+import '../../widgets/liquid_glass_dialog.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/skeleton_box.dart';
 import '../../widgets/staggered_fade_in.dart';
@@ -133,6 +135,33 @@ class _FeedTabState extends State<FeedTab> with AutomaticKeepAliveClientMixin {
     }
   }
 
+  // ถอนโพสต์ (แอดมิน/เจ้าของ) — ยืนยันก่อน เพราะลบรูปทิ้งถาวร
+  Future<void> _confirmRemove(SubmissionModel post) async {
+    final confirmed = await LiquidGlassDialog.show<bool>(
+      context: context,
+      icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 28),
+      title: 'Remove this post?',
+      content: Text(
+        'The photo will be deleted and the post will no longer appear in the feed. Points already earned are kept.',
+        textAlign: TextAlign.center,
+        style: LiquidGlassDialog.messageStyle,
+      ),
+      actions: [
+        LiquidGlassAction(label: 'Cancel', onPressed: () => Navigator.pop(context, false)),
+        LiquidGlassAction(label: 'Remove', color: Colors.redAccent, onPressed: () => Navigator.pop(context, true)),
+      ],
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await _feedService.removePost(post.id);
+      if (!mounted) return;
+      setState(() => _posts = _posts.where((p) => p.id != post.id).toList());
+      showBubbleToast(context, 'Post removed');
+    } catch (e) {
+      if (mounted) showBubbleToast(context, e.toString().replaceFirst('Exception: ', ''));
+    }
+  }
+
   Future<void> _openReview() async {
     await Navigator.push(context, MaterialPageRoute(builder: (_) => const ReviewPage()));
     if (mounted) _load();
@@ -187,7 +216,11 @@ class _FeedTabState extends State<FeedTab> with AutomaticKeepAliveClientMixin {
           FadeSlideIn(
             key: ValueKey(_posts[i].id),
             delay: Duration(milliseconds: 40 * i.clamp(0, 8)),
-            child: _FeedPostCard(post: _posts[i], onCheer: () => _toggleCheer(_posts[i])),
+            child: _FeedPostCard(
+              post: _posts[i],
+              onCheer: () => _toggleCheer(_posts[i]),
+              onRemove: _posts[i].canRemove ? () => _confirmRemove(_posts[i]) : null,
+            ),
           ),
           const SizedBox(height: 12),
         ],
@@ -448,7 +481,8 @@ class _JoinToReviewBanner extends StatelessWidget {
 class _FeedPostCard extends StatelessWidget {
   final SubmissionModel post;
   final VoidCallback onCheer;
-  const _FeedPostCard({required this.post, required this.onCheer});
+  final VoidCallback? onRemove; // null = ถอนโพสต์นี้ไม่ได้ (ไม่ใช่แอดมิน/เจ้าของ)
+  const _FeedPostCard({required this.post, required this.onCheer, this.onRemove});
 
   @override
   Widget build(BuildContext context) {
@@ -515,6 +549,12 @@ class _FeedPostCard extends StatelessWidget {
                       ],
                     ),
                   ),
+                  if (onRemove != null)
+                    IconButton(
+                      onPressed: onRemove,
+                      tooltip: 'Remove post',
+                      icon: Icon(Icons.delete_outline_rounded, color: Colors.grey.shade500),
+                    ),
                 ],
               ),
             ),

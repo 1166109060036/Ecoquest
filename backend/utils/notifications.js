@@ -121,6 +121,18 @@ const notifyQuestRejected = async (userId, quest, submissionId, checkIn = null) 
 
 // Eco Bingo ครบแถว/ครบการ์ด (utils/bingo.js) — 1 ใบต่อการรับรางวัล 1 ครั้ง (อาจได้หลายแถวพร้อมกัน)
 // data.points/xp ให้แอพเล่นเอฟเฟครางวัลบินเข้าป้ายแบบเดียวกับหลักฐานผ่าน (main_shell.dart)
+// แอดมินถอนโพสต์ของผู้ใช้ออกจากฟีด — แต้มยังอยู่ แค่รูปถูกลบ (เจ้าของถอนเองไม่ต้องแจ้ง)
+const notifyPostRemoved = async (userId, quest, submissionId) => {
+  await createNotification({
+    userId,
+    type: 'post_removed',
+    title: 'Post Removed',
+    message: `${quest ? quest.title : 'Your quest'} · your photo was removed from the feed by an admin. `
+      + 'Please avoid photos with personal info (names, account numbers, receipts). Your points are kept.',
+    dedupeKey: `post_removed:${submissionId}`,
+  });
+};
+
 const notifyBingo = async (userId, { weekKey, lines, full, points, xp }) => {
   const what = full
     ? 'Full card complete!'
@@ -201,6 +213,7 @@ module.exports = {
   notifyQuestApproved,
   notifyQuestRejected,
   notifyBingo,
+  notifyPostRemoved,
   ensureExpiryNotifications,
   getNotifications,
   markAllRead,

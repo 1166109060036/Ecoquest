@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'bubble_toast.dart';
 import 'pressable_scale.dart';
+import 'privacy_notice.dart';
 
 // รูปหลักฐานที่ผู้ใช้เลือกแล้ว — ส่งต่อให้ QuestProvider.completeQuest / PartyProvider.complete
 class ProofPhoto {
@@ -88,6 +89,11 @@ class _ProofCaptureSheetState extends State<_ProofCaptureSheet> {
                 style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.black87)),
             const SizedBox(height: 6),
             Text(widget.hint, style: TextStyle(fontSize: 12.5, color: Colors.grey.shade600, height: 1.4)),
+            const SizedBox(height: 10),
+            const PrivacyNotice(
+              text: "Don't include personal info such as names, account numbers or receipts. "
+                  'Approved photos are shown in the community feed.',
+            ),
             const SizedBox(height: 16),
             // ตัวอย่างรูป / กรอบว่างรอถ่าย — สูงไม่เกิน 40% ของจอ ปุ่มด้านล่างจะได้เห็นโดยไม่ต้องเลื่อน
             ConstrainedBox(

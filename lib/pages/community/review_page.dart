@@ -8,6 +8,7 @@ import '../../widgets/breathing_icon.dart';
 import '../../widgets/bubble_toast.dart';
 import '../../widgets/decorated_avatar.dart';
 import '../../widgets/pressable_scale.dart';
+import '../../widgets/privacy_notice.dart';
 
 // หน้าตรวจหลักฐานภารกิจของผู้เล่นคนอื่น (ระบบตรวจสอบภารกิจ 28 ก.ย. 2026 — กติกาดู backend/utils/submissions.js)
 // ทีละใบ: รูปหลักฐาน + ชื่อเควส + "ต้องเห็นอะไรในรูป" (Quest Detail) + ผู้ส่ง -> Not approved / Approve
@@ -294,6 +295,12 @@ class _SubmissionCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(quest.detail, style: TextStyle(fontSize: 12.5, color: Colors.grey.shade700, height: 1.45)),
                 ],
+                const SizedBox(height: 12),
+                // รูปที่ผ่านจะขึ้นฟีดให้ทุกคนเห็น — กันข้อมูลส่วนตัวหลุดตั้งแต่ขั้นตรวจ
+                const PrivacyNotice(
+                  text: 'Tap Not approved if the photo shows personal info such as names, account numbers '
+                      'or receipts — approved photos are shown to everyone in the feed.',
+                ),
                 const SizedBox(height: 10),
                 Text(
                   // ค้างเกิน 48 ชม. — แอดมินเท่านั้นที่เห็นอันนี้ในคิว (backend/routes/reviews.js)

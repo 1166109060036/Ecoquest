@@ -23,6 +23,8 @@ class SubmissionModel {
   final int? checkInTotal;
   final int cheers;
   final bool cheeredByMe;
+  // ฟีด: คนดูถอนโพสต์นี้ได้ไหม (แอดมิน = ทุกโพสต์ / เจ้าของ = ของตัวเอง) — backend/routes/feed.js
+  final bool canRemove;
 
   SubmissionModel({
     required this.id,
@@ -42,6 +44,7 @@ class SubmissionModel {
     this.checkInTotal,
     this.cheers = 0,
     this.cheeredByMe = false,
+    this.canRemove = false,
   });
 
   bool get isParty => kind == 'party';
@@ -70,6 +73,7 @@ class SubmissionModel {
       checkInTotal: checkIn?['durationDays'],
       cheers: json['cheers'] ?? 0,
       cheeredByMe: json['cheeredByMe'] ?? false,
+      canRemove: json['canRemove'] == true,
     );
   }
 
@@ -91,6 +95,7 @@ class SubmissionModel {
         checkInTotal: checkInTotal,
         cheers: cheers ?? this.cheers,
         cheeredByMe: cheeredByMe ?? this.cheeredByMe,
+        canRemove: canRemove,
       );
 }
 

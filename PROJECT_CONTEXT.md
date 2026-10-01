@@ -99,6 +99,11 @@
     (`decidedAt` >= เที่ยงคืนเวลาญี่ปุ่น `utils/questDay.js`) / ขึ้นวันใหม่ sweep ลบรูปของที่ approved ก่อนวันนี้
     (`purgeExpiredPhotos` ใน `utils/submissions.js`, คง photoHash) / pending เก็บรูปไว้จนตัดสิน (ผู้ตรวจต้องเห็น)
   - รูปหลักฐานย่อตอนถ่ายเหลือด้านยาวสุด 960px quality 70 (~100-200KB) / backend รับไม่เกิน 2MB ต่อรูป
+  - **Remove post** (ผู้ใช้สั่ง 1 ต.ค. 2026 — เคยมีรูปสลิปที่มีชื่อ+เลขบัญชีหลุดขึ้นฟีด): `DELETE /api/feed/:id` เจ้าของถอนโพสต์ตัวเอง /
+    แอดมินถอนได้ทุกโพสต์ (คนอื่น 403) → `removedFromFeed: true` + ลบ `photoData` ทันที (คง photoHash) / **แต้ม-XP-CO₂ คงอยู่**
+    (ถอนแค่รูปจากฟีด ไม่ใช่ยกเลิกเควส) / แอดมินถอน = แจ้งเตือนเจ้าของ `post_removed` / `GET /feed` ส่ง `canRemove` ให้แอพโชว์ปุ่มถังขยะ
+  - คำเตือนข้อมูลส่วนตัว (`lib/widgets/privacy_notice.dart`) โชว์ 2 ที่: ตอนถ่ายรูปส่ง (`proof_capture_sheet.dart`) และหน้า
+    Quest Review (`review_page.dart` — บอกผู้ตรวจให้กด Not approved ถ้ารูปมีชื่อ/เลขบัญชี/ใบเสร็จ)
   - ⚠️ ยังเหลือรูปอื่นใน MongoDB ที่ไม่ถูกลบอัตโนมัติ: รูปของในตู้เย็น (`FridgeItem.photoData`) + รูปโปรไฟล์
 - ⚠️ **deploy ต้องไปพร้อมกัน** — backend ใหม่ต้องการรูปตอน Complete แอพเวอร์ชันเก่ากด Complete ไม่ผ่าน
 - **กลไกให้อยากทำเควสต่อ** (อาจารย์: "ไม่ใช่จำกัด แต่ทำให้อยากทำอันต่อไป" — ผู้ใช้เลือก 2 อย่าง 30 ก.ย. 2026):
@@ -722,7 +727,7 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` แล
   (ดูหัวข้อ "ร้าน Upgrade Ability" ด้านบน)
 - `backend/routes/reviews.js` → `/api/reviews`: `GET /queue`, `POST /:id/vote` `{approve}` (ดูหัวข้อ 2.5)
 - `backend/routes/submissions.js` → `/api/submissions`: `GET /mine?status=`, `GET /:id/photo` (ไม่ต้อง login)
-- `backend/routes/feed.js` → `/api/feed`: `GET /?before=&limit=`, `POST /:id/cheer` (toggle)
+- `backend/routes/feed.js` → `/api/feed`: `GET /?before=&limit=`, `POST /:id/cheer` (toggle), `DELETE /:id` (ถอนโพสต์: เจ้าของ/แอดมิน)
 - `backend/routes/impact.js` → `/api/impact`: `GET /summary` (ตลอดกาล + 7 วันล่าสุด, cache 5 นาที)
 - สคริปต์: `npm run seed:quests` (`backend/scripts/seedQuests.js`)
 - `backend/routes/admin.js` → mount ที่ `/api/admin`: **dev/QA เท่านั้น** ทุก route ต้องผ่าน

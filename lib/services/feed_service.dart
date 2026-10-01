@@ -45,6 +45,18 @@ class FeedService {
     return (cheers: (data['cheers'] ?? 0) as int, cheeredByMe: data['cheeredByMe'] == true);
   }
 
+  // ถอนโพสต์ออกจากฟีด + ลบรูป (แอดมิน หรือเจ้าของโพสต์) — แต้มที่ได้ไปแล้วไม่ถูกยึดคืน
+  Future<void> removePost(String postId) async {
+    final response = await http.delete(
+      Uri.parse('${AppConstants.baseUrl}/feed/$postId'),
+      headers: await _headers(),
+    );
+    if (response.statusCode != 200) {
+      final data = jsonDecode(response.body);
+      throw Exception(data['message'] ?? 'Failed to remove this post');
+    }
+  }
+
   Future<ImpactSummary> fetchImpact() async {
     final response = await http.get(Uri.parse('${AppConstants.baseUrl}/impact/summary'), headers: await _headers());
     final data = jsonDecode(response.body);

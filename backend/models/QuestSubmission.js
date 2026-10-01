@@ -97,6 +97,11 @@ const QuestSubmissionSchema = new mongoose.Schema(
       type: [mongoose.Schema.Types.ObjectId],
       default: [],
     },
+    // ถอนออกจากฟีด (routes/feed.js DELETE /:id) — แอดมินหรือเจ้าของโพสต์ เช่น รูปมีข้อมูลส่วนตัว
+    // ลบรูปทิ้งทันที แต่ไม่ยึดแต้มคืน (ทำเควสจริงแล้ว แค่รูปไม่เหมาะจะโชว์)
+    removedFromFeed: { type: Boolean, default: false },
+    removedAt: { type: Date, default: null },
+    removedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   },
   { timestamps: true }
 );

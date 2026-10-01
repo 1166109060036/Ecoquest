@@ -25,6 +25,8 @@ const NotificationSchema = new mongoose.Schema(
         'quest_rejected',
         // Eco Bingo รายสัปดาห์ (utils/bingo.js) — ครบแถว/ครบการ์ดได้โบนัส
         'bingo',
+        // แอดมินถอนโพสต์ออกจากฟีด (routes/feed.js) — บอกเจ้าของว่าทำไม
+        'post_removed',
       ],
     },
     title: {
