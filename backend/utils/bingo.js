@@ -72,17 +72,29 @@ const weekRange = (weekKey) => {
   return { start, end: new Date(start.getTime() + 7 * DAY_MS) };
 };
 
+// เควสบนการ์ดที่ถูกปิดใช้งาน/ลบไปหลังสุ่มการ์ดแล้ว — ผู้เล่นทำไม่ได้แล้ว นับเป็นช่องฟรี ไม่ให้แถวนั้นตายถาวร
+const retiredQuestIds = async (card) => {
+  const questIds = card.cells.filter(Boolean);
+  const active = await Quest.find({ _id: { $in: questIds }, isActive: true }).distinct('_id');
+  const activeSet = new Set(active.map(String));
+  return new Set(questIds.map(String).filter((id) => !activeSet.has(id)));
+};
+
 // เควสบนการ์ดที่ได้รางวัลแล้วในสัปดาห์นั้น (แถวเช็คอินระหว่างทางไม่นับ — การ์ดไม่มีเควสหลายวันอยู่แล้ว)
+// + เควสที่ถูกปิดไปแล้ว (นับเหมือนช่องฟรี)
 const doneQuestIds = async (userId, card) => {
   const { start, end } = weekRange(card.weekKey);
   const questIds = card.cells.filter(Boolean);
-  const done = await QuestHistory.distinct('questId', {
-    userId,
-    questId: { $in: questIds },
-    checkIn: { $ne: true },
-    completedAt: { $gte: start, $lt: end },
-  });
-  return new Set(done.map(String));
+  const [done, retired] = await Promise.all([
+    QuestHistory.distinct('questId', {
+      userId,
+      questId: { $in: questIds },
+      checkIn: { $ne: true },
+      completedAt: { $gte: start, $lt: end },
+    }),
+    retiredQuestIds(card),
+  ]);
+  return new Set([...done.map(String), ...retired]);
 };
 
 const cellDone = (card, done, i) => card.cells[i] === null || card.cells[i] === undefined || done.has(String(card.cells[i]));
@@ -145,7 +157,7 @@ const bingoPayload = async (userId) => {
   const questIds = card.cells.filter(Boolean);
   const [done, quests, pending] = await Promise.all([
     doneQuestIds(userId, card),
-    Quest.find({ _id: { $in: questIds } }).select('title category imageKey difficulty scorePoints'),
+    Quest.find({ _id: { $in: questIds } }).select('title category imageKey difficulty scorePoints isActive'),
     QuestSubmission.distinct('questId', {
       userId,
       status: 'pending',
@@ -159,6 +171,8 @@ const bingoPayload = async (userId) => {
   const cells = card.cells.map((c, i) => {
     if (!c) return { index: i, free: true, done: true };
     const q = questById.get(String(c));
+    // เควสถูกปิด/ลบไปหลังสุ่มการ์ด = ช่องฟรี (นับครบแถวได้ใน doneQuestIds แล้ว)
+    if (!q || q.isActive === false) return { index: i, free: true, done: true };
     return {
       index: i,
       free: false,

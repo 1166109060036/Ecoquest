@@ -111,7 +111,7 @@ const QUESTS = [
     detail:
       'Give a plastic bottle a second life before recycling it — use it as a water bottle, '
       + 'a storage container, or a plant pot.',
-    imageKey: 'ReuseaPlasticBottle.png',
+    imageKey: 'ReuseaPlasticBottle.jpg',
     category: 'recycling',
     type: 'solo',
     difficulty: 'easy',
@@ -127,6 +127,9 @@ const QUESTS = [
   // -------------------------------------------------------------------- plastic
   {
     title: 'Use a Reusable Bottle',
+    // ⚠️ ปิดใช้งาน (1 ต.ค. 2026) — ใกล้เคียงกับ Reuse a Plastic Bottle เกินไป (ผู้ใช้ตัดสินใจ) ห้ามลบ object นี้:
+    // seed upsert ด้วย title ลบออกเฉยๆ เควสใน DB จะเปิดใช้อยู่ต่อ / ช่องบนการ์ด Bingo ที่สุ่มไปแล้วกลายเป็นช่องฟรี (utils/bingo.js)
+    isActive: false,
     sortOrder: 3,
     description: 'Plastic Reduction Quest',
     // รวม "Refill Your Water Bottle" เข้ามาแล้ว (การกระทำเดียวกัน) — ดูเควสนั้นด้านล่างที่ปิดใช้งานไว้
@@ -213,7 +216,7 @@ const QUESTS = [
     detail:
       'Refill your detergent container instead of buying a new plastic bottle. '
       + 'Detergent bottles are among the largest plastic items in a household.',
-    imageKey: 'UseRefillableLaundryDetergent.png',
+    imageKey: 'UseRefillableLaundryDetergent.jpg',
     category: 'plastic',
     type: 'solo',
     difficulty: 'easy',
@@ -230,7 +233,7 @@ const QUESTS = [
     sortOrder: 14,
     description: 'Plastic Reduction Quest',
     detail: 'Refill your dish soap bottle rather than replacing it with a new one.',
-    imageKey: 'UseRefillableDishSoap.png',
+    imageKey: 'UseRefillableDishSoap.jpg',
     category: 'plastic',
     type: 'solo',
     difficulty: 'easy',
@@ -286,7 +289,7 @@ const QUESTS = [
     sortOrder: 5,
     description: 'Energy Saving Quest',
     detail: 'Switch off the lights in rooms nobody is using.',
-    imageKey: 'TurnOffUnusedLights.png',
+    imageKey: 'TurnOffUnusedLights.jpg',
     category: 'energy',
     type: 'solo',
     difficulty: 'easy',
