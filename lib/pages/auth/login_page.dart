@@ -68,7 +68,7 @@ class _LoginPageState extends State<LoginPage> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Icon(Icons.eco, size: 64, color: Colors.green),
+                Image.asset('lib/utils/assets/logo.png', width: 96, height: 96),
                 const SizedBox(height: 8),
                 const Text(
                   'Sign in to EcoQuest',

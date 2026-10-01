@@ -38,7 +38,7 @@ class _SplashPageState extends State<SplashPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.eco, size: 72, color: Colors.green),
+            Image(image: AssetImage('lib/utils/assets/logo.png'), width: 120, height: 120),
             SizedBox(height: 16),
             Text(
               'EcoQuest',
