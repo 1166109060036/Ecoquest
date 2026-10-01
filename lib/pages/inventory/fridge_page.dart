@@ -301,7 +301,9 @@ class _FridgePageState extends State<FridgePage> {
                                   // (อัพขึ้น server แล้ว เห็นได้ทุกเครื่อง) ของเก่าก่อนมีฟีเจอร์นี้ค่อย
                                   // fallback ไปใช้ photoPath ในเครื่อง (เห็นได้แค่เครื่องที่ถ่ายไว้)
                                   // ไม่มีรูปเลย (หรือไฟล์เก่าหาย) ค่อย fallback เป็นไอคอนอาหาร
-                                  imageUrl: item.photoUrl != null
+                                  // หมดอายุแล้ว = ไม่โชว์รูป server (backend ลบรูปทิ้งตอนหมดอายุ — ซ่อนก่อนเลย
+                                  // เผื่อหมดอายุระหว่างเปิดหน้านี้ค้างไว้)
+                                  imageUrl: item.photoUrl != null && !item.isExpiredAt(now)
                                       ? AppConstants.resolveUrl(item.photoUrl)
                                       : null,
                                   imageFile: item.photoUrl == null && item.photoPath != null
@@ -401,11 +403,12 @@ class _AddItemSheetState extends State<_AddItemSheet> {
 
   Future<void> _pickPhoto(ImageSource source) async {
     try {
-      // ย่อรูปตั้งแต่ตอนถ่าย — แสดงจริงแค่ 72px ไม่ต้องเก็บไฟล์ใหญ่
+      // ย่อรูปตั้งแต่ตอนถ่าย — แสดงจริงแค่ 72px ไม่ต้องเก็บไฟล์ใหญ่ (~50-100KB ต่อรูป ประหยัด Atlas)
       final shot = await _picker.pickImage(
         source: source,
-        maxWidth: 1200,
-        imageQuality: 85,
+        maxWidth: 640,
+        maxHeight: 640,
+        imageQuality: 70,
       );
       if (shot == null || !mounted) return;
 
@@ -828,7 +831,9 @@ String _describeExpiry(FridgeItemModel item, DateTime now) {
   final date = _formatDate(item.expirationDate);
 
   if (item.isExpiredAt(now)) {
-    return 'Expired ($date)';
+    // รูปถูกลบอัตโนมัติตอนหมดอายุ (ประหยัดพื้นที่) — บอกให้รู้ว่าไม่ได้หายเพราะบั๊ก
+    final hadPhoto = item.photoRemoved || item.photoUrl != null;
+    return hadPhoto ? 'Expired ($date) · photo removed' : 'Expired ($date)';
   }
   return 'Expires $date · ${_formatRemaining(item.remainingFrom(now))} left';
 }

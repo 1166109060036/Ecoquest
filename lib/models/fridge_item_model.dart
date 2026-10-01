@@ -14,6 +14,8 @@ class FridgeItemModel {
   final String? photoPath;
   // URL เต็มของรูป (อัพขึ้น server แล้ว) — null = ไม่มีรูป หรือเป็นของเก่าที่มีแค่ photoPath
   final String? photoUrl;
+  // server ลบรูปทิ้งแล้วเพราะของหมดอายุ (backend/utils/fridgePhotos.js) — ตัวรายการยังอยู่ให้ผู้ใช้ลบเอง
+  final bool photoRemoved;
 
   const FridgeItemModel({
     required this.id,
@@ -22,6 +24,7 @@ class FridgeItemModel {
     required this.quantity,
     this.photoPath,
     this.photoUrl,
+    this.photoRemoved = false,
   });
 
   factory FridgeItemModel.fromJson(Map<String, dynamic> json) {
@@ -34,6 +37,7 @@ class FridgeItemModel {
       quantity: json['quantity'] ?? 1,
       photoPath: json['photoPath'],
       photoUrl: json['photoUrl'],
+      photoRemoved: json['photoRemoved'] == true,
     );
   }
 

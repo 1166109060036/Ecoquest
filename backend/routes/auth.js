@@ -169,8 +169,8 @@ router.get('/me', authMiddleware, async (req, res) => {
   }
 });
 
-// กันไฟล์ใหญ่ผิดปกติ (image_picker ฝั่งแอพย่อเหลือ maxWidth 800 อยู่แล้ว ปกติไม่เกินนี้)
-const MAX_AVATAR_BYTES = 4 * 1024 * 1024;
+// กันไฟล์ใหญ่ผิดปกติ (image_picker ฝั่งแอพย่อเหลือด้านยาวสุด 512px quality 75 อยู่แล้ว ~30-60KB)
+const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
 
 // @route   POST /api/auth/avatar
 // @desc    ตั้ง/ลบรูปโปรไฟล์จริง — ส่ง { avatarBase64, contentType } มาเพื่อตั้ง

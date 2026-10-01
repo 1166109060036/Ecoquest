@@ -18,6 +18,7 @@ const { comboForSubmission } = require('./combo');
 const { notifyQuestApproved, notifyQuestRejected } = require('./notifications');
 const { avatarUrlFor, cosmeticsFor } = require('./avatar');
 const { startOfToday } = require('./questDay');
+const { purgeExpiredFridgePhotos } = require('./fridgePhotos');
 
 // ฟิลด์สาธารณะของผู้ใช้ที่ populate มากับ submission — allow-list เดียวกับ routes/friends.js (ห้ามหลุด email ฯลฯ)
 const PUBLIC_USER_FIELDS = 'displayName level avatarContentType avatarUpdatedAt cosmetics';
@@ -161,7 +162,7 @@ const safeNotify = async (fn) => {
   }
 };
 
-// งานเก็บกวาดเบื้องหลัง (ตอนนี้เหลือแค่ลบรูปหมดอายุ — ค้างเกิน 48 ชม. ไม่ตัดสินอัตโนมัติแล้ว ส่งให้แอดมินแทน)
+// งานเก็บกวาดเบื้องหลัง (ลบรูปหลักฐานหมดอายุ + รูปของในตู้เย็นที่หมดอายุ — ค้างเกิน 48 ชม. ไม่ตัดสินอัตโนมัติแล้ว ส่งให้แอดมินแทน)
 // ไม่มี scheduler (Render free tier หลับ) เลยเรียกแบบ lazy จาก route ที่คนเปิดบ่อย (GET /quests, /auth/me,
 // /reviews/queue, /feed) throttle ไว้นาทีละครั้งทั้ง server ไม่ให้ทุก request ต้อง query เพิ่ม
 let lastSweepAt = 0;
@@ -173,7 +174,9 @@ const sweepExpiredSubmissions = async ({ force = false } = {}) => {
   lastSweepAt = now;
 
   const res = await purgeExpiredPhotos();
-  return res.modifiedCount || 0;
+  // รูปของในตู้เย็นที่หมดอายุแล้ว (ของคนที่ไม่ได้เปิดหน้า Fridge ด้วย) — utils/fridgePhotos.js
+  const fridge = await purgeExpiredFridgePhotos();
+  return (res.modifiedCount || 0) + (fridge.modifiedCount || 0);
 };
 
 // เรียกจาก route แบบไม่ให้ request หลักพังถ้า sweep มีปัญหา

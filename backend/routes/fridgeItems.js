@@ -4,11 +4,12 @@ const FridgeItem = require('../models/FridgeItem');
 const authMiddleware = require('../middleware/auth');
 const { deleteExpiryNotifications } = require('../utils/notifications');
 const { decodeImageBase64 } = require('../utils/imageUpload');
+const { purgeExpiredFridgePhotos } = require('../utils/fridgePhotos');
 
 const router = express.Router();
 
-// กันไฟล์ใหญ่ผิดปกติ — ค่าเดียวกับ avatar (ฝั่งแอพย่อเหลือ maxWidth 1200/quality 85 อยู่แล้ว)
-const MAX_FRIDGE_PHOTO_BYTES = 4 * 1024 * 1024;
+// กันไฟล์ใหญ่ผิดปกติ — ฝั่งแอพย่อเหลือด้านยาวสุด 640px quality 70 (~50-100KB) อยู่แล้ว
+const MAX_FRIDGE_PHOTO_BYTES = 2 * 1024 * 1024;
 
 const toClient = (item) => ({
   id: item._id,
@@ -17,6 +18,7 @@ const toClient = (item) => ({
   quantity: item.quantity,
   photoPath: item.photoPath,
   photoUrl: item.photoContentType ? `/fridge-items/${item._id}/photo` : null,
+  photoRemoved: Boolean(item.photoRemovedAt),
 });
 
 // @route   GET /api/fridge-items
@@ -25,6 +27,8 @@ router.get('/', authMiddleware, async (req, res) => {
   try {
     // -photoData กัน Buffer รูปถูกดึงมาทั้งลิสต์โดยไม่ได้ใช้ (แนวเดียวกับ User.avatarData) —
     // รูปจริงดึงทีหลังทีละรูปตอน Image.network ยิงไปที่ GET /:id/photo เอง
+    // ลบรูปของที่หมดอายุของคนนี้ก่อนส่งลิสต์ (sweep รวมทั้ง server ใน utils/submissions.js อาจยังไม่ถึงรอบ)
+    await purgeExpiredFridgePhotos({ userId: req.userId });
     const items = await FridgeItem.find({ userId: req.userId })
       .select('-photoData')
       .sort({ expirationDate: 1 });

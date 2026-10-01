@@ -41,6 +41,11 @@ const FridgeItemSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    // ลบรูปทิ้งอัตโนมัติตอนของหมดอายุ (utils/fridgePhotos.js) — ตัวรายการยังอยู่ให้ผู้ใช้ลบเอง
+    photoRemovedAt: {
+      type: Date,
+      default: null,
+    },
     addedAt: {
       type: Date,
       default: Date.now,

@@ -172,7 +172,7 @@ const ensureExpiryNotifications = async (userId) => {
         type: 'fridge_expiring',
         title: expired ? 'Item Expired' : 'Almost Expired',
         message: expired
-          ? `${item.itemName} expired on ${dateLabel}.`
+          ? `${item.itemName} expired on ${dateLabel}. Its photo was removed to save space — delete the item when you're done with it.`
           : `${item.itemName} expires on ${dateLabel}, only 24 hours remain.`,
         dedupeKey: `expiry:${item._id}:${bucket}`,
       });

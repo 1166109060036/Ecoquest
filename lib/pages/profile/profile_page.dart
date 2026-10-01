@@ -165,8 +165,10 @@ class ProfilePage extends StatelessWidget {
       final picker = ImagePicker();
       final shot = await picker.pickImage(
         source: action == 'camera' ? ImageSource.camera : ImageSource.gallery,
-        maxWidth: 800,
-        imageQuality: 85,
+        // รูปโปรไฟล์โชว์เป็นวงกลมเล็กๆ — 512px พอ (~30-60KB ประหยัด Atlas)
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 75,
       );
       if (shot == null || !context.mounted) return;
 
