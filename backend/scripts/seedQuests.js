@@ -405,6 +405,7 @@ const QUESTS = [
     detail:
       'Join your neighbours to collect litter along the Ishikari river bank. '
       + 'Gloves and bags are provided — just bring yourself and a bit of energy.',
+    imageKey: 'CommunityCleanup.jpg',
     category: 'community',
     type: 'party',
     difficulty: 'hard',
@@ -424,6 +425,7 @@ const QUESTS = [
     detail:
       'Help plant young trees in the city park. Every tree planted keeps absorbing CO2 for decades, '
       + 'so this is one of the highest impact things a group can do in an afternoon.',
+    imageKey: 'TreePlantingDay.jpg',
     category: 'community',
     type: 'party',
     difficulty: 'medium',
@@ -443,6 +445,7 @@ const QUESTS = [
     detail:
       'Collect and sort recyclables from around the neighbourhood together, '
       + 'and help neighbours who are not sure which bag things belong in.',
+    imageKey: 'NeighborhoodRecyclingDrive.jpg',
     category: 'recycling',
     type: 'party',
     difficulty: 'medium',

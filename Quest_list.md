@@ -17,3 +17,5 @@ Use Leftover Ingredients	Easy	Low	10 Point
 Food Saver — 3 Days	Medium	Medium	20 Points
 Food Saver — 7 Days	High	Medium	25 Points
 Community Cleanup	High	High	30 Points
+Community Garden
+Local Nature Activity
