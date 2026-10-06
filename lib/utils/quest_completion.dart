@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/achievement_model.dart';
+import '../widgets/medal_badge.dart';
 import '../models/quest_card_model.dart';
 import '../providers/achievement_provider.dart';
 import '../providers/auth_provider.dart';
@@ -81,11 +82,14 @@ Future<void> handleQuestCompleted(BuildContext context, QuestReward reward) asyn
 
 // เด้งแสดงความยินดีตอนได้เหรียญใหม่ — รองรับกรณีได้หลายเหรียญพร้อมกันด้วย
 Future<void> _showMedalDialog(BuildContext context, List<UnlockedMedal> medals) {
+  // เหรียญหลายขั้น — ไอคอน/ประกายใช้สีของขั้นสูงสุดที่เพิ่งได้ (Gold > Silver > Bronze)
+  const rank = {'bronze': 0, 'silver': 1, 'gold': 2};
+  final best = medals.reduce((a, b) => (rank[b.tier] ?? 0) > (rank[a.tier] ?? 0) ? b : a);
   return LiquidGlassDialog.show<void>(
     context: context,
-    icon: const _BounceIn(child: Icon(Icons.emoji_events, color: Colors.amber, size: 32)),
-    backgroundEffect: const ParticleBurstOverlay(
-      color: Colors.amber,
+    icon: _BounceIn(child: MedalBadge(icon: best.icon, tier: best.tier, ribbonColor: best.color, size: 46)),
+    backgroundEffect: ParticleBurstOverlay(
+      color: best.tierColor,
       particleCount: 14,
       duration: Duration(milliseconds: 700),
     ),
@@ -100,14 +104,22 @@ Future<void> _showMedalDialog(BuildContext context, List<UnlockedMedal> medals) 
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  medal.title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                    color: Colors.white,
-                    shadows: [Shadow(color: Colors.black45, blurRadius: 6)],
-                  ),
+                Row(
+                  children: [
+                    MedalBadge(icon: medal.icon, tier: medal.tier, ribbonColor: medal.color, size: 22, showRibbon: false),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        medal.title,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: Colors.white,
+                          shadows: [Shadow(color: Colors.black45, blurRadius: 6)],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 Text(
                   medal.description,

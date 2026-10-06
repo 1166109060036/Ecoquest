@@ -1,26 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../models/achievement_model.dart';
 import '../../providers/achievement_provider.dart';
 import '../../widgets/breathing_icon.dart';
-import '../../widgets/inventory_card.dart';
 import '../../widgets/leaf_refresh_indicator.dart';
+import '../../widgets/medal_badge.dart';
 import '../../widgets/skeleton_box.dart';
 
-// หน้าดูเหรียญ Achievement ที่ปลดล็อกแล้ว — เข้าจากไอเทม Eco Badge ในหน้า Inventory
-// (แนวเดียวกับที่ไอเทม Fridge เปิดไป FridgePage) ดูอย่างเดียว ไม่มีปุ่มทำอะไรในนี้
-// เหรียญที่ยังไม่ปลดล็อกไม่โชว์ที่นี่ — ไอเทมนี้เป็น "ที่เก็บ" เฉพาะเหรียญที่ทำสำเร็จแล้วเท่านั้น
-// (อยากดูความคืบหน้าของเหรียญที่ยังไม่ปลดล็อก ดูได้จากหน้า Achievements เดิม)
+// หน้าดูเหรียญ Achievement — เข้าจากไอเทม Eco Badge ในหน้า Inventory (แนวเดียวกับที่ไอเทม Fridge เปิดไป FridgePage)
+// เหรียญหลายขั้น (6 ต.ค. 2026): แต่ละหมวดมี Bronze / Silver / Gold — โชว์ทุกหมวด เหรียญที่ได้แล้วขึ้นก่อน
+// พร้อมแถบความคืบหน้าไปขั้นถัดไป (เดิมโชว์แค่ที่ปลดล็อกแล้ว แต่พอมีหลายขั้น "อีกกี่ครั้งถึงขั้นถัดไป" คือเป้าที่ทำให้อยากเล่นต่อ)
 class EcoBadgePage extends StatelessWidget {
   const EcoBadgePage({super.key});
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<AchievementProvider>();
-    // ล่าสุดขึ้นก่อน — เหรียญที่เพิ่งได้มาควรเห็นบนสุด
-    final unlocked = [...provider.unlocked]..sort((a, b) {
-        if (a.unlockedAt == null || b.unlockedAt == null) return 0;
-        return b.unlockedAt!.compareTo(a.unlockedAt!);
+    // ได้ขั้นสูงกว่าขึ้นก่อน → ใกล้ขั้นถัดไปกว่าขึ้นก่อน
+    final medals = [...provider.achievements]..sort((a, b) {
+        final byTier = b.tiersUnlocked.compareTo(a.tiersUnlocked);
+        if (byTier != 0) return byTier;
+        return (b.progress / b.required).compareTo(a.progress / a.required);
       });
+    final earned = medals.fold<int>(0, (sum, m) => sum + m.tiersUnlocked);
+    final total = medals.fold<int>(0, (sum, m) => sum + m.tiersTotal);
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
@@ -38,7 +41,7 @@ class EcoBadgePage extends StatelessWidget {
                   const SizedBox(width: 8),
                   Padding(
                     padding: const EdgeInsets.only(top: 4),
-                    child: Text('${unlocked.length} / ${provider.achievements.length}',
+                    child: Text('$earned / $total',
                         style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
                   ),
                 ],
@@ -52,7 +55,7 @@ class EcoBadgePage extends StatelessWidget {
                       separatorBuilder: (_, _) => const SizedBox(height: 14),
                       itemBuilder: (_, _) => const InventoryCardSkeleton(),
                     )
-                  : unlocked.isEmpty
+                  : medals.isEmpty
                       ? LeafRefreshIndicator(
                           onRefresh: () => context.read<AchievementProvider>().loadAchievements(),
                           child: ListView(
@@ -67,23 +70,132 @@ class EcoBadgePage extends StatelessWidget {
                           onRefresh: () => context.read<AchievementProvider>().loadAchievements(),
                           child: ListView.separated(
                             padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-                            itemCount: unlocked.length,
+                            itemCount: medals.length,
                             separatorBuilder: (_, _) => const SizedBox(height: 14),
-                            itemBuilder: (context, index) {
-                              final medal = unlocked[index];
-                              return InventoryCard(
-                                icon: medal.icon,
-                                iconColor: medal.color,
-                                title: '${medal.title} Medal',
-                                description: medal.description,
-                              );
-                            },
+                            itemBuilder: (context, index) => _MedalTierCard(medal: medals[index]),
                           ),
                         ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+// การ์ดเหรียญ 1 หมวด: ไอคอนสีตามขั้นสูงสุด + ป้ายขั้น + 3 ขั้น (Bronze/Silver/Gold) + แถบไปขั้นถัดไป
+class _MedalTierCard extends StatelessWidget {
+  final AchievementMedalModel medal;
+  const _MedalTierCard({required this.medal});
+
+  @override
+  Widget build(BuildContext context) {
+    final earned = medal.tier != null;
+    final ratio = medal.required == 0 ? 1.0 : (medal.progress / medal.required).clamp(0.0, 1.0);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 12, offset: const Offset(0, 4))],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // เหรียญจริง: โลหะตามขั้นสูงสุดที่ได้ + ริบบิ้นสีหมวด (ยังไม่ได้ = เหรียญเทาจาง)
+          MedalBadge(icon: medal.icon, tier: medal.tier, ribbonColor: medal.color, size: 66),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        medal.title,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: earned ? Colors.black87 : Colors.grey.shade500,
+                        ),
+                      ),
+                    ),
+                    if (earned) ...[
+                      const SizedBox(width: 8),
+                      _TierChip(label: medal.tierLabel ?? '', color: medal.tierColor),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 8),
+                // 3 ขั้น: เหรียญจิ๋ว (ไม่มีริบบิ้น) + จำนวนที่ต้องทำ
+                Row(
+                  children: [
+                    for (final t in medal.tiers) ...[
+                      MedalBadge(
+                        icon: medal.icon,
+                        tier: t.unlocked ? t.tier : null,
+                        ribbonColor: medal.color,
+                        size: 22,
+                        showRibbon: false,
+                      ),
+                      const SizedBox(width: 3),
+                      Text('${t.required}',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: t.unlocked ? Colors.grey.shade700 : Colors.grey.shade400,
+                          )),
+                      const SizedBox(width: 10),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 8),
+                if (medal.maxed)
+                  Text('All tiers complete · ${medal.count} quests',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: medalTierColor('gold')))
+                else ...[
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: LinearProgressIndicator(
+                      value: ratio,
+                      minHeight: 7,
+                      backgroundColor: Colors.grey.shade200,
+                      valueColor: AlwaysStoppedAnimation(medalTierColor(medal.nextTier)),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '${medal.progress} / ${medal.required} to ${medal.nextTierLabel ?? ''} · ${medal.description}',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TierChip extends StatelessWidget {
+  final String label;
+  final Color color;
+  const _TierChip({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.6)),
+      ),
+      child: Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color)),
     );
   }
 }

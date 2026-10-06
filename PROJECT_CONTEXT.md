@@ -43,7 +43,7 @@
 จากเกมทั้งหมดแล้ว** แทนที่ด้วย Daily Streak ข้างบน — ถ้าเจอเอกสาร/โค้ดเก่าที่พูดถึง Rank/Season ให้ถือว่า
 เป็นของเก่าที่ไม่ได้ใช้แล้ว (`backend/models/Season.js`, `backend/utils/seasons.js` ถูกลบทิ้งจริง)
 
-**Achievement medals**: Food Saver, Recycling, Community, Plastic Reduction (เก็บสะสมได้)
+**Achievement medals**: Food Saver, Recycling, Plastic Reduction, Energy Saver, Community — แต่ละหมวด 3 ขั้น Bronze/Silver/Gold (เก็บสะสมได้)
 
 > ⚙️ **สูตรทั้งหมดของ progression อยู่ที่ `backend/utils/progression.js` ไฟล์เดียว** (level curve) และ
 > **สูตรของ Daily Streak อยู่ที่ `backend/utils/streak.js` ไฟล์เดียว** อยากปรับความยาก/ความเร็วของเกมให้
@@ -498,8 +498,17 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` แล
   - นิยามเหรียญ + เงื่อนไขปลดล็อกทั้งหมดอยู่ที่ **`backend/utils/achievements.js` ไฟล์เดียว**
     (แนวเดียวกับ `progression.js`) — อยากปรับให้ปลดล็อกง่ายขึ้นตอนเดโมก็ลดเลข `required` ได้เลย
   - เหรียญตอนนี้: Food Saver / Recycling / Plastic Reduction / **Energy Saver** / Community
-    เงื่อนไข = ทำ quest ในหมวดนั้นครบ **10 ครั้ง** (ยกเว้น Community = 1 ครั้ง เพราะเป็นงานลงพื้นที่จริง)
-  - ⚠️ `medalType` **ห้ามเปลี่ยนหลังมีคนปลดล็อกแล้ว** เพราะเป็นคีย์ที่บันทึกลง DB (มี unique index กันซ้ำ)
+  - 🥉🥈🥇 **เหรียญหลายขั้น (6 ต.ค. 2026)** แต่ละหมวดมี **Bronze / Silver / Gold** — ทำ quest ในหมวดนั้นครบ
+    **10 / 30 / 75 ครั้ง** (Community = **1 / 5 / 15** เพราะเป็น party ลงพื้นที่จริง) เหตุผล: เดิมขั้นเดียว 10 ครั้ง
+    ผู้เล่นทั่วไปได้ครบทุกหมวดใน ~1 เดือนแล้วไม่มีเป้าต่อ (BALANCE_REPORT.md) / เหรียญไม่มีแต้มรางวัล (เป็นสถานะ)
+    - DB: Bronze = `medalType` เดิม (`food_saver`) **เหรียญที่ปลดล็อกก่อนมีขั้นนับเป็น Bronze อัตโนมัติ ไม่ต้อง migrate**
+      / ขั้นอื่น = `food_saver:silver`, `food_saver:gold` (dedupeKey แจ้งเตือน `medal:<key>`) — ปลดล็อกทีละขั้นจากล่างขึ้นบน
+      (ทำรวด 80 ครั้ง = ได้ 3 ขั้นในครั้งเดียว เด้ง dialog เดียวสีของขั้นสูงสุด)
+    - `GET /achievements` 1 แถวต่อหมวด: ฟิลด์เดิม (`unlocked` = Bronze, `required/progress` = ของขั้นถัดไป) + `tier`,
+      `tierLabel`, `nextTier`, `maxed`, `count`, `tiers[]` — แอพเวอร์ชันเก่ายังอ่านได้
+    - แอพ: หน้า Eco Badge โชว์ทุกหมวด (ขั้นสูงก่อน) + 3 ขั้น + แถบไปขั้นถัดไป / โปรไฟล์ผู้เล่น = วงสีตามขั้น / Admin
+      ปุ่ม Unlock = ปลดล็อกขั้นถัดไป (`POST /admin/achievements/:medalType/unlock`, ส่ง `food_saver:gold` = ถึงขั้นนั้นเลย)
+  - ⚠️ `medalType` **ห้ามเปลี่ยนหลังมีคนปลดล็อกแล้ว** เพราะเป็นคีย์ที่บันทึกลง DB (มี unique index กันซ้ำ) — ชื่อขั้นก็ห้ามเปลี่ยนเช่นกัน
   - API ส่งกลับ**ทั้งเหรียญที่ปลดล็อกแล้วและยังไม่ปลดล็อก** พร้อม `progress/required`
     หน้า Inventory เลยโชว์เหรียญที่ยังล็อกเป็นสีเทาพร้อมความคืบหน้า (เช่น `3/10`) ให้เห็นว่าเหลืออีกเท่าไหร่
   - ตอนทำ quest สำเร็จ response จะมี `newAchievements` ติดมาด้วย -> แอพเด้ง dialog แสดงความยินดี

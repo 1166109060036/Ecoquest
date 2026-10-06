@@ -12,7 +12,7 @@ const FridgeItem = require('../models/FridgeItem');
 const authMiddleware = require('../middleware/auth');
 const { adminMiddleware } = require('../middleware/admin');
 const progression = require('../utils/progression');
-const { MEDALS, syncAchievements } = require('../utils/achievements');
+const { TIERS, tierKey, parseTierKey, syncAchievements } = require('../utils/achievements');
 const { ITEMS, withEnergyBoosts } = require('../utils/inventory');
 const { UPGRADES, getUserBonuses, applyBonuses } = require('../utils/upgrades');
 const { createNotification, notifyStreakMilestone } = require('../utils/notifications');
@@ -356,20 +356,32 @@ router.post('/parties/:id/force-complete', async (req, res) => {
 // ---------------------------------------------------------------------------
 
 // @route   POST /api/admin/achievements/:medalType/unlock
-// @desc    ปลดล็อกเหรียญไหนก็ได้ทันที ข้าม required count
+// @desc    ปลดล็อกเหรียญทันที ข้าม required count — เหรียญมีหลายขั้น (utils/achievements.js):
+//          ส่ง medalType ฐาน ('food_saver') = ปลดล็อก "ขั้นถัดไป" ที่ยังไม่ได้ / ส่ง 'food_saver:gold' = ถึงขั้นนั้นเลย
+//          ปลดล็อกขั้นล่างที่ยังไม่ได้ให้ด้วยเสมอ (ขั้นบนต้องมีขั้นล่างก่อน แบบเดียวกับ syncAchievements)
 router.post('/achievements/:medalType/unlock', async (req, res) => {
   try {
-    const medal = MEDALS.find((m) => m.medalType === req.params.medalType);
-    if (!medal) {
+    const parsed = parseTierKey(req.params.medalType);
+    if (!parsed) {
       return res.status(404).json({ message: 'Medal not found' });
     }
+    const { medal } = parsed;
+    let upTo = TIERS.indexOf(parsed.tier);
+    if (!req.params.medalType.includes(':')) {
+      const have = await Achievement.find({ userId: req.userId, medalType: { $in: TIERS.map((t) => tierKey(medal, t)) } }).distinct('medalType');
+      const nextIndex = TIERS.findIndex((t) => !have.includes(tierKey(medal, t)));
+      upTo = nextIndex === -1 ? TIERS.length - 1 : nextIndex;
+    }
 
-    await Achievement.findOneAndUpdate(
-      { userId: req.userId, medalType: medal.medalType },
-      { userId: req.userId, medalType: medal.medalType },
-      { upsert: true, setDefaultsOnInsert: true }
-    );
-    res.json({ message: 'Medal unlocked', medalType: medal.medalType });
+    for (let i = 0; i <= upTo; i++) {
+      const key = tierKey(medal, TIERS[i]);
+      await Achievement.findOneAndUpdate(
+        { userId: req.userId, medalType: key },
+        { userId: req.userId, medalType: key },
+        { upsert: true, setDefaultsOnInsert: true }
+      );
+    }
+    res.json({ message: 'Medal unlocked', medalType: tierKey(medal, TIERS[upTo]), tier: TIERS[upTo] });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });

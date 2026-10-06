@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/achievement_model.dart';
+import '../../widgets/medal_badge.dart';
 import '../../models/public_profile_model.dart';
 import '../../services/user_service.dart';
 import '../../utils/cosmetics.dart';
@@ -225,7 +226,8 @@ class _MedalsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final sorted = [...medals]
       ..sort((a, b) {
-        if (a.unlocked != b.unlocked) return a.unlocked ? -1 : 1;
+        // เหรียญหลายขั้น — ขั้นสูงกว่าขึ้นก่อน
+        if (a.tiersUnlocked != b.tiersUnlocked) return b.tiersUnlocked.compareTo(a.tiersUnlocked);
         return (b.progress / b.required).compareTo(a.progress / a.required);
       });
 
@@ -250,16 +252,8 @@ class _MedalsCard extends StatelessWidget {
                       width: 72,
                       child: Column(
                         children: [
-                          CircleAvatar(
-                            radius: 24,
-                            backgroundColor: (medal.unlocked ? medal.color : Colors.grey)
-                                .withValues(alpha: 0.18),
-                            child: Icon(
-                              medal.icon,
-                              color: medal.unlocked ? medal.color : Colors.grey.shade400,
-                              size: 22,
-                            ),
-                          ),
+                          // เหรียญจริงตามขั้นสูงสุด (Bronze/Silver/Gold) — lib/widgets/medal_badge.dart
+                          MedalBadge(icon: medal.icon, tier: medal.tier, ribbonColor: medal.color, size: 46),
                           const SizedBox(height: 6),
                           Text(
                             medal.title,
@@ -272,6 +266,15 @@ class _MedalsCard extends StatelessWidget {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
+                          if (medal.tierLabel != null)
+                            Text(
+                              medal.tierLabel!,
+                              style: TextStyle(
+                                color: medal.tierColor,
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                         ],
                       ),
                     ),

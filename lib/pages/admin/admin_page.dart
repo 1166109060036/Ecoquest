@@ -378,19 +378,21 @@ class _AdminPageState extends State<AdminPage> {
                   child: ListTile(
                     dense: true,
                     title: Text(m.title),
-                    trailing: m.unlocked
-                        ? const Icon(Icons.check_circle, color: Colors.green)
+                    // เหรียญหลายขั้น — กดแต่ละครั้งปลดล็อกขั้นถัดไป (backend /admin/achievements/:medalType/unlock)
+                    subtitle: Text('${m.tierLabel ?? 'Locked'} · ${m.count} quests'),
+                    trailing: m.maxed
+                        ? Icon(Icons.check_circle, color: m.tierColor)
                         : TextButton(
                             onPressed: () => _run(
                               context,
                               () => admin.service.unlockAchievement(m.medalType),
-                              successMessage: '${m.title} unlocked',
+                              successMessage: '${m.title} ${m.nextTierLabel ?? ''} unlocked',
                               onSuccess: [
                                 () => context.read<AchievementProvider>().loadAchievements(),
                                 () => context.read<InventoryProvider>().loadInventory(),
                               ],
                             ),
-                            child: const Text('Unlock'),
+                            child: Text('Unlock ${m.nextTierLabel ?? ''}'.trim()),
                           ),
                   ),
                 ),
