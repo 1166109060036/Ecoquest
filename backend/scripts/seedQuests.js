@@ -405,7 +405,7 @@ const QUESTS = [
     detail:
       'Join your neighbours to collect litter along the Ishikari river bank. '
       + 'Gloves and bags are provided — just bring yourself and a bit of energy.',
-    imageKey: 'CommunityCleanup.png',
+    imageKey: 'CommunityCleanup.jpg',
     category: 'community',
     type: 'party',
     difficulty: 'hard',
@@ -420,12 +420,16 @@ const QUESTS = [
   },
   {
     title: 'Tree Planting Day',
-    sortOrder: 20,
+    // ⚠️ ปิดใช้งาน (5 ต.ค. 2026) — ผู้ใช้ตัดออก แทนที่ด้วย Local Nature Activity ด้านล่าง ห้ามลบ object นี้:
+    // seed upsert ด้วย title ลบออกเฉยๆ เควสใน DB จะเปิดใช้อยู่ต่อ / ห้องปาร์ตี้เดิมของเควสนี้หายจากลิสต์เอง (routes/party.js กรอง isActive)
+    isActive: false,
+    sortOrder: 22,
+    // ไม่มีไฟล์รูป — ต้องเป็น null ชัดๆ (upsert ไม่ลบค่าเก่า 'TreePlantingDay.png' ที่อาจค้างใน DB ให้)
+    imageKey: null,
     description: 'Ebetsu City Park',
     detail:
       'Help plant young trees in the city park. Every tree planted keeps absorbing CO2 for decades, '
       + 'so this is one of the highest impact things a group can do in an afternoon.',
-    imageKey: 'TreePlantingDay.png',
     category: 'community',
     type: 'party',
     difficulty: 'medium',
@@ -439,13 +443,35 @@ const QUESTS = [
     capacity: 30,
   },
   {
+    // แทน Tree Planting Day (ผู้ใช้เพิ่ม 5 ต.ค. 2026) — รางวัลเท่าเดิม (medium + high = 25) สมดุลแต้มไม่เปลี่ยน
+    title: 'Local Nature Activity',
+    sortOrder: 20,
+    description: 'Nopporo Forest Park',
+    detail:
+      'Spend an afternoon caring for local nature with your neighbours — a guided nature walk, '
+      + 'tidying up a park trail, or helping with a conservation activity. '
+      + "A chance to learn about Ebetsu's plants and wildlife together.",
+    imageKey: 'LocalNatureActivity.jpg',
+    category: 'community',
+    type: 'party',
+    difficulty: 'medium',
+    impact: 'high',
+    xpReward: 25,
+    co2eEstimateKg: null,
+    impactCategory: 'Nature Activities',
+    impactMetric: 'events',
+    overlapGroup: null,
+    location: 'Nopporo Forest Park',
+    capacity: 20,
+  },
+  {
     title: 'Neighborhood Recycling Drive',
     sortOrder: 21,
     description: 'Community Center',
     detail:
       'Collect and sort recyclables from around the neighbourhood together, '
       + 'and help neighbours who are not sure which bag things belong in.',
-    imageKey: 'NeighborhoodRecyclingDrive.png',
+    imageKey: 'NeighborhoodRecyclingDrive.jpg',
     category: 'recycling',
     type: 'party',
     difficulty: 'medium',

@@ -386,6 +386,10 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` แล
   - 🔁 **Refill Your Water Bottle ปิดใช้แล้ว** (รวมเข้า Use a Reusable Bottle) — คงไว้ในไฟล์ seed พร้อม `isActive: false`
     ห้ามลบ object ออก (seed upsert ด้วย title ลบออกเฉยๆ เควสใน DB ยังเปิดอยู่) / Buy Refill Products คงชื่อเดิม
     แต่ข้อความจำกัดเป็นรีฟิลของอื่นที่ไม่ใช่น้ำยาซักผ้า/ล้างจาน
+  - 🌲 **Tree Planting Day ปิดใช้แล้ว (5 ต.ค. 2026)** แทนด้วย party quest **Local Nature Activity** (Nopporo Forest Park,
+    capacity 20, medium+high = 25 แต้มเท่าเดิม) — Tree Planting คงไว้ใน seed พร้อม `isActive: false` + `imageKey: null`
+    (ไม่มีไฟล์รูป) / ห้องปาร์ตี้เดิมของ Tree Planting หายจากลิสต์เอง (`routes/party.js` กรอง `isActive`)
+    รูป party quest ทั้ง 3 (`CommunityCleanup` / `NeighborhoodRecyclingDrive` / `LocalNatureActivity`) เป็น `.jpg` 1254px
   - ✅ `Community Cleanup` เปิดใช้งานแล้ว (เป็น party quest ตัวจริง) — ดูหัวข้อ "ระบบ Party" ด้านล่าง
     ถ้าเปิดตอนนี้จะกลายเป็นกดปุ่มรับ 30 แต้มฟรี
   - ✅ **ค่า `co2eEstimateKg` มีแหล่งอ้างอิงแล้ว** (ข้อมูลญี่ปุ่น — ดู `CO2_RESEARCH.md`) 6 เควสเป็น `null`
