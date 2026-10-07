@@ -398,7 +398,7 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` แล
     แต่ข้อความจำกัดเป็นรีฟิลของอื่นที่ไม่ใช่น้ำยาซักผ้า/ล้างจาน
   - ♻️ **เควสใหม่ Return Containers to the Store (7 ต.ค. 2026)** — ผู้ใช้เลือกจากข่าว 6 ต.ค. 2026 (グリーンコープ共同体
     รายงานสมาชิกส่งคืนภาชนะ 1,320,839 ชิ้นในเดือน ก.ค. 2026): ล้างถาด/กล่องนม/แพ็คไข่/ขวด PET แล้วหย่อนกล่องรับคืนที่ซูเปอร์
-    (店頭回収) — solo recycling easy+low = 10 P, `co2eEstimateKg: null`, **ยังไม่มีรูปเควส** (`imageKey: null`)
+    (店頭回収) — solo recycling easy+low = 10 P, `co2eEstimateKg: null`, รูป `ReturnContainerstothestore.jpg`
     - **ฟอร์มข้อมูลเพิ่มตอนส่งรูป `Quest.proofForm`** (`backend/utils/proofForm.js` ใช้กับเควสไหนก็ได้): เลือกได้หลายอัน
       (ส่งคืนอะไร) + จำนวนชิ้น 1–50 + ชื่อร้าน (ไม่บังคับ) → ตรวจที่ `POST /quests/:id/complete` (`proofDetails`) เก็บใน
       `QuestSubmission.details` → ผู้ตรวจเห็นในหน้า Quest Review ("They reported: …") + บรรทัดเล็กในฟีด / แอพ:

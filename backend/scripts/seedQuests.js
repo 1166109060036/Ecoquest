@@ -127,14 +127,13 @@ const QUESTS = [
     // ผู้ใช้เลือกจากข่าว 6 ต.ค. 2026 (グリーンコープ共同体: สมาชิกส่งคืนภาชนะ 1,320,839 ชิ้น/เดือน ก.ค. 2026 — ของเล็กๆ
     // หลายคนรวมกันได้ผลจริง) ทำตอนไปซื้อของตามปกติ ไม่เสียเงิน — co2eEstimateKg: null (ยังไม่มีค่าต่อชิ้นที่มีที่มา)
     // proofForm = เก็บข้อมูลว่าคืนอะไร/กี่ชิ้น/ร้านไหน (utils/proofForm.js) → รวมเป็นแผนที่จุดรับคืนในเอเบ็ตสึได้ทีหลัง
-    // ⚠️ ยังไม่มีรูปเควส (imageKey null = แอพโชว์ไอคอนแทน) — ใส่ชื่อไฟล์เมื่อมีรูปใน lib/utils/assets/questimg/
     title: 'Return Containers to the Store',
     sortOrder: 23,
     description: 'Recycling Quest',
     detail:
       'Rinse and dry food trays, milk cartons, egg packs or PET bottles, then drop them in a supermarket '
       + 'collection box (店頭回収) while you shop. Take a photo of your items at the box.',
-    imageKey: null,
+    imageKey: 'ReturnContainerstothestore.jpg',
     category: 'recycling',
     type: 'solo',
     difficulty: 'easy',
@@ -520,14 +519,13 @@ const QUESTS = [
   {
     // ผู้ใช้เพิ่ม 7 ต.ค. 2026 (อยู่ใน Quest_list.md) — party quest ดูแลสวน/แปลงผักชุมชนด้วยกัน
     // medium + medium = 20 P (เท่า Recycling Drive) / หมวด community นับเหรียญ Community
-    // ⚠️ ยังไม่มีรูปเควส (imageKey null = แอพโชว์ไอคอนแทน) — ใส่ชื่อไฟล์เมื่อมีรูปใน lib/utils/assets/questimg/
     title: 'Community Garden',
     sortOrder: 24,
     description: 'Community Garden',
     detail:
       'Spend an afternoon with your neighbours at a community garden — weeding, watering, planting seasonal '
       + 'vegetables or flowers, and turning plant scraps into compost. Learn to grow food locally together.',
-    imageKey: null,
+    imageKey: 'CommunityGardenParty.jpg',
     category: 'community',
     type: 'party',
     difficulty: 'medium',
