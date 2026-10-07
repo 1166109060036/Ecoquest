@@ -9,11 +9,11 @@
 // แต้ม/XP/CO2 ได้ตอนผ่านเท่านั้น (utils/questRewards.js#awardQuest)
 const crypto = require('crypto');
 const QuestSubmission = require('../models/QuestSubmission');
-const QuestHistory = require('../models/QuestHistory');
 const QuestProgress = require('../models/QuestProgress');
 const Quest = require('../models/Quest');
 const Party = require('../models/Party');
-const { awardQuest } = require('./questRewards');
+const { awardQuest, awardCheckInDay } = require('./questRewards');
+const { finalDayBase } = require('./checkInRewards');
 const { comboForSubmission } = require('./combo');
 const { notifyQuestApproved, notifyQuestRejected } = require('./notifications');
 const { avatarUrlFor, cosmeticsFor } = require('./avatar');
@@ -72,18 +72,13 @@ const finalizeSubmission = async (submissionId, status, decidedBy) => {
 
   if (status === 'approved') {
     if (checkIn && !checkIn.finished) {
-      // เช็คอินวันระหว่างทาง — ไม่ได้แต้ม แต่ได้แถว checkIn ที่นับ CO2 ของวันนั้น (ดู QuestHistory.checkIn)
-      await QuestHistory.create({
-        userId: submission.userId,
-        questId: quest._id,
-        pointsEarned: 0,
-        xpEarned: 0,
-        checkIn: true,
-        completedAt: submission.createdAt,
-      });
-      await safeNotify(() =>
-        notifyQuestApproved(submission.userId, quest, submission._id, { points: 0, xp: 0 }, checkIn)
-      );
+      // เช็คอินวันระหว่างทาง — ได้แต้มรายวัน (6 ต.ค. 2026 เดิมได้ 0) + แถว checkIn ที่นับ CO2 ของวันนั้น
+      // ยังไม่นับเป็นทำเควสสำเร็จ (เหรียญ/Bingo/ยอดรวมนับตอนจบ) — utils/questRewards.js#awardCheckInDay
+      const result = await awardCheckInDay(submission.userId, quest, { completedAt: submission.createdAt });
+      const reward = result ? { points: result.reward.points, xp: result.reward.xp, comboMultiplier: 1 } : { points: 0, xp: 0 };
+      await QuestSubmission.updateOne({ _id: submission._id }, { $set: { reward } });
+      submission.reward = reward;
+      await safeNotify(() => notifyQuestApproved(submission.userId, quest, submission._id, reward, checkIn));
       return submission;
     }
 
@@ -93,8 +88,10 @@ const finalizeSubmission = async (submissionId, status, decidedBy) => {
       submission.kind === 'quest' ? (await comboForSubmission(submission)).multiplier : 1;
 
     // เควสปกติ / วันสุดท้ายของเควสหลายวัน / ปาร์ตี้ (ทุกคนในห้อง)
+    // วันสุดท้ายของเควสหลายวัน = รายวัน + โบนัสจบเควส (utils/checkInRewards.js) แทนแต้มเควสเฉยๆ
+    const base = checkIn && checkIn.finished ? finalDayBase(quest) : null;
     for (const userId of recipientsOf(submission)) {
-      const result = await awardQuest(userId, quest, { completedAt: submission.createdAt, comboMultiplier });
+      const result = await awardQuest(userId, quest, { completedAt: submission.createdAt, comboMultiplier, base });
       if (!result) continue; // user ถูกลบไปแล้ว
       if (String(userId) === String(submission.userId)) {
         const reward = { points: result.reward.points, xp: result.reward.xp, comboMultiplier };
@@ -203,6 +200,8 @@ const toSubmissionPayload = (s, viewerId = null) => ({
   // ค้างเกิน 48 ชม. — รอแอดมินตัดสิน (แอพโชว์ "Waiting for an admin" / ป้ายในคิวของแอดมิน)
   escalated: isEscalated(s),
   checkIn: s.kind === 'check_in' ? s.checkIn : null,
+  // ข้อมูลจากฟอร์มของเควส (utils/proofForm.js) — ผู้ตรวจใช้ประกอบการดูรูป
+  details: s.details && (s.details.choices || s.details.count || s.details.place) ? s.details : null,
   reward: s.reward || { points: 0, xp: 0 },
   quest: s.questId && s.questId.title
     ? {

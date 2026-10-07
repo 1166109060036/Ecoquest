@@ -366,14 +366,21 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` แล
     ตอนนี้มีกลุ่มเดียวคือ `food_saver` (Food Saver 1 Day / 3 Days / 7 Days)
     - เลือกด้วย hash ของ `(userId + วันที่ + ชื่อกลุ่ม)` → **สุ่มแต่คงที่**: คนเดิมได้อันเดิมทั้งวัน
       ดึงรีเฟรชกี่ครั้งก็ไม่เปลี่ยน (กันรีเฟรชรัวๆ จนได้อันคะแนนสูงสุด) ข้ามเที่ยงคืนถึงสุ่มใหม่
-    - ทดสอบแล้ว: คนละคนได้คนละอัน, เรียกซ้ำได้อันเดิม, กระจายตัว ≈33% เท่ากันทั้ง 3 อัน
+    - ทดสอบแล้ว: คนละคนได้คนละอัน, เรียกซ้ำได้อันเดิม
+    - **สุ่มถ่วงน้ำหนัก `Quest.poolWeight` (6 ต.ค. 2026)** Food Saver 1/3/7 Days = 1/2/2 → เห็นเควสหลายวัน ~80% ของวัน
+      (เดิมเท่ากัน 33%) ดันให้คนเลือกเควสหลายวัน
     - เพิ่มกลุ่มใหม่ได้แค่ใส่ `randomPool: 'ชื่อกลุ่ม'` ให้ quest หลายอัน ไม่ต้องแก้โค้ด route
   - 📅 **เควสหลายวัน (`Quest.durationDays` > 1 — Food Saver 3/7 Days)** — กด Start ครั้งเดียว แล้วกด "Check in" ใน
-    หน้า Progress วันละครั้ง (`POST /:id/complete` เดิม) จนครบ ได้แต้ม/XP ทั้งก้อนตอนวันสุดท้าย ลืมวันไหนนับใหม่เป็น
-    วันที่ 1 (ผู้ใช้ตัดสินใจ — เหมือน Daily Streak)
+    หน้า Progress วันละครั้ง (`POST /:id/complete` เดิม) จนครบ ลืมวันไหนนับใหม่เป็นวันที่ 1 (ผู้ใช้ตัดสินใจ — เหมือน Daily Streak)
+    - 💰 **รางวัล (6 ต.ค. 2026 ผู้ใช้สั่งให้เควสหลายวันน่าสนใจกว่าวันเดียว)** `utils/checkInRewards.js`: ทุกวันที่เช็คอินผ่าน
+      ได้ **+12 P/XP** (`awardCheckInDay` — แถว checkIn เก็บแต้มด้วย แต่ไม่นับเหรียญ/Bingo/totalQuestsCompleted) + วันสุดท้าย
+      ได้ **โบนัสจบ = แต้มเควส × (วัน − 1)** (`awardQuest(..., { base: finalDayBase })`) → 3 Days = 76 P (~25/วัน),
+      7 Days = 234 P (~33/วัน) เทียบ 1 Day = 15 P — เดิมวันระหว่างทางได้ 0 และ 7 Days ได้แค่ 25 P / ไม่มีคอมโบ /
+      payload ส่ง `checkInReward {daily, completionBonus, total}` แอพโชว์แต้มรวม + ชิปส้ม "7 days · +150 bonus" + กล่องแจกแจง
+      ในหน้ารายละเอียด / แจ้งเตือนผ่านแต่ละวันมีแต้ม → แอพเล่นเอฟเฟครางวัลทุกวัน
     - ความคืบหน้าเก็บที่ `QuestProgress.daysDone` + `lastCheckInDay` — กันเช็คอินซ้ำวันเดียวกันจากตรงนี้ ไม่ใช่จาก
       QuestHistory เพราะ Super Energy ลบแค่ QuestHistory ของวันนี้ (ถ้าเช็คจาก QuestHistory จะเช็คอินซ้ำได้)
-    - เช็คอินระหว่างทางเขียน QuestHistory `checkIn: true` แต้ม 0 — ให้ gate รายวัน / CO₂ (ค่ารวม ÷ durationDays ต่อแถว)
+    - เช็คอินระหว่างทางเขียน QuestHistory `checkIn: true` (แต้มรายวัน 12) — ให้ gate รายวัน / CO₂ (ค่ารวม ÷ durationDays ต่อแถว)
       / Daily Streak นับวันนั้นได้ ⚠️ **ต้องกรอง `checkIn: { $ne: true }` ทุกที่ที่นับ "ทำเควสสำเร็จ"** (ประวัติ
       `/history` + โปรไฟล์คนอื่น, เหรียญ `countByCategory`, backfill `totalQuestsCompleted`) เพิ่ม query ใหม่ต้องจำไว้
     - response ของ complete มี `checkIn: {daysDone, durationDays, restarted, finished}` — แอพเช็ค
@@ -386,6 +393,14 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` แล
   - 🔁 **Refill Your Water Bottle ปิดใช้แล้ว** (รวมเข้า Use a Reusable Bottle) — คงไว้ในไฟล์ seed พร้อม `isActive: false`
     ห้ามลบ object ออก (seed upsert ด้วย title ลบออกเฉยๆ เควสใน DB ยังเปิดอยู่) / Buy Refill Products คงชื่อเดิม
     แต่ข้อความจำกัดเป็นรีฟิลของอื่นที่ไม่ใช่น้ำยาซักผ้า/ล้างจาน
+  - ♻️ **เควสใหม่ Return Containers to the Store (7 ต.ค. 2026)** — ผู้ใช้เลือกจากข่าว 6 ต.ค. 2026 (グリーンコープ共同体
+    รายงานสมาชิกส่งคืนภาชนะ 1,320,839 ชิ้นในเดือน ก.ค. 2026): ล้างถาด/กล่องนม/แพ็คไข่/ขวด PET แล้วหย่อนกล่องรับคืนที่ซูเปอร์
+    (店頭回収) — solo recycling easy+low = 10 P, `co2eEstimateKg: null`, **ยังไม่มีรูปเควส** (`imageKey: null`)
+    - **ฟอร์มข้อมูลเพิ่มตอนส่งรูป `Quest.proofForm`** (`backend/utils/proofForm.js` ใช้กับเควสไหนก็ได้): เลือกได้หลายอัน
+      (ส่งคืนอะไร) + จำนวนชิ้น 1–50 + ชื่อร้าน (ไม่บังคับ) → ตรวจที่ `POST /quests/:id/complete` (`proofDetails`) เก็บใน
+      `QuestSubmission.details` → ผู้ตรวจเห็นในหน้า Quest Review ("They reported: …") + บรรทัดเล็กในฟีด / แอพ:
+      `lib/models/proof_form.dart` + ช่องกรอกใน `proof_capture_sheet.dart` (ปุ่มส่งกดไม่ได้จนเลือกอย่างน้อย 1 อย่าง)
+    - ต่อยอดได้: รวมชื่อร้านเป็นแผนที่จุดรับคืนในเอเบ็ตสึ / นับจำนวนชิ้นรวมใน City Impact
   - 🌲 **Tree Planting Day ปิดใช้แล้ว (5 ต.ค. 2026)** แทนด้วย party quest **Local Nature Activity** (Nopporo Forest Park,
     capacity 20, medium+high = 25 แต้มเท่าเดิม) — Tree Planting คงไว้ใน seed พร้อม `isActive: false` + `imageKey: null`
     (ไม่มีไฟล์รูป) / ห้องปาร์ตี้เดิมของ Tree Planting หายจากลิสต์เอง (`routes/party.js` กรอง `isActive`)

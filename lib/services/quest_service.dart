@@ -60,6 +60,7 @@ class QuestService {
     String questId, {
     Uint8List? photoBytes,
     String? photoContentType,
+    Map<String, dynamic>? proofDetails, // คำตอบฟอร์มของเควส (models/proof_form.dart)
   }) async {
     final token = await _storage.getToken();
     final response = await http.post(
@@ -71,6 +72,7 @@ class QuestService {
       body: jsonEncode({
         if (photoBytes != null) 'photoBase64': base64Encode(photoBytes),
         if (photoContentType != null) 'photoContentType': photoContentType,
+        'proofDetails': ?proofDetails,
       }),
     );
 

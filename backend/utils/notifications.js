@@ -96,7 +96,9 @@ const notifyQuestApproved = async (userId, quest, submissionId, reward, checkIn 
     type: 'quest_approved',
     title: isDayCheckIn ? 'Check-in Approved' : 'Quest Approved',
     message: isDayCheckIn
-      ? `${quest.title} · Day ${checkIn.daysDone}/${checkIn.durationDays} verified`
+      ? `${quest.title} · Day ${checkIn.daysDone}/${checkIn.durationDays} verified${reward.points ? ` · +${reward.points} points` : ''}`
+      : checkIn && checkIn.finished
+      ? `${quest.title} complete! · +${reward.points} points, +${reward.xp} XP (incl. ${checkIn.durationDays}-day bonus)`
       : `${quest.title} · +${reward.points} points, +${reward.xp} XP${
           reward.comboMultiplier && reward.comboMultiplier !== 1 ? ` (combo ×${reward.comboMultiplier})` : ''
         }`,

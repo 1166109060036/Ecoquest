@@ -96,6 +96,7 @@ class _ProgressPageState extends State<ProgressPage> {
         context,
         title: quest.isMultiDay ? 'Check in with a photo' : 'Show that you did it',
         hint: quest.detail.isNotEmpty ? quest.detail : 'Take a clear photo that shows you completed "${quest.title}".',
+        form: quest.proofForm,
       );
       if (proof == null || !mounted) return;
     }
@@ -104,6 +105,7 @@ class _ProgressPageState extends State<ProgressPage> {
       quest.id,
       photoBytes: proof?.bytes,
       photoContentType: proof?.contentType,
+      proofDetails: proof?.details?.toJson(),
     );
 
     if (!mounted) return;
@@ -132,6 +134,8 @@ class _ProgressPageState extends State<ProgressPage> {
         total: checkIn.durationDays,
         restarted: checkIn.restarted,
         pending: reward.isPending,
+        // แต้มของวันนี้ (backend/utils/checkInRewards.js) — backend เก่าไม่มี checkInReward = ไม่บอก
+        rewardPoints: quest.checkInReward?.daily.points,
       );
       return;
     }
@@ -149,6 +153,10 @@ class _ProgressPageState extends State<ProgressPage> {
           total: checkIn.durationDays,
           finished: true,
           pending: true,
+          // วันสุดท้าย = แต้มรายวัน + โบนัสจบเควส (backend/utils/checkInRewards.js)
+          rewardPoints: quest.checkInReward == null
+              ? null
+              : quest.checkInReward!.daily.points + quest.checkInReward!.completionBonus.points,
         );
       } else {
         showBubbleToast(context, _sentForReviewMessage(quest, reward.combo));

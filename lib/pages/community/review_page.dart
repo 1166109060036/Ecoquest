@@ -295,6 +295,29 @@ class _SubmissionCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(quest.detail, style: TextStyle(fontSize: 12.5, color: Colors.grey.shade700, height: 1.45)),
                 ],
+                // ข้อมูลที่ผู้ส่งกรอกตามฟอร์มของเควส (เช่น ส่งคืนอะไร/กี่ชิ้น/ร้านไหน) — ให้ผู้ตรวจเทียบกับรูป
+                if (s.details != null && s.details!.summary.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                    decoration: BoxDecoration(
+                      color: Colors.teal.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.fact_check_outlined, size: 18, color: Colors.teal.shade700),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text('They reported: ${s.details!.summary}',
+                              style: TextStyle(fontSize: 12.5, height: 1.4, color: Colors.teal.shade900)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 12),
                 // รูปที่ผ่านจะขึ้นฟีดให้ทุกคนเห็น — กันข้อมูลส่วนตัวหลุดตั้งแต่ขั้นตรวจ
                 const PrivacyNotice(

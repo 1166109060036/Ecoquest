@@ -166,6 +166,7 @@ Future<void> showCheckInCelebration(
   bool restarted = false,
   bool finished = false,
   bool pending = false,
+  int? rewardPoints, // แต้มที่จะได้ของวันนี้ (รายวัน / วันสุดท้าย = รายวัน + โบนัสจบ) — null = ไม่บอก
 }) {
   final overlay = Overlay.of(context);
   final done = Completer<void>();
@@ -184,6 +185,7 @@ Future<void> showCheckInCelebration(
       restarted: restarted,
       finished: finished,
       pending: pending,
+      rewardPoints: rewardPoints,
       onClose: close,
     ),
   );
@@ -198,6 +200,7 @@ class _CheckInCelebration extends StatefulWidget {
   final bool restarted;
   final bool finished;
   final bool pending;
+  final int? rewardPoints;
   final VoidCallback onClose;
 
   const _CheckInCelebration({
@@ -206,6 +209,7 @@ class _CheckInCelebration extends StatefulWidget {
     required this.restarted,
     required this.finished,
     required this.pending,
+    this.rewardPoints,
     required this.onClose,
   });
 
@@ -251,7 +255,11 @@ class _CheckInCelebrationState extends State<_CheckInCelebration> with SingleTic
     final Color titleColor;
     if (widget.finished) {
       title = 'All ${widget.total} days done!';
-      subtitle = widget.pending ? 'Sent for review — your reward comes once it is approved' : 'Quest complete';
+      subtitle = widget.pending
+          ? (widget.rewardPoints != null
+              ? 'Sent for review — +${widget.rewardPoints} P with the finish bonus once approved'
+              : 'Sent for review — your reward comes once it is approved')
+          : 'Quest complete';
       titleColor = Colors.greenAccent;
     } else if (widget.restarted) {
       title = 'Missed a day';
@@ -261,7 +269,10 @@ class _CheckInCelebrationState extends State<_CheckInCelebration> with SingleTic
       title = widget.pending
           ? 'Day ${widget.daysDone}/${widget.total} sent for review'
           : 'Day ${widget.daysDone}/${widget.total} checked in';
-      subtitle = 'See you tomorrow!';
+      // บอกแต้มของวันนี้ (เควสหลายวันได้ทุกวันที่เช็คอินผ่าน — backend/utils/checkInRewards.js)
+      subtitle = widget.rewardPoints != null
+          ? (widget.pending ? '+${widget.rewardPoints} P once approved — see you tomorrow!' : '+${widget.rewardPoints} P — see you tomorrow!')
+          : 'See you tomorrow!';
       titleColor = Colors.white;
     }
 

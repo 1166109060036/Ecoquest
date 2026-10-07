@@ -316,7 +316,7 @@ class _MainCard extends StatelessWidget {
                                 fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87)),
                         const Spacer(),
                         Text(
-                          '+${quest.pointsReward} P',
+                          '+${quest.displayPoints} P',
                           style: const TextStyle(
                               fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
                         ),
@@ -428,22 +428,21 @@ class _RewardCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _SectionCard(
-      title: 'What you get',
-      child: Row(
+    final checkIn = quest.checkInReward;
+    final row = Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _RewardItem(
             icon: Icons.stars_rounded,
             color: Colors.amber.shade700,
-            value: '+${quest.pointsReward}',
-            label: 'Points',
+            value: '+${quest.displayPoints}',
+            label: checkIn != null ? 'Points total' : 'Points',
           ),
           _RewardItem(
             icon: Icons.trending_up_rounded,
             color: Colors.green,
-            value: '+${quest.xpReward}',
-            label: 'XP',
+            value: '+${quest.displayXp}',
+            label: checkIn != null ? 'XP total' : 'XP',
           ),
           _RewardItem(
             icon: Icons.cloud_outlined,
@@ -452,7 +451,53 @@ class _RewardCard extends StatelessWidget {
             label: 'CO₂ saved',
           ),
         ],
-      ),
+      );
+    return _SectionCard(
+      title: 'What you get',
+      child: checkIn == null
+          ? row
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                row,
+                const SizedBox(height: 12),
+                // เควสหลายวัน: แจกแจงรายวัน + โบนัสจบ (backend/utils/checkInRewards.js)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.orange.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.local_fire_department, size: 18, color: Colors.orange.shade700),
+                          const SizedBox(width: 6),
+                          Text('${quest.durationDays}-day challenge',
+                              style: TextStyle(
+                                  fontSize: 13, fontWeight: FontWeight.bold, color: Colors.orange.shade900)),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '+${checkIn.daily.points} P every day you check in, '
+                        'plus a +${checkIn.completionBonus.points} P bonus when you finish all ${quest.durationDays} days.',
+                        style: TextStyle(fontSize: 12.5, height: 1.4, color: Colors.grey.shade800),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Miss a day and you start again from Day 1 — points you already earned are kept.',
+                        style: TextStyle(fontSize: 11.5, height: 1.4, color: Colors.grey.shade600),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
     );
   }
 }

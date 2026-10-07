@@ -584,6 +584,14 @@ class _FeedPostCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: Color(0xFF1B5E20))),
+                      // ข้อมูลที่ผู้ส่งกรอก (เช่น "Food trays · 6 items · at …") — backend/utils/proofForm.js
+                      if (post.details != null && post.details!.summary.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(post.details!.summary,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                      ],
                       const SizedBox(height: 4),
                       if (co2 != null && co2 > 0)
                         Container(

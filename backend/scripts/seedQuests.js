@@ -123,6 +123,36 @@ const QUESTS = [
     overlapGroup: null,
     isDaily: true,
   },
+  {
+    // ผู้ใช้เลือกจากข่าว 6 ต.ค. 2026 (グリーンコープ共同体: สมาชิกส่งคืนภาชนะ 1,320,839 ชิ้น/เดือน ก.ค. 2026 — ของเล็กๆ
+    // หลายคนรวมกันได้ผลจริง) ทำตอนไปซื้อของตามปกติ ไม่เสียเงิน — co2eEstimateKg: null (ยังไม่มีค่าต่อชิ้นที่มีที่มา)
+    // proofForm = เก็บข้อมูลว่าคืนอะไร/กี่ชิ้น/ร้านไหน (utils/proofForm.js) → รวมเป็นแผนที่จุดรับคืนในเอเบ็ตสึได้ทีหลัง
+    // ⚠️ ยังไม่มีรูปเควส (imageKey null = แอพโชว์ไอคอนแทน) — ใส่ชื่อไฟล์เมื่อมีรูปใน lib/utils/assets/questimg/
+    title: 'Return Containers to the Store',
+    sortOrder: 23,
+    description: 'Recycling Quest',
+    detail:
+      'Rinse and dry food trays, milk cartons, egg packs or PET bottles, then drop them in a supermarket '
+      + 'collection box (店頭回収) while you shop. Take a photo of your items at the box.',
+    imageKey: null,
+    category: 'recycling',
+    type: 'solo',
+    difficulty: 'easy',
+    impact: 'low',
+    xpReward: 10,
+    co2eEstimateKg: null,
+    impactCategory: 'Containers Returned',
+    impactMetric: 'items',
+    overlapGroup: null,
+    isDaily: true,
+    proofForm: {
+      choiceLabel: 'What did you return?',
+      choices: ['Food trays', 'Milk cartons', 'Egg packs', 'PET bottles', 'Other'],
+      countLabel: 'How many items?',
+      countMax: 50,
+      placeLabel: 'Store name (optional)',
+    },
+  },
 
   // -------------------------------------------------------------------- plastic
   {
@@ -345,6 +375,7 @@ const QUESTS = [
     overlapGroup: 'food_waste',
     isDaily: true,
     randomPool: 'food_saver',
+    poolWeight: 1, // สุ่มในกลุ่มถ่วงน้ำหนัก — เควสหลายวันโผล่บ่อยกว่า (utils/questSelection.js)
   },
   {
     title: 'Food Saver — 3 Days',
@@ -368,6 +399,7 @@ const QUESTS = [
     overlapGroup: 'food_waste',
     isDaily: true,
     randomPool: 'food_saver',
+    poolWeight: 2, // สุ่มในกลุ่มถ่วงน้ำหนัก — เควสหลายวันโผล่บ่อยกว่า (utils/questSelection.js)
   },
   {
     title: 'Food Saver — 7 Days',
@@ -390,6 +422,7 @@ const QUESTS = [
     overlapGroup: 'food_waste',
     isDaily: true,
     randomPool: 'food_saver',
+    poolWeight: 2, // สุ่มในกลุ่มถ่วงน้ำหนัก — เควสหลายวันโผล่บ่อยกว่า (utils/questSelection.js)
   },
 
   // ------------------------------------------------------------------------

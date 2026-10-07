@@ -46,6 +46,13 @@ const QuestSubmissionSchema = new mongoose.Schema(
       durationDays: Number,
       finished: Boolean,
     },
+    // ข้อมูลที่กรอกเพิ่มตามฟอร์มของเควส (Quest.proofForm — utils/proofForm.js) เช่น ส่งคืนอะไร / กี่ชิ้น / ร้านไหน
+    // ไม่มีฟอร์ม = ไม่มีฟิลด์นี้
+    details: {
+      choices: { type: [String], default: undefined },
+      count: Number,
+      place: String,
+    },
     // ---- รูปหลักฐาน ---- เก็บเป็น Buffer ในเอกสารเลยแบบรูปในตู้เย็น (FridgeItem.photoData) — Render free tier
     // เก็บไฟล์ถาวรไม่ได้ เสิร์ฟผ่าน GET /api/submissions/:id/photo (ไม่ต้อง login แบบรูปโปรไฟล์)
     // ⚠️ ไม่ required — ไม่ผ่านการตรวจ/ผ่านแล้วข้ามวัน ถูกลบทิ้ง (purgeExpiredPhotos ใน utils/submissions.js)

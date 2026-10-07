@@ -1,3 +1,4 @@
+import 'proof_form.dart';
 import '../utils/constants.dart';
 import 'friend_model.dart';
 
@@ -25,6 +26,8 @@ class SubmissionModel {
   final bool cheeredByMe;
   // ฟีด: คนดูถอนโพสต์นี้ได้ไหม (แอดมิน = ทุกโพสต์ / เจ้าของ = ของตัวเอง) — backend/routes/feed.js
   final bool canRemove;
+  // ข้อมูลที่กรอกตามฟอร์มของเควส (เช่น ส่งคืนอะไร/กี่ชิ้น/ร้านไหน) — null = ไม่มี
+  final ProofDetails? details;
 
   SubmissionModel({
     required this.id,
@@ -45,6 +48,7 @@ class SubmissionModel {
     this.cheers = 0,
     this.cheeredByMe = false,
     this.canRemove = false,
+    this.details,
   });
 
   bool get isParty => kind == 'party';
@@ -74,6 +78,9 @@ class SubmissionModel {
       cheers: json['cheers'] ?? 0,
       cheeredByMe: json['cheeredByMe'] ?? false,
       canRemove: json['canRemove'] == true,
+      details: json['details'] is Map<String, dynamic>
+          ? ProofDetails.fromJson(json['details'] as Map<String, dynamic>)
+          : null,
     );
   }
 
@@ -96,6 +103,7 @@ class SubmissionModel {
         cheers: cheers ?? this.cheers,
         cheeredByMe: cheeredByMe ?? this.cheeredByMe,
         canRemove: canRemove,
+        details: details,
       );
 }
 

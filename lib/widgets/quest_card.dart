@@ -122,8 +122,9 @@ class QuestCard extends StatelessWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
+                        // เควสหลายวัน = แต้มรวมทั้งเควส (รายวัน + โบนัสจบ) ให้เห็นว่าคุ้มกว่าเควสวันเดียว
                         Text(
-                          '+${quest.pointsReward.toString().padLeft(3, '0')} P',
+                          '+${quest.displayPoints.toString().padLeft(3, '0')} P',
                           style: const TextStyle(
                             color: Colors.green,
                             fontSize: 11,
@@ -170,6 +171,7 @@ class QuestCard extends StatelessWidget {
                               checkedInToday: quest.checkedInToday,
                               progressMode: progressMode,
                               comboMultiplier: quest.comboMultiplier,
+                              completionBonus: quest.checkInReward?.completionBonus.points,
                             )
                           : _PartyEventInfoRow(
                               location: quest.location,
@@ -388,6 +390,8 @@ class _SoloInfoRow extends StatelessWidget {
   final bool progressMode;
   // Daily Variety Combo ถ้าทำเควสนี้ตอนนี้ (backend/utils/combo.js) — โชว์เฉพาะตอนไม่ใช่ ×1
   final double? comboMultiplier;
+  // โบนัสจบเควสหลายวัน (backend/utils/checkInRewards.js) — null = backend เก่า / เควสวันเดียว
+  final int? completionBonus;
 
   const _SoloInfoRow({
     required this.timesToday,
@@ -396,6 +400,7 @@ class _SoloInfoRow extends StatelessWidget {
     this.checkedInToday = false,
     this.progressMode = false,
     this.comboMultiplier,
+    this.completionBonus,
   });
 
   @override
@@ -405,6 +410,39 @@ class _SoloInfoRow extends StatelessWidget {
       // เช็คอินวันนี้แล้ว = ไอคอนติ๊กสีเขียวบอกอยู่แล้ว ไม่ต่อข้อความยาว (ช่องนี้แคบ ปุ่มด้านขวากินที่เยอะ)
       final label = progressMode ? 'Day $daysDone/$durationDays' : '$durationDays-day check-in';
       final done = progressMode && checkedInToday;
+      final bonus = completionBonus;
+      // หน้า Explore: ชิปสีส้มบอกโบนัสจบเควสให้เด่น — ดึงให้คนเลือกเควสหลายวัน (ผู้ใช้สั่ง 6 ต.ค. 2026)
+      if (!progressMode && bonus != null && bonus > 0) {
+        return Row(
+          children: [
+            Flexible(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.local_fire_department, size: 12, color: Colors.orange.shade700),
+                    const SizedBox(width: 3),
+                    Flexible(
+                      child: Text(
+                        '$durationDays days · +$bonus bonus',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.orange.shade800),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+      }
       return Row(
         children: [
           // หน้า Progress = วงแหวนเล็กบอกว่าเช็คอินไปกี่ช่องแล้ว (ช่องใหม่เติมสีเองตอนเช็คอินแล้วลิสต์โหลดใหม่)

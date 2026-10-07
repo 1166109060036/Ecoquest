@@ -117,6 +117,19 @@ const QuestSchema = new mongoose.Schema(
       default: null,
       index: true,
     },
+    // ฟอร์มเก็บข้อมูลเพิ่มตอนส่งรูปหลักฐาน (utils/proofForm.js) — null = ส่งแค่รูปเหมือนเดิม
+    // { choiceLabel, choices: [String], countLabel, countMax, placeLabel }
+    proofForm: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+    // น้ำหนักตอนสุ่มในกลุ่ม randomPool (utils/questSelection.js) — มาก = โผล่บ่อย / Food Saver 3 & 7 วันหนักกว่า 1 วัน
+    // เพื่อดันให้คนเห็นเควสหลายวันบ่อยกว่า (ผู้ใช้สั่ง 6 ต.ค. 2026)
+    poolWeight: {
+      type: Number,
+      default: 1,
+      min: 1,
+    },
     // true = ทำซ้ำได้วันละครั้ง (เช็คจาก QuestHistory ของวันนั้น)
     // false = ไม่จำกัด (ยังไม่มี quest แบบทำได้ครั้งเดียวตลอดชีพ ถ้าจะมีค่อยเพิ่มฟิลด์ทีหลัง)
     isDaily: {
@@ -124,7 +137,7 @@ const QuestSchema = new mongoose.Schema(
       default: false,
     },
     // จำนวนวันที่ต้องเช็คอินติดกันถึงจะจบเควส (Food Saver 3/7 วัน) — 1 = เควสปกติ กด Complete ครั้งเดียวจบ
-    // มากกว่า 1: กด Complete วันละครั้ง = เช็คอิน, ลืมวันไหนนับใหม่ตั้งแต่วันที่ 1, ได้แต้ม/XP ทั้งก้อนตอนครบ
+    // มากกว่า 1: กด Complete วันละครั้ง = เช็คอิน, ลืมวันไหนนับใหม่ตั้งแต่วันที่ 1, ได้แต้มทุกวันที่ผ่าน + โบนัสจบตอนครบ (utils/checkInRewards.js)
     // (ดู POST /:id/complete ใน routes/quests.js) และ co2eEstimateKg เป็นค่ารวมทุกวัน หารเฉลี่ยลงแต่ละวันที่เช็คอิน
     durationDays: {
       type: Number,

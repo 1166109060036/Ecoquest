@@ -27,8 +27,20 @@ const selectVisibleQuests = (allQuests, userId, soloLimit, dayKey = todayKey()) 
     if (!pools.has(q.randomPool)) pools.set(q.randomPool, []);
     pools.get(q.randomPool).push(q);
   }
+  // สุ่มถ่วงน้ำหนักด้วย poolWeight (ไม่มี = 1) — Food Saver 1/3/7 = 1/2/2 → เห็นเควสหลายวัน 80% ของวัน
+  // ยังคงที่ทั้งวันเหมือนเดิม (hash ของ user + วัน) / ลำดับในกลุ่มตาม allQuests (sortOrder) ให้ผลคงที่
   for (const [poolName, poolQuests] of pools) {
-    candidates.push(poolQuests[dailyHash(userId, poolName, dayKey) % poolQuests.length]);
+    const weights = poolQuests.map((q) => Math.max(1, Math.floor(q.poolWeight || 1)));
+    let pick = dailyHash(userId, poolName, dayKey) % weights.reduce((a, b) => a + b, 0);
+    let chosen = poolQuests[poolQuests.length - 1];
+    for (let i = 0; i < poolQuests.length; i++) {
+      if (pick < weights[i]) {
+        chosen = poolQuests[i];
+        break;
+      }
+      pick -= weights[i];
+    }
+    candidates.push(chosen);
   }
 
   const solo = candidates.filter((q) => q.type === 'solo');

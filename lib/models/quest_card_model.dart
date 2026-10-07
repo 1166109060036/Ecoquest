@@ -1,4 +1,5 @@
 // Model สำหรับแสดง Quest card ในหน้า Home/Explore
+import 'proof_form.dart';
 import 'achievement_model.dart';
 import '../utils/quest_image.dart';
 
@@ -22,8 +23,15 @@ class QuestCardModel {
   final int durationDays; // 1 = เควสปกติ
   final int daysDone; // เช็คอินติดกันแล้วกี่วัน (มีค่าจริงเฉพาะข้อมูลจากหน้า Progress)
   final bool checkedInToday;
+  // รางวัลเควสหลายวัน: ได้ทุกวันที่เช็คอินผ่าน + โบนัสจบเควส (backend/utils/checkInRewards.js) — null = เควสวันเดียว
+  final CheckInRewardInfo? checkInReward;
+  // ช่องกรอกเพิ่มในแผ่นถ่ายรูปหลักฐาน (backend/utils/proofForm.js) — null = ส่งแค่รูป
+  final ProofForm? proofForm;
 
   bool get isMultiDay => durationDays > 1;
+  // แต้มที่โชว์บนการ์ด: เควสหลายวัน = แต้มรวมทั้งเควส (รายวันทุกวัน + โบนัสจบ) / เควสวันเดียว = แต้มเควส
+  int get displayPoints => checkInReward?.total.points ?? pointsReward;
+  int get displayXp => checkInReward?.total.xp ?? xpReward;
 
   // ---- ระบบตรวจสอบภารกิจ (28 ก.ย. 2026) ----
   // ต้องถ่ายรูปหลักฐานตอน Complete ไหม (ทุก solo ยกเว้น Check Food ที่ระบบตรวจจากตู้เย็นเอง)
@@ -69,6 +77,8 @@ class QuestCardModel {
     this.durationDays = 1,
     this.daysDone = 0,
     this.checkedInToday = false,
+    this.checkInReward,
+    this.proofForm,
     this.requiresProof = false,
     this.pendingReview = 0,
     this.comboMultiplier,
@@ -107,6 +117,12 @@ class QuestCardModel {
       durationDays: json['durationDays'] ?? 1,
       daysDone: json['daysDone'] ?? 0,
       checkedInToday: json['checkedInToday'] ?? false,
+      checkInReward: json['checkInReward'] is Map<String, dynamic>
+          ? CheckInRewardInfo.fromJson(json['checkInReward'] as Map<String, dynamic>)
+          : null,
+      proofForm: json['proofForm'] is Map<String, dynamic>
+          ? ProofForm.fromJson(json['proofForm'] as Map<String, dynamic>)
+          : null,
       requiresProof: json['requiresProof'] ?? false,
       pendingReview: json['pendingReview'] ?? 0,
       comboMultiplier: (json['comboMultiplier'] as num?)?.toDouble(),
@@ -128,6 +144,31 @@ class QuestCardModel {
 
 // รางวัลที่ได้ตอนทำ quest สำเร็จ — มาจาก response ของ POST /api/quests/:id/complete
 // (หรือ POST /api/party/complete ตอนหัวหน้าห้องกดจบอีเวนต์ ซึ่งใช้รูปแบบ response เดียวกัน)
+// แต้ม/XP คู่หนึ่ง (ใช้ในรางวัลเควสหลายวัน)
+class PointsXp {
+  final int points;
+  final int xp;
+  const PointsXp(this.points, this.xp);
+
+  factory PointsXp.fromJson(Map<String, dynamic>? json) =>
+      PointsXp((json?['points'] ?? 0) as int, (json?['xp'] ?? 0) as int);
+}
+
+// รางวัลเควสหลายวัน — daily = ทุกวันที่เช็คอินผ่าน / completionBonus = ตอนจบเควส / total = รวมทั้งเควส
+class CheckInRewardInfo {
+  final PointsXp daily;
+  final PointsXp completionBonus;
+  final PointsXp total;
+
+  const CheckInRewardInfo({required this.daily, required this.completionBonus, required this.total});
+
+  factory CheckInRewardInfo.fromJson(Map<String, dynamic> json) => CheckInRewardInfo(
+        daily: PointsXp.fromJson(json['daily'] as Map<String, dynamic>?),
+        completionBonus: PointsXp.fromJson(json['completionBonus'] as Map<String, dynamic>?),
+        total: PointsXp.fromJson(json['total'] as Map<String, dynamic>?),
+      );
+}
+
 class QuestReward {
   final int points;
   final int xp;

@@ -18,6 +18,8 @@ const { photoHashOf, isDuplicatePhoto, sweepQuietly } = require('../utils/submis
 const { selectVisibleQuests } = require('../utils/questSelection');
 const { shopEnabled } = require('../utils/featureFlags');
 const { comboForNow, comboForSubmission, comboSummaryToday, nextNewMultiplier } = require('../utils/combo');
+const { checkInRewardInfo } = require('../utils/checkInRewards');
+const { validateProofDetails } = require('../utils/proofForm');
 
 // เควสที่นับ Daily Variety Combo (utils/combo.js): solo ที่จบในครั้งเดียว — party/เควสหลายวันไม่มีคอมโบ
 const hasCombo = (quest) => quest.type === 'solo' && (quest.durationDays || 1) <= 1;
@@ -58,6 +60,8 @@ const toQuestPayload = (
     pendingReview: pendingReview || 0,
     // ต้องถ่ายรูปหลักฐานตอน Complete ไหม (ทุก solo ยกเว้น Check Food ที่ระบบตรวจจากตู้เย็นเอง)
     requiresProof: quest.type === 'party' || quest.actionKey !== 'fridge_check',
+    // ช่องกรอกเพิ่มในแผ่นถ่ายรูป (utils/proofForm.js) — null = ส่งแค่รูป
+    proofForm: quest.proofForm || null,
     // เควสที่ user กด Start ไว้แต่ยังไม่ Complete — ดู models/QuestProgress.js
     inProgress: Boolean(inProgress),
     startedAt: startedAt || null,
@@ -65,6 +69,9 @@ const toQuestPayload = (
     durationDays: quest.durationDays || 1,
     daysDone: daysDone || 0,
     checkedInToday: Boolean(checkedInToday),
+    // รางวัลเควสหลายวัน (6 ต.ค. 2026): ได้ทุกวันที่เช็คอินผ่าน + โบนัสจบเควส — null = เควสวันเดียว (utils/checkInRewards.js)
+    // scorePoints/xpReward ด้านบนยังเป็นค่าเดิมของเควส (แอพเวอร์ชันเก่าโชว์ค่านั้น) แอพใหม่โชว์ total แทน
+    checkInReward: checkInRewardInfo(quest, applyBonuses, bonuses),
     // ---- เฉพาะ party quest ----
     // location/capacity ตรงนี้เป็นแค่ค่า default ให้ฟอร์มสร้างห้องดึงไปเติม
     // (ห้องจริงแต่ละห้องนัดคนละเวลา/สถานที่กันได้ ดูรายละเอียดที่ Party model)
@@ -344,6 +351,13 @@ router.post('/:id/complete', authMiddleware, async (req, res) => {
       }
     }
 
+    // ข้อมูลเพิ่มตามฟอร์มของเควส (ส่งคืนอะไร / กี่ชิ้น / ร้านไหน) — ตรวจก่อนแตะ QuestProgress เหมือนรูป
+    const proof = validateProofDetails(quest.proofForm, req.body && req.body.proofDetails);
+    if (proof.error) {
+      return res.status(400).json({ message: proof.error });
+    }
+    req.proofDetails = proof.details;
+
     // เควสหลายวัน (Food Saver 3/7) — กด Complete = เช็คอินวันละครั้ง (ธรรมชาติของเควส ไม่ใช่ gate รายวันของระบบ)
     // เช็คจาก lastCheckInDay ใน QuestProgress (Super Energy ลบแค่ QuestHistory ไม่ลบอันนี้)
     const durationDays = quest.durationDays || 1;
@@ -482,6 +496,7 @@ async function submitForReview(req, res, quest, photo, kind, checkIn) {
     photoData: photo.data,
     photoContentType: photo.contentType,
     photoHash: photo.hash,
+    details: req.proofDetails || undefined,
   });
 
   const user = await User.findById(req.userId).select('-avatarData');

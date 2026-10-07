@@ -13,6 +13,7 @@ const { withEnergyBoosts } = require('./inventory');
 const { applyDailyQuestCompletion } = require('./streak');
 const { applyCombo } = require('./combo');
 const { onQuestAwarded } = require('./bingo');
+const { dailyBase } = require('./checkInRewards');
 
 // นับ Daily Streak ของวันนี้ให้ user (mutate + save เอง) — แยกออกมาเพราะเควสที่ต้องตรวจนับ streak ตั้งแต่ตอนส่ง
 // ไม่ใช่ตอนผ่าน (ผ่านอาจข้ามไปวันถัดไป streak จะขาดทั้งที่ทำกิจกรรมวันนั้นจริง)
@@ -33,12 +34,13 @@ const applyStreakNow = async (user) => {
 // completedAt = เวลาที่ทำจริง (ส่งหลักฐาน) ไม่ใช่เวลาที่ตรวจผ่าน — ประวัติ/CO2 รายวันจะได้ลงวันที่ถูก
 // applyStreak: true เฉพาะทางที่ 1 (ทางที่ 2 นับ streak ไปแล้วตอนส่ง)
 // comboMultiplier: ตัวคูณ Daily Variety Combo (utils/combo.js) — ผู้เรียกคิดมาให้ (1 = ไม่คูณ, party ไม่มีคอมโบ)
+// base: { scorePoints, xpReward } แทนค่าของเควส — วันสุดท้ายของเควสหลายวัน = รายวัน + โบนัสจบ (utils/checkInRewards.js)
 // แจ้งเตือน "ทำเควสสำเร็จ/ผ่าน" ให้ผู้เรียกส่งเอง (dedupeKey คนละแบบ) — ที่นี่แจ้งแค่ streak/เหรียญ/Bingo
 // คืน null ถ้าไม่มี user แล้ว (ถูกลบไป)
 const awardQuest = async (
   userId,
   quest,
-  { completedAt = new Date(), applyStreak = false, comboMultiplier = 1 } = {}
+  { completedAt = new Date(), applyStreak = false, comboMultiplier = 1, base = null } = {}
 ) => {
   // -avatarData กัน Buffer รูปโปรไฟล์ถูกดึงมาทุกครั้งที่ให้รางวัลโดยไม่ได้ใช้
   const user = await User.findById(userId).select('-avatarData');
@@ -48,7 +50,8 @@ const awardQuest = async (
   // withEnergyBoosts เติมตัวคูณจากไอเทม Energy ที่ยังไม่หมดอายุ (ร้านปิดแล้วแต่บัฟที่ใช้ไปก่อนหน้ายังนับจนหมดเวลา)
   const bonuses = withEnergyBoosts(await getUserBonuses(user._id), user);
   // คอมโบคูณทีหลัง upgrade/Energy — แต้มที่ได้จริงทุกจุดใช้ reward ตัวนี้ตัวเดียว
-  const reward = { ...applyCombo(applyBonuses(bonuses, quest), comboMultiplier), comboMultiplier };
+  const rewardBase = base ? { type: quest.type, scorePoints: base.scorePoints, xpReward: base.xpReward } : quest;
+  const reward = { ...applyCombo(applyBonuses(bonuses, rewardBase), comboMultiplier), comboMultiplier };
 
   const history = await QuestHistory.create({
     userId: user._id,
@@ -87,4 +90,30 @@ const awardQuest = async (
   return { user, reward, history, newAchievements, streakMilestone, bingo };
 };
 
-module.exports = { awardQuest, applyStreakNow };
+// เช็คอินวันระหว่างทางของเควสหลายวันผ่านการตรวจ — ได้แต้มรายวัน (utils/checkInRewards.js) + แถว QuestHistory checkIn
+// (นับ CO2 ของวันนั้น) แต่ไม่นับเป็น "ทำเควสสำเร็จ" (ไม่บวก totalQuestsCompleted / ไม่เช็คเหรียญ / ไม่ติดช่อง Bingo —
+// ทั้งหมดนับตอนจบเควสครั้งเดียว) / streak นับไปแล้วตอนส่ง — คืน { user, reward } หรือ null ถ้าไม่มี user แล้ว
+const awardCheckInDay = async (userId, quest, { completedAt = new Date() } = {}) => {
+  const user = await User.findById(userId).select('xp points redEnergyExpiresAt blueEnergyExpiresAt greenEnergyExpiresAt');
+  if (!user) return null;
+  const bonuses = withEnergyBoosts(await getUserBonuses(user._id), user);
+  const reward = applyBonuses(bonuses, { type: quest.type, ...dailyBase() });
+
+  await QuestHistory.create({
+    userId: user._id,
+    questId: quest._id,
+    pointsEarned: reward.points,
+    xpEarned: reward.xp,
+    checkIn: true,
+    completedAt,
+  });
+  const updated = await User.findByIdAndUpdate(
+    user._id,
+    { $inc: { points: reward.points, xp: reward.xp } },
+    { new: true, projection: { xp: 1, points: 1, level: 1 } }
+  );
+  await User.updateOne({ _id: user._id }, { $set: { level: progression.levelFromXp(updated.xp) } });
+  return { user: updated, reward };
+};
+
+module.exports = { awardQuest, awardCheckInDay, applyStreakNow };

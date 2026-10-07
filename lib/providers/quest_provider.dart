@@ -103,6 +103,7 @@ class QuestProvider extends ChangeNotifier {
     String questId, {
     Uint8List? photoBytes,
     String? photoContentType,
+    Map<String, dynamic>? proofDetails,
   }) async {
     _errorMessage = null;
 
@@ -111,6 +112,7 @@ class QuestProvider extends ChangeNotifier {
         questId,
         photoBytes: photoBytes,
         photoContentType: photoContentType,
+        proofDetails: proofDetails,
       );
       // โหลดลิสต์ใหม่เพื่อให้ timesToday ของการ์ดอัปเดตตาม, โหลดประวัติใหม่เพราะเพิ่งมี
       // รายการใหม่เพิ่มเข้าไป (หน้า Profile จะได้เห็นทันที) และโหลด Progress ใหม่เพราะเควสนี้หลุด
