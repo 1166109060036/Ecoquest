@@ -517,6 +517,29 @@ const QUESTS = [
     location: 'Community Center',
     capacity: 15,
   },
+  {
+    // ผู้ใช้เพิ่ม 7 ต.ค. 2026 (อยู่ใน Quest_list.md) — party quest ดูแลสวน/แปลงผักชุมชนด้วยกัน
+    // medium + medium = 20 P (เท่า Recycling Drive) / หมวด community นับเหรียญ Community
+    // ⚠️ ยังไม่มีรูปเควส (imageKey null = แอพโชว์ไอคอนแทน) — ใส่ชื่อไฟล์เมื่อมีรูปใน lib/utils/assets/questimg/
+    title: 'Community Garden',
+    sortOrder: 24,
+    description: 'Community Garden',
+    detail:
+      'Spend an afternoon with your neighbours at a community garden — weeding, watering, planting seasonal '
+      + 'vegetables or flowers, and turning plant scraps into compost. Learn to grow food locally together.',
+    imageKey: null,
+    category: 'community',
+    type: 'party',
+    difficulty: 'medium',
+    impact: 'medium',
+    xpReward: 20,
+    co2eEstimateKg: null,
+    impactCategory: 'Garden Activities',
+    impactMetric: 'events',
+    overlapGroup: null,
+    location: 'Community Garden',
+    capacity: 15,
+  },
 
 ];
 
