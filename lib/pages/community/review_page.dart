@@ -286,6 +286,20 @@ class _SubmissionCard extends StatelessWidget {
               children: [
                 Text(quest?.title ?? 'Quest',
                     style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Color(0xFF1B5E20))),
+                // แอดมินกำลังตรวจหลักฐานของตัวเอง — บอกให้ชัด (ไม่ได้รางวัลคนตรวจจากใบนี้)
+                if (s.isOwn) ...[
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.blueGrey.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blueGrey.shade200),
+                    ),
+                    child: Text('Your proof · admin review (no reviewer reward)',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.blueGrey.shade700)),
+                  ),
+                ],
                 const SizedBox(height: 2),
                 Text(what, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                 if (quest != null && quest.detail.isNotEmpty) ...[

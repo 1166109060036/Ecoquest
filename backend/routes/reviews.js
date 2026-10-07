@@ -37,16 +37,24 @@ const reviewerRole = async (userId) => {
 
 // submission ที่คนนี้ตรวจได้: pending + ไม่ใช่ของตัวเอง + ไม่ใช่ห้องที่ตัวเองอยู่ + ยังไม่เคยโหวต
 // + ไม่ใช่แอดมิน = เฉพาะที่ยังไม่เกิน 48 ชม. (เกินแล้วรอแอดมิน)
+// แอดมินตรวจของตัวเองได้ (ผู้ใช้สั่ง 7 ต.ค. 2026 — มีแอดมินคนเดียว ของตัวเองที่ค้างเกิน 48 ชม. ไม่มีใครตัดสินให้)
+// ผู้ใช้ทั่วไปยังห้ามตรวจของตัวเองเหมือนเดิม / แอดมินตรวจของตัวเองไม่ได้รางวัลคนตรวจ (ดู POST /:id/vote)
 const reviewableFilter = (userId, { isAdmin }) => {
   const me = new mongoose.Types.ObjectId(String(userId));
   return {
     status: 'pending',
-    userId: { $ne: me },
-    memberIds: { $ne: me },
+    ...(isAdmin ? {} : { userId: { $ne: me }, memberIds: { $ne: me } }),
     approvals: { $ne: me },
     rejections: { $ne: me },
     ...(isAdmin ? {} : { createdAt: { $gte: escalationCutoff() } }),
   };
+};
+
+// เป็นหลักฐานของคนนี้เอง (เจ้าของ หรือสมาชิกในห้องปาร์ตี้)
+const isOwnSubmission = (submission, userId) => {
+  const me = String(userId);
+  const owner = submission.userId && submission.userId._id ? submission.userId._id : submission.userId;
+  return String(owner) === me || (submission.memberIds || []).some((id) => String(id) === me);
 };
 
 const GUEST_REVIEW_MESSAGE = 'Create an account to help review quests';
@@ -107,7 +115,8 @@ router.get('/queue', authMiddleware, async (req, res) => {
     const pendingCount = await QuestSubmission.countDocuments(filter);
 
     res.json({
-      submissions: items.map((s) => toSubmissionPayload(s, req.userId)),
+      // isOwn: หลักฐานของแอดมินเอง (แอพโชว์ป้าย "Your proof") — ผู้ใช้ทั่วไปไม่เห็นของตัวเองในคิวอยู่แล้ว
+      submissions: items.map((s) => ({ ...toSubmissionPayload(s, req.userId), isOwn: isOwnSubmission(s, req.userId) })),
       pendingCount,
       escalatedCount,
       canReview: true,
@@ -142,7 +151,8 @@ router.post('/:id/vote', authMiddleware, async (req, res) => {
 
     const submission = await QuestSubmission.findById(req.params.id).select('-photoData');
     if (!submission) return res.status(404).json({ message: 'Submission not found' });
-    if (String(submission.userId) === me || submission.memberIds.some((id) => String(id) === me)) {
+    const own = isOwnSubmission(submission, me);
+    if (own && !role.isAdmin) {
       return res.status(403).json({ message: "You can't review your own proof" });
     }
     if (submission.status !== 'pending') {
@@ -164,11 +174,14 @@ router.post('/:id/vote', authMiddleware, async (req, res) => {
     }
 
     // โหวตบันทึกแล้ว = ได้รางวัลคนตรวจ (ไม่ว่าผ่าน/ไม่ผ่าน, วันละไม่เกินเพดาน) — พังก็ไม่ควรทำให้โหวตพัง
+    // แอดมินตรวจของตัวเอง = ไม่ได้รางวัลคนตรวจ (กันปั๊มแต้มจากการส่ง-ตรวจเอง)
     let reward = { points: 0, xp: 0, rewardedToday: role.rewardedToday };
-    try {
-      reward = await awardReviewer(req.userId);
-    } catch (err) {
-      console.error('ให้รางวัลคนตรวจไม่สำเร็จ:', err.message);
+    if (!own) {
+      try {
+        reward = await awardReviewer(req.userId);
+      } catch (err) {
+        console.error('ให้รางวัลคนตรวจไม่สำเร็จ:', err.message);
+      }
     }
 
     // แอดมินตัดสินเลย / คนทั่วไปรอครบเกณฑ์

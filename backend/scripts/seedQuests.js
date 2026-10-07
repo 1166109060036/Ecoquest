@@ -383,7 +383,7 @@ const QUESTS = [
     description: 'Food Waste Quest',
     detail:
       'Keep your food waste at zero for 3 days in a row. Check in on the Progress page once each day '
-      + '— if you miss a day, the count starts over. The reward is given when all 3 days are done.',
+      + '— if you miss a day, the count starts over. You earn points every day you check in, plus a big bonus when all 3 days are done.',
     // เช็คอินวันละครั้ง 3 วันติด ได้รางวัลตอนครบ — ดู Quest.durationDays / POST /:id/complete
     durationDays: 3,
     // ใช้รูปเดียวกับ Finish Your Meal ตามที่ผู้ใช้ระบุ (ยังไม่มีรูปแยกของตัวเองในโฟลเดอร์ questimg)
@@ -407,7 +407,7 @@ const QUESTS = [
     description: 'Food Waste Quest',
     detail:
       'Keep your food waste at zero for 7 days in a row. Check in on the Progress page once each day '
-      + '— if you miss a day, the count starts over. The reward is given when all 7 days are done.',
+      + '— if you miss a day, the count starts over. You earn points every day you check in, plus a big bonus when all 7 days are done.',
     durationDays: 7,
     // ใช้รูปเดียวกับ Finish Your Meal ตามที่ผู้ใช้ระบุ (ยังไม่มีรูปแยกของตัวเองในโฟลเดอร์ questimg)
     imageKey: 'finishyourmeal.jpg',

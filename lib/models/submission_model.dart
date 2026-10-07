@@ -28,6 +28,8 @@ class SubmissionModel {
   final bool canRemove;
   // ข้อมูลที่กรอกตามฟอร์มของเควส (เช่น ส่งคืนอะไร/กี่ชิ้น/ร้านไหน) — null = ไม่มี
   final ProofDetails? details;
+  // คิวตรวจของแอดมิน: เป็นหลักฐานของแอดมินเอง (แอดมินตรวจของตัวเองได้ — backend/routes/reviews.js)
+  final bool isOwn;
 
   SubmissionModel({
     required this.id,
@@ -49,6 +51,7 @@ class SubmissionModel {
     this.cheeredByMe = false,
     this.canRemove = false,
     this.details,
+    this.isOwn = false,
   });
 
   bool get isParty => kind == 'party';
@@ -81,6 +84,7 @@ class SubmissionModel {
       details: json['details'] is Map<String, dynamic>
           ? ProofDetails.fromJson(json['details'] as Map<String, dynamic>)
           : null,
+      isOwn: json['isOwn'] == true,
     );
   }
 
@@ -104,6 +108,7 @@ class SubmissionModel {
         cheeredByMe: cheeredByMe ?? this.cheeredByMe,
         canRemove: canRemove,
         details: details,
+        isOwn: isOwn,
       );
 }
 
