@@ -100,6 +100,10 @@
 - **ฟีดชุมชน + ผลกระทบรวมของเมือง** — Community มีแท็บ **Feed** เป็นแท็บแรก (`pages/community/feed_tab.dart`): การ์ด
   "Ebetsu's impact" (CO₂ ทั้งเมือง = ผลรวมโปรไฟล์ทุกคนพอดี + เทียบต้นสนดูดซับ `utils/impactEquivalents.js`), แบนเนอร์
   โพสต์ที่ถูกรายงาน (แอดมิน), ฟีดรูปภารกิจของทุกคนวันนี้ "Today's quests" + Cheer + เมนู ⋮ (รายงาน / ถอนโพสต์)
+  - **ยอดนับชิ้นในการ์ด impact** (8 ต.ค. 2026): `GET /impact/summary` ส่ง `counted: [{label, metric, total}]` ทั้ง allTime/thisWeek
+    = ผลรวม `QuestSubmission.details.count` ของที่ approved จัดกลุ่มตาม `Quest.impactCategory/impactMetric` (ตอนนี้มีแค่
+    Return Containers → "13 items · Containers Returned" + "+N this week") — เควสใหม่ที่มีฟอร์มจำนวน + impactCategory
+    ขึ้นการ์ดเองอัตโนมัติ / ไม่นับที่ถูกยึดแต้มคืน / แถวโผล่เมื่อยอด > 0 (`feed_tab.dart` `_CountedImpactRow`)
   - **Today Feed** (ผู้ใช้ออกแบบ 30 ก.ย. 2026 — กัน Atlas ฟรี 512MB เต็มจากรูปหลักฐาน): ฟีดโชว์แค่ที่ approved **วันนี้**
     (`decidedAt` >= เที่ยงคืนเวลาญี่ปุ่น `utils/questDay.js`) / ขึ้นวันใหม่ sweep ลบรูปของที่ approved ก่อนวันนี้
     (`purgeExpiredPhotos` ใน `utils/submissions.js`, คง photoHash) / **ยกเว้นที่ถูกรายงานรอแอดมิน** (`reportStatus: 'open'`)

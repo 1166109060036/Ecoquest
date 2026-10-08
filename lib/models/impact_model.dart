@@ -21,6 +21,8 @@ class ImpactPeriod {
   // ต้นสน 1 ต้น (อายุ 36-40 ปี) ดูดซับ ~8.8 kgCO2/ปี — ที่มาดู backend/utils/impactEquivalents.js
   final double cedarTreeYears;
   final int cedarTreeDays;
+  // ผลกระทบที่นับเป็นชิ้นจากฟอร์มหลักฐาน เช่น ภาชนะที่ส่งคืนร้าน (backend/routes/impact.js countedImpact)
+  final List<CountedImpact> counted;
 
   ImpactPeriod({
     required this.co2eKg,
@@ -28,6 +30,7 @@ class ImpactPeriod {
     required this.players,
     required this.cedarTreeYears,
     required this.cedarTreeDays,
+    this.counted = const [],
   });
 
   factory ImpactPeriod.fromJson(Map<String, dynamic> json) {
@@ -38,8 +41,15 @@ class ImpactPeriod {
       players: json['players'] ?? 0,
       cedarTreeYears: (eq['cedarTreeYears'] as num?)?.toDouble() ?? 0,
       cedarTreeDays: (eq['cedarTreeDays'] as num?)?.toInt() ?? 0,
+      counted: ((json['counted'] ?? []) as List)
+          .map((c) => CountedImpact.fromJson(c as Map<String, dynamic>))
+          .where((c) => c.total > 0)
+          .toList(),
     );
   }
+
+  // ยอดของหมวดเดียวกันในช่วงนี้ (ใช้หา "+N this week" ของแถวตลอดกาล) — ไม่มี = 0
+  int countedFor(String label) => counted.where((c) => c.label == label).fold(0, (sum, c) => sum + c.total);
 
   // ข้อความเทียบที่อ่านง่ายที่สุดตามขนาดยอด — ครบต้นละปีแล้วนับเป็นจำนวนต้น ยังไม่ถึงนับเป็นวันของต้นเดียว
   String get treeComparison {
@@ -50,4 +60,18 @@ class ImpactPeriod {
     final days = cedarTreeDays < 1 ? 1 : cedarTreeDays;
     return 'what one cedar tree absorbs in $days day${days == 1 ? '' : 's'}';
   }
+}
+
+class CountedImpact {
+  final String label; // Quest.impactCategory เช่น "Containers Returned"
+  final String metric; // Quest.impactMetric เช่น "items"
+  final int total;
+
+  CountedImpact({required this.label, required this.metric, required this.total});
+
+  factory CountedImpact.fromJson(Map<String, dynamic> json) => CountedImpact(
+        label: json['label']?.toString() ?? '',
+        metric: json['metric']?.toString() ?? '',
+        total: (json['total'] as num?)?.toInt() ?? 0,
+      );
 }

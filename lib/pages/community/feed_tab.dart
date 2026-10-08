@@ -338,6 +338,11 @@ class _ImpactCard extends StatelessWidget {
               ],
             ),
           ),
+          // ผลกระทบแบบนับชิ้น (เช่น ภาชนะที่ส่งคืนร้าน จากเควส Return Containers) — โผล่เมื่อมีคนกรอกแล้ว
+          for (final c in all.counted) ...[
+            const SizedBox(height: 8),
+            _CountedImpactRow(impact: c, thisWeek: week.countedFor(c.label)),
+          ],
           const SizedBox(height: 12),
           Row(
             children: [
@@ -346,6 +351,46 @@ class _ImpactCard extends StatelessWidget {
               _ImpactStat(label: 'This week', value: '${week.questsCompleted} quests'),
             ],
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// "♻ 37 items · Containers Returned   +5 this week"
+class _CountedImpactRow extends StatelessWidget {
+  final CountedImpact impact;
+  final int thisWeek;
+  const _CountedImpactRow({required this.impact, required this.thisWeek});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.recycling_rounded, color: Colors.white, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: '${impact.total} ${impact.metric}',
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  TextSpan(text: ' · ${impact.label}'),
+                ],
+              ),
+              style: const TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w600),
+            ),
+          ),
+          if (thisWeek > 0)
+            Text('+$thisWeek this week', style: const TextStyle(color: Colors.white70, fontSize: 11)),
         ],
       ),
     );
