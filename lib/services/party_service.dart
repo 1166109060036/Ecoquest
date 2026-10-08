@@ -127,8 +127,7 @@ class PartyService {
   }
 
   // หัวหน้าห้องกดจบอีเวนต์ — ทุกคนในห้องได้คะแนนพร้อมกัน
-  // หัวหน้าส่งรูปกลุ่มเป็นหลักฐาน (ระบบตรวจสอบภารกิจ) -> backend ตอบ 201 status: 'pending' ห้องเป็น reviewing
-  // รางวัลของทุกคนมาตอนรูปผ่านการตรวจ
+  // หัวหน้าส่งรูปกลุ่มเป็นหลักฐาน -> backend ให้รางวัลทุกคนทันที ตอบ 201 status: 'completed' ห้องเป็น completed
   Future<PartyCompleteReward> completeParty({
     required Uint8List photoBytes,
     required String photoContentType,

@@ -176,13 +176,11 @@ class QuestReward {
   final List<UnlockedMedal> newAchievements;
   // ไม่ null เฉพาะตอนวันนี้ตรง milestone ของ Daily Streak (7/14/21/30) — เอาไปเด้ง celebrate
   final StreakMilestoneReward? streakMilestone;
-  // ไม่ null เฉพาะเควสหลายวัน — ยังไม่ครบ (finished: false) = แค่เช็คอิน ไม่ได้แต้ม ห้ามเด้งฉลองรางวัล
+  // ไม่ null เฉพาะเควสหลายวัน — ยังไม่ครบ (finished: false) = เช็คอิน ได้แต้มรายวัน (โชว์วงแหวนแทนป้ายรางวัล)
   final QuestCheckIn? checkIn;
-  // true = ส่งหลักฐานไปรอตรวจ ยังไม่ได้แต้ม (ระบบตรวจสอบภารกิจ) — ห้ามเด้งฉลองรางวัล รอแจ้งเตือน quest_approved
-  final bool isPending;
-  // Daily Variety Combo ของการทำครั้งนี้ (ถ้า pending = ตัวอย่าง ตัวจริงคิดตอนผ่าน) — null = เควสนี้ไม่มีคอมโบ
+  // Daily Variety Combo ของการทำครั้งนี้ — null = เควสนี้ไม่มีคอมโบ
   final ComboInfo? combo;
-  // Eco Bingo ครบแถว/การ์ดจากเควสนี้ (เฉพาะรางวัลทันทีแบบ Check Food) — null = ไม่มี
+  // Eco Bingo ครบแถว/การ์ดจากเควสนี้ — null = ไม่มี
   final BingoReward? bingo;
 
   QuestReward({
@@ -191,7 +189,6 @@ class QuestReward {
     this.newAchievements = const [],
     this.streakMilestone,
     this.checkIn,
-    this.isPending = false,
     this.combo,
     this.bingo,
   });
@@ -208,7 +205,6 @@ class QuestReward {
     final bingoJson = json['bingo'] as Map<String, dynamic>?;
 
     return QuestReward(
-      isPending: json['status'] == 'pending',
       checkIn: checkInJson != null ? QuestCheckIn.fromJson(checkInJson) : null,
       points: earned['points'] ?? 0,
       xp: earned['xp'] ?? 0,

@@ -9,8 +9,6 @@ import '../../utils/quest_completion.dart';
 import '../../widgets/breathing_icon.dart';
 import '../../widgets/check_in_ring.dart';
 import '../../widgets/proof_capture_sheet.dart';
-import '../../models/submission_model.dart';
-import '../../services/submission_service.dart';
 import '../../widgets/bubble_toast.dart';
 import '../../widgets/liquid_glass_dialog.dart';
 import '../inventory/fridge_page.dart';
@@ -43,9 +41,6 @@ class _ProgressPageState extends State<ProgressPage> {
   static const int _partyTabIndex = 3;
 
   bool _isLoading = true;
-  // หลักฐานที่ส่งไปแล้วยังรอตรวจ (ระบบตรวจสอบภารกิจ) — โชว์ใต้เควสที่กำลังทำ
-  List<SubmissionModel> _pending = [];
-  final _submissionService = SubmissionService();
 
   @override
   void initState() {
@@ -57,17 +52,8 @@ class _ProgressPageState extends State<ProgressPage> {
     await Future.wait([
       context.read<QuestProvider>().loadProgress(),
       context.read<PartyProvider>().loadParty(),
-      _loadPending(),
     ]);
     if (mounted) setState(() => _isLoading = false);
-  }
-
-  // โหลดไม่สำเร็จก็แค่ไม่โชว์ส่วนนี้ ไม่ให้ทั้งหน้าพัง
-  Future<void> _loadPending() async {
-    try {
-      final pending = await _submissionService.fetchMine(status: 'pending');
-      if (mounted) setState(() => _pending = pending);
-    } catch (_) {}
   }
 
   void _openQuestDetail(QuestCardModel quest) {
@@ -89,7 +75,7 @@ class _ProgressPageState extends State<ProgressPage> {
   Future<void> _onCompleteQuest(QuestCardModel quest) async {
     final questProvider = context.read<QuestProvider>();
 
-    // ระบบตรวจสอบภารกิจ — เควสที่ต้องมีหลักฐานต้องถ่ายรูปก่อน (Check Food ไม่ต้อง ระบบตรวจจากตู้เย็นเอง)
+    // เควสที่ต้องมีหลักฐานต้องถ่ายรูปก่อน (Check Food ไม่ต้อง ระบบตรวจจากตู้เย็นเอง) — ส่งแล้วได้แต้มทันที
     ProofPhoto? proof;
     if (quest.requiresProof) {
       proof = await showProofCaptureSheet(
@@ -121,46 +107,20 @@ class _ProgressPageState extends State<ProgressPage> {
       return;
     }
 
-    // เควสหลายวันที่ยังไม่ครบ = แค่เช็คอิน ไม่ได้แต้ม — ห้ามเรียก handleQuestCompleted (จะเด้ง "+0 points")
-    // การ์ดฉลองวงแหวนเช็คอินแทน bubble toast เดิม (ดู widgets/check_in_ring.dart)
+    // เควสหลายวันที่ยังไม่ครบ = เช็คอิน ได้แต้มรายวัน — การ์ดฉลองวงแหวนเช็คอินแทนป้ายรางวัลปกติ
+    // (ดู widgets/check_in_ring.dart) เหรียญ/โบนัสจบเควสนับตอนวันสุดท้าย
     if (reward.isCheckInOnly) {
       final checkIn = reward.checkIn!;
-      // เช็คอินนับ Daily Streak ด้วย — รีเฟรชโปรไฟล์ให้ตัวเลข streak ขยับ
+      // เช็คอินได้แต้มรายวัน + นับ Daily Streak — รีเฟรชโปรไฟล์ให้ตัวเลขขยับ
       context.read<AuthProvider>().refreshProfile();
-      _loadPending();
       await showCheckInCelebration(
         context,
         daysDone: checkIn.daysDone,
         total: checkIn.durationDays,
         restarted: checkIn.restarted,
-        pending: reward.isPending,
         // แต้มของวันนี้ (backend/utils/checkInRewards.js) — backend เก่าไม่มี checkInReward = ไม่บอก
         rewardPoints: quest.checkInReward?.daily.points,
       );
-      return;
-    }
-
-    // ส่งหลักฐานไปรอตรวจ — ยังไม่ได้แต้ม ห้ามเรียก handleQuestCompleted (จะเด้ง "+0 points") รางวัลมาตอนผ่าน
-    // ผ่านแจ้งเตือน quest_approved (main_shell.dart เล่นเอฟเฟครางวัลให้ตอนนั้น)
-    if (reward.isPending) {
-      context.read<AuthProvider>().refreshProfile(); // streak นับตั้งแต่ตอนส่ง
-      _loadPending();
-      final checkIn = reward.checkIn;
-      if (checkIn != null && checkIn.finished) {
-        await showCheckInCelebration(
-          context,
-          daysDone: checkIn.durationDays,
-          total: checkIn.durationDays,
-          finished: true,
-          pending: true,
-          // วันสุดท้าย = แต้มรายวัน + โบนัสจบเควส (backend/utils/checkInRewards.js)
-          rewardPoints: quest.checkInReward == null
-              ? null
-              : quest.checkInReward!.daily.points + quest.checkInReward!.completionBonus.points,
-        );
-      } else {
-        showBubbleToast(context, _sentForReviewMessage(quest, reward.combo));
-      }
       return;
     }
 
@@ -214,9 +174,9 @@ class _ProgressPageState extends State<ProgressPage> {
     final partyProvider = context.watch<PartyProvider>();
     final quests = questProvider.inProgress;
     final party = partyProvider.party;
-    final isEmpty = quests.isEmpty && party == null && _pending.isEmpty;
+    final isEmpty = quests.isEmpty && party == null;
 
-    // ลิสต์แบนๆ: ห้อง party (ถ้ามี) -> เควสที่กำลังทำ -> หัวข้อ + หลักฐานที่รอตรวจ
+    // ลิสต์แบนๆ: ห้อง party (ถ้ามี) -> เควสที่กำลังทำ
     final items = <Widget>[
       if (party != null)
         FadeSlideIn(
@@ -235,8 +195,6 @@ class _ProgressPageState extends State<ProgressPage> {
             heroTag: questCoverHeroTag('progress', quests[i].id),
           ),
         ),
-      if (_pending.isNotEmpty) const _SectionHeader(text: 'Waiting for review'),
-      for (final s in _pending) _PendingSubmissionTile(submission: s),
     ];
 
     return Scaffold(
@@ -298,103 +256,6 @@ class _ProgressPageState extends State<ProgressPage> {
 }
 
 // ---------------------------------------------------------------------------
-// หลักฐานที่ส่งไปแล้วรอตรวจ — รูปย่อ + ชื่อเควส + ความคืบหน้าการตรวจ (ระบบตรวจสอบภารกิจ)
-// ---------------------------------------------------------------------------
-class _SectionHeader extends StatelessWidget {
-  final String text;
-  const _SectionHeader({required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 8, left: 2),
-      child: Text(
-        text.toUpperCase(),
-        style: TextStyle(
-          fontSize: 11.5,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.6,
-          color: Colors.grey.shade600,
-        ),
-      ),
-    );
-  }
-}
-
-class _PendingSubmissionTile extends StatelessWidget {
-  final SubmissionModel submission;
-  const _PendingSubmissionTile({required this.submission});
-
-  @override
-  Widget build(BuildContext context) {
-    final s = submission;
-    final title = s.quest?.title ?? 'Quest';
-    final subtitle = s.isParty
-        ? 'Group photo'
-        : s.isCheckIn
-            ? 'Day ${s.checkInDay}/${s.checkInTotal} check-in'
-            : 'Proof photo';
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: Image.network(
-              s.photoUrl,
-              width: 56,
-              height: 56,
-              fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => Container(
-                width: 56,
-                height: 56,
-                color: Colors.grey.shade200,
-                child: Icon(Icons.image_outlined, color: Colors.grey.shade400),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87)),
-                const SizedBox(height: 2),
-                Text(subtitle, style: TextStyle(fontSize: 11.5, color: Colors.grey.shade600)),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    Icon(
-                      s.escalated ? Icons.admin_panel_settings_rounded : Icons.hourglass_top_rounded,
-                      size: 13,
-                      color: Colors.orange.shade700,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      // ค้างเกิน 48 ชม. = ส่งต่อให้แอดมินตัดสิน
-                      s.escalated ? 'Waiting for an admin' : 'Approved ${s.approvals}/${s.approvalsNeeded}',
-                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Colors.orange.shade800),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
 // การ์ดห้อง party ของตัวเอง — กดแล้วพาไปแท็บ Community ตรงๆ ไม่ได้ complete จากที่นี่
 // (คนละ widget กับ PartyRoomCard เพราะนั่นออกแบบไว้สำหรับห้องที่ "ยังไม่ได้เข้าร่วม" ในลิสต์ Explore)
 // ---------------------------------------------------------------------------
@@ -408,8 +269,8 @@ class _MyPartyCard extends StatelessWidget {
     switch (party.status) {
       case 'started':
         return 'In progress';
-      case 'reviewing':
-        return 'Waiting for review';
+      case 'reviewing': // ของเก่าจากระบบให้คนตรวจ — backend ปิดให้เป็น completed เอง
+        return 'Finishing up';
       case 'completed':
         return 'Completed';
       default:
@@ -538,17 +399,4 @@ class _EmptyState extends StatelessWidget {
       ),
     );
   }
-}
-
-// ข้อความหลังส่งหลักฐาน — บอกแต้มที่จะได้หลังคูณคอมโบ (ตัวอย่าง ตัวจริงคิดตอนผ่านการตรวจ backend/utils/combo.js)
-String _sentForReviewMessage(QuestCardModel quest, ComboInfo? combo) {
-  if (combo == null || combo.multiplier == 1) {
-    return 'Sent for review — you get +${quest.pointsReward} P once it is approved';
-  }
-  final points = (quest.pointsReward * combo.multiplier).round().clamp(1, 1 << 30);
-  if (combo.repeat) {
-    return 'Sent for review — +$points P once approved (repeat ${formatMultiplier(combo.multiplier)}). '
-        'Try a new quest for ${formatMultiplier(combo.nextNewMultiplier)}!';
-  }
-  return 'Sent for review — combo ${formatMultiplier(combo.multiplier)}: +$points P once it is approved';
 }

@@ -54,8 +54,8 @@ class QuestService {
         .toList();
   }
 
-  // เควสที่ requiresProof ต้องส่งรูปหลักฐานมาด้วย (base64 ใน JSON แบบรูปในตู้เย็น) -> backend ตอบ 201 status: 'pending'
-  // (รอตรวจ ยังไม่ได้แต้ม) / Check Food ไม่ต้องมีรูป -> 200 status: 'completed' ได้แต้มทันทีเหมือนเดิม
+  // เควสที่ requiresProof ต้องส่งรูปหลักฐานมาด้วย (base64 ใน JSON แบบรูปในตู้เย็น) -> backend ตอบ 201 status: 'completed'
+  // ได้แต้มทันที (7 ต.ค. 2026 เลิกรอตรวจ) / Check Food ไม่ต้องมีรูป -> 200 status: 'completed'
   Future<QuestReward> completeQuest(
     String questId, {
     Uint8List? photoBytes,

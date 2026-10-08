@@ -120,13 +120,13 @@ class _PartyTabState extends State<PartyTab> {
     }
   }
 
-  // หัวหน้าห้องจบอีเวนต์ = ถ่ายรูปกลุ่มส่งตรวจ (ระบบตรวจสอบภารกิจ 28 ก.ย. 2026) — แผ่นถ่ายรูปเป็นการยืนยันในตัว
-  // ไม่ต้องมี dialog ยืนยันแยกอีก ทุกคนในห้องได้รางวัลตอนรูปผ่านการตรวจ (แจ้งเตือน quest_approved)
+  // หัวหน้าห้องจบอีเวนต์ = ถ่ายรูปกลุ่ม 1 รูป — แผ่นถ่ายรูปเป็นการยืนยันในตัว ไม่ต้องมี dialog ยืนยันแยกอีก
+  // ส่งแล้วทุกคนในห้องได้รางวัลทันที (7 ต.ค. 2026 เลิกรอตรวจ) — สมาชิกคนอื่นได้แจ้งเตือนที่เด้งเอฟเฟครางวัล
   Future<void> _confirmCompleteEvent() async {
     final proof = await showProofCaptureSheet(
       context,
       title: 'Group photo',
-      hint: 'Take one photo of your group at the event. Every member gets the reward once it is approved.',
+      hint: 'Take one photo of your group at the event. Every member gets the reward right away.',
     );
     if (proof == null || !mounted) return;
 
@@ -140,12 +140,7 @@ class _PartyTabState extends State<PartyTab> {
       return;
     }
 
-    if (reward.isPending) {
-      showBubbleToast(context, 'Group photo sent for review — everyone gets the reward once it is approved');
-      return;
-    }
-
-    // (เผื่อ backend เก่าที่ยังให้รางวัลทันที) โชว์รางวัลของหัวหน้าเอง + รีเฟรชโปรไฟล์/เหรียญ
+    // โชว์รางวัลของหัวหน้าเอง + รีเฟรชโปรไฟล์/เหรียญ
     await handleQuestCompleted(context, reward);
     if (!mounted) return;
     final questProvider = context.read<QuestProvider>();
@@ -364,9 +359,9 @@ class _PartyActionArea extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // หัวหน้าส่งรูปกลุ่มแล้ว รอผู้เล่นคนอื่น/แอดมินตรวจ (ระบบตรวจสอบภารกิจ) — ทุกคนในห้องเห็นเหมือนกัน
+    // ห้องค้างสถานะรอตรวจจากระบบเดิม — backend ปิดให้เป็น completed เองตอน sweep (utils/submissions.js)
     if (party.isReviewing) {
-      return const _WaitingPill(text: 'Group photo sent — waiting for review');
+      return const _WaitingPill(text: 'Group photo sent — finishing up');
     }
     if (party.isStarted) {
       final countdown = party.completeCountdownAt(now);

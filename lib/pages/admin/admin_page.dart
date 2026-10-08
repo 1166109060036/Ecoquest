@@ -9,7 +9,7 @@ import '../../providers/inventory_provider.dart';
 import '../../providers/upgrade_provider.dart';
 import '../../providers/fridge_provider.dart';
 import '../../providers/notification_provider.dart';
-import '../community/review_page.dart';
+import '../community/reported_posts_page.dart';
 
 // หน้า Admin/Debug — dev/QA เท่านั้น เข้าได้เฉพาะ user.isAdmin (เช็คซ้ำจริงที่ backend ทุก request
 // ผ่าน backend/middleware/admin.js) ใช้ "รีโมตคอนโทรล" ค่า/สถานะของระบบต่างๆ ตรงๆ ข้ามการเล่นเกมจริง
@@ -162,14 +162,14 @@ class _AdminPageState extends State<AdminPage> {
           ),
           const SizedBox(height: 8),
 
-          // ---- ตรวจหลักฐานภารกิจ (ใช้หน้าเดียวกับผู้เล่นทั่วไป — backend รู้เองว่าเป็นแอดมิน โหวตครั้งเดียวตัดสินเลย) ----
+          // ---- โพสต์ที่ถูกรายงาน (7 ต.ค. 2026 แทนคิวตรวจหลักฐาน — ส่งรูปแล้วผ่านทันที) ----
           Card(
             child: ListTile(
-              leading: const Icon(Icons.fact_check_outlined),
-              title: const Text('Review quest proofs'),
-              subtitle: const Text('Your vote decides right away'),
+              leading: const Icon(Icons.flag_outlined),
+              title: const Text('Reported posts'),
+              subtitle: const Text('Keep, remove the photo, or take back points'),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReviewPage())),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportedPostsPage())),
             ),
           ),
           const SizedBox(height: 8),

@@ -2,19 +2,15 @@ import 'proof_form.dart';
 import '../utils/constants.dart';
 import 'friend_model.dart';
 
-// หลักฐานการทำภารกิจ 1 ครั้ง (รูปถ่าย) — ระบบตรวจสอบภารกิจ (28 ก.ย. 2026) ดู backend/utils/submissions.js
-// ใช้ร่วมกัน 3 ที่: คิวตรวจ (ReviewPage), "Waiting for review" ในหน้า Progress, และฟีดชุมชน (FeedTab)
+// หลักฐานการทำภารกิจ 1 ครั้ง (รูปถ่าย) — ดู backend/utils/submissions.js
+// 7 ต.ค. 2026: ส่งรูปแล้วผ่านทันที (เลิกให้ผู้เล่นตรวจ) ผู้เล่นรายงานโพสต์ได้ / แอดมินดูเฉพาะที่ถูกรายงาน
+// ใช้ร่วมกัน 2 ที่: ฟีดชุมชน (FeedTab) และโพสต์ที่ถูกรายงานของแอดมิน (ReportedPostsPage)
 class SubmissionModel {
   final String id;
   final String kind; // quest / check_in / party
-  final String status; // pending / approved / rejected
+  final String status; // approved / rejected (pending = ของเก่าจากระบบให้คนตรวจ)
   final String photoUrl; // URL เต็มแล้ว (resolveUrl)
   final DateTime submittedAt;
-  final int approvals;
-  final int rejections;
-  final int approvalsNeeded;
-  // ค้างเกิน 48 ชม. ไม่มีข้อสรุป — รอแอดมินตัดสินคนเดียว (ผู้เล่นทั่วไปโหวตต่อไม่ได้แล้ว)
-  final bool escalated;
   final int rewardPoints;
   final int rewardXp;
   final SubmissionQuest? quest;
@@ -26,10 +22,16 @@ class SubmissionModel {
   final bool cheeredByMe;
   // ฟีด: คนดูถอนโพสต์นี้ได้ไหม (แอดมิน = ทุกโพสต์ / เจ้าของ = ของตัวเอง) — backend/routes/feed.js
   final bool canRemove;
+  // ฟีด: รายงานได้ไหม (บัญชีจริง + ไม่ใช่ของตัวเอง) / รายงานไปแล้ว
+  final bool canReport;
+  final bool reportedByMe;
+  // ---- เฉพาะหน้าโพสต์ที่ถูกรายงานของแอดมิน (backend/routes/reviews.js) ----
+  final int reportCount;
+  final Map<String, int> reportReasons; // { not_done: 2, personal_info: 1 }
+  final bool hiddenByReports; // รายงานครบเกณฑ์ ซ่อนจากฟีดอยู่
+  final bool canRevoke; // ของเก่าก่อน 7 ต.ค. 2026 ยึดแต้มคืนไม่ได้
   // ข้อมูลที่กรอกตามฟอร์มของเควส (เช่น ส่งคืนอะไร/กี่ชิ้น/ร้านไหน) — null = ไม่มี
   final ProofDetails? details;
-  // คิวตรวจของแอดมิน: เป็นหลักฐานของแอดมินเอง (แอดมินตรวจของตัวเองได้ — backend/routes/reviews.js)
-  final bool isOwn;
 
   SubmissionModel({
     required this.id,
@@ -37,10 +39,6 @@ class SubmissionModel {
     required this.status,
     required this.photoUrl,
     required this.submittedAt,
-    this.approvals = 0,
-    this.rejections = 0,
-    this.approvalsNeeded = 2,
-    this.escalated = false,
     this.rewardPoints = 0,
     this.rewardXp = 0,
     this.quest,
@@ -50,8 +48,13 @@ class SubmissionModel {
     this.cheers = 0,
     this.cheeredByMe = false,
     this.canRemove = false,
+    this.canReport = false,
+    this.reportedByMe = false,
+    this.reportCount = 0,
+    this.reportReasons = const {},
+    this.hiddenByReports = false,
+    this.canRevoke = false,
     this.details,
-    this.isOwn = false,
   });
 
   bool get isParty => kind == 'party';
@@ -62,16 +65,13 @@ class SubmissionModel {
     final userJson = json['user'] as Map<String, dynamic>?;
     final checkIn = json['checkIn'] as Map<String, dynamic>?;
     final reward = (json['reward'] ?? {}) as Map<String, dynamic>;
+    final reasons = json['reportReasons'];
     return SubmissionModel(
       id: (json['id'] ?? '').toString(),
       kind: json['kind'] ?? 'quest',
-      status: json['status'] ?? 'pending',
+      status: json['status'] ?? 'approved',
       photoUrl: AppConstants.resolveUrl(json['photoUrl']?.toString()) ?? '',
       submittedAt: DateTime.tryParse(json['submittedAt']?.toString() ?? '')?.toLocal() ?? DateTime.now(),
-      approvals: json['approvals'] ?? 0,
-      rejections: json['rejections'] ?? 0,
-      approvalsNeeded: json['approvalsNeeded'] ?? 2,
-      escalated: json['escalated'] == true,
       rewardPoints: reward['points'] ?? 0,
       rewardXp: reward['xp'] ?? 0,
       quest: questJson != null ? SubmissionQuest.fromJson(questJson) : null,
@@ -81,23 +81,26 @@ class SubmissionModel {
       cheers: json['cheers'] ?? 0,
       cheeredByMe: json['cheeredByMe'] ?? false,
       canRemove: json['canRemove'] == true,
+      canReport: json['canReport'] == true,
+      reportedByMe: json['reportedByMe'] == true,
+      reportCount: json['reportCount'] ?? 0,
+      reportReasons: reasons is Map
+          ? reasons.map((k, v) => MapEntry(k.toString(), (v as num?)?.toInt() ?? 0))
+          : const {},
+      hiddenByReports: json['hiddenByReports'] == true,
+      canRevoke: json['canRevoke'] == true,
       details: json['details'] is Map<String, dynamic>
           ? ProofDetails.fromJson(json['details'] as Map<String, dynamic>)
           : null,
-      isOwn: json['isOwn'] == true,
     );
   }
 
-  SubmissionModel copyWith({int? cheers, bool? cheeredByMe}) => SubmissionModel(
+  SubmissionModel copyWith({int? cheers, bool? cheeredByMe, bool? reportedByMe}) => SubmissionModel(
         id: id,
         kind: kind,
         status: status,
         photoUrl: photoUrl,
         submittedAt: submittedAt,
-        approvals: approvals,
-        rejections: rejections,
-        approvalsNeeded: approvalsNeeded,
-        escalated: escalated,
         rewardPoints: rewardPoints,
         rewardXp: rewardXp,
         quest: quest,
@@ -107,8 +110,13 @@ class SubmissionModel {
         cheers: cheers ?? this.cheers,
         cheeredByMe: cheeredByMe ?? this.cheeredByMe,
         canRemove: canRemove,
+        canReport: canReport,
+        reportedByMe: reportedByMe ?? this.reportedByMe,
+        reportCount: reportCount,
+        reportReasons: reportReasons,
+        hiddenByReports: hiddenByReports,
+        canRevoke: canRevoke,
         details: details,
-        isOwn: isOwn,
       );
 }
 
@@ -143,49 +151,19 @@ class SubmissionQuest {
       co2eEstimateKg == null ? null : co2eEstimateKg! / (durationDays < 1 ? 1 : durationDays);
 }
 
-// ผลจาก GET /api/reviews/queue
-class ReviewQueue {
+// ผลจาก GET /api/reviews/queue — โพสต์ที่ถูกรายงาน (แอดมินเท่านั้น ผู้เล่นทั่วไปได้ลิสต์ว่าง isAdmin: false)
+class ReportQueue {
   final List<SubmissionModel> submissions;
-  final int pendingCount;
+  final int pendingCount; // จำนวนที่รอแอดมินดูทั้งหมด
   final bool isAdmin;
-  // guest ตรวจไม่ได้ (บัญชีจริงเท่านั้น) — แอพชวนสมัครบัญชีแทนแบนเนอร์ตรวจ
-  final bool canReview;
-  // แอดมินเท่านั้น: จำนวนที่ค้างเกิน 48 ชม. รอแอดมินตัดสิน
-  final int escalatedCount;
-  // รางวัลคนตรวจ (backend/utils/reviewRewards.js) — ต่อโหวต 1 ครั้ง, วันละไม่เกิน rewardsCap ครั้ง
-  final int rewardPoints;
-  final int rewardXp;
-  final int rewardsToday;
-  final int rewardsCap;
 
-  ReviewQueue({
-    required this.submissions,
-    required this.pendingCount,
-    required this.isAdmin,
-    this.canReview = true,
-    this.escalatedCount = 0,
-    this.rewardPoints = 0,
-    this.rewardXp = 0,
-    this.rewardsToday = 0,
-    this.rewardsCap = 0,
-  });
-
-  bool get hasRewardsLeft => rewardsCap > 0 && rewardsToday < rewardsCap && rewardPoints > 0;
+  ReportQueue({required this.submissions, required this.pendingCount, required this.isAdmin});
 }
 
-// ผลการโหวต 1 ครั้ง — สถานะหลักฐานหลังโหวต + รางวัลคนตรวจที่ได้ (0 = วันนี้ครบเพดานแล้ว)
-class VoteResult {
-  final String status; // pending / approved / rejected
-  final int rewardPoints;
-  final int rewardXp;
-  final int rewardsToday;
-  final int rewardsCap;
-
-  VoteResult({
-    required this.status,
-    this.rewardPoints = 0,
-    this.rewardXp = 0,
-    this.rewardsToday = 0,
-    this.rewardsCap = 0,
-  });
-}
+// เหตุผลที่รายงานได้ — ตรงกับ backend/utils/submissions.js REPORT_REASONS
+const reportReasonLabels = <String, String>{
+  'not_done': "Doesn't show the quest",
+  'personal_info': 'Shows personal info',
+  'inappropriate': 'Inappropriate photo',
+  'other': 'Something else',
+};

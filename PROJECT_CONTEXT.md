@@ -69,55 +69,61 @@
 - **ทำเควสซ้ำได้ไม่จำกัดต่อวัน** — gate `isDaily` ถูกลบทั้ง start/complete/party (`Quest.isDaily` ยังอยู่แต่ไม่บังคับ)
   การ์ดโชว์ `timesToday` ("Done 2× today") แทน Done / แต้ม-XP ได้ทุกครั้ง แต่ **CO₂ ต่อเควสนับวันละครั้ง** (`profilePayload.js`
   bucket = questId ใช้ `$max`) / Check Food ต้องมีของในตู้เย็นใหม่ทุกครั้ง / Food Saver ยังเช็คอินวันละครั้ง (ธรรมชาติของเควส)
-- **ระบบตรวจสอบภารกิจ** (`utils/submissions.js` + `models/QuestSubmission.js`):
-  - เควส solo ทุกอัน (ยกเว้น Check Food ที่ระบบตรวจจากตู้เย็นเอง) กด Complete ต้องถ่ายรูปหลักฐาน (`widgets/proof_capture_sheet.dart`)
-    → `pending` ยังไม่ได้แต้ม / Food Saver ส่งรูปทุกวัน / ปาร์ตี้ = หัวหน้าส่งรูปกลุ่ม 1 รูป ห้องเป็นสถานะ `reviewing`
-  - ผู้เล่นคนอื่นกดผ่าน 2 = approved, ไม่ผ่าน 2 = rejected, **แอดมินโหวตครั้งเดียวตัดสิน**
-  - **ค้างเกิน 48 ชม. = ส่งให้แอดมินตัดสินคนเดียว** (30 ก.ย. 2026 — เดิมตัดสินอัตโนมัติ "ผ่านถ้าเสียงผ่าน >= ไม่ผ่าน" ซึ่ง
-    0-0 ก็ผ่าน = ส่งรูปอะไรก็ได้แล้วรอ 2 วัน) คิดจาก `createdAt` ตรงๆ (`isEscalated` ใน `utils/submissions.js`) ไม่มีงานเบื้องหลัง
-    — ผู้เล่นทั่วไปไม่เห็นในคิว/โหวตไม่ได้ (409), คิวแอดมินเอาที่ค้างขึ้นก่อน เก่าสุดก่อน + `escalatedCount`, payload มี
-    `escalated` (หน้า Progress โชว์ "Waiting for an admin") / ⚠️ ไม่มีแอดมินมาตรวจ = ค้าง pending ไปเรื่อยๆ
-  - **ตรวจได้เฉพาะบัญชีจริง** (ไม่มีเลเวลขั้นต่ำ) — guest: `GET /reviews/queue` ได้คิวว่าง + `canReview: false` (แท็บ Feed
-    โชว์แบนเนอร์ชวนสมัครบัญชีแทน), โหวต = 403 / guest อัปเกรดบัญชีแล้วตรวจได้ทันที (`isGuest` เป็น false)
-  - **ห้ามตรวจหลักฐานของตัวเอง ยกเว้นแอดมิน (7 ต.ค. 2026)** — มีแอดมินคนเดียว ของตัวเองที่ค้างเกิน 48 ชม. ไม่มีใครตัดสินให้
-    → แอดมินเห็นของตัวเองในคิว (payload `isOwn: true` แอพโชว์ป้าย "Your proof") และโหวตตัดสินได้ แต่**ไม่ได้รางวัลคนตรวจ**
-    จากใบของตัวเอง (กันปั๊มแต้ม) / ผู้ใช้ทั่วไปยังไม่เห็นของตัวเองในคิว + โหวต = 403 เหมือนเดิม (`routes/reviews.js`)
-  - **รางวัลคนตรวจ** (`utils/reviewRewards.js`, 30 ก.ย. 2026): โหวตสำเร็จ 1 ครั้ง = +2 P +2 XP ไม่ว่ากดผ่าน/ไม่ผ่าน
-    (ให้เฉพาะกดผ่าน = จูงใจให้กดผ่านมั่ว) วันละไม่เกิน 10 ครั้ง (= 20 P/วัน ไม่แซงการทำเควส) ตัดวันแบบเควส — นับใน
-    `User.reviewRewardDay/reviewRewardCount` เพดานอยู่ใน query เดียวกับการบวกแต้ม (กดพร้อมกันไม่เกิน) / เกินเพดานยังโหวตได้
-    แค่ไม่ได้แต้ม / แอพ: แถบ "+2 P · +2 XP per review · 3/10 today" ในหน้าตรวจ + toast ทุกโหวต + แบนเนอร์ฟีด "Earn +2 P…"
-  - lazy `sweepQuietly()` ใน GET /quests, /auth/me, /reviews/queue, /feed (ไม่มี scheduler) — ตอนนี้เหลือแค่ลบรูปหมดอายุ
-  - แต้ม/XP/CO₂/เหรียญ ได้ตอน approved (`utils/questRewards.js#awardQuest` — ที่เดียวทั้งระบบ Check Food ก็ใช้) ประวัติลงเวลา
-    ตอนส่ง / **Daily Streak นับตั้งแต่ตอนส่ง** / Food Saver วันไหนไม่ผ่าน = นับใหม่วันที่ 1 / ปาร์ตี้ไม่ผ่าน = ห้องกลับเป็น started
-  - รูปเดิมของตัวเองส่งซ้ำไม่ได้ (sha256) / ตัดสินแบบ CAS — โหวตพร้อมกันให้รางวัลครั้งเดียว
-  - **ไม่ผ่าน = ลบรูปทิ้งทันที** (`purgeRejectedPhoto`, คง photoHash ไว้กันส่งซ้ำ) + sweep เก็บกวาดของเก่าที่ยังค้างรูป —
-    เพิ่ม 29 ก.ย. 2026 หลังผู้ทดสอบส่งรูปสลิปโอนเงินที่มีชื่อ/เลขบัญชีมา
-  - แอพ: หน้า Progress มีส่วน "Waiting for review", หน้าตรวจ `pages/community/review_page.dart` (เข้าจากแท็บ Feed + Admin),
-    ผ่านแล้ว `main_shell.dart` เล่น `showRewardFly` "Quest approved!" ครั้งเดียว (จำ id ที่ฉลองแล้วใน SharedPreferences)
-  - ⚠️ ข้อจำกัดที่เหลือ: คนเดียวสมัครบัญชีจริงหลายอีเมลมาอนุมัติตัวเองยังทำได้ในทางทฤษฎี (ยากกว่า guest มาก) — แอดมินตัดสินทับได้เสมอ
+- **หลักฐานภารกิจ: ส่งรูปแล้วได้แต้มทันที + รายงานโพสต์** (`utils/submissions.js` + `models/QuestSubmission.js`) —
+  ⚠️ **เปลี่ยน 7 ต.ค. 2026** อาจารย์ติงว่าให้ผู้เล่นตรวจทุกอันเป็นภาระ และไม่มีใครตรวจ = คนทำไม่ได้แต้มจนหมดกำลังใจ (เป้าหมายคือ
+  ความตระหนัก/การมีส่วนร่วม ไม่ใช่จับโกง) ผู้ใช้เลือก "ได้แต้มทันที + รายงาน" — **ระบบให้ผู้เล่นโหวตตรวจเดิม (28 ก.ย.–7 ต.ค.)
+  ถูกลบแล้ว**: ไม่มีโหวต 2 คน / 48 ชม. รอแอดมิน / รางวัลคนตรวจ (`utils/reviewRewards.js` ลบทิ้ง, `User.reviewReward*` ลบ)
+  - เควส solo ทุกอัน (ยกเว้น Check Food) กด Complete ยังต้องถ่ายรูป (`widgets/proof_capture_sheet.dart` ปุ่ม "Submit") + รูปเดิม
+    ซ้ำไม่ได้ (sha256) → สร้าง `QuestSubmission` เป็น `approved` / `decidedBy: 'instant'` แล้ว `awardSubmission` ให้รางวัลทันที
+    ตอบ `status: 'completed'` รูปแบบเดียวกับ Check Food (แอพใช้เส้น `handleQuestCompleted` เดียวกัน)
+  - Food Saver: เช็คอินแต่ละวัน = แต้มรายวันทันที (วงแหวนบอก "+12 P — see you tomorrow!") วันสุดท้าย = รายวัน + โบนัสจบ
+  - ปาร์ตี้: หัวหน้าส่งรูปกลุ่ม → ห้อง `completed` ทันที ทุกคนได้รางวัล — หัวหน้าเห็นจาก response, สมาชิกคนอื่นได้แจ้งเตือน
+    `quest_approved` "Party Event Complete" (มี data.points ให้ `main_shell.dart` เด้งเอฟเฟครางวัล "Quest complete!")
+  - เจ้าของได้แจ้งเตือน `quest_complete` (ไม่เด้งฉลองซ้ำ) / Daily Streak นับตอนส่ง / ประวัติลงเวลาตอนส่ง
+  - `QuestSubmission.awards` = [{userId, historyId, points, xp, checkInDay}] ที่ให้ไปจริงทุกคน — ไว้ยึดคืน
+  - **รายงานโพสต์** (`POST /api/feed/:id/report` `{reason}`: `not_done` / `personal_info` / `inappropriate` / `other`):
+    บัญชีจริงเท่านั้น (guest 403 — สร้างได้ไม่จำกัด กันรุมรายงาน) / 1 คน 1 ครั้ง / ของตัวเองหรือปาร์ตี้ตัวเอง 409 / รายงานแรก
+    = `reportStatus: 'open'` + แจ้งแอดมินทุกคน `post_reported` / **ครบ 3 คน (`REPORTS_TO_HIDE`) = `hiddenByReports` ซ่อนจากฟีด**
+    / แอดมินกด keep ไปแล้ว = รายงานใหม่บันทึกแต่ไม่เปิดเรื่อง/ไม่ซ่อนซ้ำ — ฟีดส่ง `canReport` / `reportedByMe` (แอพ: เมนู ⋮)
+  - **แอดมินดูเฉพาะโพสต์ที่ถูกรายงาน** (`GET /api/reviews/queue` เก่าสุดก่อน + `reportCount` / `reportReasons` / `canRevoke`,
+    ผู้เล่นทั่วไปได้ลิสต์ว่าง `isAdmin: false`) → `POST /api/reviews/:id/resolve` `{action}` (CAS open → ผลตัดสิน กดซ้ำ 409):
+    `keep` = กลับมาโชว์ / `remove` = ถอนรูป แต้มอยู่ + แจ้ง `post_removed` / `revoke` = `revokeSubmission`: ลบแถว QuestHistory
+    (CO₂/ประวัติหายด้วย) ลบแต้ม/XP (ไม่ติดลบ) totalQuestsCompleted −1 คำนวณ level ใหม่ ทุกคนที่ได้ + status `rejected` +
+    ถอนรูป + แจ้ง `quest_rejected` "Proof Not Accepted" / ⚠️ ไม่ถอนเหรียญที่ปลดแล้ว / โบนัส Bingo / streak (ข้อจำกัด)
+    / ของก่อน 7 ต.ค. ไม่มี `awards` = ยึดคืนไม่ได้ (`canRevoke: false` ถอนรูปได้อย่างเดียว)
+  - แอพ: แท็บ Feed แอดมินเห็นแบนเนอร์ "N reported posts" → `pages/community/reported_posts_page.dart` (แทน review_page.dart
+    เดิม — ทีละใบ: Keep / Remove photo / Not a real quest — take back points + dialog ยืนยัน) เข้าจากหน้า Admin ได้ด้วย
+  - **ของ `pending` ค้างจากระบบเดิม**: `sweepQuietly()` (lazy ใน GET /quests, /auth/me, /reviews/queue, /feed) เรียก
+    `approveLegacyPending` อนุมัติทีละอันแบบ CAS ครั้งละ ≤50 + แจ้งเตือน `quest_approved` ให้เด้งฉลอง / ห้อง `reviewing`
+    เก่า → completed / sweep ยังลบรูปหมดอายุ + รูปตู้เย็นหมดอายุเหมือนเดิม
+  - ⚠️ ข้อจำกัด: ส่งรูปอะไรก็ได้แต้มก่อน — พึ่งการรายงาน + ฟีดที่ทุกคนเห็น (social proof) / แอพโชว์ "tap ⋮ to report" ใต้หัวฟีด
 - **ฟีดชุมชน + ผลกระทบรวมของเมือง** — Community มีแท็บ **Feed** เป็นแท็บแรก (`pages/community/feed_tab.dart`): การ์ด
-  "Ebetsu's impact" (CO₂ ทั้งเมือง = ผลรวมโปรไฟล์ทุกคนพอดี + เทียบต้นสนดูดซับ `utils/impactEquivalents.js`), แบนเนอร์ชวนตรวจ,
-  ฟีดรูปภารกิจที่ approved ของทุกคน + Cheer
+  "Ebetsu's impact" (CO₂ ทั้งเมือง = ผลรวมโปรไฟล์ทุกคนพอดี + เทียบต้นสนดูดซับ `utils/impactEquivalents.js`), แบนเนอร์
+  โพสต์ที่ถูกรายงาน (แอดมิน), ฟีดรูปภารกิจของทุกคนวันนี้ "Today's quests" + Cheer + เมนู ⋮ (รายงาน / ถอนโพสต์)
   - **Today Feed** (ผู้ใช้ออกแบบ 30 ก.ย. 2026 — กัน Atlas ฟรี 512MB เต็มจากรูปหลักฐาน): ฟีดโชว์แค่ที่ approved **วันนี้**
     (`decidedAt` >= เที่ยงคืนเวลาญี่ปุ่น `utils/questDay.js`) / ขึ้นวันใหม่ sweep ลบรูปของที่ approved ก่อนวันนี้
-    (`purgeExpiredPhotos` ใน `utils/submissions.js`, คง photoHash) / pending เก็บรูปไว้จนตัดสิน (ผู้ตรวจต้องเห็น)
+    (`purgeExpiredPhotos` ใน `utils/submissions.js`, คง photoHash) / **ยกเว้นที่ถูกรายงานรอแอดมิน** (`reportStatus: 'open'`)
   - รูปหลักฐานย่อตอนถ่ายเหลือด้านยาวสุด 960px quality 70 (~100-200KB) / backend รับไม่เกิน 2MB ต่อรูป
   - **Remove post** (ผู้ใช้สั่ง 1 ต.ค. 2026 — เคยมีรูปสลิปที่มีชื่อ+เลขบัญชีหลุดขึ้นฟีด): `DELETE /api/feed/:id` เจ้าของถอนโพสต์ตัวเอง /
     แอดมินถอนได้ทุกโพสต์ (คนอื่น 403) → `removedFromFeed: true` + ลบ `photoData` ทันที (คง photoHash) / **แต้ม-XP-CO₂ คงอยู่**
     (ถอนแค่รูปจากฟีด ไม่ใช่ยกเลิกเควส) / แอดมินถอน = แจ้งเตือนเจ้าของ `post_removed` / `GET /feed` ส่ง `canRemove` ให้แอพโชว์ปุ่มถังขยะ
-  - คำเตือนข้อมูลส่วนตัว (`lib/widgets/privacy_notice.dart`) โชว์ 2 ที่: ตอนถ่ายรูปส่ง (`proof_capture_sheet.dart`) และหน้า
-    Quest Review (`review_page.dart` — บอกผู้ตรวจให้กด Not approved ถ้ารูปมีชื่อ/เลขบัญชี/ใบเสร็จ)
+  - คำเตือนข้อมูลส่วนตัว (`lib/widgets/privacy_notice.dart`) โชว์ตอนถ่ายรูปส่ง (`proof_capture_sheet.dart`) / รูปที่หลุดมา
+    ผู้เล่นรายงานเหตุผล "Shows personal info" ได้ แอดมินกด Remove photo
   - **รูปของในตู้เย็น** (ผู้ใช้สั่ง 1 ต.ค. 2026): ของหมดอายุ (`expirationDate <= now`) = ลบรูปอัตโนมัติ (`utils/fridgePhotos.js`
     ตั้ง `photoRemovedAt`) แต่**ตัวรายการยังอยู่ ผู้ใช้ลบเอง** — เรียกตอน `GET /fridge-items` (ของคนนั้น) + sweep รวมใน
     `utils/submissions.js` / แอพโชว์ "Expired (…) · photo removed" + แจ้งเตือนของหมดอายุบอกว่ารูปถูกลบ
   - ขนาดรูปตอนถ่าย: ตู้เย็น 640px quality 70 / โปรไฟล์ 512px quality 75 / backend รับไม่เกิน 2MB ทั้งคู่
+  - **เรียงของในตู้เย็น** (อาจารย์ขอ 7 ต.ค. 2026): หน้า Fridge มีชิป "Sort by: Expiration date / Date added" (โผล่เมื่อมี ≥2 ชิ้น)
+    — วันหมดอายุ = ใกล้หมดก่อน (default) / วันที่เพิ่ม = ล่าสุดก่อน (`addedAt` ใน payload `GET /fridge-items`, ของเก่าใช้
+    createdAt) จำค่าที่เลือกใน SharedPreferences `fridge_sort` — เรียงฝั่งแอพ (`fridge_page.dart#_sorted`)
   - ⚠️ รูปโปรไฟล์ไม่ถูกลบอัตโนมัติ (1 รูป/คน ทับของเดิมเสมอ — ไม่โตเกินจำนวนผู้ใช้)
 - ⚠️ **deploy ต้องไปพร้อมกัน** — backend ใหม่ต้องการรูปตอน Complete แอพเวอร์ชันเก่ากด Complete ไม่ผ่าน
 - **กลไกให้อยากทำเควสต่อ** (อาจารย์: "ไม่ใช่จำกัด แต่ทำให้อยากทำอันต่อไป" — ผู้ใช้เลือก 2 อย่าง 30 ก.ย. 2026):
   - **Daily Variety Combo** (`utils/combo.js`): เควส solo ที่ไม่ซ้ำกันในวันเดียวกัน = แต้ม/XP ×1.1, ×1.2 … เพดาน ×1.5 /
     ทำเควสเดิมซ้ำในวัน = ×0.75, ×0.5, ต่ำสุด ×0.25 (ไม่ห้าม แค่ไม่คุ้ม) — ไม่คูณ CO2 / ไม่มีกับ party + เควสหลายวัน
-    - ลำดับ = เวลาที่ทำ (ส่งหลักฐาน/Check Food) แต่ตัวคูณจริงคิดตอนผ่านการตรวจ **ไม่นับอันที่ไม่ผ่าน** (กันส่งมั่วดันคอมโบ)
-      ตอนส่งได้ "ตัวอย่าง" ใน response (`combo`) — เก็บตัวคูณที่ใช้จริงใน `QuestSubmission.reward.comboMultiplier`
+    - ลำดับ = เวลาที่ทำ (ส่งหลักฐาน/Check Food) ไม่นับอันที่แอดมินยึดแต้มคืน (status rejected) — คิดตอนส่ง (ผ่านทันที)
+      response มี `combo` / เก็บตัวคูณที่ใช้จริงใน `QuestSubmission.reward.comboMultiplier` / เควสซ้ำ ป้ายรางวัลบอก
+      "Repeat ×0.5 — try a new quest!" (`quest_completion.dart`)
     - `awardQuest(..., { comboMultiplier })` คูณหลัง upgrade/Energy / GET /quests ส่ง `comboMultiplier` ต่อเควส + `combo` สรุป
     - แอพ: ชิป ×1.2 (เขียว) / ×0.75 (ส้ม) บนการ์ดเควส, แถบ `widgets/quest_boost_bar.dart` บนลิสต์ (Explore + Home)
   - **Eco Bingo รายสัปดาห์** (`utils/bingo.js`, `models/BingoCard.js`, `GET /api/bingo`, `pages/bingo/bingo_page.dart`):
@@ -760,9 +766,9 @@ Mongoose models ทั้งหมดอยู่ใน `backend/models/` แล
   (สร้างแจ้งเตือนของใกล้หมดอายุแบบ lazy ตอน `GET /` เพราะไม่มี scheduler — ดูหัวข้อ "ระบบแจ้งเตือน" ด้านบน)
 - `backend/routes/upgrades.js` → mount ที่ `/api/upgrades`: `GET /`, `POST /:upgradeType/buy`
   (ดูหัวข้อ "ร้าน Upgrade Ability" ด้านบน)
-- `backend/routes/reviews.js` → `/api/reviews`: `GET /queue`, `POST /:id/vote` `{approve}` (ดูหัวข้อ 2.5)
+- `backend/routes/reviews.js` → `/api/reviews` (แอดมิน — โพสต์ที่ถูกรายงาน): `GET /queue`, `POST /:id/resolve` `{action: keep|remove|revoke}` (ดูหัวข้อ 2.5)
 - `backend/routes/submissions.js` → `/api/submissions`: `GET /mine?status=`, `GET /:id/photo` (ไม่ต้อง login)
-- `backend/routes/feed.js` → `/api/feed`: `GET /?before=&limit=`, `POST /:id/cheer` (toggle), `DELETE /:id` (ถอนโพสต์: เจ้าของ/แอดมิน)
+- `backend/routes/feed.js` → `/api/feed`: `GET /?before=&limit=`, `POST /:id/cheer` (toggle), `POST /:id/report` `{reason}` (รายงาน: บัญชีจริง), `DELETE /:id` (ถอนโพสต์: เจ้าของ/แอดมิน)
 - `backend/routes/impact.js` → `/api/impact`: `GET /summary` (ตลอดกาล + 7 วันล่าสุด, cache 5 นาที)
 - สคริปต์: `npm run seed:quests` (`backend/scripts/seedQuests.js`)
 - `backend/routes/admin.js` → mount ที่ `/api/admin`: **dev/QA เท่านั้น** ทุก route ต้องผ่าน

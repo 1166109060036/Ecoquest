@@ -15,7 +15,7 @@ class ProofPhoto {
   const ProofPhoto(this.bytes, this.contentType, {this.details});
 }
 
-// แผ่นถ่ายรูปหลักฐานภารกิจ (ระบบตรวจสอบภารกิจ 28 ก.ย. 2026) — ถ่าย/เลือกรูป -> ดูตัวอย่าง -> "Submit for review"
+// แผ่นถ่ายรูปหลักฐานภารกิจ — ถ่าย/เลือกรูป -> ดูตัวอย่าง -> "Submit" (7 ต.ค. 2026: ส่งแล้วได้แต้มทันที ขึ้นฟีดเลย)
 // ใช้ 2 ที่: Complete เควส solo (หน้า Progress/หน้ารายละเอียด) และหัวหน้าห้องกดจบอีเวนต์ปาร์ตี้ (รูปกลุ่ม)
 // คืน null ถ้าผู้ใช้ปิดไปก่อน
 //
@@ -135,7 +135,7 @@ class _ProofCaptureSheetState extends State<_ProofCaptureSheet> {
             const SizedBox(height: 10),
             const PrivacyNotice(
               text: "Don't include personal info such as names, account numbers or receipts. "
-                  'Approved photos are shown in the community feed.',
+                  'Your photo is shown in the community feed.',
             ),
             const SizedBox(height: 16),
             // ตัวอย่างรูป / กรอบว่างรอถ่าย — สูงไม่เกิน 40% ของจอ ปุ่มด้านล่างจะได้เห็นโดยไม่ต้องเลื่อน
@@ -182,7 +182,7 @@ class _ProofCaptureSheetState extends State<_ProofCaptureSheet> {
             ] else ...[
               _SheetButton(
                 icon: Icons.send_rounded,
-                label: _formValid ? 'Submit for review' : 'Answer the questions above',
+                label: _formValid ? 'Submit' : 'Answer the questions above',
                 filled: true,
                 onPressed: _formValid ? () => Navigator.pop(context, _withDetails(photo)) : null,
               ),
@@ -195,7 +195,7 @@ class _ProofCaptureSheetState extends State<_ProofCaptureSheet> {
             ],
             const SizedBox(height: 8),
             Text(
-              'Other players will check your photo. You get your reward once it is approved.',
+              'You get your reward right away. Other players can report photos that do not show the quest.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
             ),

@@ -37,7 +37,7 @@ class _BingoPageState extends State<BingoPage> {
       return;
     }
     if (cell.pending) {
-      showBubbleToast(context, 'Waiting for review — this tile fills in once it is approved');
+      showBubbleToast(context, 'Almost there — this tile fills in shortly');
       return;
     }
     final quests = context.read<QuestProvider>().quests;
@@ -83,7 +83,7 @@ class _BingoPageState extends State<BingoPage> {
                     _BingoGrid(card: card, onTap: _openCell),
                     const SizedBox(height: 14),
                     Text(
-                      'Tiles fill in once your proof is approved. Complete a row, column or diagonal for a bonus — '
+                      'Tiles fill in when you complete the quest. Complete a row, column or diagonal for a bonus — '
                       'the free tile in the middle counts for everyone.',
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 12, color: Colors.grey.shade600, height: 1.4),

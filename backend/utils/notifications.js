@@ -121,6 +121,43 @@ const notifyQuestRejected = async (userId, quest, submissionId, checkIn = null) 
   });
 };
 
+// ได้แต้มจากอีเวนต์ปาร์ตี้ที่หัวหน้าส่งรูปกลุ่ม (ผ่านทันทีตั้งแต่ 7 ต.ค. 2026) — สมาชิกที่ไม่ได้กดเองไม่เห็น response
+// เลยใช้ type quest_approved + data.points/xp ให้แอพเด้งเอฟเฟครางวัลตอนเปิด (main_shell.dart) แบบเดียวกับหลักฐานผ่าน
+const notifyPartyReward = async (userId, quest, submissionId, reward) => {
+  await createNotification({
+    userId,
+    type: 'quest_approved',
+    title: 'Party Event Complete',
+    message: `${quest.title} · +${reward.points} points, +${reward.xp} XP`,
+    dedupeKey: `submission:${submissionId}`,
+    data: { points: reward.points, xp: reward.xp },
+  });
+};
+
+// แอดมินดูโพสต์ที่ถูกรายงานแล้วตัดสินว่ารูปไม่ได้แสดงว่าทำเควสจริง -> ยึดแต้มคืน (utils/submissions.js#revokeSubmission)
+const notifyProofRevoked = async (userId, quest, submissionId, points) => {
+  await createNotification({
+    userId,
+    type: 'quest_rejected',
+    title: 'Proof Not Accepted',
+    message: `${quest ? quest.title : 'Your quest'} · your photo was reported and an admin found it doesn't show the quest`
+      + (points ? `, so ${points} points were taken back.` : '.')
+      + ' Please post a photo of what you really did.',
+    dedupeKey: `revoked:${submissionId}`,
+  });
+};
+
+// มีคนรายงานโพสต์ (routes/feed.js) — แจ้งแอดมินครั้งเดียวต่อโพสต์ (ไม่ต้องคอยเปิดฟีดเช็คเอง)
+const notifyPostReported = async (adminId, quest, submissionId) => {
+  await createNotification({
+    userId: adminId,
+    type: 'post_reported',
+    title: 'Post Reported',
+    message: `${quest ? quest.title : 'A quest'} · a player reported this photo. Open Community → Feed to check it.`,
+    dedupeKey: `reported:${submissionId}`,
+  });
+};
+
 // Eco Bingo ครบแถว/ครบการ์ด (utils/bingo.js) — 1 ใบต่อการรับรางวัล 1 ครั้ง (อาจได้หลายแถวพร้อมกัน)
 // data.points/xp ให้แอพเล่นเอฟเฟครางวัลบินเข้าป้ายแบบเดียวกับหลักฐานผ่าน (main_shell.dart)
 // แอดมินถอนโพสต์ของผู้ใช้ออกจากฟีด — แต้มยังอยู่ แค่รูปถูกลบ (เจ้าของถอนเองไม่ต้องแจ้ง)
@@ -216,6 +253,9 @@ module.exports = {
   notifyQuestRejected,
   notifyBingo,
   notifyPostRemoved,
+  notifyPartyReward,
+  notifyProofRevoked,
+  notifyPostReported,
   ensureExpiryNotifications,
   getNotifications,
   markAllRead,

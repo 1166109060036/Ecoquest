@@ -41,7 +41,10 @@ Future<void> handleQuestCompleted(BuildContext context, QuestReward reward) asyn
         ? (bingo.full ? 'Eco Bingo — full card!' : 'Eco Bingo!')
         : combo != null && combo.multiplier > 1
             ? 'Combo ${formatMultiplier(combo.multiplier)}!'
-            : 'Quest complete!',
+            // ทำเควสเดิมซ้ำวันเดียวกัน = แต้มลดลง — ชวนลองเควสใหม่ (backend/utils/combo.js)
+            : combo != null && combo.repeat
+                ? 'Repeat ${formatMultiplier(combo.multiplier)} — try a new quest!'
+                : 'Quest complete!',
   );
   SoundService.instance.playQuestSuccess();
 

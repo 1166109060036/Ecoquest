@@ -9,7 +9,7 @@ import 'quest_card_model.dart' show QuestReward;
 // แบบเดียวกับ quest ทั่วไป) และห้องล่าสุด (สถานะเปลี่ยนเป็น completed แล้ว) ไปอัปเดต provider
 class PartyCompleteReward {
   final QuestReward reward;
-  final int awardedCount; // กี่คนในห้องที่ได้คะแนนรอบนี้ (คนที่ทำเควสนี้ไปแล้ววันนี้จะไม่นับซ้ำ)
+  final int awardedCount; // กี่คนในห้องที่ได้คะแนนรอบนี้
   final PartyModel party;
 
   PartyCompleteReward({
@@ -104,7 +104,7 @@ class PartyQuestModel {
 class PartyModel {
   final String id;
   final String name; // ชื่อห้องที่ผู้สร้างตั้งเอง
-  final String status; // 'open' | 'started' | 'reviewing' (รูปกลุ่มรอตรวจ) | 'completed'
+  final String status; // 'open' | 'started' | 'reviewing' (ของเก่าจากระบบให้คนตรวจ) | 'completed'
   final DateTime? startedAt;
   final DateTime? completedAt;
   final DateTime eventDate;

@@ -1,7 +1,7 @@
 // ให้รางวัลการทำเควสสำเร็จ 1 ครั้ง — ที่เดียวทั้งระบบ แยกออกมาจาก routes/quests.js /complete และ
 // routes/party.js /complete เดิม (28 ก.ย. 2026) เพราะตอนนี้มี 2 ทางที่ได้รางวัล:
 //   1. ทันที — เควสที่ระบบตรวจเองได้ (Check Food ต้องมีของในตู้เย็นใหม่)
-//   2. ตอนหลักฐานผ่านการตรวจ — utils/submissions.js#finalizeSubmission
+//   2. ส่งรูปหลักฐาน — ผ่านทันทีตั้งแต่ 7 ต.ค. 2026 (utils/submissions.js#awardSubmission)
 // ทั้งสองทางต้องคิดเลขเหมือนกันเป๊ะ (bonus, level, ยอดรวม, เหรียญ) เลยห้ามมีโค้ดให้รางวัลแยกสองชุด
 const QuestHistory = require('../models/QuestHistory');
 const User = require('../models/User');
@@ -92,14 +92,14 @@ const awardQuest = async (
 
 // เช็คอินวันระหว่างทางของเควสหลายวันผ่านการตรวจ — ได้แต้มรายวัน (utils/checkInRewards.js) + แถว QuestHistory checkIn
 // (นับ CO2 ของวันนั้น) แต่ไม่นับเป็น "ทำเควสสำเร็จ" (ไม่บวก totalQuestsCompleted / ไม่เช็คเหรียญ / ไม่ติดช่อง Bingo —
-// ทั้งหมดนับตอนจบเควสครั้งเดียว) / streak นับไปแล้วตอนส่ง — คืน { user, reward } หรือ null ถ้าไม่มี user แล้ว
+// ทั้งหมดนับตอนจบเควสครั้งเดียว) / streak นับไปแล้วตอนส่ง — คืน { user, reward, history } หรือ null ถ้าไม่มี user แล้ว
 const awardCheckInDay = async (userId, quest, { completedAt = new Date() } = {}) => {
   const user = await User.findById(userId).select('xp points redEnergyExpiresAt blueEnergyExpiresAt greenEnergyExpiresAt');
   if (!user) return null;
   const bonuses = withEnergyBoosts(await getUserBonuses(user._id), user);
   const reward = applyBonuses(bonuses, { type: quest.type, ...dailyBase() });
 
-  await QuestHistory.create({
+  const history = await QuestHistory.create({
     userId: user._id,
     questId: quest._id,
     pointsEarned: reward.points,
@@ -113,7 +113,7 @@ const awardCheckInDay = async (userId, quest, { completedAt = new Date() } = {})
     { new: true, projection: { xp: 1, points: 1, level: 1 } }
   );
   await User.updateOne({ _id: user._id }, { $set: { level: progression.levelFromXp(updated.xp) } });
-  return { user: updated, reward };
+  return { user: updated, reward, history };
 };
 
 module.exports = { awardQuest, awardCheckInDay, applyStreakNow };

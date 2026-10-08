@@ -19,6 +19,8 @@ const toClient = (item) => ({
   photoPath: item.photoPath,
   photoUrl: item.photoContentType ? `/fridge-items/${item._id}/photo` : null,
   photoRemoved: Boolean(item.photoRemovedAt),
+  // แอพเรียงตาม "วันที่เพิ่ม" ได้ (อาจารย์ขอ 7 ต.ค. 2026) — ของเก่าที่ไม่มี addedAt ใช้ createdAt แทน
+  addedAt: item.addedAt || item.createdAt || null,
 });
 
 // @route   GET /api/fridge-items

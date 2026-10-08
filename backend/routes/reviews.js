@@ -1,130 +1,68 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const QuestSubmission = require('../models/QuestSubmission');
-const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
-const { adminEmails } = require('../middleware/admin');
+const { isAdminUser } = require('../middleware/admin');
 const {
-  APPROVALS_NEEDED,
-  REJECTIONS_NEEDED,
-  escalationCutoff,
-  finalizeSubmission,
+  REPORTS_TO_HIDE,
+  revokeSubmission,
   sweepQuietly,
   toSubmissionPayload,
   PUBLIC_USER_FIELDS,
   QUEST_FIELDS,
 } = require('../utils/submissions');
-const {
-  REVIEW_REWARD,
-  REVIEW_REWARD_DAILY_CAP,
-  rewardedToday,
-  awardReviewer,
-} = require('../utils/reviewRewards');
+const { notifyPostRemoved } = require('../utils/notifications');
+const Quest = require('../models/Quest');
 
-// ตรวจหลักฐานภารกิจของผู้เล่นคนอื่น (ระบบตรวจสอบภารกิจ 28 ก.ย. 2026 — กติกาดู utils/submissions.js)
-// ตรวจได้เฉพาะบัญชีจริง (guest ไม่ได้ — ผู้ใช้กำหนด 30 ก.ย. 2026 ไม่มีเลเวลขั้นต่ำ) ยกเว้นเจ้าของหลักฐาน / สมาชิกห้อง
-// ของปาร์ตี้นั้น / ค้างเกิน 48 ชม. = แอดมินเท่านั้น
-// โหวตสำเร็จ = ได้รางวัลคนตรวจ +P/+XP วันละไม่เกินเพดาน (utils/reviewRewards.js)
+// โพสต์ที่ถูกรายงาน — แอดมินเท่านั้น (7 ต.ค. 2026 เลิกคิวให้ผู้เล่นตรวจทุกอัน ส่งรูปแล้วผ่านทันที ดู utils/submissions.js)
+// แอดมินดูแค่โพสต์ที่ผู้เล่นรายงานมา (routes/feed.js POST /:id/report) แล้วเลือก:
+//   keep   = รูปไม่มีปัญหา -> กลับมาโชว์ในฟีด (ถ้าถูกซ่อน) รายงานใหม่หลังจากนี้ไม่เปิดเรื่องซ้ำ
+//   remove = ถอนรูปออก (เช่น มีข้อมูลส่วนตัว) แต่แต้มยังอยู่ — ทำเควสจริงแล้ว
+//   revoke = รูปไม่ได้แสดงว่าทำเควสจริง -> ถอนรูป + ยึดแต้ม/XP/CO2 คืน
+// path ยังเป็น /api/reviews (แอพเรียกที่เดิม) แม้ไม่มีการโหวตตรวจแล้ว
 const router = express.Router();
 
-// บทบาทของคนตรวจ — query ผู้ใช้ครั้งเดียวได้ทั้ง guest และแอดมิน (แอดมินต้องเป็นบัญชีจริงที่มี email อยู่แล้ว)
-const reviewerRole = async (userId) => {
-  const user = await User.findById(userId).select('email isGuest reviewRewardDay reviewRewardCount');
-  if (!user) return { canReview: false, isAdmin: false, rewardedToday: 0 };
-  const isAdmin = Boolean(user.email) && adminEmails().includes(user.email.toLowerCase());
-  return { canReview: isAdmin || !user.isGuest, isAdmin, rewardedToday: rewardedToday(user) };
-};
+const ACTIONS = ['keep', 'remove', 'revoke'];
 
-// submission ที่คนนี้ตรวจได้: pending + ไม่ใช่ของตัวเอง + ไม่ใช่ห้องที่ตัวเองอยู่ + ยังไม่เคยโหวต
-// + ไม่ใช่แอดมิน = เฉพาะที่ยังไม่เกิน 48 ชม. (เกินแล้วรอแอดมิน)
-// แอดมินตรวจของตัวเองได้ (ผู้ใช้สั่ง 7 ต.ค. 2026 — มีแอดมินคนเดียว ของตัวเองที่ค้างเกิน 48 ชม. ไม่มีใครตัดสินให้)
-// ผู้ใช้ทั่วไปยังห้ามตรวจของตัวเองเหมือนเดิม / แอดมินตรวจของตัวเองไม่ได้รางวัลคนตรวจ (ดู POST /:id/vote)
-const reviewableFilter = (userId, { isAdmin }) => {
-  const me = new mongoose.Types.ObjectId(String(userId));
-  return {
-    status: 'pending',
-    ...(isAdmin ? {} : { userId: { $ne: me }, memberIds: { $ne: me } }),
-    approvals: { $ne: me },
-    rejections: { $ne: me },
-    ...(isAdmin ? {} : { createdAt: { $gte: escalationCutoff() } }),
-  };
-};
-
-// เป็นหลักฐานของคนนี้เอง (เจ้าของ หรือสมาชิกในห้องปาร์ตี้)
-const isOwnSubmission = (submission, userId) => {
-  const me = String(userId);
-  const owner = submission.userId && submission.userId._id ? submission.userId._id : submission.userId;
-  return String(owner) === me || (submission.memberIds || []).some((id) => String(id) === me);
-};
-
-const GUEST_REVIEW_MESSAGE = 'Create an account to help review quests';
-
-// ข้อมูลรางวัลคนตรวจที่แอพโชว์ (แบนเนอร์ในฟีด / หัวหน้าตรวจ) — utils/reviewRewards.js
-const rewardInfo = (today) => ({
-  reviewReward: REVIEW_REWARD,
-  reviewRewardsToday: today,
-  reviewRewardsCap: REVIEW_REWARD_DAILY_CAP,
-});
+// สรุปเหตุผลที่ถูกรายงาน { not_done: 2, personal_info: 1 } ให้แอดมินเห็นภาพรวม
+const reasonCounts = (reports) =>
+  (reports || []).reduce((acc, r) => {
+    acc[r.reason] = (acc[r.reason] || 0) + 1;
+    return acc;
+  }, {});
 
 // @route   GET /api/reviews/queue
-// @desc    หลักฐานที่รอให้คนนี้ตรวจ 20 อัน + จำนวนทั้งหมดที่รอ (ให้แบนเนอร์ในฟีดโชว์)
-//          ผู้เล่นทั่วไป: ใหม่สุดก่อน / แอดมิน: ที่ค้างเกิน 48 ชม. (รอแอดมิน) ขึ้นก่อน เก่าสุดก่อน แล้วค่อยของใหม่
-//          guest: คิวว่าง + canReview: false (แอพชวนสมัครบัญชีแทน)
+// @desc    โพสต์ที่ถูกรายงานรอแอดมินดู (เก่าสุดก่อน) 20 อัน + จำนวนทั้งหมด (แบนเนอร์ในฟีดของแอดมิน)
+//          ผู้เล่นทั่วไป: ว่างเสมอ + isAdmin: false (แอพไม่โชว์แบนเนอร์)
 router.get('/queue', authMiddleware, async (req, res) => {
   try {
     await sweepQuietly();
-    const role = await reviewerRole(req.userId);
-    if (!role.canReview) {
-      return res.json({
-        submissions: [],
-        pendingCount: 0,
-        escalatedCount: 0,
-        isAdmin: false,
-        canReview: false,
-        ...rewardInfo(0),
-        approvalsNeeded: APPROVALS_NEEDED,
-        rejectionsNeeded: REJECTIONS_NEEDED,
-      });
+    const isAdmin = await isAdminUser(req.userId);
+    if (!isAdmin) {
+      return res.json({ submissions: [], pendingCount: 0, isAdmin: false, reportsToHide: REPORTS_TO_HIDE });
     }
-    const filter = reviewableFilter(req.userId, role);
-    const find = (extra, sort, limit) =>
-      QuestSubmission.find({ ...filter, ...extra })
-        .sort(sort)
-        .limit(limit)
+    const filter = { reportStatus: 'open', status: 'approved' };
+    const [items, pendingCount] = await Promise.all([
+      QuestSubmission.find(filter)
+        .sort({ updatedAt: 1 })
+        .limit(20)
         .select('-photoData')
         .populate('userId', PUBLIC_USER_FIELDS)
-        .populate('questId', QUEST_FIELDS);
-
-    let items;
-    let escalatedCount = 0;
-    if (role.isAdmin) {
-      const overdue = { createdAt: { $lt: escalationCutoff() } };
-      const [escalated, count] = await Promise.all([
-        find(overdue, { createdAt: 1 }, 20),
-        QuestSubmission.countDocuments({ ...filter, ...overdue }),
-      ]);
-      escalatedCount = count;
-      const fresh =
-        escalated.length < 20
-          ? await find({ createdAt: { $gte: escalationCutoff() } }, { createdAt: -1 }, 20 - escalated.length)
-          : [];
-      items = [...escalated, ...fresh];
-    } else {
-      items = await find({}, { createdAt: -1 }, 20);
-    }
-    const pendingCount = await QuestSubmission.countDocuments(filter);
-
+        .populate('questId', QUEST_FIELDS),
+      QuestSubmission.countDocuments(filter),
+    ]);
     res.json({
-      // isOwn: หลักฐานของแอดมินเอง (แอพโชว์ป้าย "Your proof") — ผู้ใช้ทั่วไปไม่เห็นของตัวเองในคิวอยู่แล้ว
-      submissions: items.map((s) => ({ ...toSubmissionPayload(s, req.userId), isOwn: isOwnSubmission(s, req.userId) })),
+      submissions: items.map((s) => ({
+        ...toSubmissionPayload(s, req.userId),
+        reportCount: (s.reports || []).length,
+        reportReasons: reasonCounts(s.reports),
+        hiddenByReports: Boolean(s.hiddenByReports),
+        // ของเก่าก่อน 7 ต.ค. 2026 ไม่มีบันทึกว่าให้แต้มใครไปเท่าไหร่ = ยึดคืนไม่ได้ (แค่ถอนรูป)
+        canRevoke: (s.awards || []).length > 0,
+      })),
       pendingCount,
-      escalatedCount,
-      canReview: true,
-      ...rewardInfo(role.rewardedToday),
-      // แอดมินโหวตครั้งเดียวตัดสินเลย — แอพโชว์ป้ายบอก
-      isAdmin: role.isAdmin,
-      approvalsNeeded: APPROVALS_NEEDED,
-      rejectionsNeeded: REJECTIONS_NEEDED,
+      isAdmin: true,
+      reportsToHide: REPORTS_TO_HIDE,
     });
   } catch (err) {
     console.error(err);
@@ -132,88 +70,58 @@ router.get('/queue', authMiddleware, async (req, res) => {
   }
 });
 
-// @route   POST /api/reviews/:id/vote
-// @desc    โหวตผ่าน/ไม่ผ่าน 1 ครั้งต่อคน — ครบเกณฑ์ (หรือเป็นแอดมิน) ตัดสินทันที
-//          body: { approve: boolean }
-router.post('/:id/vote', authMiddleware, async (req, res) => {
+// @route   POST /api/reviews/:id/resolve
+// @desc    แอดมินตัดสินโพสต์ที่ถูกรายงาน — body: { action: 'keep' | 'remove' | 'revoke' }
+router.post('/:id/resolve', authMiddleware, async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-      return res.status(400).json({ message: 'Invalid submission id' });
+      return res.status(400).json({ message: 'Invalid post id' });
     }
-    if (typeof req.body?.approve !== 'boolean') {
-      return res.status(400).json({ message: 'Missing vote' });
+    const action = req.body && req.body.action;
+    if (!ACTIONS.includes(action)) {
+      return res.status(400).json({ message: 'Unknown action' });
     }
-    const approve = req.body.approve;
-    const me = String(req.userId);
-
-    const role = await reviewerRole(req.userId);
-    if (!role.canReview) return res.status(403).json({ message: GUEST_REVIEW_MESSAGE });
-
-    const submission = await QuestSubmission.findById(req.params.id).select('-photoData');
-    if (!submission) return res.status(404).json({ message: 'Submission not found' });
-    const own = isOwnSubmission(submission, me);
-    if (own && !role.isAdmin) {
-      return res.status(403).json({ message: "You can't review your own proof" });
-    }
-    if (submission.status !== 'pending') {
-      return res.status(409).json({ message: 'This proof has already been reviewed' });
-    }
-    if (!role.isAdmin && submission.createdAt < escalationCutoff()) {
-      return res.status(409).json({ message: 'This proof is now waiting for an admin' });
+    if (!(await isAdminUser(req.userId))) {
+      return res.status(403).json({ message: 'Only an admin can resolve reports' });
     }
 
-    // บันทึกโหวตแบบมีเงื่อนไขใน query เดียว — กดซ้ำ/กดพร้อมกันสองเครื่องนับได้ครั้งเดียว
-    const field = approve ? 'approvals' : 'rejections';
-    const updated = await QuestSubmission.findOneAndUpdate(
-      { _id: submission._id, ...reviewableFilter(req.userId, role) },
-      { $addToSet: { [field]: new mongoose.Types.ObjectId(me) } },
+    // ล็อกสถานะแบบ compare-and-swap (open -> ผลตัดสิน) — แอดมินกดซ้ำ/กดสองเครื่องพร้อมกันทำได้ครั้งเดียว
+    const nextStatus = { keep: 'kept', remove: 'removed', revoke: 'revoked' }[action];
+    const update =
+      action === 'keep'
+        ? { $set: { reportStatus: 'kept', hiddenByReports: false } }
+        : action === 'remove'
+          ? {
+              $set: {
+                reportStatus: 'removed',
+                hiddenByReports: false,
+                removedFromFeed: true,
+                removedAt: new Date(),
+                removedBy: req.userId,
+              },
+              $unset: { photoData: 1 },
+            }
+          : { $set: { reportStatus: 'revoked' } };
+    const post = await QuestSubmission.findOneAndUpdate(
+      { _id: req.params.id, reportStatus: 'open', status: 'approved' },
+      update,
       { new: true, projection: { photoData: 0 } }
     );
-    if (!updated) {
-      return res.status(409).json({ message: 'You have already reviewed this proof' });
+    if (!post) {
+      return res.status(409).json({ message: 'This report has already been handled' });
     }
 
-    // โหวตบันทึกแล้ว = ได้รางวัลคนตรวจ (ไม่ว่าผ่าน/ไม่ผ่าน, วันละไม่เกินเพดาน) — พังก็ไม่ควรทำให้โหวตพัง
-    // แอดมินตรวจของตัวเอง = ไม่ได้รางวัลคนตรวจ (กันปั๊มแต้มจากการส่ง-ตรวจเอง)
-    let reward = { points: 0, xp: 0, rewardedToday: role.rewardedToday };
-    if (!own) {
+    if (action === 'revoke') {
+      await revokeSubmission(post, req.userId);
+    } else if (action === 'remove') {
       try {
-        reward = await awardReviewer(req.userId);
-      } catch (err) {
-        console.error('ให้รางวัลคนตรวจไม่สำเร็จ:', err.message);
+        const quest = await Quest.findById(post.questId).select('title');
+        await notifyPostRemoved(post.userId, quest, post._id);
+      } catch (notifyErr) {
+        console.error('สร้างแจ้งเตือนถอนโพสต์ไม่สำเร็จ:', notifyErr.message);
       }
     }
-
-    // แอดมินตัดสินเลย / คนทั่วไปรอครบเกณฑ์
-    let decision = null;
-    let decidedBy = 'peers';
-    if (role.isAdmin) {
-      decision = approve ? 'approved' : 'rejected';
-      decidedBy = 'admin';
-    } else if (updated.approvals.length >= APPROVALS_NEEDED) {
-      decision = 'approved';
-    } else if (updated.rejections.length >= REJECTIONS_NEEDED) {
-      decision = 'rejected';
-    }
-
-    let status = 'pending';
-    if (decision) {
-      const finalized = await finalizeSubmission(updated._id, decision, decidedBy);
-      // null = มีคนอื่นตัดสินชิงไปก่อนพอดี (โหวตพร้อมกัน) — อ่านสถานะจริงกลับมาตอบ
-      status = finalized
-        ? finalized.status
-        : (await QuestSubmission.findById(updated._id).select('status')).status;
-    }
-
-    res.json({
-      message: status === 'pending' ? 'Vote recorded' : `Proof ${status}`,
-      status,
-      approvals: updated.approvals.length,
-      rejections: updated.rejections.length,
-      reward: { points: reward.points, xp: reward.xp },
-      reviewRewardsToday: reward.rewardedToday,
-      reviewRewardsCap: REVIEW_REWARD_DAILY_CAP,
-    });
+    res.json({ message: 'Report resolved', reportStatus: nextStatus });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });

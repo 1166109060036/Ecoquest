@@ -7,7 +7,7 @@ const authMiddleware = require('../middleware/auth');
 const QuestSubmission = require('../models/QuestSubmission');
 const { applyStreakNow } = require('../utils/questRewards');
 const { decodeImageBase64 } = require('../utils/imageUpload');
-const { photoHashOf, isDuplicatePhoto } = require('../utils/submissions');
+const { photoHashOf, isDuplicatePhoto, awardSubmission } = require('../utils/submissions');
 const { avatarUrlFor, cosmeticsFor } = require('../utils/avatar');
 const { requiredMembers, canStart, canComplete } = require('../utils/partyGate');
 const { syncPartyRoomForUser } = require('../sockets');
@@ -375,9 +375,9 @@ router.post('/leave', authMiddleware, async (req, res) => {
 });
 
 // @route   POST /api/party/complete
-// @desc    หัวหน้าห้องกดจบอีเวนต์ + ส่งรูปกลุ่ม 1 รูปเป็นหลักฐาน (28 ก.ย. 2026 ระบบตรวจสอบภารกิจ) — ห้องเป็นสถานะ
-//          reviewing รอผู้เล่นคนอื่น/แอดมินตรวจ ผ่าน = ทุกคนในห้อง (รวมหัวหน้า) ได้คะแนน/XP พร้อมกัน
-//          (utils/submissions.js#finalizeSubmission) ไม่ผ่าน = ห้องกลับเป็น started ให้ส่งรูปใหม่
+// @desc    หัวหน้าห้องกดจบอีเวนต์ + ส่งรูปกลุ่ม 1 รูปเป็นหลักฐาน — ผ่านทันที (7 ต.ค. 2026 เลิกให้คนตรวจ)
+//          ทุกคนในห้อง (รวมหัวหน้า) ได้คะแนน/XP พร้อมกัน ห้องเป็น completed (utils/submissions.js#awardSubmission)
+//          รูปขึ้นฟีด ผู้เล่นคนอื่นรายงานได้ถ้าดูไม่ได้ทำจริง
 //          ทำซ้ำได้ไม่จำกัดต่อวัน (ไม่ข้ามคนที่ทำเควสนี้แล้ววันนี้อีกต่อไป)
 //          body: { photoBase64, photoContentType }
 // ขนาดเดียวกับรูปหลักฐานเควส solo (routes/quests.js MAX_PROOF_PHOTO_BYTES)
@@ -424,11 +424,11 @@ router.post('/complete', authMiddleware, async (req, res) => {
       return res.status(409).json({ message: 'This photo was already used — take a new photo' });
     }
 
-    // ล็อกสถานะเป็น reviewing ใน query เดียว (findOneAndUpdate) — ถ้ามีคนกดซ้อนหรือกดซ้ำ
+    // ล็อกสถานะเป็น completed ใน query เดียว (findOneAndUpdate) — ถ้ามีคนกดซ้อนหรือกดซ้ำ
     // request รอบถัดไปจะหา party ที่ status ยังเป็น 'started' ไม่เจอแล้ว กันส่งซ้ำ/ได้รางวัลซ้ำ
     const party = await Party.findOneAndUpdate(
       { _id: current._id, leaderId: req.userId, status: 'started' },
-      { status: 'reviewing' },
+      { status: 'completed', completedAt: new Date() },
       { new: true }
     ).populate('questId');
 
@@ -439,7 +439,7 @@ router.post('/complete', authMiddleware, async (req, res) => {
     const members = await PartyMember.find({ partyId: party._id });
     const memberIds = members.map((m) => m.userId);
 
-    await QuestSubmission.create({
+    const submission = await QuestSubmission.create({
       userId: req.userId,
       questId: quest._id,
       kind: 'party',
@@ -448,9 +448,12 @@ router.post('/complete', authMiddleware, async (req, res) => {
       photoData: photo.data,
       photoContentType: photo.contentType,
       photoHash: photo.hash,
+      status: 'approved',
+      decidedBy: 'instant',
+      decidedAt: new Date(),
     });
 
-    // สมาชิกทุกคนร่วมอีเวนต์วันนี้จริง -> นับ Daily Streak ของแต่ละคนตอนนี้เลย (แต้มรอผลตรวจ)
+    // สมาชิกทุกคนร่วมอีเวนต์วันนี้จริง -> นับ Daily Streak ของแต่ละคนก่อนให้รางวัล
     let leaderStreakMilestone = null;
     for (const userId of memberIds) {
       const user = await User.findById(userId).select('-avatarData');
@@ -459,13 +462,17 @@ router.post('/complete', authMiddleware, async (req, res) => {
       if (String(userId) === String(req.userId)) leaderStreakMilestone = milestone;
     }
 
+    // ทุกคนได้รางวัล — หัวหน้าเห็นจาก response / สมาชิกคนอื่นได้แจ้งเตือนที่เด้งเอฟเฟครางวัล
+    const { owner } = await awardSubmission(submission, quest);
+
     res.status(201).json({
-      message: 'Group photo submitted for review',
-      status: 'pending',
-      earned: { points: 0, xp: 0 },
-      newAchievements: [],
+      message: 'Event completed',
+      status: 'completed',
+      earned: owner ? { points: owner.reward.points, xp: owner.reward.xp } : { points: 0, xp: 0 },
+      newAchievements: owner ? owner.newAchievements || [] : [],
       streakMilestone: leaderStreakMilestone,
-      awardedCount: 0,
+      bingo: owner ? owner.bingo || null : null,
+      awardedCount: (submission.awards || []).length,
       party: await toPartyPayload(party, req.userId),
     });
   } catch (err) {

@@ -2,11 +2,14 @@ const express = require('express');
 const mongoose = require('mongoose');
 const QuestSubmission = require('../models/QuestSubmission');
 const Quest = require('../models/Quest');
+const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
-const { isAdminUser } = require('../middleware/admin');
-const { notifyPostRemoved } = require('../utils/notifications');
+const { isAdminUser, adminEmails } = require('../middleware/admin');
+const { notifyPostRemoved, notifyPostReported } = require('../utils/notifications');
 const { startOfToday } = require('../utils/questDay');
 const {
+  REPORTS_TO_HIDE,
+  REPORT_REASONS,
   sweepQuietly,
   toSubmissionPayload,
   PUBLIC_USER_FIELDS,
@@ -15,7 +18,8 @@ const {
 
 // ฟีดกิจกรรมชุมชน (อาจารย์ให้คนอื่นเห็นข้อมูลภารกิจ 28 ก.ย. 2026) — หลักฐานภารกิจที่ผ่านการตรวจแล้วของทุกคน
 // ใหม่สุดก่อน + ปุ่ม cheer — แท็บ Feed ใน Community (lib/pages/community/feed_tab.dart)
-// ใช้ QuestSubmission ตัวเดียวกับระบบตรวจ (ไม่มี collection ฟีดแยก) — เห็นเฉพาะ approved
+// ใช้ QuestSubmission ตัวเดียวกับหลักฐาน (ไม่มี collection ฟีดแยก) — เห็นเฉพาะ approved
+// 7 ต.ค. 2026: ส่งรูปแล้วผ่านทันที ฟีดเลยเป็นที่ที่ผู้เล่นช่วยกันดูแทนคิวตรวจ — ปุ่มรายงาน (POST /:id/report)
 // Today Feed (30 ก.ย. 2026): เห็นแค่ที่ผ่านการตรวจวันนี้ (decidedAt >= เที่ยงคืนเวลาญี่ปุ่น) — ขึ้นวันใหม่รูปของเมื่อวาน
 // ถูกลบทิ้ง (utils/submissions.js#purgeExpiredPhotos) ฟีดเลยต้องไม่โชว์โพสต์ที่ไม่มีรูปแล้ว
 const router = express.Router();
@@ -26,11 +30,17 @@ router.get('/', authMiddleware, async (req, res) => {
   try {
     await sweepQuietly();
     const limit = Math.min(parseInt(req.query.limit, 10) || 20, 50);
-    const filter = { status: 'approved', decidedAt: { $gte: startOfToday() }, removedFromFeed: { $ne: true } };
+    const filter = {
+      status: 'approved',
+      decidedAt: { $gte: startOfToday() },
+      removedFromFeed: { $ne: true },
+      // ถูกรายงานครบ REPORTS_TO_HIDE คน = ซ่อนไว้ก่อนจนกว่าแอดมินดู
+      hiddenByReports: { $ne: true },
+    };
     const before = req.query.before ? new Date(req.query.before) : null;
     if (before && !Number.isNaN(before.getTime())) filter.createdAt = { $lt: before };
 
-    const [items, isAdmin] = await Promise.all([
+    const [items, isAdmin, viewer] = await Promise.all([
       QuestSubmission.find(filter)
         .sort({ createdAt: -1 })
         .limit(limit)
@@ -38,15 +48,26 @@ router.get('/', authMiddleware, async (req, res) => {
         .populate('userId', PUBLIC_USER_FIELDS)
         .populate('questId', QUEST_FIELDS),
       isAdminUser(req.userId),
+      User.findById(req.userId).select('isGuest'),
     ]);
+    // guest รายงานไม่ได้ (สร้างได้ไม่จำกัด กันรุมรายงานให้โพสต์หาย)
+    const canReportAny = Boolean(viewer && !viewer.isGuest);
     const me = String(req.userId);
 
     res.json({
       // บัญชีผู้ส่งถูกลบไปแล้ว (populate ได้ null) ไม่โชว์ในฟีด
       // canRemove = แอพโชว์ปุ่มถอนโพสต์ (แอดมินถอนได้ทุกโพสต์ / เจ้าของถอนของตัวเอง)
+      // canReport = แอพโชว์ปุ่มรายงาน (บัญชีจริง + ไม่ใช่โพสต์ของตัวเอง / สมาชิกปาร์ตี้นั้น)
       items: items
         .filter((s) => s.userId)
-        .map((s) => ({ ...toSubmissionPayload(s, req.userId), canRemove: isAdmin || String(s.userId._id) === me })),
+        .map((s) => {
+          const mine = String(s.userId._id) === me || (s.memberIds || []).some((id) => String(id) === me);
+          return {
+            ...toSubmissionPayload(s, req.userId),
+            canRemove: isAdmin || String(s.userId._id) === me,
+            canReport: canReportAny && !mine,
+          };
+        }),
       hasMore: items.length === limit,
     });
   } catch (err) {
@@ -87,6 +108,75 @@ router.post('/:id/cheer', authMiddleware, async (req, res) => {
   }
 });
 
+// @route   POST /api/feed/:id/report
+// @desc    รายงานโพสต์ — รูปดูไม่ได้ทำเควสจริง / มีข้อมูลส่วนตัว / ไม่เหมาะสม / อื่นๆ (body: { reason })
+//          1 คน 1 ครั้งต่อโพสต์ / บัญชีจริงเท่านั้น / รายงานของตัวเอง (หรือปาร์ตี้ที่ตัวเองอยู่) ไม่ได้
+//          รายงานแรก = แจ้งแอดมิน / ครบ REPORTS_TO_HIDE คน = ซ่อนจากฟีดไว้ก่อน
+//          แอดมินกด "เก็บไว้" ไปแล้ว (kept) รายงานใหม่ยังบันทึกแต่ไม่ซ่อน/ไม่เปิดเรื่องใหม่ (กันรุมรายงานซ้ำ)
+router.post('/:id/report', authMiddleware, async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid post id' });
+    }
+    const reason = req.body && req.body.reason;
+    if (!REPORT_REASONS.includes(reason)) {
+      return res.status(400).json({ message: 'Choose a reason' });
+    }
+    const viewer = await User.findById(req.userId).select('isGuest');
+    if (!viewer) return res.status(404).json({ message: 'User not found' });
+    if (viewer.isGuest) {
+      return res.status(403).json({ message: 'Create an account to report posts' });
+    }
+
+    const me = new mongoose.Types.ObjectId(String(req.userId));
+    // เพิ่มรายงานแบบมีเงื่อนไขใน query เดียว — กดซ้ำ/กดพร้อมกันนับได้ครั้งเดียว
+    const post = await QuestSubmission.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        status: 'approved',
+        removedFromFeed: { $ne: true },
+        userId: { $ne: me },
+        memberIds: { $ne: me },
+        'reports.userId': { $ne: me },
+      },
+      { $push: { reports: { userId: me, reason, createdAt: new Date() } } },
+      { new: true, projection: { photoData: 0 } }
+    );
+    if (!post) {
+      const exists = await QuestSubmission.exists({ _id: req.params.id, status: 'approved', removedFromFeed: { $ne: true } });
+      if (!exists) return res.status(404).json({ message: 'Post not found' });
+      return res.status(409).json({ message: "You've already reported this post (or it's yours)" });
+    }
+
+    // เปิดเรื่องให้แอดมิน (ครั้งแรก) / ซ่อนเมื่อครบเกณฑ์ — ยกเว้นแอดมินตัดสินเก็บไว้แล้ว
+    let opened = false;
+    if (post.reportStatus !== 'kept') {
+      const set = { reportStatus: 'open' };
+      if (post.reports.length >= REPORTS_TO_HIDE) set.hiddenByReports = true;
+      const r = await QuestSubmission.updateOne(
+        { _id: post._id, reportStatus: { $in: [null, 'open'] } },
+        { $set: set }
+      );
+      opened = r.modifiedCount > 0 && post.reportStatus !== 'open';
+    }
+
+    if (opened) {
+      try {
+        const emails = adminEmails();
+        const admins = emails.length ? await User.find({ email: { $in: emails } }).select('_id') : [];
+        const quest = await Quest.findById(post.questId).select('title');
+        for (const admin of admins) await notifyPostReported(admin._id, quest, post._id);
+      } catch (notifyErr) {
+        console.error('แจ้งแอดมินเรื่องรายงานโพสต์ไม่สำเร็จ:', notifyErr.message);
+      }
+    }
+    res.json({ message: 'Thanks — an admin will take a look', reportedByMe: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // @route   DELETE /api/feed/:id
 // @desc    ถอนโพสต์ออกจากฟีด + ลบรูปทิ้งทันที — แอดมิน (โพสต์ไหนก็ได้) หรือเจ้าของโพสต์ (ของตัวเอง)
 //          ใช้กับรูปที่มีข้อมูลส่วนตัวหลุดผ่านการตรวจมา (เคยเจอจริง: ภาพสลิป/ใบเสร็จที่มีชื่อ+เลขบัญชี)
@@ -97,7 +187,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
       return res.status(400).json({ message: 'Invalid post id' });
     }
     const post = await QuestSubmission.findOne({ _id: req.params.id, status: 'approved' }).select(
-      'userId questId removedFromFeed'
+      'userId questId removedFromFeed reportStatus'
     );
     if (!post || post.removedFromFeed) return res.status(404).json({ message: 'Post not found' });
 
@@ -110,7 +200,14 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     const updated = await QuestSubmission.updateOne(
       { _id: post._id, removedFromFeed: { $ne: true } },
       {
-        $set: { removedFromFeed: true, removedAt: new Date(), removedBy: req.userId },
+        // รายงานที่ค้างอยู่ปิดไปด้วย (ไม่มีอะไรให้แอดมินดูแล้ว)
+        $set: {
+          removedFromFeed: true,
+          removedAt: new Date(),
+          removedBy: req.userId,
+          hiddenByReports: false,
+          ...(post.reportStatus === 'open' ? { reportStatus: 'removed' } : {}),
+        },
         $unset: { photoData: 1 },
       }
     );

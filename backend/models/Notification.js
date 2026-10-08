@@ -27,6 +27,8 @@ const NotificationSchema = new mongoose.Schema(
         'bingo',
         // แอดมินถอนโพสต์ออกจากฟีด (routes/feed.js) — บอกเจ้าของว่าทำไม
         'post_removed',
+        // มีคนรายงานโพสต์ในฟีด (routes/feed.js) — แจ้งแอดมิน
+        'post_reported',
       ],
     },
     title: {

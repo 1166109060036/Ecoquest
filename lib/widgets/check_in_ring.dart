@@ -157,7 +157,6 @@ class _RingPainter extends CustomPainter {
 // แทน bubble toast ข้อความ "Day 2/7 checked in" เดิม
 // - restarted (ลืมเช็คอินไปวันหนึ่ง) -> วงเหลือช่องเดียว ข้อความสีส้มบอกว่านับใหม่
 // - finished (วันสุดท้าย) -> เติมจนครบ + เรืองแสง แล้วปิดเร็วกว่า ให้ผู้เรียกไปต่อที่รางวัล (handleQuestCompleted)
-// - pending (ระบบตรวจสอบภารกิจ) -> รูปวันนี้ส่งไปรอตรวจ ข้อความบอกว่า "sent for review" แทน "checked in"
 // คืน Future ที่เสร็จตอนการ์ดหายไปแล้ว
 Future<void> showCheckInCelebration(
   BuildContext context, {
@@ -165,7 +164,6 @@ Future<void> showCheckInCelebration(
   required int total,
   bool restarted = false,
   bool finished = false,
-  bool pending = false,
   int? rewardPoints, // แต้มที่จะได้ของวันนี้ (รายวัน / วันสุดท้าย = รายวัน + โบนัสจบ) — null = ไม่บอก
 }) {
   final overlay = Overlay.of(context);
@@ -184,7 +182,6 @@ Future<void> showCheckInCelebration(
       total: total,
       restarted: restarted,
       finished: finished,
-      pending: pending,
       rewardPoints: rewardPoints,
       onClose: close,
     ),
@@ -199,7 +196,6 @@ class _CheckInCelebration extends StatefulWidget {
   final int total;
   final bool restarted;
   final bool finished;
-  final bool pending;
   final int? rewardPoints;
   final VoidCallback onClose;
 
@@ -208,7 +204,6 @@ class _CheckInCelebration extends StatefulWidget {
     required this.total,
     required this.restarted,
     required this.finished,
-    required this.pending,
     this.rewardPoints,
     required this.onClose,
   });
@@ -253,26 +248,19 @@ class _CheckInCelebrationState extends State<_CheckInCelebration> with SingleTic
     final String title;
     final String subtitle;
     final Color titleColor;
+    // ส่งรูปแล้วได้แต้มทันที (7 ต.ค. 2026 เลิกรอตรวจ) — บอกแต้มของวันนี้ถ้ารู้ (backend/utils/checkInRewards.js)
+    final todayPoints = widget.rewardPoints != null ? '+${widget.rewardPoints} P — ' : '';
     if (widget.finished) {
       title = 'All ${widget.total} days done!';
-      subtitle = widget.pending
-          ? (widget.rewardPoints != null
-              ? 'Sent for review — +${widget.rewardPoints} P with the finish bonus once approved'
-              : 'Sent for review — your reward comes once it is approved')
-          : 'Quest complete';
+      subtitle = 'Quest complete';
       titleColor = Colors.greenAccent;
     } else if (widget.restarted) {
       title = 'Missed a day';
-      subtitle = 'Back to Day 1/${widget.total} — see you tomorrow!';
+      subtitle = 'Back to Day 1/${widget.total} · ${todayPoints}see you tomorrow!';
       titleColor = Colors.orangeAccent;
     } else {
-      title = widget.pending
-          ? 'Day ${widget.daysDone}/${widget.total} sent for review'
-          : 'Day ${widget.daysDone}/${widget.total} checked in';
-      // บอกแต้มของวันนี้ (เควสหลายวันได้ทุกวันที่เช็คอินผ่าน — backend/utils/checkInRewards.js)
-      subtitle = widget.rewardPoints != null
-          ? (widget.pending ? '+${widget.rewardPoints} P once approved — see you tomorrow!' : '+${widget.rewardPoints} P — see you tomorrow!')
-          : 'See you tomorrow!';
+      title = 'Day ${widget.daysDone}/${widget.total} checked in';
+      subtitle = todayPoints.isEmpty ? 'See you tomorrow!' : '${todayPoints}see you tomorrow!';
       titleColor = Colors.white;
     }
 

@@ -4,7 +4,7 @@ import '../models/submission_model.dart';
 import '../utils/constants.dart';
 import 'storage_service.dart';
 
-// เรียก API ของระบบตรวจสอบภารกิจ (คิวตรวจ/โหวต/หลักฐานของฉัน) — รูปแบบ HTTP เดียวกับ friend_service.dart
+// เรียก API หลักฐานภารกิจ (หลักฐานของฉัน / โพสต์ที่ถูกรายงานของแอดมิน) — รูปแบบ HTTP เดียวกับ friend_service.dart
 class SubmissionService {
   final StorageService _storage = StorageService();
 
@@ -33,45 +33,33 @@ class SubmissionService {
     return _parseList(data['submissions']);
   }
 
-  Future<ReviewQueue> fetchQueue() async {
+  // โพสต์ที่ถูกรายงานรอแอดมินดู — ผู้เล่นทั่วไปได้ลิสต์ว่าง (isAdmin: false)
+  Future<ReportQueue> fetchQueue() async {
     final response = await http.get(
       Uri.parse('${AppConstants.baseUrl}/reviews/queue'),
       headers: await _headers(),
     );
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to load the review queue');
+      throw Exception(data['message'] ?? 'Failed to load reported posts');
     }
-    return ReviewQueue(
+    return ReportQueue(
       submissions: _parseList(data['submissions']),
       pendingCount: data['pendingCount'] ?? 0,
       isAdmin: data['isAdmin'] ?? false,
-      canReview: data['canReview'] ?? true,
-      escalatedCount: data['escalatedCount'] ?? 0,
-      rewardPoints: data['reviewReward']?['points'] ?? 0,
-      rewardXp: data['reviewReward']?['xp'] ?? 0,
-      rewardsToday: data['reviewRewardsToday'] ?? 0,
-      rewardsCap: data['reviewRewardsCap'] ?? 0,
     );
   }
 
-  // คืนสถานะหลังโหวต (pending / approved / rejected) + รางวัลคนตรวจที่ได้จากโหวตนี้
-  Future<VoteResult> vote(String submissionId, {required bool approve}) async {
+  // แอดมินตัดสินโพสต์ที่ถูกรายงาน — action: keep / remove (ถอนรูป แต้มอยู่) / revoke (ถอนรูป + ยึดแต้มคืน)
+  Future<void> resolveReport(String submissionId, String action) async {
     final response = await http.post(
-      Uri.parse('${AppConstants.baseUrl}/reviews/$submissionId/vote'),
+      Uri.parse('${AppConstants.baseUrl}/reviews/$submissionId/resolve'),
       headers: await _headers(),
-      body: jsonEncode({'approve': approve}),
+      body: jsonEncode({'action': action}),
     );
-    final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to send your review');
+      final data = jsonDecode(response.body);
+      throw Exception(data['message'] ?? 'Failed to resolve this report');
     }
-    return VoteResult(
-      status: data['status'] ?? 'pending',
-      rewardPoints: data['reward']?['points'] ?? 0,
-      rewardXp: data['reward']?['xp'] ?? 0,
-      rewardsToday: data['reviewRewardsToday'] ?? 0,
-      rewardsCap: data['reviewRewardsCap'] ?? 0,
-    );
   }
 }

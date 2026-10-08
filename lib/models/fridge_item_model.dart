@@ -16,6 +16,8 @@ class FridgeItemModel {
   final String? photoUrl;
   // server ลบรูปทิ้งแล้วเพราะของหมดอายุ (backend/utils/fridgePhotos.js) — ตัวรายการยังอยู่ให้ผู้ใช้ลบเอง
   final bool photoRemoved;
+  // วันที่บันทึกเข้าตู้เย็น — ใช้เรียง "Date added" ในหน้า Fridge (backend เก่าไม่ส่งมา = null ไปอยู่ท้ายสุด)
+  final DateTime? addedAt;
 
   const FridgeItemModel({
     required this.id,
@@ -25,6 +27,7 @@ class FridgeItemModel {
     this.photoPath,
     this.photoUrl,
     this.photoRemoved = false,
+    this.addedAt,
   });
 
   factory FridgeItemModel.fromJson(Map<String, dynamic> json) {
@@ -38,6 +41,7 @@ class FridgeItemModel {
       photoPath: json['photoPath'],
       photoUrl: json['photoUrl'],
       photoRemoved: json['photoRemoved'] == true,
+      addedAt: DateTime.tryParse(json['addedAt']?.toString() ?? '')?.toLocal(),
     );
   }
 

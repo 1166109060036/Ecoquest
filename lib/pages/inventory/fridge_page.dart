@@ -84,8 +84,13 @@ class FridgePage extends StatefulWidget {
   State<FridgePage> createState() => _FridgePageState();
 }
 
+// ลำดับของในตู้เย็น (อาจารย์ขอ 7 ต.ค. 2026) — จำค่าที่เลือกไว้ในเครื่อง
+enum _FridgeSort { expiration, added }
+
 class _FridgePageState extends State<FridgePage> {
   Timer? _ticker;
+  _FridgeSort _sort = _FridgeSort.expiration;
+  static const _sortPrefKey = 'fridge_sort';
 
   @override
   void initState() {
@@ -98,12 +103,40 @@ class _FridgePageState extends State<FridgePage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) context.read<FridgeProvider>().loadItems();
     });
+    _loadSortPref();
   }
 
   @override
   void dispose() {
     _ticker?.cancel();
     super.dispose();
+  }
+
+  Future<void> _loadSortPref() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getString(_sortPrefKey) == 'added' && mounted) setState(() => _sort = _FridgeSort.added);
+    } catch (_) {}
+  }
+
+  void _setSort(_FridgeSort sort) {
+    if (sort == _sort) return;
+    setState(() => _sort = sort);
+    SharedPreferences.getInstance()
+        .then((prefs) => prefs.setString(_sortPrefKey, sort == _FridgeSort.added ? 'added' : 'expiration'))
+        .catchError((_) => false);
+  }
+
+  // Expiration date = ใกล้หมดอายุสุดขึ้นก่อน (ของที่หมดแล้วอยู่บนสุด) / Date added = เพิ่มล่าสุดขึ้นก่อน
+  List<FridgeItemModel> _sorted(List<FridgeItemModel> items) {
+    final list = [...items];
+    if (_sort == _FridgeSort.expiration) {
+      list.sort((a, b) => a.expirationDate.compareTo(b.expirationDate));
+    } else {
+      final epoch = DateTime.fromMillisecondsSinceEpoch(0);
+      list.sort((a, b) => (b.addedAt ?? epoch).compareTo(a.addedAt ?? epoch));
+    }
+    return list;
   }
 
   void _openAddItemSheet() {
@@ -214,7 +247,7 @@ class _FridgePageState extends State<FridgePage> {
   @override
   Widget build(BuildContext context) {
     final fridgeProvider = context.watch<FridgeProvider>();
-    final items = fridgeProvider.items;
+    final items = _sorted(fridgeProvider.items);
     final drafts = fridgeProvider.drafts;
     final now = DateTime.now();
     final isEmpty = items.isEmpty && drafts.isEmpty;
@@ -284,6 +317,14 @@ class _FridgePageState extends State<FridgePage> {
                               const SizedBox(height: 4),
                               const _SectionLabel('In your fridge'),
                               const SizedBox(height: 8),
+                            ],
+                            // ---- เรียงตามวันหมดอายุ / วันที่เพิ่ม ----
+                            if (items.length > 1) ...[
+                              _SortChips(
+                                sort: _sort,
+                                onChanged: _setSort,
+                              ),
+                              const SizedBox(height: 12),
                             ],
                             // ---- ของที่บันทึกไว้แล้ว ----
                             if (items.isEmpty)
@@ -802,6 +843,50 @@ class _DraftCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// ปุ่มเลือกลำดับ: Expiration date / Date added
+// ---------------------------------------------------------------------------
+class _SortChips extends StatelessWidget {
+  final _FridgeSort sort;
+  final ValueChanged<_FridgeSort> onChanged;
+  const _SortChips({required this.sort, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    Widget chip(_FridgeSort value, String label, IconData icon) {
+      final selected = sort == value;
+      return ChoiceChip(
+        selected: selected,
+        onSelected: (_) => onChanged(value),
+        avatar: Icon(icon, size: 16, color: selected ? Colors.white : Colors.green.shade700),
+        label: Text(label),
+        labelStyle: TextStyle(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w600,
+          color: selected ? Colors.white : Colors.green.shade800,
+        ),
+        showCheckmark: false,
+        selectedColor: Colors.green,
+        backgroundColor: Colors.white,
+        side: BorderSide(color: selected ? Colors.green : Colors.green.shade200),
+        shape: const StadiumBorder(),
+      );
+    }
+
+    // Wrap แทน Row — จอแคบ (360dp) ชิปขึ้นบรรทัดใหม่แทนล้น
+    return Wrap(
+      spacing: 8,
+      runSpacing: 6,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Text('Sort by', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+        chip(_FridgeSort.expiration, 'Expiration date', Icons.event_rounded),
+        chip(_FridgeSort.added, 'Date added', Icons.schedule_rounded),
+      ],
     );
   }
 }

@@ -16,12 +16,13 @@ import '../../widgets/skeleton_box.dart';
 import '../../widgets/staggered_fade_in.dart';
 import '../../widgets/state_cross_fade.dart';
 import '../profile/player_profile_page.dart';
-import 'review_page.dart';
+import 'reported_posts_page.dart';
 
 // แท็บ Feed ใน Community (แท็บแรก) — อาจารย์ให้คนอื่นเห็นข้อมูลภารกิจ และให้รู้สึกว่าภารกิจช่วยโลกจริง (28 ก.ย. 2026)
 //   1) การ์ด "Ebetsu's impact" — CO2 ที่ผู้เล่นทั้งเมืองลดได้รวมกัน + เทียบเป็นต้นสนดูดซับ (backend/routes/impact.js)
-//   2) แบนเนอร์ "N quests need your review" -> ReviewPage (ระบบตรวจสอบภารกิจ — ซ่อนถ้าไม่มีอะไรให้ตรวจ)
-//   3) ฟีดภารกิจที่ผ่านการตรวจแล้วของทุกคน ใหม่สุดก่อน + ปุ่ม Cheer (backend/routes/feed.js)
+//   2) แอดมินเท่านั้น: แบนเนอร์ "N reported posts" -> ReportedPostsPage (ซ่อนถ้าไม่มี)
+//   3) ฟีดภารกิจวันนี้ของทุกคน ใหม่สุดก่อน + ปุ่ม Cheer + เมนูรายงาน/ถอนโพสต์ (backend/routes/feed.js)
+//      7 ต.ค. 2026: ส่งรูปแล้วขึ้นฟีดทันที (เลิกให้ผู้เล่นตรวจ) — ผู้เล่นช่วยดูแลด้วยการรายงานโพสต์ที่ดูไม่ได้ทำจริงแทน
 // state อยู่ในหน้านี้เอง ไม่มี provider — ไม่มีหน้าอื่นใช้ข้อมูลชุดนี้ร่วม
 class FeedTab extends StatefulWidget {
   const FeedTab({super.key});
@@ -36,10 +37,7 @@ class _FeedTabState extends State<FeedTab> with AutomaticKeepAliveClientMixin {
   final _scroll = ScrollController();
 
   ImpactSummary? _impact;
-  int _reviewCount = 0;
-  int _escalatedCount = 0; // แอดมิน: ค้างเกิน 48 ชม. รอแอดมินตัดสิน
-  bool _canReview = true; // guest = false → ชวนสมัครบัญชีแทนแบนเนอร์ตรวจ
-  ReviewQueue? _queue; // รางวัลคนตรวจที่เหลือวันนี้ — โชว์ในแบนเนอร์
+  int _reportCount = 0; // แอดมิน: โพสต์ที่ถูกรายงานรอดู (ผู้เล่นทั่วไป = 0 เสมอ)
   List<SubmissionModel> _posts = [];
   bool _hasMore = false;
   bool _isLoading = true;
@@ -66,11 +64,11 @@ class _FeedTabState extends State<FeedTab> with AutomaticKeepAliveClientMixin {
   Future<void> _load() async {
     setState(() => _error = null);
     try {
-      // 3 ส่วนไม่ขึ้นต่อกัน ยิงพร้อมกัน — คิวตรวจ/ผลกระทบพังไม่ควรทำให้ฟีดทั้งหน้าพัง
+      // 3 ส่วนไม่ขึ้นต่อกัน ยิงพร้อมกัน — โพสต์ที่ถูกรายงาน/ผลกระทบพังไม่ควรทำให้ฟีดทั้งหน้าพัง
       final results = await Future.wait([
         _feedService.fetchFeed(),
         _feedService.fetchImpact().then<ImpactSummary?>((v) => v).catchError((_) => null),
-        _submissionService.fetchQueue().then<ReviewQueue?>((q) => q).catchError((_) => null),
+        _submissionService.fetchQueue().then<ReportQueue?>((q) => q).catchError((_) => null),
       ]);
       if (!mounted) return;
       final feed = results[0] as ({List<SubmissionModel> items, bool hasMore});
@@ -78,11 +76,8 @@ class _FeedTabState extends State<FeedTab> with AutomaticKeepAliveClientMixin {
         _posts = feed.items;
         _hasMore = feed.hasMore;
         _impact = results[1] as ImpactSummary?;
-        final queue = results[2] as ReviewQueue?;
-        _reviewCount = queue?.pendingCount ?? 0;
-        _escalatedCount = queue?.escalatedCount ?? 0;
-        _canReview = queue?.canReview ?? true;
-        _queue = queue;
+        final queue = results[2] as ReportQueue?;
+        _reportCount = queue != null && queue.isAdmin ? queue.pendingCount : 0;
         _isLoading = false;
       });
     } catch (e) {
@@ -162,14 +157,27 @@ class _FeedTabState extends State<FeedTab> with AutomaticKeepAliveClientMixin {
     }
   }
 
-  Future<void> _openReview() async {
-    await Navigator.push(context, MaterialPageRoute(builder: (_) => const ReviewPage()));
-    if (mounted) _load();
+  // รายงานโพสต์ — เลือกเหตุผลก่อน (ยกเลิกได้) แล้วเปลี่ยนปุ่มเป็น "Reported" ในเครื่องทันที
+  Future<void> _report(SubmissionModel post) async {
+    final reason = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const _ReportReasonSheet(),
+    );
+    if (reason == null || !mounted) return;
+    try {
+      await _feedService.reportPost(post.id, reason);
+      if (!mounted) return;
+      final index = _posts.indexWhere((p) => p.id == post.id);
+      if (index >= 0) setState(() => _posts[index] = _posts[index].copyWith(reportedByMe: true));
+      showBubbleToast(context, 'Thanks — an admin will take a look');
+    } catch (e) {
+      if (mounted) showBubbleToast(context, e.toString().replaceFirst('Exception: ', ''));
+    }
   }
 
-  // guest สมัครบัญชีจริงแล้วตรวจได้เลย (บัญชีเดิมถูกอัปเกรด ไม่ต้องล็อกอินใหม่) — โหลดคิวใหม่ตอนกลับมา
-  Future<void> _openUpgradeAccount() async {
-    await Navigator.pushNamed(context, '/upgrade-account');
+  Future<void> _openReports() async {
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportedPostsPage()));
     if (mounted) _load();
   }
 
@@ -185,31 +193,24 @@ class _FeedTabState extends State<FeedTab> with AutomaticKeepAliveClientMixin {
   Widget _buildFeed() {
     final children = <Widget>[
       if (_impact != null) _ImpactCard(impact: _impact!),
-      if (_reviewCount > 0) ...[
+      if (_reportCount > 0) ...[
         const SizedBox(height: 12),
-        _ReviewBanner(
-          count: _reviewCount,
-          escalatedCount: _escalatedCount,
-          rewardPoints: _queue != null && _queue!.hasRewardsLeft ? _queue!.rewardPoints : 0,
-          onTap: _openReview,
-        ),
-      ] else if (!_canReview) ...[
-        const SizedBox(height: 12),
-        _JoinToReviewBanner(onTap: _openUpgradeAccount),
+        _ReportsBanner(count: _reportCount, onTap: _openReports),
       ],
       const SizedBox(height: 16),
-      // Today Feed — backend ส่งมาแค่ที่ผ่านการตรวจวันนี้ ขึ้นวันใหม่ (เที่ยงคืนเวลาญี่ปุ่น) รูปเมื่อวานถูกลบ (backend/routes/feed.js)
-      const Text("Today's verified quests",
+      // Today Feed — backend ส่งมาแค่ของวันนี้ ขึ้นวันใหม่ (เที่ยงคืนเวลาญี่ปุ่น) รูปเมื่อวานถูกลบ (backend/routes/feed.js)
+      const Text("Today's quests",
           style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87)),
       const SizedBox(height: 2),
-      Text('Starts fresh every midnight', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+      Text("Starts fresh every midnight · tap ⋮ to report a photo that doesn't look right",
+          style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
       const SizedBox(height: 10),
       if (_error != null)
         _FeedEmpty(icon: Icons.cloud_off, text: _error!)
       else if (_posts.isEmpty)
         const _FeedEmpty(
           icon: Icons.eco_outlined,
-          text: 'No verified quests today yet — complete one and it will show up here',
+          text: 'No quests today yet — complete one and it will show up here',
         )
       else
         for (var i = 0; i < _posts.length; i++) ...[
@@ -220,6 +221,7 @@ class _FeedTabState extends State<FeedTab> with AutomaticKeepAliveClientMixin {
               post: _posts[i],
               onCheer: () => _toggleCheer(_posts[i]),
               onRemove: _posts[i].canRemove ? () => _confirmRemove(_posts[i]) : null,
+              onReport: _posts[i].canReport && !_posts[i].reportedByMe ? () => _report(_posts[i]) : null,
             ),
           ),
           const SizedBox(height: 12),
@@ -340,7 +342,7 @@ class _ImpactCard extends StatelessWidget {
           Row(
             children: [
               _ImpactStat(label: 'This week', value: formatCo2e(week.co2eKg)),
-              _ImpactStat(label: 'Quests verified', value: '${all.questsCompleted}'),
+              _ImpactStat(label: 'Quests done', value: '${all.questsCompleted}'),
               _ImpactStat(label: 'This week', value: '${week.questsCompleted} quests'),
             ],
           ),
@@ -374,14 +376,12 @@ class _ImpactStat extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// ชวนตรวจหลักฐานของคนอื่น
+// แอดมิน: มีโพสต์ที่ถูกรายงานรอดู
 // ---------------------------------------------------------------------------
-class _ReviewBanner extends StatelessWidget {
+class _ReportsBanner extends StatelessWidget {
   final int count;
-  final int escalatedCount;
-  final int rewardPoints; // 0 = วันนี้ได้รางวัลครบเพดานแล้ว / ไม่มีรางวัล
   final VoidCallback onTap;
-  const _ReviewBanner({required this.count, this.escalatedCount = 0, this.rewardPoints = 0, required this.onTap});
+  const _ReportsBanner({required this.count, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -400,20 +400,15 @@ class _ReviewBanner extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Icon(Icons.fact_check_rounded, color: Colors.orange.shade700),
+                Icon(Icons.flag_rounded, color: Colors.orange.shade700),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(count == 1 ? '1 quest needs your review' : '$count quests need your review',
+                      Text(count == 1 ? '1 reported post' : '$count reported posts',
                           style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: Colors.orange.shade900)),
-                      Text(
-                          escalatedCount > 0
-                              ? '$escalatedCount waited over 48 hours — only an admin can decide these'
-                              : rewardPoints > 0
-                                  ? 'Earn +$rewardPoints P for each review'
-                                  : 'Help other players get their rewards',
+                      Text('Players flagged these photos — take a look',
                           style: TextStyle(fontSize: 11.5, color: Colors.orange.shade800)),
                     ],
                   ),
@@ -428,51 +423,49 @@ class _ReviewBanner extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// guest ตรวจหลักฐานไม่ได้ (บัญชีจริงเท่านั้น) — ชวนสมัครบัญชีแทนแบนเนอร์ตรวจ
-// ---------------------------------------------------------------------------
-class _JoinToReviewBanner extends StatelessWidget {
-  final VoidCallback onTap;
-  const _JoinToReviewBanner({required this.onTap});
+// เลือกเหตุผลที่รายงาน (backend/utils/submissions.js REPORT_REASONS) — คืน key หรือ null ถ้าปิดไป
+class _ReportReasonSheet extends StatelessWidget {
+  const _ReportReasonSheet();
 
   @override
   Widget build(BuildContext context) {
-    return PressableScale(
-      child: Material(
-        color: Colors.green.shade50,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.green.shade200),
+    return SafeArea(
+      child: Container(
+        margin: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(22)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 4, 20, 2),
+              child: Text('Report this post',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
             ),
-            child: Row(
-              children: [
-                Icon(Icons.how_to_reg_rounded, color: Colors.green.shade700),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Want to help review quests?',
-                          style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: Colors.green.shade900)),
-                      Text('Only registered accounts can review — create one to join',
-                          style: TextStyle(fontSize: 11.5, color: Colors.green.shade800)),
-                    ],
-                  ),
-                ),
-                Icon(Icons.chevron_right_rounded, color: Colors.green.shade700),
-              ],
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: Text('An admin will check it. The player is not told who reported.',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
             ),
-          ),
+            for (final entry in reportReasonLabels.entries)
+              ListTile(
+                leading: Icon(_reasonIcon(entry.key), color: Colors.orange.shade700),
+                title: Text(entry.value, style: const TextStyle(fontSize: 14)),
+                onTap: () => Navigator.pop(context, entry.key),
+              ),
+          ],
         ),
       ),
     );
   }
+
+  static IconData _reasonIcon(String key) => switch (key) {
+        'not_done' => Icons.help_outline_rounded,
+        'personal_info' => Icons.privacy_tip_outlined,
+        'inappropriate' => Icons.block_rounded,
+        _ => Icons.more_horiz_rounded,
+      };
 }
 
 // ---------------------------------------------------------------------------
@@ -482,7 +475,8 @@ class _FeedPostCard extends StatelessWidget {
   final SubmissionModel post;
   final VoidCallback onCheer;
   final VoidCallback? onRemove; // null = ถอนโพสต์นี้ไม่ได้ (ไม่ใช่แอดมิน/เจ้าของ)
-  const _FeedPostCard({required this.post, required this.onCheer, this.onRemove});
+  final VoidCallback? onReport; // null = รายงานไม่ได้ (ของตัวเอง / guest / รายงานไปแล้ว)
+  const _FeedPostCard({required this.post, required this.onCheer, this.onRemove, this.onReport});
 
   @override
   Widget build(BuildContext context) {
@@ -549,11 +543,38 @@ class _FeedPostCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  if (onRemove != null)
-                    IconButton(
-                      onPressed: onRemove,
-                      tooltip: 'Remove post',
-                      icon: Icon(Icons.delete_outline_rounded, color: Colors.grey.shade500),
+                  if (post.reportedByMe)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 6),
+                      child: Text('Reported', style: TextStyle(fontSize: 11, color: Colors.orange.shade700)),
+                    ),
+                  if (onRemove != null || onReport != null)
+                    PopupMenuButton<String>(
+                      tooltip: 'More',
+                      icon: Icon(Icons.more_vert_rounded, color: Colors.grey.shade500),
+                      onSelected: (v) => v == 'report' ? onReport?.call() : onRemove?.call(),
+                      itemBuilder: (_) => [
+                        if (onReport != null)
+                          const PopupMenuItem(
+                            value: 'report',
+                            child: ListTile(
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              leading: Icon(Icons.flag_outlined),
+                              title: Text('Report post'),
+                            ),
+                          ),
+                        if (onRemove != null)
+                          const PopupMenuItem(
+                            value: 'remove',
+                            child: ListTile(
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              leading: Icon(Icons.delete_outline_rounded),
+                              title: Text('Remove post'),
+                            ),
+                          ),
+                      ],
                     ),
                 ],
               ),

@@ -93,8 +93,8 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
         title: approved.bingo
             ? 'Eco Bingo!'
             : approved.count > 1
-                ? '${approved.count} quests approved!'
-                : 'Quest approved!',
+                ? '${approved.count} quests complete!'
+                : 'Quest complete!',
       );
       final questProvider = context.read<QuestProvider>();
       await Future.wait([

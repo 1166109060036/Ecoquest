@@ -57,6 +57,19 @@ class FeedService {
     }
   }
 
+  // รายงานโพสต์ — reason: not_done / personal_info / inappropriate / other (submission_model.dart reportReasonLabels)
+  Future<void> reportPost(String postId, String reason) async {
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/feed/$postId/report'),
+      headers: await _headers(),
+      body: jsonEncode({'reason': reason}),
+    );
+    if (response.statusCode != 200) {
+      final data = jsonDecode(response.body);
+      throw Exception(data['message'] ?? 'Failed to report this post');
+    }
+  }
+
   Future<ImpactSummary> fetchImpact() async {
     final response = await http.get(Uri.parse('${AppConstants.baseUrl}/impact/summary'), headers: await _headers());
     final data = jsonDecode(response.body);

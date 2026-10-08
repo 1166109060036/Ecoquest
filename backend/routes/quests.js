@@ -14,12 +14,13 @@ const { withEnergyBoosts } = require('../utils/inventory');
 const { startOfToday, todayKey, yesterdayKey } = require('../utils/questDay');
 const { awardQuest, applyStreakNow } = require('../utils/questRewards');
 const { decodeImageBase64 } = require('../utils/imageUpload');
-const { photoHashOf, isDuplicatePhoto, sweepQuietly } = require('../utils/submissions');
+const { photoHashOf, isDuplicatePhoto, sweepQuietly, awardSubmission } = require('../utils/submissions');
 const { selectVisibleQuests } = require('../utils/questSelection');
 const { shopEnabled } = require('../utils/featureFlags');
-const { comboForNow, comboForSubmission, comboSummaryToday, nextNewMultiplier } = require('../utils/combo');
+const { comboForNow, comboSummaryToday, nextNewMultiplier } = require('../utils/combo');
 const { checkInRewardInfo } = require('../utils/checkInRewards');
 const { validateProofDetails } = require('../utils/proofForm');
+const progression = require('../utils/progression');
 
 // เควสที่นับ Daily Variety Combo (utils/combo.js): solo ที่จบในครั้งเดียว — party/เควสหลายวันไม่มีคอมโบ
 const hasCombo = (quest) => quest.type === 'solo' && (quest.durationDays || 1) <= 1;
@@ -308,10 +309,11 @@ router.delete('/:id/start', authMiddleware, async (req, res) => {
 });
 
 // @route   POST /api/quests/:id/complete
-// @desc    ทำ quest สำเร็จ — 2 แบบ (28 ก.ย. 2026 ระบบตรวจสอบภารกิจ ดู utils/submissions.js):
+// @desc    ทำ quest สำเร็จ — 2 แบบ (ดู utils/submissions.js) ทั้งสองแบบได้รางวัลทันที ตอบ status: 'completed'
 //          - เควสที่ต้องมีหลักฐาน (solo ทุกอันยกเว้น Check Food): body ต้องมี photoBase64/photoContentType
-//            -> สร้าง QuestSubmission 'pending' ยังไม่ได้แต้ม ต้องรอผู้เล่นคนอื่น/แอดมินตรวจ (ตอบ status: 'pending')
-//          - Check Food: ระบบตรวจจากของในตู้เย็นเอง -> ได้รางวัลทันทีเหมือนเดิม (ตอบ status: 'completed')
+//            -> สร้าง QuestSubmission ที่ผ่านทันที (7 ต.ค. 2026 เลิกให้คนตรวจ — อาจารย์ห่วงภาระคนตรวจ/คนทำหมดกำลังใจ)
+//               ขึ้นฟีด ผู้เล่นคนอื่นรายงานได้ถ้าดูไม่ได้ทำจริง
+//          - Check Food: ระบบตรวจจากของในตู้เย็นเอง (ไม่มีรูป)
 //          body: { photoBase64?, photoContentType? }
 // แอพย่อเหลือด้านยาวสุด 960px quality 70 (~100-200KB, lib/widgets/proof_capture_sheet.dart) — 2MB เผื่อ PNG/แอพรุ่นเก่า
 const MAX_PROOF_PHOTO_BYTES = 2 * 1024 * 1024;
@@ -396,8 +398,7 @@ router.post('/:id/complete', authMiddleware, async (req, res) => {
 
     // ---- เช็คอินเควสหลายวัน ----
     // เช็คอินติดจากเมื่อวาน = วันถัดไป, ไม่ติด (ลืมไป หรือเช็คอินครั้งแรก) = เริ่มนับวันที่ 1 ใหม่ (ผู้ใช้ตัดสินใจ
-    // ให้เหมือน Daily Streak) — นับวันทันทีตอนส่งหลักฐาน (ให้จังหวะรายวันเดินตามจริง) แต่แถว CO2 ของวันนั้นเกิดตอน
-    // ผ่านการตรวจ / วันไหนไม่ผ่าน = นับใหม่วันที่ 1 (utils/submissions.js#finalizeSubmission)
+    // ให้เหมือน Daily Streak) — ได้แต้มรายวัน + แถว CO2 ของวันนั้นทันทีตอนส่งรูป
     let checkIn = null;
     if (durationDays > 1) {
       const continuing = progressRow.lastCheckInDay === yesterdayKey();
@@ -419,7 +420,7 @@ router.post('/:id/complete', authMiddleware, async (req, res) => {
         if (!updated) {
           return res.status(409).json({ message: 'Already checked in today — come back tomorrow' });
         }
-        return submitForReview(req, res, quest, photo, 'check_in', checkIn);
+        return submitProof(req, res, quest, photo, 'check_in', checkIn);
       }
     }
 
@@ -435,7 +436,7 @@ router.post('/:id/complete', authMiddleware, async (req, res) => {
     }
 
     if (needsProof) {
-      return submitForReview(req, res, quest, photo, checkIn ? 'check_in' : 'quest', checkIn);
+      return submitProof(req, res, quest, photo, checkIn ? 'check_in' : 'quest', checkIn);
     }
 
     // ---- ระบบตรวจเองได้ (Check Food) -> รางวัลทันที ----
@@ -483,9 +484,10 @@ router.post('/:id/complete', authMiddleware, async (req, res) => {
   }
 });
 
-// สร้าง submission รอตรวจ + นับ Daily Streak วันนี้เลย (ทำกิจกรรมวันนี้จริง ไม่ให้ streak ขาดเพราะรอตรวจข้ามวัน)
-// แล้วตอบรูปแบบเดียวกับ complete ปกติ (earned 0) + status: 'pending' ให้แอพรู้ว่ายังไม่ได้แต้ม
-async function submitForReview(req, res, quest, photo, kind, checkIn) {
+// บันทึกหลักฐาน (ผ่านทันที) + นับ Daily Streak + ให้รางวัล แล้วตอบรูปแบบเดียวกับ Check Food (status: 'completed')
+// แอพเลยเด้งรางวัลได้ทันทีด้วยโค้ดเส้นเดียวกัน (lib/pages/progress/progress_page.dart)
+async function submitProof(req, res, quest, photo, kind, checkIn) {
+  const now = new Date();
   const submission = await QuestSubmission.create({
     userId: req.userId,
     questId: quest._id,
@@ -497,23 +499,36 @@ async function submitForReview(req, res, quest, photo, kind, checkIn) {
     photoContentType: photo.contentType,
     photoHash: photo.hash,
     details: req.proofDetails || undefined,
+    status: 'approved',
+    decidedBy: 'instant',
+    decidedAt: now,
   });
 
+  // streak ก่อนให้รางวัล — awardQuest อ่าน user ใหม่เองหลังจากนี้
   const user = await User.findById(req.userId).select('-avatarData');
-  const streakMilestone = user ? await applyStreakNow(user) : null;
-  // ตัวอย่างคอมโบ (ตัวจริงคิดตอนผ่านการตรวจ ไม่นับอันที่ไม่ผ่าน) — ให้แอพโชว์ทันทีว่า "Combo ×1.2"
-  const combo = kind === 'quest' && hasCombo(quest) ? await comboForSubmission(submission) : null;
+  if (!user) return res.status(404).json({ message: 'User not found' });
+  const streakMilestone = await applyStreakNow(user);
+
+  const { owner, combo } = await awardSubmission(submission, quest);
+  if (!owner) return res.status(404).json({ message: 'User not found' });
+  const bingo = owner.bingo || null;
+  const xp = owner.user.xp;
 
   res.status(201).json({
-    message: 'Submitted for review',
-    status: 'pending',
+    message: checkIn && !checkIn.finished ? 'Checked in' : 'Quest completed',
+    status: 'completed',
     submissionId: submission._id,
-    earned: { points: 0, xp: 0 },
-    newAchievements: [],
+    earned: { points: owner.reward.points, xp: owner.reward.xp },
+    newAchievements: owner.newAchievements || [],
     streakMilestone,
     checkIn,
     combo: combo && { ...combo, nextNewMultiplier: nextNewMultiplier(combo.distinctToday) },
-    user: user ? { level: user.level, xp: user.xp, points: user.points } : null,
+    bingo,
+    user: {
+      level: progression.levelFromXp(xp + (bingo ? bingo.xp : 0)),
+      xp: xp + (bingo ? bingo.xp : 0),
+      points: owner.user.points + (bingo ? bingo.points : 0),
+    },
   });
 }
 
