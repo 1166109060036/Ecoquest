@@ -27,6 +27,14 @@ const hasCombo = (quest) => quest.type === 'solo' && (quest.durationDays || 1) <
 
 const router = express.Router();
 
+// สถานะเช็คอินของเควสหลายวันจากแถว QuestProgress — ใช้ร่วมกัน GET / และ GET /progress ให้ตัวเลขตรงกันทุกหน้า
+// เช็คอินล่าสุดไม่ใช่วันนี้/เมื่อวาน = ลืมไปแล้ว เช็คอินครั้งถัดไปจะนับใหม่เป็นวันที่ 1 — โชว์ 0 เลย
+// ไม่โชว์ตัวเลขเดิมที่กำลังจะหายให้ผู้เล่นเข้าใจผิด
+const checkInState = (progress) => ({
+  daysDone: [todayKey(), yesterdayKey()].includes(progress.lastCheckInDay) ? progress.daysDone : 0,
+  checkedInToday: progress.lastCheckInDay === todayKey(),
+});
+
 // แปลง quest template + bonus ของ user เป็น payload ที่ส่งให้แอพ — ใช้ร่วมกันทั้ง GET / และ
 // GET /progress เพื่อให้ scorePoints/xpReward ที่โชว์ผ่าน applyBonuses ตรงกันเป๊ะทั้ง 2 หน้า
 const toQuestPayload = (
@@ -66,7 +74,7 @@ const toQuestPayload = (
     // เควสที่ user กด Start ไว้แต่ยังไม่ Complete — ดู models/QuestProgress.js
     inProgress: Boolean(inProgress),
     startedAt: startedAt || null,
-    // ---- เควสหลายวัน (Food Saver 3/7) — daysDone/checkedInToday มีค่าจริงเฉพาะใน GET /progress ----
+    // ---- เควสหลายวัน (Food Saver 3/7) — daysDone/checkedInToday จาก QuestProgress (checkInState) ----
     durationDays: quest.durationDays || 1,
     daysDone: daysDone || 0,
     checkedInToday: Boolean(checkedInToday),
@@ -110,7 +118,7 @@ router.get('/', authMiddleware, async (req, res) => {
         completedAt: { $gte: startOfToday() },
         checkIn: { $ne: true },
       }).select('questId'),
-      QuestProgress.find({ userId: req.userId }).select('questId'),
+      QuestProgress.find({ userId: req.userId }).select('questId daysDone lastCheckInDay'),
       QuestSubmission.aggregate([
         { $match: { userId: new mongoose.Types.ObjectId(String(req.userId)), status: 'pending' } },
         { $group: { _id: '$questId', count: { $sum: 1 } } },
@@ -124,7 +132,7 @@ router.get('/', authMiddleware, async (req, res) => {
       const id = h.questId.toString();
       timesToday.set(id, (timesToday.get(id) || 0) + 1);
     }
-    const inProgressIds = new Set(progressRows.map((p) => p.questId.toString()));
+    const progressById = new Map(progressRows.map((p) => [p.questId.toString(), p]));
 
     // party quest ตอนนี้ไม่มี "เข้าร่วม/ยังไม่เข้าร่วม" ต่อ quest แล้ว — เปลี่ยนเป็นสร้าง/เข้าร่วม
     // "ห้อง" (Party) แทน เลยแค่บอกว่ามีกี่ห้องที่ยังเปิดรับอยู่ (openPartyCount) ให้การ์ดโชว์เฉยๆ
@@ -143,12 +151,16 @@ router.get('/', authMiddleware, async (req, res) => {
     res.json({
       quests: visibleQuests.map((q) => {
         const id = q._id.toString();
+        const progress = progressById.get(id);
         return {
           ...toQuestPayload(q, bonuses, {
             timesToday: timesToday.get(id) || 0,
             pendingReview: pendingByQuest.get(id) || 0,
-            inProgress: inProgressIds.has(id),
+            inProgress: Boolean(progress),
             openPartyCount: openPartyCounts.get(id) || 0,
+            // หน้ารายละเอียดเควสที่เปิดจาก Explore/Home/Bingo ใช้ payload นี้ — เดิมไม่ส่ง daysDone เลยขึ้น "0/7"
+            // ทั้งที่เช็คอินไปแล้ว (เจอ 7 ต.ค. 2026) ใช้กติกาเดียวกับ GET /progress
+            ...(progress ? checkInState(progress) : {}),
           }),
           // ตัวคูณที่จะได้ถ้าทำเควสนี้ตอนนี้ (null = เควสนี้ไม่มีคอมโบ) — ยังไม่ได้คิดอันที่อาจไม่ผ่านการตรวจ
           comboMultiplier: hasCombo(q) ? combo.previewFor(id) : null,
@@ -216,8 +228,6 @@ router.get('/progress', authMiddleware, async (req, res) => {
       'redEnergyExpiresAt blueEnergyExpiresAt greenEnergyExpiresAt'
     );
     const bonuses = withEnergyBoosts(await getUserBonuses(req.userId), boostUser);
-    const today = todayKey();
-    const yesterday = yesterdayKey();
 
     res.json({
       // ⚠️ จงใจไม่ใช้ selectVisibleQuests (สุ่มรายวัน + จำกัดจำนวน) แบบ GET / —
@@ -227,10 +237,7 @@ router.get('/progress', authMiddleware, async (req, res) => {
         toQuestPayload(p.questId, bonuses, {
           inProgress: true,
           startedAt: p.startedAt,
-          // เช็คอินล่าสุดไม่ใช่วันนี้/เมื่อวาน = ลืมไปแล้ว เช็คอินครั้งถัดไปจะนับใหม่เป็นวันที่ 1 — โชว์ 0 เลย
-          // ไม่โชว์ตัวเลขเดิมที่กำลังจะหายให้ผู้เล่นเข้าใจผิด
-          daysDone: [today, yesterday].includes(p.lastCheckInDay) ? p.daysDone : 0,
-          checkedInToday: p.lastCheckInDay === today,
+          ...checkInState(p),
         })
       ),
     });
