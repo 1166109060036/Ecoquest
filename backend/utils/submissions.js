@@ -21,6 +21,7 @@ const { notifyQuestCompleted, notifyQuestApproved, notifyPartyReward, notifyProo
 const { avatarUrlFor, cosmeticsFor } = require('./avatar');
 const { startOfToday } = require('./questDay');
 const { purgeExpiredFridgePhotos } = require('./fridgePhotos');
+const { photoSig } = require('./photoSign');
 
 // ฟิลด์สาธารณะของผู้ใช้ที่ populate มากับ submission — allow-list เดียวกับ routes/friends.js (ห้ามหลุด email ฯลฯ)
 const PUBLIC_USER_FIELDS = 'displayName level avatarContentType avatarUpdatedAt cosmetics';
@@ -253,7 +254,8 @@ const toSubmissionPayload = (s, viewerId = null) => ({
   id: s._id,
   kind: s.kind,
   status: s.status,
-  photoUrl: `/submissions/${s._id}/photo?v=${s.createdAt ? s.createdAt.getTime() : 0}`,
+  // ?s= ลายเซ็น (utils/photoSign.js) — เปิดรูปได้เฉพาะคนที่ได้ URL จาก API ไม่ใช่เดา id เอา
+  photoUrl: `/submissions/${s._id}/photo?v=${s.createdAt ? s.createdAt.getTime() : 0}&s=${photoSig('submission', s._id)}`,
   submittedAt: s.createdAt,
   decidedAt: s.decidedAt,
   checkIn: s.kind === 'check_in' ? s.checkIn : null,

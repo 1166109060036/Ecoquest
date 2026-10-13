@@ -6,7 +6,8 @@ const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 const QuestSubmission = require('../models/QuestSubmission');
 const { applyStreakNow } = require('../utils/questRewards');
-const { decodeImageBase64 } = require('../utils/imageUpload');
+const { decodeImage } = require('../utils/imageUpload');
+const { limitBy, byUser } = require('../utils/rateLimit');
 const { photoHashOf, isDuplicatePhoto, awardSubmission } = require('../utils/submissions');
 const { avatarUrlFor, cosmeticsFor } = require('../utils/avatar');
 const { requiredMembers, canStart, canComplete } = require('../utils/partyGate');
@@ -382,8 +383,11 @@ router.post('/leave', authMiddleware, async (req, res) => {
 //          body: { photoBase64, photoContentType }
 // ขนาดเดียวกับรูปหลักฐานเควส solo (routes/quests.js MAX_PROOF_PHOTO_BYTES)
 const MAX_PARTY_PHOTO_BYTES = 2 * 1024 * 1024;
+// ส่งรูปหลักฐานได้ไม่เกิน 60 ครั้ง/ชั่วโมง/คน (13 ต.ค. 2026) — ผู้ใช้ปกติไม่มีทางถึง กันสคริปต์ยิงรูปจน Atlas ฟรีเต็ม
+const limitPartyUploads = limitBy('party-upload', { windowMs: 60 * 60 * 1000, max: 60 }, byUser,
+  'You are submitting very quickly. Please try again later');
 
-router.post('/complete', authMiddleware, async (req, res) => {
+router.post('/complete', authMiddleware, limitPartyUploads, async (req, res) => {
   try {
     const membership = await PartyMember.findOne({ userId: req.userId });
     if (!membership) {
@@ -413,8 +417,8 @@ router.post('/complete', authMiddleware, async (req, res) => {
     }
     let photo;
     try {
-      const data = decodeImageBase64(req.body.photoBase64, req.body.photoContentType, MAX_PARTY_PHOTO_BYTES);
-      photo = { data, contentType: req.body.photoContentType, hash: photoHashOf(data) };
+      const image = decodeImage(req.body.photoBase64, req.body.photoContentType, MAX_PARTY_PHOTO_BYTES);
+      photo = { data: image.data, contentType: image.contentType, hash: photoHashOf(image.data) };
     } catch (err) {
       return res.status(err.status || 400).json({
         message: err.message === 'Image is too large' ? 'Photo is too large' : 'Invalid photo data',

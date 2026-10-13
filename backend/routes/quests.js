@@ -13,7 +13,8 @@ const { getUserBonuses, applyBonuses, BASE_VISIBLE_QUESTS } = require('../utils/
 const { withEnergyBoosts } = require('../utils/inventory');
 const { startOfToday, todayKey, yesterdayKey } = require('../utils/questDay');
 const { awardQuest, applyStreakNow } = require('../utils/questRewards');
-const { decodeImageBase64 } = require('../utils/imageUpload');
+const { decodeImage } = require('../utils/imageUpload');
+const { limitBy, byUser } = require('../utils/rateLimit');
 const { photoHashOf, isDuplicatePhoto, sweepQuietly, awardSubmission } = require('../utils/submissions');
 const { selectVisibleQuests } = require('../utils/questSelection');
 const { shopEnabled } = require('../utils/featureFlags');
@@ -324,8 +325,11 @@ router.delete('/:id/start', authMiddleware, async (req, res) => {
 //          body: { photoBase64?, photoContentType? }
 // แอพย่อเหลือด้านยาวสุด 960px quality 70 (~100-200KB, lib/widgets/proof_capture_sheet.dart) — 2MB เผื่อ PNG/แอพรุ่นเก่า
 const MAX_PROOF_PHOTO_BYTES = 2 * 1024 * 1024;
+// ส่งรูปหลักฐานได้ไม่เกิน 60 ครั้ง/ชั่วโมง/คน (13 ต.ค. 2026) — ผู้ใช้ปกติไม่มีทางถึง กันสคริปต์ยิงรูปจน Atlas ฟรีเต็ม
+const limitProofUploads = limitBy('proof-upload', { windowMs: 60 * 60 * 1000, max: 60 }, byUser,
+  'You are submitting very quickly. Please try again later');
 
-router.post('/:id/complete', authMiddleware, async (req, res) => {
+router.post('/:id/complete', authMiddleware, limitProofUploads, async (req, res) => {
   try {
     const quest = await Quest.findById(req.params.id);
     if (!quest || !quest.isActive) {
@@ -348,8 +352,8 @@ router.post('/:id/complete', authMiddleware, async (req, res) => {
         return res.status(400).json({ message: 'Take a photo as proof to complete this quest' });
       }
       try {
-        const data = decodeImageBase64(req.body.photoBase64, req.body.photoContentType, MAX_PROOF_PHOTO_BYTES);
-        photo = { data, contentType: req.body.photoContentType, hash: photoHashOf(data) };
+        const image = decodeImage(req.body.photoBase64, req.body.photoContentType, MAX_PROOF_PHOTO_BYTES);
+        photo = { data: image.data, contentType: image.contentType, hash: photoHashOf(image.data) };
       } catch (err) {
         return res.status(err.status || 400).json({
           message: err.message === 'Image is too large' ? 'Photo is too large' : 'Invalid photo data',

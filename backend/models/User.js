@@ -103,6 +103,8 @@ const UserSchema = new mongoose.Schema(
     // เก็บแค่ hash ของ OTP (เหมือน password) ไม่เก็บ OTP ตัวจริงไว้ในฐานข้อมูล
     resetOtpHash: { type: String, default: null },
     resetOtpExpires: { type: Date, default: null },
+    // จำนวนครั้งที่กรอก OTP ผิดของ OTP ปัจจุบัน — ครบ 5 = ล้าง OTP ทิ้ง (routes/auth.js)
+    resetOtpAttempts: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

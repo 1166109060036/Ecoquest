@@ -62,6 +62,8 @@ connectDB().then(async () => {
   }
 });
 
+// Render อยู่หลัง proxy 1 ชั้น — ให้ req.ip เป็น IP จริงของผู้ใช้ (ใช้กับ utils/rateLimit.js) ไม่ใช่ IP ของ proxy
+app.set('trust proxy', 1);
 app.use(cors());
 // limit ปกติของ express.json คือ 100kb — รูปโปรไฟล์ที่ส่งมาเป็น base64 ใน body เกินแน่ๆ
 // (base64 กินพื้นที่มากกว่าไฟล์จริง ~33% ยิ่งบวก JSON overhead) เลยขยับเป็น 6mb ให้พอ

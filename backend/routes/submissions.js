@@ -3,6 +3,8 @@ const mongoose = require('mongoose');
 const QuestSubmission = require('../models/QuestSubmission');
 const authMiddleware = require('../middleware/auth');
 const { toSubmissionPayload, QUEST_FIELDS } = require('../utils/submissions');
+const { setImageHeaders } = require('../utils/imageUpload');
+const { isValidPhotoSig } = require('../utils/photoSign');
 
 // หลักฐานภารกิจของตัวเอง + เสิร์ฟรูปหลักฐาน (ระบบตรวจสอบภารกิจ — ดู utils/submissions.js)
 const router = express.Router();
@@ -31,19 +33,21 @@ router.get('/mine', authMiddleware, async (req, res) => {
 
 // @route   GET /api/submissions/:id/photo
 // @desc    เสิร์ฟรูปหลักฐาน — public ไม่ต้อง login (แนวเดียวกับรูปโปรไฟล์/รูปในตู้เย็น) เพราะ Image.network ฝั่งแอพ
-//          ไม่ได้แนบ token และรูปหลักฐานที่ผ่านแล้วโชว์ในฟีดชุมชนให้ทุกคนเห็นอยู่แล้ว
+//          ไม่ได้แนบ token — แต่ต้องมี ?s= ลายเซ็นจาก photoUrl (13 ต.ค. 2026 กันเดา id เปิดรูปที่ถูกซ่อน/ถูกรายงาน)
 router.get('/:id/photo', async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ message: 'Invalid submission id' });
     }
+    if (!isValidPhotoSig('submission', req.params.id, req.query.s)) {
+      return res.status(404).json({ message: 'Photo not found' });
+    }
     const submission = await QuestSubmission.findById(req.params.id).select('photoData photoContentType');
     // ไม่มีรูปแล้ว = ไม่ผ่านการตรวจ ถูกลบทิ้งไปแล้ว (utils/submissions.js#purgeRejectedPhoto)
     if (!submission || !submission.photoData) return res.status(404).json({ message: 'Photo not found' });
 
-    res.set('Content-Type', submission.photoContentType);
     // รูปของ submission ไม่เคยเปลี่ยน — cache ได้ตลอด
-    res.set('Cache-Control', 'public, max-age=31536000, immutable');
+    setImageHeaders(res, submission.photoContentType);
     res.send(submission.photoData);
   } catch (err) {
     console.error(err);

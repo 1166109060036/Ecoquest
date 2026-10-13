@@ -6,6 +6,7 @@ const authMiddleware = require('../middleware/auth');
 const { buildProfileStats } = require('../utils/profilePayload');
 const { getAchievements } = require('../utils/achievements');
 const { avatarUrlFor, cosmeticsFor } = require('../utils/avatar');
+const { setImageHeaders } = require('../utils/imageUpload');
 
 const router = express.Router();
 
@@ -89,8 +90,7 @@ router.get('/:id/avatar', async (req, res) => {
     }
 
     // cache ฝั่ง client ได้เลยเพราะ URL มี ?v= กันรูปเก่าค้างอยู่แล้ว (ดู utils/avatar.js)
-    res.set('Content-Type', user.avatarContentType);
-    res.set('Cache-Control', 'public, max-age=31536000, immutable');
+    setImageHeaders(res, user.avatarContentType);
     res.send(user.avatarData);
   } catch (err) {
     console.error(err);
