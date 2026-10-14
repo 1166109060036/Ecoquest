@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/validators.dart';
+import '../../widgets/auth_shell.dart';
 import '../../widgets/bubble_toast.dart';
 
 class LoginPage extends StatefulWidget {
@@ -57,78 +58,80 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
+    final loading = authProvider.isLoading;
 
-    return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Image.asset('lib/utils/assets/logo.png', width: 96, height: 96),
-                const SizedBox(height: 8),
-                const Text(
-                  'Sign in to EcoQuest',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+    // หน้าตาใหม่ (14 ต.ค. 2026): พื้นหลังเดียวกับหน้า Profile + การ์ดกระจก — ชิ้นส่วนอยู่ใน widgets/auth_shell.dart
+    return AuthScaffold(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const AuthHeader(title: 'EcoQuest', subtitle: 'Small eco quests, real impact'),
+          const SizedBox(height: 28),
+          AuthGlassCard(
+            child: Form(
+              key: _formKey,
+              child: AutofillGroup(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text(
+                      'Welcome back',
+                      style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    Text('Sign in to continue your quests',
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13)),
+                    const SizedBox(height: 18),
+                    AuthTextField(
+                      controller: _emailController,
+                      label: 'Email',
+                      icon: Icons.mail_outline_rounded,
+                      keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
+                      autofillHints: const [AutofillHints.email],
+                      validator: Validators.validateEmail,
+                    ),
+                    const SizedBox(height: 14),
+                    AuthTextField(
+                      controller: _passwordController,
+                      label: 'Password',
+                      icon: Icons.lock_outline_rounded,
+                      isPassword: true,
+                      textInputAction: TextInputAction.done,
+                      autofillHints: const [AutofillHints.password],
+                      validator: Validators.validatePassword,
+                      onSubmitted: (_) => loading ? null : _handleLogin(),
+                    ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () => Navigator.pushNamed(context, '/forgot-password'),
+                        style: TextButton.styleFrom(foregroundColor: Colors.white.withValues(alpha: 0.85)),
+                        child: const Text('Forgot password?'),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    AuthPrimaryButton(label: 'Sign In', loading: loading, onPressed: _handleLogin),
+                    const SizedBox(height: 16),
+                    const AuthOrDivider(),
+                    const SizedBox(height: 16),
+                    AuthSecondaryButton(
+                      label: 'Continue as Guest',
+                      icon: Icons.explore_outlined,
+                      onPressed: loading ? null : _handleGuestLogin,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 32),
-                TextFormField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: Validators.validateEmail,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Password',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: Validators.validatePassword,
-                ),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () => Navigator.pushNamed(context, '/forgot-password'),
-                    child: const Text('Forgot password?'),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                ElevatedButton(
-                  onPressed: authProvider.isLoading ? null : _handleLogin,
-                  style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
-                  child: authProvider.isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Text('Sign In'),
-                ),
-                const SizedBox(height: 12),
-                OutlinedButton(
-                  onPressed: authProvider.isLoading ? null : _handleGuestLogin,
-                  style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
-                  child: const Text('Continue as Guest'),
-                ),
-                const SizedBox(height: 16),
-                TextButton(
-                  onPressed: () => Navigator.pushNamed(context, '/register'),
-                  child: const Text("Don't have an account? Sign up"),
-                ),
-              ],
+              ),
             ),
           ),
-        ),
+          const SizedBox(height: 12),
+          AuthSwitchLink(
+            text: "Don't have an account?",
+            action: 'Sign up',
+            onTap: () => Navigator.pushNamed(context, '/register'),
+          ),
+        ],
       ),
     );
   }

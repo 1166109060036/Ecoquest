@@ -2,17 +2,21 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import '../../models/org_event_model.dart';
 import '../../models/party_model.dart';
 import '../../models/quest_card_model.dart';
 import '../../providers/party_provider.dart';
 import '../../providers/quest_provider.dart';
+import '../../services/org_service.dart';
 import '../../utils/party_actions.dart';
 import '../../widgets/bubble_toast.dart';
+import '../../widgets/org_event_card.dart';
 import '../../widgets/party_room_card.dart';
 import '../../widgets/quest_card.dart';
 import '../../widgets/skeleton_box.dart';
 import '../explore/quest_detail_page.dart';
 import '../inventory/fridge_page.dart';
+import '../org/org_event_detail_page.dart';
 import '../profile/profile_page.dart';
 import '../progress/progress_page.dart';
 import '../../widgets/state_cross_fade.dart';
@@ -210,13 +214,52 @@ class _ExploreSheetState extends State<_ExploreSheet> {
   String _selectedFilter = 'All';
   static const _filters = ['All', 'Solo', 'Party', 'Event'];
 
+  // อีเวนต์องค์กร — เหมือนหน้า Explore เต็มจอ (chip "Event" + บนสุดของ "All")
+  // เดิมแผ่นนี้ไม่ได้โหลดอีเวนต์เลย chip "Event" เลยว่างตลอด (บั๊กที่ผู้ใช้เจอ 14 ต.ค. 2026)
+  final _orgService = OrgService();
+  List<OrgEventModel> _events = [];
+  bool _eventsLoading = true;
+  String? _eventsError;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadEvents();
+  }
+
+  Future<void> _loadEvents() async {
+    try {
+      final events = await _orgService.fetchEvents();
+      if (!mounted) return;
+      setState(() {
+        _events = events;
+        _eventsError = null;
+        _eventsLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _eventsError = e.toString().replaceFirst('Exception: ', '');
+        _eventsLoading = false;
+      });
+    }
+  }
+
+  List<OrgEventModel> _filterEvents(List<OrgEventModel> all) =>
+      _selectedFilter == 'All' || _selectedFilter == 'Event' ? all : [];
+
+  Future<void> _openEvent(OrgEventModel event) async {
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => OrgEventDetailPage(event: event)));
+    if (mounted) _loadEvents();
+  }
+
   // อ่าน quest/room จาก provider ตรงนี้แทนการรับผ่าน constructor
   // เพราะ _ExploreSheet ถูกส่งเป็น `child` ของ AnimatedBuilder (สร้างครั้งเดียว)
   // ถ้ารับผ่าน constructor ลิสต์จะค้างอยู่ที่ค่าตอนสร้าง ไม่อัปเดตตอนทำ quest เสร็จ
   List<QuestCardModel> _filterQuests(List<QuestCardModel> all) {
     // party quest เป็นแค่ template สร้างห้อง — ไม่โผล่เป็นการ์ดให้กดในลิสต์นี้แล้ว
     var quests = all.where((q) => q.category != QuestCardCategory.party).toList();
-    if (_selectedFilter == 'Party') return [];
+    if (_selectedFilter == 'Party' || _selectedFilter == 'Event') return [];
     if (_selectedFilter == 'All') return quests;
 
     final category = QuestCardCategory.values.firstWhere(
@@ -295,8 +338,12 @@ class _ExploreSheetState extends State<_ExploreSheet> {
     final quests = _filterQuests(questProvider.quests);
     final rooms = _filterRooms(partyProvider.rooms);
     final myPartyId = partyProvider.party?.id;
-    // ห้องขึ้นก่อนเควส เพราะเป็นอีเวนต์ที่มีกำหนดเวลา (เหมือนหน้า Explore เต็มจอ)
-    final items = <Object>[...rooms, ...quests];
+    final events = _filterEvents(_events);
+    // อีเวนต์องค์กร + ห้องขึ้นก่อนเควส เพราะมีกำหนดเวลา (เหมือนหน้า Explore เต็มจอ)
+    final items = <Object>[...events, ...rooms, ...quests];
+    final isLoading =
+        (questProvider.isLoading || partyProvider.isLoadingRooms || (_selectedFilter == 'Event' && _eventsLoading)) &&
+            items.isEmpty;
 
     // AnimatedBuilder ตรงนี้ครอบแค่ Container (decoration/มุมโค้ง) เท่านั้น
     // ส่วน Column เนื้อหาข้างล่างส่งผ่าน `child` เข้ามา ถูกสร้างครั้งเดียวแล้วนำมาใช้ซ้ำ
@@ -390,8 +437,11 @@ class _ExploreSheetState extends State<_ExploreSheet> {
                       return ChoiceChip(
                         label: Text(filter),
                         selected: isSelected,
-                        onSelected: (_) =>
-                            setState(() => _selectedFilter = filter),
+                        onSelected: (_) {
+                          setState(() => _selectedFilter = filter);
+                          // แผ่นนี้ไม่มี pull-to-refresh — กดเข้า chip Event แล้วโหลดอีเวนต์ล่าสุดใหม่
+                          if (filter == 'Event') _loadEvents();
+                        },
                         selectedColor: Colors.green,
                         backgroundColor: Colors.grey.shade100,
                         labelStyle: TextStyle(
@@ -418,10 +468,10 @@ class _ExploreSheetState extends State<_ExploreSheet> {
           Expanded(
             // เฟดสลับ skeleton -> ลิสต์ -> ว่าง และตอนเปลี่ยนตัวกรอง แทนตัดฉับ (ผู้ใช้ขอให้แอพสมูทขึ้น)
             child: StateCrossFade(
-              stateKey: (questProvider.isLoading || partyProvider.isLoadingRooms) && items.isEmpty
+              stateKey: isLoading
                   ? 'loading'
                   : '${items.isEmpty ? 'empty' : 'list'}-$_selectedFilter',
-              child: (questProvider.isLoading || partyProvider.isLoadingRooms) && items.isEmpty
+              child: isLoading
                 ? ListView.separated(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                     itemCount: 5,
@@ -435,10 +485,14 @@ class _ExploreSheetState extends State<_ExploreSheet> {
                           child: Text(
                             (_selectedFilter == 'Party'
                                     ? partyProvider.roomsErrorMessage
-                                    : questProvider.errorMessage) ??
+                                    : _selectedFilter == 'Event'
+                                        ? _eventsError
+                                        : questProvider.errorMessage) ??
                                 (_selectedFilter == 'Party'
                                     ? 'No party rooms open right now'
-                                    : 'No quests in this category'),
+                                    : _selectedFilter == 'Event'
+                                        ? 'No organization events right now'
+                                        : 'No quests in this category'),
                             textAlign: TextAlign.center,
                             style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
                           ),
@@ -450,6 +504,9 @@ class _ExploreSheetState extends State<_ExploreSheet> {
                         separatorBuilder: (_, __) => const SizedBox(height: 12),
                         itemBuilder: (context, index) {
                           final item = items[index];
+                          if (item is OrgEventModel) {
+                            return OrgEventCard(event: item, onTap: () => _openEvent(item));
+                          }
                           if (item is PartyRoomModel) {
                             return PartyRoomCard(
                               room: item,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/validators.dart';
+import '../../widgets/auth_shell.dart';
 import '../../widgets/bubble_toast.dart';
 
 class RegisterPage extends StatefulWidget {
@@ -51,75 +52,75 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
+    final loading = authProvider.isLoading;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Sign Up')),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                TextFormField(
-                  controller: _displayNameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Display name (optional)',
-                    border: OutlineInputBorder(),
-                  ),
+    // หน้าตาเดียวกับหน้า Login (widgets/auth_shell.dart)
+    return AuthScaffold(
+      showBack: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SizedBox(height: 24),
+          const AuthHeader(title: 'Join EcoQuest', subtitle: 'Create an account to keep your progress', logoSize: 64),
+          const SizedBox(height: 22),
+          AuthGlassCard(
+            child: Form(
+              key: _formKey,
+              child: AutofillGroup(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    AuthTextField(
+                      controller: _displayNameController,
+                      label: 'Display name (optional)',
+                      icon: Icons.badge_outlined,
+                      textInputAction: TextInputAction.next,
+                      autofillHints: const [AutofillHints.nickname],
+                    ),
+                    const SizedBox(height: 14),
+                    AuthTextField(
+                      controller: _emailController,
+                      label: 'Email',
+                      icon: Icons.mail_outline_rounded,
+                      keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
+                      autofillHints: const [AutofillHints.email],
+                      validator: Validators.validateEmail,
+                    ),
+                    const SizedBox(height: 14),
+                    AuthTextField(
+                      controller: _passwordController,
+                      label: 'Password',
+                      icon: Icons.lock_outline_rounded,
+                      isPassword: true,
+                      textInputAction: TextInputAction.next,
+                      autofillHints: const [AutofillHints.newPassword],
+                      validator: Validators.validatePassword,
+                    ),
+                    const SizedBox(height: 14),
+                    AuthTextField(
+                      controller: _confirmPasswordController,
+                      label: 'Confirm password',
+                      icon: Icons.lock_reset_rounded,
+                      isPassword: true,
+                      textInputAction: TextInputAction.done,
+                      validator: (value) => value != _passwordController.text ? 'Passwords do not match' : null,
+                      onSubmitted: (_) => loading ? null : _handleRegister(),
+                    ),
+                    const SizedBox(height: 22),
+                    AuthPrimaryButton(label: 'Create account', loading: loading, onPressed: _handleRegister),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: Validators.validateEmail,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Password',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: Validators.validatePassword,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _confirmPasswordController,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Confirm Password',
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (value) {
-                    if (value != _passwordController.text) {
-                      return 'Passwords do not match';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: authProvider.isLoading ? null : _handleRegister,
-                  style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
-                  child: authProvider.isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Text('Sign Up'),
-                ),
-              ],
+              ),
             ),
           ),
-        ),
+          const SizedBox(height: 12),
+          AuthSwitchLink(
+            text: 'Already have an account?',
+            action: 'Sign in',
+            onTap: () => Navigator.maybePop(context),
+          ),
+        ],
       ),
     );
   }

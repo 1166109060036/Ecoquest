@@ -22,15 +22,18 @@ class OrgEventCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final joined = event.isRegistered || event.hasAttended;
     return PressableScale(
+      // พื้นขาวต้องอยู่ใน decoration เดียวกับเงา — ถ้าไม่มีสีพื้น เงาสีดำจางๆ จะโผล่ทะลุกลางการ์ดเป็นสีเทา
+      // ใช้ Ink (ไม่ใช่ Container) ให้ splash ของ InkWell วาดทับพื้นขาวได้
       child: Material(
-        color: Colors.white,
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(16),
-          child: Container(
+          child: Ink(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
+              color: Colors.white,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: joined ? Colors.green.shade200 : Colors.grey.shade200),
               boxShadow: [
