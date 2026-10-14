@@ -188,6 +188,35 @@ const notifyBingo = async (userId, { weekKey, lines, full, points, xp }) => {
   });
 };
 
+// บัญชีองค์กร (routes/org.js) — แอดมินอนุมัติ/ไม่อนุมัติ/ปิดองค์กร (decidedAt อยู่ใน key = สมัครใหม่แล้วได้ใบใหม่)
+const ORG_STATUS_TEXT = {
+  approved: ['Organization Approved', 'You can now create events from Settings → My Events.'],
+  rejected: ['Organization Not Approved', 'Your organization request was not approved.'],
+  suspended: ['Organization Suspended', 'Your organization was suspended and its upcoming events were cancelled.'],
+};
+const notifyOrgStatus = async (userId, org) => {
+  const text = ORG_STATUS_TEXT[org.status];
+  if (!text) return;
+  await createNotification({
+    userId,
+    type: 'org_status',
+    title: text[0],
+    message: `${org.name} · ${text[1]}${org.decisionNote ? ` Note: ${org.decisionNote}` : ''}`,
+    dedupeKey: `org:${org.status}:${new Date(org.decidedAt || Date.now()).getTime()}`,
+  });
+};
+
+// อีเวนต์องค์กรที่ลงทะเบียนไว้ถูกยกเลิก (องค์กรยกเลิกเอง หรือแอดมินปิดองค์กร)
+const notifyOrgEventCancelled = async (userId, event) => {
+  await createNotification({
+    userId,
+    type: 'org_event',
+    title: 'Event Cancelled',
+    message: `${event.title} · this event was cancelled by the organizer.`,
+    dedupeKey: `org_event_cancelled:${event._id}`,
+  });
+};
+
 // ของในตู้เย็นที่เหลือไม่เกิน 24 ชม. หรือหมดอายุไปแล้ว — สร้างตอนอ่าน (lazy) เพราะ backend ไม่มี
 // scheduler/cron และ Render free tier หลับเมื่อไม่มีคนใช้ เลยพึ่ง cron จริงไม่ได้
 // bucket 'soon'/'expired' แยกกัน เลยได้แจ้งเตือนคนละใบตอนของเลยกำหนดจากที่เคยเตือนไว้ก่อนหน้า
@@ -256,6 +285,8 @@ module.exports = {
   notifyPartyReward,
   notifyProofRevoked,
   notifyPostReported,
+  notifyOrgStatus,
+  notifyOrgEventCancelled,
   ensureExpiryNotifications,
   getNotifications,
   markAllRead,

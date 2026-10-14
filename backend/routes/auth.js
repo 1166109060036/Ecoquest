@@ -186,6 +186,11 @@ router.get('/me', authMiddleware, async (req, res) => {
         // true เฉพาะบัญชีจริง (มี email) ที่อยู่ใน ADMIN_EMAILS — ใช้ตัดสินใจโชว์เมนู "Admin Tools"
         // ในหน้า Settings ฝั่งแอพ ไม่ใช่ตัวเช็คสิทธิ์จริง (backend เช็คซ้ำเองทุก route ผ่าน adminMiddleware)
         isAdmin: Boolean(user.email) && adminEmails().includes(user.email.toLowerCase()),
+        // บัญชีองค์กร (routes/org.js) — แอพใช้ตัดสินใจโชว์เมนู "My Events" / ปุ่มสมัคร
+        organization: {
+          status: user.organization?.status || 'none',
+          name: user.organization?.name || '',
+        },
       },
       progress,
       streak,

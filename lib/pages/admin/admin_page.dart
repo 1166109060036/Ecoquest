@@ -10,6 +10,7 @@ import '../../providers/upgrade_provider.dart';
 import '../../providers/fridge_provider.dart';
 import '../../providers/notification_provider.dart';
 import '../community/reported_posts_page.dart';
+import 'org_requests_page.dart';
 
 // หน้า Admin/Debug — dev/QA เท่านั้น เข้าได้เฉพาะ user.isAdmin (เช็คซ้ำจริงที่ backend ทุก request
 // ผ่าน backend/middleware/admin.js) ใช้ "รีโมตคอนโทรล" ค่า/สถานะของระบบต่างๆ ตรงๆ ข้ามการเล่นเกมจริง
@@ -170,6 +171,15 @@ class _AdminPageState extends State<AdminPage> {
               subtitle: const Text('Keep, remove the photo, or take back points'),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportedPostsPage())),
+            ),
+          ),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.apartment_rounded),
+              title: const Text('Organizations'),
+              subtitle: const Text('Approve, reject or suspend organization accounts'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OrgRequestsPage())),
             ),
           ),
           const SizedBox(height: 8),

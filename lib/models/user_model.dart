@@ -23,6 +23,10 @@ class UserModel {
   // true เฉพาะบัญชีจริงที่อีเมลอยู่ใน ADMIN_EMAILS ฝั่ง backend — ใช้แค่โชว์/ซ่อนเมนู "Admin Tools"
   // ในหน้า Settings เท่านั้น ไม่ใช่ตัวเช็คสิทธิ์จริง (ทุก request ไป /api/admin/* ถูกเช็คซ้ำที่ backend เสมอ)
   final bool isAdmin;
+  // บัญชีองค์กร (backend/routes/org.js) — none / pending / approved / rejected / suspended
+  // ใช้แค่เลือกว่าเมนูใน Settings พาไปหน้าไหน (สิทธิ์จริงเช็คที่ backend ทุก request)
+  final String organizationStatus;
+  final String organizationName;
 
   UserModel({
     required this.id,
@@ -36,7 +40,11 @@ class UserModel {
     this.points = 0,
     this.notificationsEnabled = true,
     this.isAdmin = false,
+    this.organizationStatus = 'none',
+    this.organizationName = '',
   });
+
+  bool get isOrganization => organizationStatus == 'approved';
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
@@ -51,6 +59,8 @@ class UserModel {
       points: json['points'] ?? 0,
       notificationsEnabled: json['notificationsEnabled'] ?? true,
       isAdmin: json['isAdmin'] ?? false,
+      organizationStatus: (json['organization'] is Map ? json['organization']['status'] : null) ?? 'none',
+      organizationName: (json['organization'] is Map ? json['organization']['name'] : null) ?? '',
     );
   }
 
@@ -69,6 +79,7 @@ class UserModel {
       'points': points,
       'notificationsEnabled': notificationsEnabled,
       'isAdmin': isAdmin,
+      'organization': {'status': organizationStatus, 'name': organizationName},
     };
   }
 }

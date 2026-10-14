@@ -16,7 +16,8 @@ import '../widgets/reward_fly.dart';
 // สิ่งที่ต้องทำ "หลังทำ quest สำเร็จ" — เหมือนกันทั้ง 4 ที่ที่ทำ quest ได้
 // (หน้า Explore, แผ่น Explore ในหน้า Home, หน้า Fridge, และหัวหน้าห้องกดจบอีเวนต์ปาร์ตี้)
 // รวมไว้ที่เดียวจะได้ไม่ต้องแก้ 4 จุดทุกครั้งที่เพิ่มอะไรตอนจบ quest
-Future<void> handleQuestCompleted(BuildContext context, QuestReward reward) async {
+// title: หัวป้ายรางวัลแทน 'Quest complete!' (เช่นเช็คอินอีเวนต์องค์กร) — คอมโบ/Bingo ยังมาก่อนเสมอ
+Future<void> handleQuestCompleted(BuildContext context, QuestReward reward, {String? title}) async {
   final authProvider = context.read<AuthProvider>();
   final achievementProvider = context.read<AchievementProvider>();
   final notificationProvider = context.read<NotificationProvider>();
@@ -44,7 +45,7 @@ Future<void> handleQuestCompleted(BuildContext context, QuestReward reward) asyn
             // ทำเควสเดิมซ้ำวันเดียวกัน = แต้มลดลง — ชวนลองเควสใหม่ (backend/utils/combo.js)
             : combo != null && combo.repeat
                 ? 'Repeat ${formatMultiplier(combo.multiplier)} — try a new quest!'
-                : 'Quest complete!',
+                : title ?? 'Quest complete!',
   );
   SoundService.instance.playQuestSuccess();
 

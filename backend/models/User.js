@@ -15,6 +15,30 @@ const CosmeticsSchema = new mongoose.Schema(
   { _id: false }
 );
 
+// บัญชีองค์กร (14 ต.ค. 2026) — ผู้ใช้ที่มีอีเมลสมัครเป็นองค์กรได้ แอดมินอนุมัติแล้วถึงสร้างอีเวนต์ให้คนอื่นเข้าร่วมได้
+// (routes/org.js) none = ยังไม่เคยสมัคร / pending = รออนุมัติ / approved / rejected = ไม่ผ่าน (สมัครใหม่ได้) /
+// suspended = แอดมินปิดองค์กร (อีเวนต์ที่ยังไม่จัดถูกยกเลิก) — บัญชียังเล่นเกมได้ตามปกติทุกสถานะ
+const ORG_TYPES = ['npo', 'company', 'school', 'government', 'community', 'other'];
+const OrganizationSchema = new mongoose.Schema(
+  {
+    status: {
+      type: String,
+      enum: ['none', 'pending', 'approved', 'rejected', 'suspended'],
+      default: 'none',
+      index: true,
+    },
+    name: { type: String, default: '', trim: true, maxlength: 60 },
+    orgType: { type: String, enum: [...ORG_TYPES, ''], default: '' },
+    description: { type: String, default: '', trim: true, maxlength: 500 },
+    contactEmail: { type: String, default: '', trim: true, lowercase: true, maxlength: 120 },
+    requestedAt: { type: Date, default: null },
+    decidedAt: { type: Date, default: null },
+    // เหตุผลที่แอดมินใส่ตอนไม่อนุมัติ/ปิดองค์กร — โชว์ให้เจ้าของเห็น
+    decisionNote: { type: String, default: '', maxlength: 300 },
+  },
+  { _id: false }
+);
+
 const UserSchema = new mongoose.Schema(
   {
     email: {
@@ -105,8 +129,11 @@ const UserSchema = new mongoose.Schema(
     resetOtpExpires: { type: Date, default: null },
     // จำนวนครั้งที่กรอก OTP ผิดของ OTP ปัจจุบัน — ครบ 5 = ล้าง OTP ทิ้ง (routes/auth.js)
     resetOtpAttempts: { type: Number, default: 0 },
+
+    organization: { type: OrganizationSchema, default: () => ({}) },
   },
   { timestamps: true }
 );
 
 module.exports = mongoose.model('User', UserSchema);
+module.exports.ORG_TYPES = ORG_TYPES;

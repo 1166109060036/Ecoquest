@@ -1,16 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../models/org_event_model.dart';
 import '../../models/party_model.dart';
 import '../../models/quest_card_model.dart';
 import '../../providers/party_provider.dart';
 import '../../providers/quest_provider.dart';
+import '../../services/org_service.dart';
 import '../../utils/party_actions.dart';
+import '../../utils/quest_completion.dart';
 import '../../widgets/breathing_icon.dart';
 import '../../widgets/bubble_toast.dart';
+import '../../widgets/org_event_card.dart';
 import '../../widgets/party_room_card.dart';
 import '../../widgets/quest_card.dart';
 import '../../widgets/staggered_fade_in.dart';
 import '../inventory/fridge_page.dart';
+import '../org/org_event_detail_page.dart';
+import '../org/scan_checkin_page.dart';
 import '../progress/progress_page.dart';
 import 'quest_detail_page.dart';
 import '../../widgets/skeleton_box.dart';
@@ -41,12 +47,71 @@ class _ExplorePageState extends State<ExplorePage> {
   String _searchQuery = '';
   static const _filters = ['All', 'Solo', 'Party', 'Event'];
 
+  // อีเวนต์องค์กร (14 ต.ค. 2026) — chip "Event" และอยู่บนสุดของ "All" (มีวันเวลานัดแน่นอน เหมือนห้องปาร์ตี้)
+  // โหลดเองในหน้านี้ ไม่ทำ provider เพราะใช้แค่ที่นี่
+  final _orgService = OrgService();
+  List<OrgEventModel> _events = [];
+  bool _eventsLoading = true;
+  String? _eventsError;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadEvents();
+  }
+
+  Future<void> _loadEvents() async {
+    try {
+      final events = await _orgService.fetchEvents();
+      if (!mounted) return;
+      setState(() {
+        _events = events;
+        _eventsError = null;
+        _eventsLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _eventsError = e.toString().replaceFirst('Exception: ', '');
+        _eventsLoading = false;
+      });
+    }
+  }
+
+  List<OrgEventModel> _filterEvents(List<OrgEventModel> all) {
+    if (_selectedFilter == 'Solo' || _selectedFilter == 'Party') return [];
+    final query = _searchQuery.trim().toLowerCase();
+    if (query.isEmpty) return all;
+    return all
+        .where((e) =>
+            e.title.toLowerCase().contains(query) ||
+            e.location.toLowerCase().contains(query) ||
+            (e.org?.name.toLowerCase().contains(query) ?? false))
+        .toList();
+  }
+
+  Future<void> _openEvent(OrgEventModel event) async {
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => OrgEventDetailPage(event: event)));
+    if (mounted) _loadEvents();
+  }
+
+  // สแกน QR ที่งานได้เลยจากหน้านี้ (คน walk-in ที่ไม่ได้ลงทะเบียนล่วงหน้าไม่ต้องหาอีเวนต์ในลิสต์ก่อน)
+  Future<void> _scanCheckIn() async {
+    final result = await Navigator.push<CheckInResult>(
+      context,
+      MaterialPageRoute(builder: (_) => const ScanCheckInPage()),
+    );
+    if (result == null || !mounted) return;
+    await handleQuestCompleted(context, result.reward, title: 'Event check-in!');
+    if (mounted) _loadEvents();
+  }
+
   List<QuestCardModel> _filterQuests(List<QuestCardModel> all) {
     // party quest เป็นแค่ template สร้างห้อง — ไม่โผล่เป็นการ์ดให้กดในลิสต์นี้แล้ว
     var quests = all.where((q) => q.category != QuestCardCategory.party).toList();
 
-    // chip "Party" มีแต่ห้อง ไม่มีเควสเดี่ยวปนอยู่
-    if (_selectedFilter == 'Party') return [];
+    // chip "Party" มีแต่ห้อง / "Event" มีแต่อีเวนต์องค์กร ไม่มีเควสเดี่ยวปนอยู่
+    if (_selectedFilter == 'Party' || _selectedFilter == 'Event') return [];
 
     if (_selectedFilter != 'All') {
       final category = QuestCardCategory.values.firstWhere(
@@ -86,6 +151,7 @@ class _ExplorePageState extends State<ExplorePage> {
   Future<void> _onRefresh() => Future.wait([
         context.read<QuestProvider>().loadQuests(),
         context.read<PartyProvider>().loadRooms(),
+        _loadEvents(),
       ]);
 
   // ใช้ MaterialPageRoute แทน named route เพราะต้องส่ง object quest เข้าไปทั้งก้อน
@@ -154,10 +220,13 @@ class _ExplorePageState extends State<ExplorePage> {
     final quests = _filterQuests(questProvider.quests);
     final rooms = _filterRooms(partyProvider.rooms);
     final myPartyId = partyProvider.party?.id;
-    // ห้องขึ้นก่อนเควส เพราะเป็นอีเวนต์ที่มีกำหนดเวลา ส่วนเควสเดี่ยวทำเมื่อไหร่ก็ได้
-    final items = <Object>[...rooms, ...quests];
+    final events = _filterEvents(_events);
+    // อีเวนต์องค์กร + ห้องขึ้นก่อนเควส เพราะมีกำหนดเวลา ส่วนเควสเดี่ยวทำเมื่อไหร่ก็ได้
+    final items = <Object>[...events, ...rooms, ...quests];
 
-    final isLoading = (questProvider.isLoading || partyProvider.isLoadingRooms) && items.isEmpty;
+    final isLoading =
+        (questProvider.isLoading || partyProvider.isLoadingRooms || (_selectedFilter == 'Event' && _eventsLoading)) &&
+            items.isEmpty;
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
@@ -195,6 +264,14 @@ class _ExplorePageState extends State<ExplorePage> {
                           ],
                         ),
                       ),
+                      // สแกน QR เช็คอินอีเวนต์องค์กร
+                      IconButton(
+                        tooltip: 'Scan event QR',
+                        onPressed: _scanCheckIn,
+                        style: IconButton.styleFrom(backgroundColor: Colors.grey.shade200),
+                        icon: const Icon(Icons.qr_code_scanner_rounded, color: Colors.black54, size: 20),
+                      ),
+                      const SizedBox(width: 6),
                       // เข้าหน้า Progress — เควสที่กด Start ไว้แล้วแต่ยังไม่กด Complete
                       _ProgressButton(
                         count: context.watch<QuestProvider>().inProgress.length,
@@ -289,9 +366,12 @@ class _ExplorePageState extends State<ExplorePage> {
                               _EmptyState(
                                 query: _searchQuery,
                                 isPartyFilter: _selectedFilter == 'Party',
+                                isEventFilter: _selectedFilter == 'Event',
                                 errorMessage: _selectedFilter == 'Party'
                                     ? partyProvider.roomsErrorMessage
-                                    : questProvider.errorMessage,
+                                    : _selectedFilter == 'Event'
+                                        ? _eventsError
+                                        : questProvider.errorMessage,
                               ),
                             ],
                           ),
@@ -308,7 +388,10 @@ class _ExplorePageState extends State<ExplorePage> {
                               final item = items[index];
                               final Widget card;
                               final String id;
-                              if (item is PartyRoomModel) {
+                              if (item is OrgEventModel) {
+                                id = 'event-${item.id}';
+                                card = OrgEventCard(event: item, onTap: () => _openEvent(item));
+                              } else if (item is PartyRoomModel) {
                                 id = item.id;
                                 card = PartyRoomCard(
                                   room: item,
@@ -404,9 +487,10 @@ class _ProgressButton extends StatelessWidget {
 class _EmptyState extends StatelessWidget {
   final String query;
   final bool isPartyFilter;
+  final bool isEventFilter;
   final String? errorMessage; // โหลดไม่สำเร็จ (เน็ตหลุด/server ล่ม) — คนละเคสกับ "ไม่มีอะไรให้แสดง"
 
-  const _EmptyState({required this.query, required this.isPartyFilter, this.errorMessage});
+  const _EmptyState({required this.query, required this.isPartyFilter, this.isEventFilter = false, this.errorMessage});
 
   @override
   Widget build(BuildContext context) {
@@ -420,6 +504,9 @@ class _EmptyState extends StatelessWidget {
     } else if (isPartyFilter) {
       message = 'No party rooms open right now';
       hint = 'Tap + to create one';
+    } else if (isEventFilter) {
+      message = query.trim().isNotEmpty ? 'No events found for "$query"' : 'No organization events right now';
+      hint = query.trim().isNotEmpty ? null : 'Events from local organizations will show up here';
     } else if (query.trim().isNotEmpty) {
       message = 'No quests found for "$query"';
       hint = null;
@@ -436,7 +523,9 @@ class _EmptyState extends StatelessWidget {
           children: [
             BreathingIcon(
               child: Icon(
-                failed ? Icons.cloud_off : (isPartyFilter ? Icons.groups_outlined : Icons.search_off),
+                failed
+                    ? Icons.cloud_off
+                    : (isPartyFilter ? Icons.groups_outlined : (isEventFilter ? Icons.event_outlined : Icons.search_off)),
                 size: 48,
                 color: Colors.grey.shade400,
               ),

@@ -24,6 +24,7 @@ const submissionRoutes = require('./routes/submissions');
 const feedRoutes = require('./routes/feed');
 const impactRoutes = require('./routes/impact');
 const bingoRoutes = require('./routes/bingo');
+const orgRoutes = require('./routes/org');
 const adminRoutes = require('./routes/admin');
 const { initSocket } = require('./sockets');
 
@@ -86,6 +87,8 @@ app.use('/api/submissions', submissionRoutes);
 app.use('/api/feed', feedRoutes);
 app.use('/api/impact', impactRoutes);
 app.use('/api/bingo', bingoRoutes);
+// บัญชีองค์กร + อีเวนต์องค์กร (14 ต.ค. 2026)
+app.use('/api/org', orgRoutes);
 // dev/QA เท่านั้น — เข้าได้เฉพาะอีเมลใน ADMIN_EMAILS (ดู middleware/admin.js), ปิดโดย default ถ้าไม่ตั้งค่า
 app.use('/api/admin', adminRoutes);
 

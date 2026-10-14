@@ -33,7 +33,9 @@ const QuestSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['solo', 'party'],
+      // org = เควสเงาของอีเวนต์องค์กร 1 อันต่ออีเวนต์ (models/OrgEvent.js) — ไม่โผล่ใน Explore/Bingo/start/complete
+      // มีไว้ให้การเช็คอินอีเวนต์ได้แต้มผ่าน awardQuest ตัวเดียวกับเควสอื่น (ประวัติ/เลเวล/เหรียญ/streak นับเหมือนกัน)
+      enum: ['solo', 'party', 'org'],
       required: true,
       default: 'solo',
     },

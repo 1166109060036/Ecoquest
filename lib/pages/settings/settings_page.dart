@@ -7,6 +7,8 @@ import '../../utils/constants.dart';
 import '../../widgets/bubble_toast.dart';
 import '../../widgets/falling_leaves_overlay.dart';
 import '../../widgets/liquid_glass_dialog.dart';
+import '../org/my_events_page.dart';
+import '../org/org_apply_page.dart';
 
 // หน้า Settings — เข้าถึงจากปุ่ม Settings บนหน้า Profile
 // ตอนนี้มีแค่ข้อมูลบัญชี + ปุ่ม Logout (ใช้งานได้จริง) ยังไม่มี toggle/setting อื่น
@@ -231,6 +233,25 @@ class SettingsPage extends StatelessWidget {
                                 icon: Icons.lock_outline,
                                 label: 'Change Password',
                                 onTap: () => Navigator.pushNamed(context, '/change-password'),
+                              ),
+                            ],
+                            if (!(user?.isGuest ?? true)) ...[
+                              // บัญชีองค์กร (14 ต.ค. 2026) — อนุมัติแล้วไปหน้า My Events เลย ไม่งั้นหน้าสมัคร/สถานะคำขอ
+                              const SizedBox(height: 14),
+                              _SettingsMenuItem(
+                                icon: Icons.apartment_rounded,
+                                label: (user?.isOrganization ?? false) ? 'My Events' : 'Organization',
+                                subtitle: (user?.isOrganization ?? false)
+                                    ? user!.organizationName
+                                    : 'Run eco events for EcoQuest players',
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => (user?.isOrganization ?? false)
+                                        ? MyEventsPage(orgName: user!.organizationName)
+                                        : const OrgApplyPage(),
+                                  ),
+                                ),
                               ),
                             ],
                             const SizedBox(height: 14),

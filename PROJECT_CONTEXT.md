@@ -137,6 +137,32 @@
     เล่นเอฟเฟครางวัล "Eco Bingo!" / GET /bingo เก็บตกแถวที่ครบแต่ยังไม่ได้รางวัล
     เควสบนการ์ดที่ถูกปิดใช้งานทีหลัง (เช่น Use a Reusable Bottle ปิด 1 ต.ค. 2026 — ใกล้เคียง Reuse a Plastic Bottle) = ช่องฟรีอัตโนมัติ
 
+## 2.7 บัญชีองค์กร + อีเวนต์องค์กร (14 ต.ค. 2026)
+
+องค์กร (NPO/บริษัท/โรงเรียน/หน่วยงานท้องถิ่น) ใช้แอพเป็นตัวกลางหาคนมาร่วมกิจกรรมสิ่งแวดล้อม ผู้เข้าร่วมได้แต้ม
+- **สมัคร**: Settings → Organization (บัญชีที่มีอีเมลเท่านั้น guest ไม่ได้) กรอกชื่อ/ประเภท/คำอธิบาย/อีเมลติดต่อ →
+  `User.organization.status` = pending → แอดมินได้แจ้งเตือน → Admin Tools → Organizations: Approve / Reject (ใส่เหตุผลได้) /
+  Suspend (ยกเลิกอีเวนต์ที่ยังไม่เริ่ม + แจ้งคนที่ลงทะเบียน) / Reinstate — สถานะ none/pending/approved/rejected/suspended
+  ถูกปฏิเสธแล้วสมัครใหม่ได้ ถูกปิดแล้วสมัครเองไม่ได้ บัญชีองค์กรยังเล่นเกมได้ตามปกติ
+- **สร้างอีเวนต์**: Settings → My Events → New event — ชื่อ/รายละเอียด/หมวด (5 หมวดเดียวกับเควส นับเข้าเหรียญหมวดนั้น)/
+  สถานที่/วันเวลา/จำนวนรับ/**แต้ม 10–40 P (องค์กรตั้งเอง, XP = แต้ม)** — กติกา: ยาว 15 นาที–8 ชม., ล่วงหน้าไม่เกิน 60 วัน,
+  รับ 1–1000 คน, ไม่เกิน 3 งานต่อวันต่อองค์กร / ยกเลิกได้เฉพาะก่อนงานเริ่มและยังไม่มีใครเช็คอิน
+- **ผู้เล่น**: Explore → chip "Event" (และบนสุดของ "All") → Join / Cancel (ก่อนงานเริ่ม) → ที่งานกด "Scan QR to check in"
+  (หรือปุ่มสแกนมุมขวาบนของ Explore — walk-in ที่ไม่ได้ลงทะเบียนสแกนได้ถ้ายังมีที่ว่าง) → ได้แต้มทันที + เอฟเฟครางวัล
+- **QR**: องค์กรกด "Show check-in QR" → `backend/utils/orgQr.js` สร้าง `ecoquest-event:<eventId>:<HMAC>` ด้วย JWT_SECRET
+  เปลี่ยนทุก 30 วิ (รับโค้ดช่วงปัจจุบัน+ก่อนหน้า) — ถ่ายรูป QR ส่งให้คนไม่ได้มางานใช้ทีหลังไม่ได้ / สแกนได้ตั้งแต่ 30 นาที
+  ก่อนเริ่มถึง 30 นาทีหลังจบ / 1 ครั้งต่อคนต่องาน (unique index + CAS registered→attended) / องค์กรสแกนงานตัวเองไม่ได้
+- **ให้รางวัล**: อีเวนต์ 1 อัน = เควสเงา 1 อัน (`Quest.type = 'org'`) ไม่โผล่ใน Explore/Bingo/start/complete — เช็คอินแล้ว
+  เรียก `awardQuest(..., { applyStreak: true })` ตัวเดียวกับเควสอื่น ประวัติ/เลเวล/เหรียญ/streak/upgrade นับเหมือนกัน
+  ไม่มี CO2 (`co2eEstimateKg` null) และไม่ขึ้นฟีดชุมชน
+- ไฟล์: `backend/routes/org.js` (`/api/org/*`), `models/OrgEvent.js`, `models/OrgEventRegistration.js`, `utils/orgQr.js`,
+  แอพ `lib/pages/org/*` (detail, scan, QR, attendees, create, my events, apply), `lib/pages/admin/org_requests_page.dart`,
+  `lib/widgets/org_event_card.dart`, `lib/services/org_service.dart`, `lib/models/org_event_model.dart`
+  package ใหม่ `mobile_scanner` (กล้องสแกน) + `qr_flutter` (วาด QR)
+- ยังไม่ทำ: เว็บ dashboard, แจ้งเตือนก่อนวันงาน, โพสต์อีเวนต์ลงฟีด, องค์กรถอนแต้มคนที่ไม่ได้มาจริง
+- ⚠️ ข้อจำกัด: QR ถ่ายทอดสดผ่านวิดีโอคอลให้คนที่ไม่ได้อยู่หน้างานสแกนได้ (โค้ดยังไม่หมดอายุ) — รับได้สำหรับตอนนี้
+  ถ้าต้องเข้มขึ้นค่อยเพิ่มเช็คตำแหน่ง GPS
+
 ## 3. Tech stack ที่ตัดสินใจแล้ว (สำคัญ — อย่าเปลี่ยนโดยไม่ถาม)
 
 - **Frontend**: Flutter
@@ -175,6 +201,8 @@
 - `parties` / `partyMembers` — ห้องปาร์ตี้ + สมาชิก (สมาชิกแยก collection ไม่ embed)
 - `friendships` — คู่เพื่อน 1 เอกสารต่อ 1 คู่ (`pairKey` unique)
 - `chatMessages` — แชททั้ง 3 แบบ แยกด้วย `channelType` (world/party/friend)
+- `orgEvents` / `orgEventRegistrations` — อีเวนต์องค์กร + การลงทะเบียน/เช็คอิน (หัวข้อ 2.7) — ข้อมูลองค์กรอยู่ใน
+  `users.organization` (subdocument)
 
 > ชื่อด้านบนเป็นชื่อเรียกในเอกสาร — ชื่อ collection จริงใน Atlas คือชื่อ model แบบตัวพิมพ์เล็กพหูพจน์ที่ Mongoose
 > ตั้งให้ (เช่น `chatmessages`, `questhistories`, `partymembers`) ใช้ชื่อนี้ตอนค้นใน Atlas Browse Collections

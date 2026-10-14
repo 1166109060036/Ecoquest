@@ -29,6 +29,9 @@ const NotificationSchema = new mongoose.Schema(
         'post_removed',
         // มีคนรายงานโพสต์ในฟีด (routes/feed.js) — แจ้งแอดมิน
         'post_reported',
+        // บัญชีองค์กร (routes/org.js) — อนุมัติ/ไม่อนุมัติ/ปิด, อีเวนต์ที่ลงทะเบียนไว้ถูกยกเลิก
+        'org_status',
+        'org_event',
       ],
     },
     title: {

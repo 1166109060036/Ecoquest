@@ -98,7 +98,8 @@ router.get('/', authMiddleware, async (req, res) => {
   try {
     // ตัดสินหลักฐานที่ค้างเกิน 48 ชม. (lazy — ไม่มี scheduler) ก่อนนับ pendingReview ด้านล่าง
     await sweepQuietly();
-    const allQuests = await Quest.find({ isActive: true }).sort({ sortOrder: 1, createdAt: 1 });
+    // เควสเงาของอีเวนต์องค์กร (type org) ทำผ่านการสแกน QR ที่งานเท่านั้น ไม่โผล่ใน Explore
+    const allQuests = await Quest.find({ isActive: true, type: { $ne: 'org' } }).sort({ sortOrder: 1, createdAt: 1 });
 
     // ดึงมาแค่ 3 ฟิลด์ boost expiry ก็พอ ไม่ใช่ user ทั้งก้อน (กัน avatarData Buffer ด้วยในตัว
     // เพราะไม่ได้ select มันมา) — ใส่ withEnergyBoosts ตรงนี้เพื่อให้การ์ดเควสโชว์ตัวเลขหลังคูณบัฟ
@@ -253,7 +254,7 @@ router.get('/progress', authMiddleware, async (req, res) => {
 router.post('/:id/start', authMiddleware, async (req, res) => {
   try {
     const quest = await Quest.findById(req.params.id);
-    if (!quest || !quest.isActive) {
+    if (!quest || !quest.isActive || quest.type === 'org') {
       return res.status(404).json({ message: 'Quest not found' });
     }
 
@@ -332,7 +333,7 @@ const limitProofUploads = limitBy('proof-upload', { windowMs: 60 * 60 * 1000, ma
 router.post('/:id/complete', authMiddleware, limitProofUploads, async (req, res) => {
   try {
     const quest = await Quest.findById(req.params.id);
-    if (!quest || !quest.isActive) {
+    if (!quest || !quest.isActive || quest.type === 'org') {
       return res.status(404).json({ message: 'Quest not found' });
     }
 
