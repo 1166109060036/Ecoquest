@@ -4,6 +4,7 @@ import '../../services/org_service.dart';
 import '../../widgets/bubble_toast.dart';
 import '../../widgets/org_event_card.dart';
 import 'create_event_page.dart';
+import 'org_apply_page.dart';
 import 'org_event_detail_page.dart';
 
 // หน้าจัดการอีเวนต์ขององค์กร (14 ต.ค. 2026) — ลิสต์อีเวนต์ที่สร้าง + ปุ่มสร้างใหม่
@@ -18,6 +19,7 @@ class MyEventsPage extends StatefulWidget {
 
 class _MyEventsPageState extends State<MyEventsPage> {
   final _service = OrgService();
+  late String _orgName = widget.orgName;
   List<OrgEventModel> _events = [];
   bool _loading = true;
   String? _error;
@@ -47,7 +49,10 @@ class _MyEventsPageState extends State<MyEventsPage> {
   }
 
   Future<void> _create() async {
-    final created = await Navigator.push<OrgEventModel>(context, MaterialPageRoute(builder: (_) => const CreateEventPage()));
+    final created = await Navigator.push<OrgEventModel>(
+      context,
+      MaterialPageRoute(builder: (_) => const CreateEventPage()),
+    );
     if (created == null || !mounted) return;
     showBubbleToast(context, 'Event created');
     _load();
@@ -75,15 +80,34 @@ class _MyEventsPageState extends State<MyEventsPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('My Events', style: TextStyle(fontWeight: FontWeight.bold)),
-            Text(widget.orgName, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+            Text(_orgName, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
           ],
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Edit organization',
+            icon: const Icon(Icons.edit_outlined),
+            onPressed: () async {
+              final name = await Navigator.push<String>(
+                context,
+                MaterialPageRoute(builder: (_) => const OrgApplyPage(startEditing: true)),
+              );
+              if (name != null && mounted) {
+                setState(() => _orgName = name);
+                _load(); // การ์ดอีเวนต์ขึ้นชื่อองค์กรใหม่
+              }
+            },
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _create,
         backgroundColor: Colors.green,
         icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('New event', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+        label: const Text(
+          'New event',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: Colors.green))
@@ -97,8 +121,11 @@ class _MyEventsPageState extends State<MyEventsPage> {
                   if (_error != null)
                     Padding(
                       padding: const EdgeInsets.only(top: 40),
-                      child: Text('$_error\nPull down to try again',
-                          textAlign: TextAlign.center, style: TextStyle(color: Colors.grey.shade600)),
+                      child: Text(
+                        '$_error\nPull down to try again',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey.shade600),
+                      ),
                     )
                   else if (_events.isEmpty)
                     Padding(
@@ -109,19 +136,28 @@ class _MyEventsPageState extends State<MyEventsPage> {
                           const SizedBox(height: 12),
                           Text('No events yet', style: TextStyle(color: Colors.grey.shade700, fontSize: 15)),
                           const SizedBox(height: 4),
-                          Text('Tap "New event" to invite players to your activity',
-                              textAlign: TextAlign.center, style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+                          Text(
+                            'Tap "New event" to invite players to your activity',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                          ),
                         ],
                       ),
                     )
                   else ...[
                     if (active.isNotEmpty) ...[
                       const _Header('Upcoming'),
-                      for (final e in active) ...[OrgEventCard(event: e, onTap: () => _open(e)), const SizedBox(height: 10)],
+                      for (final e in active) ...[
+                        OrgEventCard(event: e, onTap: () => _open(e)),
+                        const SizedBox(height: 10),
+                      ],
                     ],
                     if (past.isNotEmpty) ...[
                       const _Header('Past'),
-                      for (final e in past) ...[OrgEventCard(event: e, onTap: () => _open(e)), const SizedBox(height: 10)],
+                      for (final e in past) ...[
+                        OrgEventCard(event: e, onTap: () => _open(e)),
+                        const SizedBox(height: 10),
+                      ],
                     ],
                   ],
                 ],
@@ -137,7 +173,10 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(2, 8, 0, 8),
-        child: Text(text, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey.shade700)),
-      );
+    padding: const EdgeInsets.fromLTRB(2, 8, 0, 8),
+    child: Text(
+      text,
+      style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey.shade700),
+    ),
+  );
 }

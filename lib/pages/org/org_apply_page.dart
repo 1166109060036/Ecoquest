@@ -7,9 +7,11 @@ import '../../widgets/bubble_toast.dart';
 import 'my_events_page.dart';
 
 // สมัครเป็นองค์กร / ดูสถานะคำขอ (14 ต.ค. 2026) — เข้าจาก Settings → Organization
-// none/rejected = ฟอร์มสมัคร, pending = รอแอดมิน, approved = ไปหน้า My Events, suspended = ถูกปิด
+// none/rejected = ฟอร์มสมัคร, pending = รอแอดมิน, approved = ไปหน้า My Events + แก้ข้อมูลได้, suspended = ถูกปิด
+// startEditing: เปิดมาที่ฟอร์มแก้ไขเลย (ปุ่มแก้ไขในหน้า My Events) — บันทึกแล้ว pop กลับพร้อมชื่อใหม่
 class OrgApplyPage extends StatefulWidget {
-  const OrgApplyPage({super.key});
+  final bool startEditing;
+  const OrgApplyPage({super.key, this.startEditing = false});
 
   @override
   State<OrgApplyPage> createState() => _OrgApplyPageState();
@@ -26,6 +28,7 @@ class _OrgApplyPageState extends State<OrgApplyPage> {
   bool _canApply = false;
   bool _loading = true;
   bool _saving = false;
+  late bool _editing = widget.startEditing;
   String? _error;
 
   @override
@@ -66,6 +69,35 @@ class _OrgApplyPageState extends State<OrgApplyPage> {
     }
   }
 
+  // บันทึกการแก้ไข (องค์กรที่อนุมัติแล้ว)
+  Future<void> _saveEdit() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _saving = true);
+    try {
+      final org = await _service.updateOrg(
+        name: _name.text.trim(),
+        orgType: _orgType,
+        description: _description.text.trim(),
+        contactEmail: _email.text.trim(),
+      );
+      if (!mounted) return;
+      showBubbleToast(context, 'Saved');
+      context.read<AuthProvider>().refreshProfile();
+      if (widget.startEditing) {
+        Navigator.pop(context, org.name);
+        return;
+      }
+      setState(() {
+        _org = org;
+        _editing = false;
+      });
+    } catch (e) {
+      if (mounted) showBubbleToast(context, e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
@@ -88,15 +120,23 @@ class _OrgApplyPageState extends State<OrgApplyPage> {
   }
 
   InputDecoration _decoration(String label, {String? hint}) => InputDecoration(
-        labelText: label,
-        hintText: hint,
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: Colors.grey.shade300)),
-        enabledBorder:
-            OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: Colors.grey.shade300)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Colors.green)),
-      );
+    labelText: label,
+    hintText: hint,
+    filled: true,
+    fillColor: Colors.white,
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide(color: Colors.grey.shade300),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide(color: Colors.grey.shade300),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: const BorderSide(color: Colors.green),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -106,18 +146,21 @@ class _OrgApplyPageState extends State<OrgApplyPage> {
         backgroundColor: Colors.grey.shade50,
         foregroundColor: Colors.black87,
         elevation: 0,
-        title: const Text('Organization'),
+        title: Text(_editing ? 'Edit organization' : 'Organization'),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: Colors.green))
           : _error != null
-              ? Center(
-                  child: TextButton(onPressed: () {
-                    setState(() => _loading = true);
-                    _load();
-                  }, child: Text('$_error\nTap to try again', textAlign: TextAlign.center)),
-                )
-              : ListView(padding: const EdgeInsets.fromLTRB(20, 4, 20, 32), children: _body()),
+          ? Center(
+              child: TextButton(
+                onPressed: () {
+                  setState(() => _loading = true);
+                  _load();
+                },
+                child: Text('$_error\nTap to try again', textAlign: TextAlign.center),
+              ),
+            )
+          : ListView(padding: const EdgeInsets.fromLTRB(20, 4, 20, 32), children: _body()),
     );
   }
 
@@ -134,6 +177,13 @@ class _OrgApplyPageState extends State<OrgApplyPage> {
           ),
         ];
       case 'approved':
+        if (_editing) {
+          return [
+            Text('Changes are shown on your events right away.', style: TextStyle(color: Colors.grey.shade700)),
+            const SizedBox(height: 16),
+            _form('Save changes', _saveEdit),
+          ];
+        }
         return [
           _StatusCard(
             icon: Icons.verified_rounded,
@@ -143,14 +193,26 @@ class _OrgApplyPageState extends State<OrgApplyPage> {
           ),
           const SizedBox(height: 16),
           ElevatedButton.icon(
-            onPressed: () => Navigator.pushReplacement(
-                context, MaterialPageRoute(builder: (_) => MyEventsPage(orgName: org.name))),
+            onPressed: () =>
+                Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => MyEventsPage(orgName: org.name))),
             icon: const Icon(Icons.event_note_rounded),
             label: const Text('Open My Events'),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green,
               foregroundColor: Colors.white,
               elevation: 0,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+            ),
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: () => setState(() => _editing = true),
+            icon: const Icon(Icons.edit_outlined),
+            label: const Text('Edit details'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.green.shade800,
+              side: BorderSide(color: Colors.green.shade300),
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
             ),
@@ -162,7 +224,8 @@ class _OrgApplyPageState extends State<OrgApplyPage> {
             icon: Icons.block_rounded,
             color: Colors.redAccent,
             title: 'Organization suspended',
-            message: '"${org.name}" was suspended by the EcoQuest team.'
+            message:
+                '"${org.name}" was suspended by the EcoQuest team.'
                 '${org.decisionNote.isNotEmpty ? '\nReason: ${org.decisionNote}' : ''}',
           ),
         ];
@@ -187,7 +250,9 @@ class _OrgApplyPageState extends State<OrgApplyPage> {
             icon: Icons.info_outline,
             color: Colors.redAccent,
             title: 'Your last request was not approved',
-            message: org.decisionNote.isNotEmpty ? 'Note: ${org.decisionNote}' : 'You can update the details and send it again.',
+            message: org.decisionNote.isNotEmpty
+                ? 'Note: ${org.decisionNote}'
+                : 'You can update the details and send it again.',
           ),
         ),
       Text(
@@ -200,59 +265,67 @@ class _OrgApplyPageState extends State<OrgApplyPage> {
         style: TextStyle(color: Colors.grey.shade700, height: 1.4),
       ),
       const SizedBox(height: 18),
-      Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            TextFormField(
-              controller: _name,
-              maxLength: 60,
-              decoration: _decoration('Organization name'),
-              validator: (v) => (v ?? '').trim().length < 2 ? 'Enter the name' : null,
-            ),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              initialValue: _orgType,
-              decoration: _decoration('Type'),
-              items: [
-                for (final e in orgTypeLabels.entries) DropdownMenuItem(value: e.key, child: Text(e.value)),
-              ],
-              onChanged: (v) => setState(() => _orgType = v ?? 'npo'),
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _description,
-              maxLength: 500,
-              maxLines: 4,
-              decoration: _decoration('About your organization', hint: 'What you do, your website or social page'),
-              validator: (v) => (v ?? '').trim().length < 10 ? 'At least 10 characters' : null,
-            ),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: _email,
-              keyboardType: TextInputType.emailAddress,
-              decoration: _decoration('Contact email'),
-              validator: (v) => RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch((v ?? '').trim()) ? null : 'Enter a valid email',
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _saving ? null : _submit,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-              ),
-              child: _saving
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Text('Send request', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-            ),
-          ],
-        ),
-      ),
+      _form('Send request', _submit),
     ];
+  }
+
+  // ฟอร์มข้อมูลองค์กร — ใช้ทั้งสมัครและแก้ไข
+  Widget _form(String buttonLabel, VoidCallback onSubmit) {
+    return Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextFormField(
+            controller: _name,
+            maxLength: 60,
+            decoration: _decoration('Organization name'),
+            validator: (v) => (v ?? '').trim().length < 2 ? 'Enter the name' : null,
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            initialValue: _orgType,
+            decoration: _decoration('Type'),
+            items: [for (final e in orgTypeLabels.entries) DropdownMenuItem(value: e.key, child: Text(e.value))],
+            onChanged: (v) => setState(() => _orgType = v ?? 'npo'),
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _description,
+            maxLength: 500,
+            maxLines: 4,
+            decoration: _decoration('About your organization', hint: 'What you do, your website or social page'),
+            validator: (v) => (v ?? '').trim().length < 10 ? 'At least 10 characters' : null,
+          ),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _email,
+            keyboardType: TextInputType.emailAddress,
+            decoration: _decoration('Contact email'),
+            validator: (v) =>
+                RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch((v ?? '').trim()) ? null : 'Enter a valid email',
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: _saving ? null : onSubmit,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+            ),
+            child: _saving
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  )
+                : Text(buttonLabel, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
   }
 }
 

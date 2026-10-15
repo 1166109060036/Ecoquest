@@ -11,10 +11,7 @@ class OrgService {
 
   Future<Map<String, String>> _headers() async {
     final token = await _storage.getToken();
-    return {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
-    };
+    return {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'};
   }
 
   Uri _url(String path) => Uri.parse('${AppConstants.baseUrl}/org$path');
@@ -32,9 +29,8 @@ class OrgService {
     return data;
   }
 
-  List<OrgEventModel> _events(Map<String, dynamic> data) => ((data['events'] ?? []) as List)
-      .map((e) => OrgEventModel.fromJson(e as Map<String, dynamic>))
-      .toList();
+  List<OrgEventModel> _events(Map<String, dynamic> data) =>
+      ((data['events'] ?? []) as List).map((e) => OrgEventModel.fromJson(e as Map<String, dynamic>)).toList();
 
   // ---- บัญชีองค์กร ----
   Future<({OrgProfile org, bool canApply, String email})> fetchMyOrg() async {
@@ -53,10 +49,30 @@ class OrgService {
     required String contactEmail,
   }) async {
     final data = _decode(
-      await http.post(_url('/apply'),
-          headers: await _headers(),
-          body: jsonEncode({'name': name, 'orgType': orgType, 'description': description, 'contactEmail': contactEmail})),
+      await http.post(
+        _url('/apply'),
+        headers: await _headers(),
+        body: jsonEncode({'name': name, 'orgType': orgType, 'description': description, 'contactEmail': contactEmail}),
+      ),
       'Failed to send your request',
+    );
+    return OrgProfile.fromJson(data['organization'] as Map<String, dynamic>?);
+  }
+
+  // องค์กรที่อนุมัติแล้วแก้ข้อมูลตัวเอง (PUT /org/me)
+  Future<OrgProfile> updateOrg({
+    required String name,
+    required String orgType,
+    required String description,
+    required String contactEmail,
+  }) async {
+    final data = _decode(
+      await http.put(
+        _url('/me'),
+        headers: await _headers(),
+        body: jsonEncode({'name': name, 'orgType': orgType, 'description': description, 'contactEmail': contactEmail}),
+      ),
+      'Failed to save your changes',
     );
     return OrgProfile.fromJson(data['organization'] as Map<String, dynamic>?);
   }
@@ -82,7 +98,10 @@ class OrgService {
   }
 
   Future<OrgEventModel> unregister(String id) async {
-    final data = _decode(await http.delete(_url('/events/$id/register'), headers: await _headers()), 'Failed to cancel');
+    final data = _decode(
+      await http.delete(_url('/events/$id/register'), headers: await _headers()),
+      'Failed to cancel',
+    );
     return OrgEventModel.fromJson(data['event'] as Map<String, dynamic>);
   }
 
@@ -110,30 +129,38 @@ class OrgService {
     required int points,
   }) async {
     final data = _decode(
-      await http.post(_url('/events'),
-          headers: await _headers(),
-          body: jsonEncode({
-            'title': title,
-            'description': description,
-            'category': category,
-            'location': location,
-            'startAt': startAt.toUtc().toIso8601String(),
-            'endAt': endAt.toUtc().toIso8601String(),
-            'capacity': capacity,
-            'points': points,
-          })),
+      await http.post(
+        _url('/events'),
+        headers: await _headers(),
+        body: jsonEncode({
+          'title': title,
+          'description': description,
+          'category': category,
+          'location': location,
+          'startAt': startAt.toUtc().toIso8601String(),
+          'endAt': endAt.toUtc().toIso8601String(),
+          'capacity': capacity,
+          'points': points,
+        }),
+      ),
       'Failed to create the event',
     );
     return OrgEventModel.fromJson(data['event'] as Map<String, dynamic>);
   }
 
   Future<OrgEventModel> cancelEvent(String id) async {
-    final data = _decode(await http.post(_url('/events/$id/cancel'), headers: await _headers()), 'Failed to cancel the event');
+    final data = _decode(
+      await http.post(_url('/events/$id/cancel'), headers: await _headers()),
+      'Failed to cancel the event',
+    );
     return OrgEventModel.fromJson(data['event'] as Map<String, dynamic>);
   }
 
   Future<({OrgEventModel event, List<OrgAttendee> attendees})> fetchAttendees(String id) async {
-    final data = _decode(await http.get(_url('/events/$id/attendees'), headers: await _headers()), 'Failed to load attendees');
+    final data = _decode(
+      await http.get(_url('/events/$id/attendees'), headers: await _headers()),
+      'Failed to load attendees',
+    );
     return (
       event: OrgEventModel.fromJson(data['event'] as Map<String, dynamic>),
       attendees: ((data['attendees'] ?? []) as List)
@@ -144,7 +171,10 @@ class OrgService {
 
   // ข้อความ QR ปัจจุบัน + อีกกี่ ms ต้องขอใหม่
   Future<({String payload, int expiresInMs})> fetchQr(String id) async {
-    final data = _decode(await http.get(_url('/events/$id/qr'), headers: await _headers()), 'Failed to load the QR code');
+    final data = _decode(
+      await http.get(_url('/events/$id/qr'), headers: await _headers()),
+      'Failed to load the QR code',
+    );
     return (payload: (data['payload'] ?? '') as String, expiresInMs: (data['expiresInMs'] as num?)?.toInt() ?? 30000);
   }
 
@@ -160,7 +190,11 @@ class OrgService {
   // action: approve / reject / suspend
   Future<void> decide(String userId, String action, {String note = ''}) async {
     _decode(
-      await http.post(_url('/admin/$userId/decide'), headers: await _headers(), body: jsonEncode({'action': action, 'note': note})),
+      await http.post(
+        _url('/admin/$userId/decide'),
+        headers: await _headers(),
+        body: jsonEncode({'action': action, 'note': note}),
+      ),
       'Failed to update this organization',
     );
   }

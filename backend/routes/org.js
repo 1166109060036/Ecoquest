@@ -43,6 +43,8 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const limitApply = limitBy('org-apply', { windowMs: 60 * 60 * 1000, max: 5 }, byUser,
   'Too many requests. Please try again later');
+const limitEdit = limitBy('org-edit', { windowMs: 60 * 60 * 1000, max: 20 }, byUser,
+  'Too many requests. Please try again later');
 const limitCreate = limitBy('org-create', { windowMs: 60 * 60 * 1000, max: 20 }, byUser,
   'You are creating events very quickly. Please try again later');
 const limitCheckIn = limitBy('org-checkin', { windowMs: 15 * 60 * 1000, max: 30 }, byUser,
@@ -186,15 +188,27 @@ router.get('/me', authMiddleware, async (req, res) => {
   }
 });
 
+// ตรวจข้อมูลองค์กร (ใช้ทั้งตอนสมัครและตอนแก้ไข) — คืน { error } หรือ { fields }
+const readOrgFields = (body, fallbackEmail) => {
+  const name = str(body?.name);
+  const orgType = str(body?.orgType);
+  const description = str(body?.description);
+  const contactEmail = str(body?.contactEmail).toLowerCase() || fallbackEmail;
+  if (name.length < 2 || name.length > 60) return { error: 'Organization name must be 2–60 characters' };
+  if (!ORG_TYPES.includes(orgType)) return { error: 'Choose an organization type' };
+  if (description.length < 10 || description.length > 500) {
+    return { error: 'Tell us about your organization (10–500 characters)' };
+  }
+  if (!contactEmail || contactEmail.length > 120 || !EMAIL_RE.test(contactEmail)) {
+    return { error: 'Enter a valid contact email' };
+  }
+  return { fields: { name, orgType, description, contactEmail } };
+};
+
 // @route   POST /api/org/apply
 // @desc    สมัครเป็นองค์กร (สถานะ none/rejected เท่านั้น) — body: { name, orgType, description, contactEmail }
 router.post('/apply', authMiddleware, limitApply, async (req, res) => {
   try {
-    const name = str(req.body?.name);
-    const orgType = str(req.body?.orgType);
-    const description = str(req.body?.description);
-    let contactEmail = str(req.body?.contactEmail).toLowerCase();
-
     const user = await User.findById(req.userId).select('email isGuest organization displayName');
     if (!user) return res.status(404).json({ message: 'User not found' });
     if (user.isGuest || !user.email) {
@@ -205,15 +219,9 @@ router.post('/apply', authMiddleware, limitApply, async (req, res) => {
     if (status === 'approved') return res.status(409).json({ message: 'Your organization is already approved' });
     if (status === 'suspended') return res.status(403).json({ message: 'Your organization was suspended. Please contact the EcoQuest team' });
 
-    if (name.length < 2 || name.length > 60) return res.status(400).json({ message: 'Organization name must be 2–60 characters' });
-    if (!ORG_TYPES.includes(orgType)) return res.status(400).json({ message: 'Choose an organization type' });
-    if (description.length < 10 || description.length > 500) {
-      return res.status(400).json({ message: 'Tell us about your organization (10–500 characters)' });
-    }
-    if (!contactEmail) contactEmail = user.email;
-    if (contactEmail.length > 120 || !EMAIL_RE.test(contactEmail)) {
-      return res.status(400).json({ message: 'Enter a valid contact email' });
-    }
+    const { error, fields } = readOrgFields(req.body, user.email);
+    if (error) return res.status(400).json({ message: error });
+    const { name, orgType, description, contactEmail } = fields;
 
     const requestedAt = new Date();
     // CAS ที่สถานะเดิม กันกดส่งซ้อนกัน 2 ครั้ง
@@ -251,6 +259,45 @@ router.post('/apply', authMiddleware, limitApply, async (req, res) => {
     }
 
     res.status(201).json({ message: 'Request sent', organization: orgPayload(updated) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   PUT /api/org/me
+// @desc    องค์กรที่อนุมัติแล้วแก้ชื่อ/ประเภท/คำอธิบาย/อีเมลติดต่อได้ (15 ต.ค. 2026 — ผู้ใช้ขอ) ไม่ต้องรออนุมัติใหม่
+//          (แอดมินยังปิดองค์กรได้ถ้าแก้เป็นข้อมูลไม่เหมาะสม) — อีเวนต์ดึงชื่อองค์กรสดจาก users อยู่แล้ว ชื่อใหม่ขึ้นทันที
+//          body: { name, orgType, description, contactEmail }
+router.put('/me', authMiddleware, limitEdit, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId).select('email organization');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (user.organization?.status !== 'approved') {
+      return res.status(403).json({ message: 'Only approved organizations can edit their details' });
+    }
+    const { error, fields } = readOrgFields(req.body, user.email);
+    if (error) return res.status(400).json({ message: error });
+
+    const updated = await User.findOneAndUpdate(
+      { _id: user._id, 'organization.status': 'approved' },
+      {
+        $set: {
+          'organization.name': fields.name,
+          'organization.orgType': fields.orgType,
+          'organization.description': fields.description,
+          'organization.contactEmail': fields.contactEmail,
+        },
+      },
+      { new: true, projection: { organization: 1 } }
+    );
+    if (!updated) return res.status(403).json({ message: 'Only approved organizations can edit their details' });
+
+    // คำอธิบายของเควสเงา ("Event by <ชื่อ>") ให้ตรงชื่อใหม่
+    const events = await OrgEvent.find({ orgUserId: user._id }).select('questId');
+    await Quest.updateMany({ _id: { $in: events.map((e) => e.questId) } }, { description: `Event by ${fields.name}` });
+
+    res.json({ message: 'Saved', organization: orgPayload(updated) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
