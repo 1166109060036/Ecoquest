@@ -30,11 +30,21 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
   int _currentIndex = 0;
   // สลับแท็บล่าง = เฟดหน้าใหม่เข้ามา + เลื่อนขึ้นนิดเดียว แทนโผล่แบบตัดฉับ (ผู้ใช้ขอให้แอพสมูทขึ้น 30 ก.ย. 2026)
   // เริ่มที่ 1 = หน้าแรกตอนเปิดแอพไม่ต้องเฟด
-  late final AnimationController _tabFade =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 220), value: 1);
+  late final AnimationController _tabFade = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 300),
+    value: 1,
+  );
   late final Animation<double> _tabOpacity = CurvedAnimation(parent: _tabFade, curve: Curves.easeOut);
-  late final Animation<Offset> _tabSlide = Tween(begin: const Offset(0, 0.015), end: Offset.zero)
-      .animate(CurvedAnimation(parent: _tabFade, curve: Curves.easeOutCubic));
+  late final Animation<Offset> _tabSlide = Tween(
+    begin: const Offset(0, 0.015),
+    end: Offset.zero,
+  ).animate(CurvedAnimation(parent: _tabFade, curve: Curves.easeOutCubic));
+  // + เด้งขยายจาก 96% (14 ต.ค. 2026 — ให้รู้สึกเหมือนเกม)
+  late final Animation<double> _tabScale = Tween(
+    begin: 0.96,
+    end: 1.0,
+  ).animate(CurvedAnimation(parent: _tabFade, curve: Curves.easeOutBack));
   // ระบบตรวจสอบภารกิจ: รางวัลมาตอนหลักฐานผ่าน (อาจเป็นตอนแอพปิดอยู่) — โหลดแจ้งเตือนใหม่ทุกครั้งที่กลับเข้าแอพ
   // แล้วฉลองของที่ผ่านใหม่ด้วยเอฟเฟครางวัลบินเข้าป้าย
   late final AppLifecycleListener _lifecycle;
@@ -47,10 +57,12 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
     _notifications = context.read<NotificationProvider>();
     _notifications.addListener(_celebrateApprovals);
     // กลับเข้าแอพ: แจ้งเตือนใหม่ (ฉลองของที่ผ่าน) + การ์ด Bingo (อาจขึ้นสัปดาห์ใหม่ระหว่างปิดแอพ)
-    _lifecycle = AppLifecycleListener(onResume: () {
-      _notifications.loadNotifications();
-      if (mounted) context.read<BingoProvider>().loadBingo();
-    });
+    _lifecycle = AppLifecycleListener(
+      onResume: () {
+        _notifications.loadNotifications();
+        if (mounted) context.read<BingoProvider>().loadBingo();
+      },
+    );
     // โหลด quest ครั้งเดียวตรงนี้ ไม่ให้หน้า Explore กับแผ่น Explore ใน Home ต่างคนต่างยิง API
     // (ทั้งคู่อยู่ใน IndexedStack พร้อมกันตลอด ถ้าโหลดในหน้าตัวเองจะยิงซ้ำ 2 รอบ)
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -93,8 +105,8 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
         title: approved.bingo
             ? 'Eco Bingo!'
             : approved.count > 1
-                ? '${approved.count} quests complete!'
-                : 'Quest complete!',
+            ? '${approved.count} quests complete!'
+            : 'Quest complete!',
       );
       final questProvider = context.read<QuestProvider>();
       await Future.wait([
@@ -122,12 +134,12 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
   // HomePage/ExplorePage/CommunityPage ต้อง build ใหม่ทุกครั้ง (ไม่ใช่ static const) เพราะต้องส่ง
   // callback _navigateToTab เข้าไปให้ใช้สลับ tab (ลากสุดขอบ / สร้าง-เข้าร่วมห้องแล้วพาไปแท็บ Community)
   List<Widget> get _pages => [
-        HomePage(onNavigateToTab: _navigateToTab),
-        InventoryPage(onNavigateToTab: _navigateToTab),
-        ExplorePage(onNavigateToTab: _navigateToTab),
-        CommunityPage(onNavigateToTab: _navigateToTab),
-        const ProfilePage(),
-      ];
+    HomePage(onNavigateToTab: _navigateToTab),
+    InventoryPage(onNavigateToTab: _navigateToTab),
+    ExplorePage(onNavigateToTab: _navigateToTab),
+    CommunityPage(onNavigateToTab: _navigateToTab),
+    const ProfilePage(),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -140,24 +152,23 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
           opacity: _tabOpacity,
           child: SlideTransition(
             position: _tabSlide,
-            child: IndexedStack(
-              index: _currentIndex,
-              // ⚠️ IndexedStack ไม่หยุดแอนิเมชันของแท็บที่ซ่อนอยู่ให้เอง (เช็คใน Flutter 3.47 แล้ว — แค่ไม่ paint)
-              // แอนิเมชันวนไม่รู้จบ (ใบไม้/เอฟเฟกต์โปรไฟล์ใน Home+Profile, skeleton, ไอคอนหายใจ) เลยเดินต่อทุกเฟรม
-              // ทั้งที่มองไม่เห็น = แอพสร้างเฟรมตลอดเวลาและกระตุกในแท็บที่เปิดอยู่ — TickerMode ปิด ticker ของแท็บที่ซ่อน
-              // (state/ตำแหน่งเลื่อนยังอยู่ครบ กลับมาแอนิเมชันเดินต่อเอง)
-              children: [
-                for (final (i, page) in _pages.indexed)
-                  TickerMode(enabled: i == _currentIndex, child: page),
-              ],
+            child: ScaleTransition(
+              scale: _tabScale,
+              child: IndexedStack(
+                index: _currentIndex,
+                // ⚠️ IndexedStack ไม่หยุดแอนิเมชันของแท็บที่ซ่อนอยู่ให้เอง (เช็คใน Flutter 3.47 แล้ว — แค่ไม่ paint)
+                // แอนิเมชันวนไม่รู้จบ (ใบไม้/เอฟเฟกต์โปรไฟล์ใน Home+Profile, skeleton, ไอคอนหายใจ) เลยเดินต่อทุกเฟรม
+                // ทั้งที่มองไม่เห็น = แอพสร้างเฟรมตลอดเวลาและกระตุกในแท็บที่เปิดอยู่ — TickerMode ปิด ticker ของแท็บที่ซ่อน
+                // (state/ตำแหน่งเลื่อนยังอยู่ครบ กลับมาแอนิเมชันเดินต่อเอง)
+                children: [
+                  for (final (i, page) in _pages.indexed) TickerMode(enabled: i == _currentIndex, child: page),
+                ],
+              ),
             ),
           ),
         ),
       ),
-      bottomNavigationBar: AppBottomNavBar(
-        currentIndex: _currentIndex,
-        onTap: _navigateToTab,
-      ),
+      bottomNavigationBar: AppBottomNavBar(currentIndex: _currentIndex, onTap: _navigateToTab),
     );
   }
 }

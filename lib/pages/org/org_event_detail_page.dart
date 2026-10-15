@@ -5,6 +5,7 @@ import '../../utils/date_format.dart';
 import '../../utils/quest_completion.dart';
 import '../../widgets/bubble_toast.dart';
 import '../../widgets/liquid_glass_dialog.dart';
+import '../../widgets/staggered_fade_in.dart';
 import 'event_attendees_page.dart';
 import 'event_qr_page.dart';
 import 'scan_checkin_page.dart';
@@ -96,7 +97,8 @@ class _OrgEventDetailPageState extends State<OrgEventDetailPage> {
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
-          children: [
+          // ไล่โผล่ทีละส่วนตอนเปิดหน้า (14 ต.ค. 2026)
+          children: staggered([
             Row(
               children: [
                 Container(
@@ -162,7 +164,7 @@ class _OrgEventDetailPageState extends State<OrgEventDetailPage> {
             ),
             const SizedBox(height: 20),
             ..._actions(e),
-          ],
+          ]),
         ),
       ),
     );

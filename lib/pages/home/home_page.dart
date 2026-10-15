@@ -14,6 +14,7 @@ import '../../widgets/org_event_card.dart';
 import '../../widgets/party_room_card.dart';
 import '../../widgets/quest_card.dart';
 import '../../widgets/skeleton_box.dart';
+import '../../widgets/staggered_fade_in.dart';
 import '../explore/quest_detail_page.dart';
 import '../inventory/fridge_page.dart';
 import '../org/org_event_detail_page.dart';
@@ -504,22 +505,35 @@ class _ExploreSheetState extends State<_ExploreSheet> {
                         separatorBuilder: (_, __) => const SizedBox(height: 12),
                         itemBuilder: (context, index) {
                           final item = items[index];
+                          final Widget card;
+                          final String id;
                           if (item is OrgEventModel) {
-                            return OrgEventCard(event: item, onTap: () => _openEvent(item));
-                          }
-                          if (item is PartyRoomModel) {
-                            return PartyRoomCard(
+                            id = 'event-${item.id}';
+                            card = OrgEventCard(event: item, onTap: () => _openEvent(item));
+                          } else if (item is PartyRoomModel) {
+                            id = 'room-${item.id}';
+                            card = PartyRoomCard(
                               room: item,
                               isJoined: item.id == myPartyId,
                               onJoin: () => _joinRoom(item),
                             );
+                          } else {
+                            final quest = item as QuestCardModel;
+                            id = quest.id;
+                            card = QuestCard(
+                              quest: quest,
+                              onAction: () => _onStartQuest(quest),
+                              onTap: () => _openQuestDetail(quest),
+                              heroTag: questCoverHeroTag('home', quest.id),
+                            );
                           }
-                          final quest = item as QuestCardModel;
-                          return QuestCard(
-                            quest: quest,
-                            onAction: () => _onStartQuest(quest),
-                            onTap: () => _openQuestDetail(quest),
-                            heroTag: questCoverHeroTag('home', quest.id),
+                          // ไล่โผล่ทีละใบแบบหน้า Explore เต็มจอ — key ด้วย id ที่เสถียร (ดู staggered_fade_in.dart)
+                          return FadeSlideIn(
+                            key: ValueKey('$_selectedFilter-$id'),
+                            delay: Duration(milliseconds: 45 * index.clamp(0, 8)),
+                            offsetY: 18,
+                            duration: const Duration(milliseconds: 320),
+                            child: card,
                           );
                         },
                       ),

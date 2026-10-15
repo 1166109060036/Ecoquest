@@ -61,3 +61,16 @@ class _FadeSlideInState extends State<FadeSlideIn> with SingleTickerProviderStat
     );
   }
 }
+
+// ห่อลูกทุกตัวของลิสต์/คอลัมน์ให้ไล่โผล่ทีละชิ้นตอนเปิดหน้า (เช่นหน้ารายละเอียดอีเวนต์) — ใช้กับลิสต์ที่ลำดับคงที่เท่านั้น
+// (ใช้ index เป็น key ได้เพราะไม่มีการเรียงใหม่/แทรกกลาง)
+List<Widget> staggered(List<Widget> children, {int stepMs = 45, int maxSteps = 10}) => [
+      for (final (i, child) in children.indexed)
+        FadeSlideIn(
+          key: ValueKey('stagger-$i'),
+          delay: Duration(milliseconds: stepMs * i.clamp(0, maxSteps)),
+          offsetY: 16,
+          duration: const Duration(milliseconds: 320),
+          child: child,
+        ),
+    ];

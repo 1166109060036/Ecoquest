@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../utils/constants.dart';
 import 'falling_leaves_overlay.dart';
 import 'pressable_scale.dart';
+import 'staggered_fade_in.dart';
 
 // ชิ้นส่วนหน้าตาที่หน้า Login / Register ใช้ร่วมกัน (ปรับให้สวยขึ้น 14 ต.ค. 2026)
 // ภาพพื้นหลังเดียวกับหน้า Profile/Settings + ใบไม้ร่วง + การ์ดกระจกฝ้า ให้รู้สึกเป็นแอพเดียวกันตั้งแต่หน้าแรก
@@ -59,10 +60,7 @@ class AuthScaffold extends StatelessWidget {
                   // เนื้อหาสั้นกว่าจอ = อยู่กึ่งกลาง / ยาวกว่า (คีย์บอร์ดขึ้น) = เลื่อนได้
                   constraints: BoxConstraints(minHeight: constraints.maxHeight - 32),
                   child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 440),
-                      child: child,
-                    ),
+                    child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 440), child: child),
                   ),
                 ),
               ),
@@ -94,49 +92,110 @@ class AuthHeader extends StatelessWidget {
   final String title;
   final String subtitle;
   final double logoSize;
+  // ใส่ไอคอนแทนโลโก้ (เช่นหน้า Forgot password)
+  final IconData? icon;
 
-  const AuthHeader({super.key, required this.title, required this.subtitle, this.logoSize = 92});
+  const AuthHeader({super.key, required this.title, required this.subtitle, this.logoSize = 92, this.icon});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.white.withValues(alpha: 0.92),
-            boxShadow: [
-              BoxShadow(color: Colors.greenAccent.withValues(alpha: 0.45), blurRadius: 28, spreadRadius: 2),
-            ],
-          ),
-          child: Image.asset('lib/utils/assets/logo.png', width: logoSize, height: logoSize),
-        ),
-        const SizedBox(height: 16),
-        Text(
-          title,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 28,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.3,
-            shadows: [Shadow(color: Colors.black54, blurRadius: 10)],
+        _Floating(
+          child: Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withValues(alpha: 0.92),
+              boxShadow: [
+                BoxShadow(color: Colors.greenAccent.withValues(alpha: 0.45), blurRadius: 28, spreadRadius: 2),
+              ],
+            ),
+            child: icon != null
+                ? SizedBox(
+                    width: logoSize,
+                    height: logoSize,
+                    child: Icon(icon, size: logoSize * 0.6, color: const Color(0xFF2E7D32)),
+                  )
+                : Image.asset('lib/utils/assets/logo.png', width: logoSize, height: logoSize),
           ),
         ),
-        const SizedBox(height: 4),
-        Text(
-          subtitle,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.85),
-            fontSize: 14,
-            shadows: const [Shadow(color: Colors.black54, blurRadius: 8)],
+        // หน้า Splash ใช้แค่โลโก้ (ส่ง title ว่าง) แล้ววาดชื่อแอพเองพร้อมแอนิเมชัน
+        if (title.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.3,
+              shadows: [Shadow(color: Colors.black54, blurRadius: 10)],
+            ),
           ),
-        ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.85),
+              fontSize: 14,
+              shadows: const [Shadow(color: Colors.black54, blurRadius: 8)],
+            ),
+          ),
+        ],
       ],
     );
   }
+}
+
+// โลโก้ลอยขึ้นลงช้าๆ ตลอด (เหมือนไอเทมในเกม) — โหมดลดการเคลื่อนไหวไม่ลอย
+class _Floating extends StatefulWidget {
+  final Widget child;
+  const _Floating({required this.child});
+
+  @override
+  State<_Floating> createState() => _FloatingState();
+}
+
+class _FloatingState extends State<_Floating> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 2400))
+    ..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (MediaQuery.of(context).disableAnimations) return widget.child;
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (context, child) {
+        final t = Curves.easeInOut.transform(_c.value);
+        return Transform.translate(offset: Offset(0, -6 * t), child: child);
+      },
+      child: widget.child,
+    );
+  }
+}
+
+// ไล่ชิ้นส่วนหน้า Login/Register/Forgot ให้โผล่ทีละชิ้น (หัว -> การ์ด -> ลิงก์ล่าง) ตอนเปิดหน้า
+class AuthEntrance extends StatelessWidget {
+  final int order;
+  final Widget child;
+  const AuthEntrance({super.key, required this.order, required this.child});
+
+  @override
+  Widget build(BuildContext context) => FadeSlideIn(
+    delay: Duration(milliseconds: 120 * order),
+    duration: const Duration(milliseconds: 520),
+    offsetY: 28,
+    child: child,
+  );
 }
 
 // การ์ดกระจกฝ้า (เบลอพื้นหลัง) ครอบฟอร์ม
@@ -197,9 +256,9 @@ class _AuthTextFieldState extends State<AuthTextField> {
   bool _obscure = true;
 
   OutlineInputBorder _border(Color color, [double width = 1]) => OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: color, width: width),
-      );
+    borderRadius: BorderRadius.circular(16),
+    borderSide: BorderSide(color: color, width: width),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -221,8 +280,11 @@ class _AuthTextFieldState extends State<AuthTextField> {
         suffixIcon: widget.isPassword
             ? IconButton(
                 tooltip: _obscure ? 'Show password' : 'Hide password',
-                icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                    color: Colors.white70, size: 20),
+                icon: Icon(
+                  _obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                  color: Colors.white70,
+                  size: 20,
+                ),
                 onPressed: () => setState(() => _obscure = !_obscure),
               )
             : null,
@@ -273,9 +335,14 @@ class AuthPrimaryButton extends StatelessWidget {
               child: Center(
                 child: loading
                     ? const SizedBox(
-                        width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white))
-                    : Text(label,
-                        style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white),
+                      )
+                    : Text(
+                        label,
+                        style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
+                      ),
               ),
             ),
           ),
@@ -350,7 +417,10 @@ class AuthSwitchLink extends StatelessWidget {
         Text(text, style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 14)),
         TextButton(
           onPressed: onTap,
-          style: TextButton.styleFrom(foregroundColor: Colors.greenAccent, padding: const EdgeInsets.symmetric(horizontal: 6)),
+          style: TextButton.styleFrom(
+            foregroundColor: Colors.greenAccent,
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+          ),
           child: Text(action, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
         ),
       ],
