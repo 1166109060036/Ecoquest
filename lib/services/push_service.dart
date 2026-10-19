@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'api_http.dart' as http;
 import '../utils/constants.dart';
 import 'storage_service.dart';
@@ -26,6 +27,7 @@ class PushService {
   // ใส่ให้ MaterialApp ใน main.dart — ใช้เปิดหน้า Notification ตอนแตะ push (ไม่มี BuildContext ให้ใช้ตรงนั้น)
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
+  static const _fidKey = 'push_fid';
   final StorageService _storage = StorageService();
   bool _available = false;
   // FID ล่าสุดที่ FCM ให้มา — จำไว้ใช้ลบออกจาก backend ตอน logout
@@ -45,9 +47,16 @@ class PushService {
       return;
     }
 
+    // onRegistered อาจไม่ยิงซ้ำถ้าเครื่องลงทะเบียนไว้แล้ว — จำ FID ไว้ในเครื่อง ไม่งั้นถ้าส่งรอบแรกพลาด
+    // (Render หลับ/เน็ตหลุด) เครื่องนี้จะไม่เคยถึง backend อีกเลย
+    try {
+      _fid = (await SharedPreferences.getInstance()).getString(_fidKey);
+    } catch (_) {}
+
     final messaging = FirebaseMessaging.instance;
     messaging.onRegistered.listen((fid) {
       _fid = fid;
+      SharedPreferences.getInstance().then((prefs) => prefs.setString(_fidKey, fid)).ignore();
       if (_onForegroundMessage != null) _sendFid(fid);
     });
     FirebaseMessaging.onMessage.listen((message) => _onForegroundMessage?.call(message));
@@ -105,18 +114,25 @@ class PushService {
       await FirebaseMessaging.instance.unregister();
     } catch (_) {}
     _fid = null;
+    try {
+      await (await SharedPreferences.getInstance()).remove(_fidKey);
+    } catch (_) {}
   }
 
   // ไม่ throw — ส่งไม่ได้แค่ไม่ได้ push จนกว่าจะเข้าแอพครั้งหน้า
   Future<void> _sendFid(String fid) async {
     try {
       final authToken = await _storage.getToken();
-      if (authToken == null) return;
-      await http.post(
+      if (authToken == null) {
+        debugPrint('[push] no auth token, FID not sent');
+        return;
+      }
+      final res = await http.post(
         Uri.parse('${AppConstants.baseUrl}/notifications/push-id'),
         headers: {'Authorization': 'Bearer $authToken', 'Content-Type': 'application/json'},
         body: jsonEncode({'fid': fid}),
       );
+      debugPrint('[push] send FID -> ${res.statusCode}');
     } catch (e) {
       debugPrint('[push] send FID failed: $e');
     }

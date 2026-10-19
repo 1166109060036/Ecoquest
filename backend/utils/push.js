@@ -44,6 +44,7 @@ const registerPushId = async (userId, fid) => {
     { _id: userId },
     { $push: { pushIds: { $each: [fid], $slice: -MAX_PUSH_IDS_PER_USER } } }
   );
+  console.log(`[push] registered device for user ${userId}`);
 };
 
 const unregisterPushId = async (userId, fid) => {
@@ -67,7 +68,10 @@ const sendPush = async (userId, { title, body, data = {} }) => {
 
     const user = await User.findById(userId).select('+pushIds');
     const fids = user?.pushIds ?? [];
-    if (fids.length === 0) return;
+    if (fids.length === 0) {
+      console.log(`[push] user ${userId} has no registered device — skipped`);
+      return;
+    }
 
     const stringData = Object.fromEntries(
       Object.entries(data).filter(([, v]) => v != null).map(([k, v]) => [k, String(v)])
@@ -81,6 +85,12 @@ const sendPush = async (userId, { title, body, data = {} }) => {
         notification: { color: '#2E7D32' },
       },
     });
+
+    // FCM ปฏิเสธเป็นรายเครื่องไม่ throw — log ไว้ ไม่งั้นส่งไม่ถึงแล้วเงียบ
+    result.responses.forEach((r, i) => {
+      if (!r.success) console.error(`[push] device ${fids[i].slice(0, 8)}… rejected: ${r.error?.code} ${r.error?.message}`);
+    });
+    console.log(`[push] sent to user ${userId}: ${result.successCount}/${fids.length} devices`);
 
     const dead = fids.filter(
       (_, i) => !result.responses[i].success && DEAD_TARGET_CODES.has(result.responses[i].error?.code)

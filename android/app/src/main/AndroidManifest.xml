@@ -44,6 +44,11 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- Push notification: firebase_messaging 17 ส่ง push ด้วย Firebase Installation ID (FID) ซึ่ง Android
+             ปิดไว้โดย default — ไม่ใส่ register() จะพัง "API disabled" (ดู lib/services/push_service.dart) -->
+        <meta-data
+            android:name="firebase_messaging_installation_id_enabled"
+            android:value="true" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
