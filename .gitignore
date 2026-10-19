@@ -46,3 +46,5 @@ app.*.map.json
 
 # Cooperative study report (kept locally, not in git)
 /report/
+# Firebase service account key ของ backend (ใส่ที่ env FIREBASE_SERVICE_ACCOUNT บน Render เท่านั้น ห้าม commit)
+*firebase-adminsdk*.json

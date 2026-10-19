@@ -10,6 +10,8 @@ import '../providers/auth_provider.dart';
 import '../providers/bingo_provider.dart';
 import '../widgets/reward_fly.dart';
 import '../widgets/bottom_nav_bar.dart';
+import '../widgets/bubble_toast.dart';
+import '../services/push_service.dart';
 import 'home/home_page.dart';
 import 'inventory/inventory_page.dart';
 import 'explore/explore_page.dart';
@@ -81,6 +83,15 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
       context.read<UpgradeProvider>().loadUpgrades(); // การ์ด Upgrade your Ability ในหน้า Profile
       context.read<BingoProvider>().loadBingo(); // แถบ Eco Bingo บนลิสต์เควส
     });
+    // ส่ง FCM token ให้ backend + รับ push ตอนแอพเปิดอยู่ (Android ไม่โชว์บนหน้าจอให้เองตอน foreground)
+    // → โหลดแจ้งเตือนใหม่ (เสียง/จุดแดง/เอฟเฟครางวัลตามระบบเดิม) แล้วโชว์หัวข้อเป็นฟองข้อความ
+    PushService.instance.attach(
+      onForegroundMessage: (message) {
+        _notifications.loadNotifications();
+        final title = message.notification?.title;
+        if (title != null && mounted) showBubbleToast(context, title);
+      },
+    );
   }
 
   @override

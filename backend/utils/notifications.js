@@ -2,6 +2,7 @@ const Notification = require('../models/Notification');
 const FridgeItem = require('../models/FridgeItem');
 const User = require('../models/User');
 const { startOfToday } = require('./questDay');
+const { sendPush } = require('./push');
 
 // สร้างแจ้งเตือน 1 ใบแบบ idempotent — ถ้ามี (userId, dedupeKey) นี้อยู่แล้วจะไม่ทำอะไรเลย
 // ต้องใช้ $setOnInsert เท่านั้น (ไม่ใช่ $set) ไม่งั้นแถวเดิมที่ผู้ใช้อ่านไปแล้ว (readAt ไม่ null)
@@ -9,16 +10,23 @@ const { startOfToday } = require('./questDay');
 //
 // เช็ค notificationsEnabled ตรงนี้จุดเดียว (ทุกที่ที่เรียกแจ้งเตือนผ่าน createNotification หมด) แทนที่จะ
 // เช็คซ้ำทุกจุดที่อยากส่งแจ้งเตือน — ปิดสวิตช์แล้วแค่หยุดสร้างใบใหม่ ใบเก่าที่มีอยู่แล้วไม่ถูกลบ
+//
+// ส่ง push (utils/push.js) ที่นี่จุดเดียวเหมือนกัน — เฉพาะตอน upsert สร้างใบใหม่จริง (upsertedCount 1)
+// ใบที่มีอยู่แล้วไม่ส่งซ้ำ ไม่งั้นแจ้งเตือนของใกล้หมดอายุที่ ensure ซ้ำทุกรอบจะเด้งรัวๆ
+// ไม่ await push — FCM ช้าแค่ไหนก็ไม่ควรทำให้ request หลัก (ส่งหลักฐาน/รับเพื่อน ฯลฯ) ช้าตาม (sendPush ไม่ throw)
 const createNotification = async ({ userId, type, title, message, dedupeKey, data = null }) => {
   try {
     const user = await User.findById(userId).select('notificationsEnabled');
     if (!user || !user.notificationsEnabled) return;
 
-    await Notification.updateOne(
+    const result = await Notification.updateOne(
       { userId, dedupeKey },
       { $setOnInsert: { userId, type, title, message, dedupeKey, data } },
       { upsert: true }
     );
+    if (result.upsertedCount === 1) {
+      sendPush(userId, { title, body: message, data: { type, notificationId: result.upsertedId } });
+    }
   } catch (err) {
     // ชนกับ unique index = มีอีก request สร้างพร้อมกันพอดี ไม่ถือว่าพัง (เหมือน syncAchievements)
     if (err.code !== 11000) throw err;
@@ -248,6 +256,23 @@ const ensureExpiryNotifications = async (userId) => {
   );
 };
 
+// รอบเช็คของใกล้หมดอายุของทุกคน (server.js เรียกตอน boot + ทุก 30 นาที) — ensureExpiryNotifications แบบ lazy
+// อย่างเดียวสร้างแจ้งเตือนได้แค่ตอนผู้ใช้เปิดแอพ เลยไม่มีวันได้ push ตอนแอพปิด รอบนี้ทำให้ push ออกได้เอง
+// ⚠️ Render free tier หลับเมื่อไม่มี request ~15 นาที ระหว่างหลับรอบนี้ไม่รัน — ตื่นมาก็เช็คทันทีตอน boot
+// ดูแค่ของที่หมดอายุภายใน 48 ชม. ที่ผ่านมา (ของเก่ากว่านั้นได้แจ้งเตือนไปนานแล้ว ไม่ต้องสแกนทุกรอบ)
+const sweepExpiryNotifications = async () => {
+  const now = Date.now();
+  const userIds = await FridgeItem.distinct('userId', {
+    expirationDate: {
+      $gte: new Date(now - 48 * 60 * 60 * 1000),
+      $lte: new Date(now + 24 * 60 * 60 * 1000),
+    },
+  });
+  for (const userId of userIds) {
+    await ensureExpiryNotifications(userId);
+  }
+};
+
 // แจ้งเตือนทั้งหมดของ user คนนี้ (ล่าสุดขึ้นก่อน) — เรียก ensureExpiryNotifications ก่อนเสมอ
 // เพื่อให้ของที่ใกล้หมดอายุตอนนี้โผล่ในลิสต์แม้จะยังไม่เคยเปิดหน้านี้มาก่อน
 const getNotifications = async (userId) => {
@@ -288,6 +313,7 @@ module.exports = {
   notifyOrgStatus,
   notifyOrgEventCancelled,
   ensureExpiryNotifications,
+  sweepExpiryNotifications,
   getNotifications,
   markAllRead,
   deleteExpiryNotifications,

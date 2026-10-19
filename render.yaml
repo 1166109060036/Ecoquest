@@ -25,3 +25,7 @@ services:
         sync: false
       - key: GMAIL_APP_PASSWORD
         sync: false
+      # Push notification (FCM) — เนื้อหาไฟล์ service account JSON ของ Firebase ทั้งก้อน ดู backend/utils/push.js
+      # ไม่ตั้ง = ไม่มี push (แจ้งเตือนในแอพยังใช้ได้)
+      - key: FIREBASE_SERVICE_ACCOUNT
+        sync: false

@@ -5,6 +5,12 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Push notification (FCM) ต้องมี google-services.json จาก Firebase Console วางไว้ที่ android/app/
+// ยังไม่มีไฟล์ = ไม่ apply plugin (build ผ่านปกติ แอพแค่ไม่มี push — ดู lib/services/push_service.dart)
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 android {
     namespace = "com.example.ecoquest"
     compileSdk = flutter.compileSdkVersion

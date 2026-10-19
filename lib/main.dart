@@ -16,6 +16,7 @@ import 'providers/bingo_provider.dart';
 import 'routes/app_routes.dart';
 import 'services/app_photo_storage.dart';
 import 'services/sound_service.dart';
+import 'services/push_service.dart';
 
 void main() async {
   // ต้อง ensureInitialized ก่อนเรียก plugin ใดๆ (path_provider) ตอนแอพยังไม่เริ่ม
@@ -25,6 +26,8 @@ void main() async {
   await AppPhotoStorage.init();
   // ต้องโหลดระดับเสียงที่เคยตั้งไว้ก่อนเริ่มเล่นเพลง ไม่งั้นจะดังสุดวูบนึงก่อนค่อยปรับลง
   await SoundService.instance.loadSavedVolumes();
+  // Firebase ต้อง init ก่อน runApp — ไม่มี google-services.json ก็ไม่พัง แค่ไม่มี push (ดู push_service.dart)
+  await PushService.instance.init();
   SoundService.instance.attachLifecycle();
   // ไม่ await เพราะไม่ต้องรอเพลงพร้อมก่อนเปิดหน้าแรก (ยังไม่มีไฟล์เพลงจริงก็รอไม่มีทางจบ)
   SoundService.instance.playBackgroundMusic();
@@ -52,6 +55,8 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => BingoProvider()),
       ],
       child: MaterialApp(
+        // แตะ push แล้วเปิดหน้า Notification จากนอก widget tree ได้
+        navigatorKey: PushService.instance.navigatorKey,
         title: 'EcoQuest',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(

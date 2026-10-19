@@ -6,6 +6,7 @@ const cors = require('cors');
 const connectDB = require('./config/db');
 const { seedQuests } = require('./scripts/seedQuests');
 const PartyMember = require('./models/PartyMember');
+const { sweepExpiryNotifications } = require('./utils/notifications');
 const authRoutes = require('./routes/auth');
 const questRoutes = require('./routes/quests');
 const fridgeItemRoutes = require('./routes/fridgeItems');
@@ -52,6 +53,12 @@ connectDB().then(async () => {
   } catch (err) {
     console.error('⚠️  ล้าง PartyMember รุ่นเก่าไม่สำเร็จ:', err.message);
   }
+
+  // push แจ้งเตือนของในตู้เย็นใกล้หมดอายุ (utils/notifications.js#sweepExpiryNotifications) — ไม่ต้องรอผู้ใช้เปิดแอพ
+  const sweepExpiry = () =>
+    sweepExpiryNotifications().catch((err) => console.error('⚠️  เช็คของใกล้หมดอายุไม่สำเร็จ:', err.message));
+  sweepExpiry();
+  setInterval(sweepExpiry, 30 * 60 * 1000);
 
   if (process.env.SEED_QUESTS_ON_BOOT === 'false') return;
   try {

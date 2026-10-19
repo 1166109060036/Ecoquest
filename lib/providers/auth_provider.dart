@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../models/profile_model.dart';
 import '../services/auth_service.dart';
+import '../services/push_service.dart';
 
 // จัดการ state การ login ของทั้งแอพ ให้ทุกหน้าดึงสถานะ user ปัจจุบันได้
 class AuthProvider extends ChangeNotifier {
@@ -72,7 +73,10 @@ class AuthProvider extends ChangeNotifier {
     return _runAuthAction(() => _authService.loginAsGuest());
   }
 
+  // เลิกรับ push ของบัญชีนี้ก่อนลบ session เสมอ (ต้องใช้ JWT เดิมยิง API) — ไม่งั้นแจ้งเตือนของบัญชีเก่า
+  // ยังเด้งเข้าเครื่องนี้ต่อหลัง logout / ส่งต่อเครื่องให้คนทดสอบคนถัดไป
   Future<void> logout() async {
+    await PushService.instance.detach();
     await _authService.logout();
     _user = null;
     _profile = null;
@@ -82,6 +86,7 @@ class AuthProvider extends ChangeNotifier {
   // ล้าง guest ที่จำไว้บนเครื่อง + session ปัจจุบัน เพื่อให้กด "Continue as Guest" ครั้งถัดไป
   // ได้บัญชีใหม่จริงๆ แทนที่จะ resume บัญชี guest เดิม (ใช้ตอนส่งต่อเครื่องให้คนทดสอบคนถัดไป)
   Future<void> resetGuestSession() async {
+    await PushService.instance.detach();
     await _authService.resetGuestSession();
     _user = null;
     _profile = null;

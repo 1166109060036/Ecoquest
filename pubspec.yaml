@@ -50,6 +50,10 @@ dependencies:
   # อีเวนต์องค์กร (14 ต.ค. 2026) — ผู้เข้าร่วมสแกน QR เช็คอินด้วยกล้อง / องค์กรเปิด QR บนจอ (lib/pages/org/)
   mobile_scanner: ^7.4.2
   qr_flutter: ^4.1.0
+  # Push notification ผ่าน FCM (19 ต.ค. 2026) — เด้งบนหน้าจอแม้ปิดแอพอยู่ ดู lib/services/push_service.dart
+  # ต้องมี android/app/google-services.json ก่อน ไม่งั้น push ปิดตัวเองเงียบๆ แอพส่วนอื่นยังใช้ได้ปกติ
+  firebase_core: ^5.0.0
+  firebase_messaging: ^17.0.0
 
 
 dev_dependencies:
