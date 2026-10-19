@@ -1,4 +1,5 @@
-const admin = require('firebase-admin');
+const { initializeApp, cert } = require('firebase-admin/app');
+const { getMessaging: getFcm } = require('firebase-admin/messaging');
 const User = require('../models/User');
 
 // ส่ง push notification ผ่าน Firebase Cloud Messaging (FCM) — เด้งบนหน้าจอโทรศัพท์แม้ปิดแอพอยู่
@@ -25,8 +26,8 @@ const getMessaging = () => {
   }
   try {
     const json = raw.trim().startsWith('{') ? raw : Buffer.from(raw, 'base64').toString('utf8');
-    admin.initializeApp({ credential: admin.credential.cert(JSON.parse(json)) });
-    messaging = admin.messaging();
+    initializeApp({ credential: cert(JSON.parse(json)) });
+    messaging = getFcm();
     console.log('[push] Firebase initialized');
   } catch (err) {
     console.error('[push] Invalid FIREBASE_SERVICE_ACCOUNT — push notifications disabled:', err.message);
@@ -51,9 +52,10 @@ const unregisterPushId = async (userId, fid) => {
 
 // FCM ตอบแบบนี้ = แอพถูกถอน/ล้างข้อมูล/logout ไปแล้ว ส่งต่อไปก็ไม่มีวันถึง ลบทิ้งได้เลย
 // (ไม่นับ invalid-argument เพราะอาจเป็นที่ payload ของเราเอง ลบทิ้งจะทำให้ทุกเครื่องหลุดหมด)
+// firebase-admin 14 ส่ง code มาแบบไม่มี prefix "messaging/" แล้ว
 const DEAD_TARGET_CODES = new Set([
-  'messaging/installation-id-not-registered',
-  'messaging/registration-token-not-registered',
+  'installation-id-not-registered',
+  'registration-token-not-registered',
 ]);
 
 // ส่ง push ไปทุกเครื่องของ user — ไม่ throw เด็ดขาด (push ส่งไม่ได้ต้องไม่ทำให้ request หลักพัง)

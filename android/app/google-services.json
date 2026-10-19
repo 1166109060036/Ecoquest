@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "24856356456",
+    "project_id": "project-ecoquestapp-hiu",
+    "storage_bucket": "project-ecoquestapp-hiu.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:24856356456:android:a4fbef738dca75ebc87ddd",
+        "android_client_info": {
+          "package_name": "com.example.ecoquest"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "24856356456-a2vdpfes8hjjc7ls1mta4osmbu300gtu.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBD3z7qCzh5qhlIQMKzdUFTZjXxgtnZ-ow"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "24856356456-a2vdpfes8hjjc7ls1mta4osmbu300gtu.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "24856356456-l4uiuh3hc3dmanqpeq6l277c7bvvj0lh.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.ecoquest"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
