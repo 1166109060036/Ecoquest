@@ -48,3 +48,5 @@ app.*.map.json
 /report/
 # Firebase service account key ของ backend (ใส่ที่ env FIREBASE_SERVICE_ACCOUNT บน Render เท่านั้น ห้าม commit)
 *firebase-adminsdk*.json
+
+/graphify-out/
