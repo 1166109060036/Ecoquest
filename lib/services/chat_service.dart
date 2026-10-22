@@ -18,9 +18,6 @@ class ChatService {
     };
   }
 
-  Future<List<ChatMessageModel>> fetchWorldHistory({DateTime? before, int limit = 30}) =>
-      _fetchHistory('${AppConstants.baseUrl}/chat/world/messages', before: before, limit: limit);
-
   // ห้องปาร์ตี้ที่ req.userId อยู่ตอนนี้ — backend หา partyId เองจาก membership จริง (ไม่ส่ง partyId
   // ไปจากฝั่งแอพ) ถ้าไม่ได้อยู่ปาร์ตี้ backend ตอบ 400 กลายเป็น Exception ที่นี่
   Future<List<ChatMessageModel>> fetchPartyHistory({DateTime? before, int limit = 30}) =>

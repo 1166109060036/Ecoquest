@@ -11,10 +11,10 @@ import '../../widgets/decorated_avatar.dart';
 import '../../widgets/pressable_scale.dart';
 
 // แท็บย่อย "Chat" ของหน้า Community — แชทแบบ real-time ผ่าน WebSocket (ดู
-// chat_socket_service.dart/chat_provider.dart) มี 3 ห้อง: World (ทุกคน) เปิดได้เสมอ, Party (คุยกับ
-// สมาชิกปาร์ตี้ปัจจุบัน) เปิดได้เฉพาะตอนอยู่ปาร์ตี้, Friend (DM) เปิดได้เฉพาะตอนมีเพื่อนอย่างน้อย 1 คน
-// (เลือกจากลิสต์เพื่อนก่อนถึงจะคุยได้)
-enum _Channel { world, party, friend }
+// chat_socket_service.dart/chat_provider.dart) มี 2 ห้อง: Party (คุยกับสมาชิกปาร์ตี้ปัจจุบัน) เปิดได้
+// เฉพาะตอนอยู่ปาร์ตี้, Friend (DM) เปิดได้เฉพาะตอนมีเพื่อนอย่างน้อย 1 คน (เลือกจากลิสต์เพื่อนก่อน)
+// _channel == null = ยังไม่ได้เลือกห้อง (World chat ถูกถอดออกตามคอมเมนต์อาจารย์ เลยไม่มีห้องที่เปิดได้เสมอ)
+enum _Channel { party, friend }
 
 class ChatTab extends StatefulWidget {
   const ChatTab({super.key});
@@ -27,7 +27,7 @@ class _ChatTabState extends State<ChatTab> {
   final _textController = TextEditingController();
   final _scrollController = ScrollController();
 
-  _Channel _channel = _Channel.world;
+  _Channel? _channel;
   FriendModel? _selectedFriend;
 
   @override
@@ -35,9 +35,8 @@ class _ChatTabState extends State<ChatTab> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final provider = context.read<ChatProvider>();
-      provider.connect();
-      provider.loadWorldHistory();
+      context.read<ChatProvider>().connect();
+      if (context.read<PartyProvider>().hasParty) _selectParty();
     });
   }
 
@@ -46,10 +45,6 @@ class _ChatTabState extends State<ChatTab> {
     _textController.dispose();
     _scrollController.dispose();
     super.dispose();
-  }
-
-  void _selectWorld() {
-    setState(() => _channel = _Channel.world);
   }
 
   void _selectParty() {
@@ -81,8 +76,8 @@ class _ChatTabState extends State<ChatTab> {
 
     final provider = context.read<ChatProvider>();
     switch (_channel) {
-      case _Channel.world:
-        provider.sendWorldMessage(text);
+      case null:
+        return;
       case _Channel.party:
         provider.sendPartyMessage(text);
       case _Channel.friend:
@@ -98,13 +93,13 @@ class _ChatTabState extends State<ChatTab> {
     final hasParty = context.watch<PartyProvider>().hasParty;
     final hasFriends = context.watch<FriendProvider>().friends.isNotEmpty;
 
-    // ปาร์ตี้ที่เคยเลือกไว้หลุดไปแล้ว (ออกจากปาร์ตี้ระหว่างที่อยู่แท็บนี้) -> เด้งกลับไป World เอง
+    // ปาร์ตี้ที่เคยเลือกไว้หลุดไปแล้ว (ออกจากปาร์ตี้ระหว่างที่อยู่แท็บนี้) -> กลับไปสถานะยังไม่เลือกห้อง
     if (_channel == _Channel.party && !hasParty) {
-      _channel = _Channel.world;
+      _channel = null;
     }
 
     final messages = switch (_channel) {
-      _Channel.world => provider.worldMessages,
+      null => const <ChatMessageModel>[],
       _Channel.party => provider.partyMessages,
       _Channel.friend => _selectedFriend != null ? provider.messagesWithFriend(_selectedFriend!.id) : const [],
     };
@@ -114,13 +109,6 @@ class _ChatTabState extends State<ChatTab> {
       children: [
         Row(
           children: [
-            _ChannelChip(
-              label: 'World',
-              icon: Icons.public,
-              selected: _channel == _Channel.world,
-              onTap: _selectWorld,
-            ),
-            const SizedBox(width: 8),
             _ChannelChip(
               label: 'Party',
               icon: Icons.groups_rounded,
@@ -146,7 +134,12 @@ class _ChatTabState extends State<ChatTab> {
         ],
         const SizedBox(height: 12),
         Expanded(
-          child: _channel == _Channel.friend && _selectedFriend == null
+          child: _channel == null
+              ? _EmptyChat(
+                  text: hasParty || hasFriends
+                      ? 'Pick Party or a friend above to start chatting'
+                      : 'Join a party or add a friend to start chatting')
+              : _channel == _Channel.friend && _selectedFriend == null
               ? const _EmptyChat(text: 'Pick a friend above to start chatting')
               : provider.isLoadingHistory && messages.isEmpty
                   ? const Center(child: CircularProgressIndicator(color: Colors.green))

@@ -2,7 +2,7 @@
 // 'chat:message' ที่มาจาก WebSocket แบบ real-time (ดู chat_socket_service.dart) ทั้งคู่ใช้โครงเดียวกัน
 class ChatMessageModel {
   final String id;
-  final String channelType; // 'world' / 'party' / 'friend'
+  final String channelType; // 'party' / 'friend'
   final String channelId;
   final String fromUserId;
   final String fromDisplayName;
@@ -22,7 +22,7 @@ class ChatMessageModel {
   factory ChatMessageModel.fromJson(Map<String, dynamic> json) {
     return ChatMessageModel(
       id: (json['id'] ?? '').toString(),
-      channelType: json['channelType'] ?? 'world',
+      channelType: json['channelType'] ?? '',
       channelId: (json['channelId'] ?? '').toString(),
       fromUserId: (json['fromUserId'] ?? '').toString(),
       fromDisplayName: json['fromDisplayName'] ?? 'Player',

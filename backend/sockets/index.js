@@ -64,8 +64,6 @@ const initSocket = (io) => {
 
   io.on('connection', async (socket) => {
     registerSocket(socket.userId, socket.id);
-    // ทุกคนอยู่ห้องโลกเสมอ
-    socket.join('world');
 
     // ถ้าอยู่ปาร์ตี้อยู่แล้วตอน connect (เช่น เปิดแอพใหม่/reconnect หลัง backend sleep) ก็ join ห้อง
     // แชทปาร์ตี้ให้ทันที ไม่ต้องรอ action อะไรก่อน — join/:partyId, start, complete, leave ใน
@@ -88,20 +86,6 @@ const initSocket = (io) => {
         }
         if (text.length > 1000) {
           if (ack) ack({ ok: false, message: 'Message is too long' });
-          return;
-        }
-
-        if (channelType === 'world') {
-          const message = await ChatMessage.create({
-            channelType: 'world',
-            channelId: 'world',
-            fromUserId: socket.userId,
-            text,
-          });
-          const fromUser = await User.findById(socket.userId).select('displayName');
-          const outgoing = toMessagePayload(message, fromUser);
-          io.to('world').emit('chat:message', outgoing);
-          if (ack) ack({ ok: true, message: outgoing });
           return;
         }
 

@@ -1,9 +1,8 @@
 const mongoose = require('mongoose');
 
 // ข้อความแชท — คอลเลกชันเดียวแยกด้วย channelType เหมือน Notification.js แยกด้วย type
-// (ไม่ทำ 3 model แยกกันสำหรับโลก/ปาร์ตี้/เพื่อน เพราะ shape เหมือนกันหมด ต่างกันแค่ channelId หมายถึง
-// อะไร):
-//   channelType 'world'  -> channelId คงที่ 'world' เสมอ
+// (ไม่ทำ model แยกกันสำหรับปาร์ตี้/เพื่อน เพราะ shape เหมือนกันหมด ต่างกันแค่ channelId หมายถึง
+// อะไร) — World chat ถูกถอดออกแล้ว (ข้อความ 'world' เก่าใน DB ยังอยู่ แต่ไม่มีทางอ่าน/เขียนแล้ว):
 //   channelType 'party'  -> channelId = Party._id.toString()
 //   channelType 'friend' -> channelId = pairKey(userA, userB) จาก utils/friendKey.js (คีย์เดียวกับที่
 //                           Friendship.pairKey ใช้ — implementation เดียว ไม่เขียนซ้ำ)
@@ -16,7 +15,7 @@ const ChatMessageSchema = new mongoose.Schema(
     channelType: {
       type: String,
       required: true,
-      enum: ['world', 'party', 'friend'],
+      enum: ['party', 'friend'],
       index: true,
     },
     channelId: {

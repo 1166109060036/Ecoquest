@@ -20,7 +20,7 @@ const toMessagePayload = (msg, displayNameById) => ({
   createdAt: msg.createdAt,
 });
 
-// ดึงประวัติของ channel หนึ่ง — ใช้ร่วมกันทั้ง world/party/friend (ต่างกันแค่ query filter)
+// ดึงประวัติของ channel หนึ่ง — ใช้ร่วมกันทั้ง party/friend (ต่างกันแค่ query filter)
 // เรียงใหม่ล่าสุดก่อน (createdAt: -1) แล้ว reverse กลับให้แอพได้ลิสต์เรียงเก่า -> ใหม่ (โชว์ในแชทได้ตรงๆ)
 const fetchHistory = async (filter, { before, limit }) => {
   const query = { ...filter };
@@ -36,20 +36,6 @@ const fetchHistory = async (filter, { before, limit }) => {
 
   return messages.reverse().map((m) => toMessagePayload(m, displayNameById));
 };
-
-// @route   GET /api/chat/world/messages?before=&limit=
-router.get('/world/messages', authMiddleware, async (req, res) => {
-  try {
-    const messages = await fetchHistory(
-      { channelType: 'world', channelId: 'world' },
-      req.query
-    );
-    res.json({ messages });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
 
 // @route   GET /api/chat/party/messages?before=&limit=
 // @desc    ประวัติแชทของห้องปาร์ตี้ที่ req.userId อยู่ตอนนี้ — หา partyId จาก membership จริงเสมอ

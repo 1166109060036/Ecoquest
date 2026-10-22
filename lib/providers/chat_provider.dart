@@ -4,9 +4,9 @@ import '../services/chat_service.dart';
 import '../services/chat_socket_service.dart';
 import '../services/storage_service.dart';
 
-// ถือแชททั้ง 3 แบบ (โลก/ปาร์ตี้/เพื่อน) — เก็บข้อความแยกต่อ channel key เป็น map คีย์ด้วย message id
+// ถือแชททั้ง 2 แบบ (ปาร์ตี้/เพื่อน) — เก็บข้อความแยกต่อ channel key เป็น map คีย์ด้วย message id
 // กันซ้ำตอน reconnect แล้วดึงประวัติ REST ทับของที่ได้จาก socket สดๆ ไปแล้ว
-// key: 'world' / 'party' / 'friend:<friendUserId>' (แชทเพื่อนต้องแยกคีย์ต่อคนคุย ไม่ใช่แค่ 'friend'
+// key: 'party' / 'friend:<friendUserId>' (แชทเพื่อนต้องแยกคีย์ต่อคนคุย ไม่ใช่แค่ 'friend'
 // เฉยๆ เพราะคุยกับเพื่อนได้หลายคน)
 class ChatProvider extends ChangeNotifier {
   final ChatService _service = ChatService();
@@ -44,7 +44,6 @@ class ChatProvider extends ChangeNotifier {
     return list;
   }
 
-  List<ChatMessageModel> get worldMessages => _messagesFor('world');
   List<ChatMessageModel> get partyMessages => _messagesFor('party');
   List<ChatMessageModel> messagesWithFriend(String friendUserId) => _messagesFor('friend:$friendUserId');
 
@@ -75,8 +74,6 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> loadWorldHistory() => _loadHistory('world', _service.fetchWorldHistory);
-
   // ไม่ได้อยู่ปาร์ตี้ตอนนี้ก็แค่เงียบไว้ (errorMessage ยังตั้งไว้ให้ debug ได้ แต่ ChatTab เช็ค
   // PartyProvider.hasParty ก่อนเปิด chip Party ให้กดอยู่แล้ว ไม่ควรมีทางเรียกฟังก์ชันนี้ตอนไม่มีปาร์ตี้)
   Future<void> loadPartyHistory() => _loadHistory('party', _service.fetchPartyHistory);
@@ -102,8 +99,6 @@ class ChatProvider extends ChangeNotifier {
     _isLoadingHistory = false;
     notifyListeners();
   }
-
-  void sendWorldMessage(String text) => _send(channelType: 'world', channelId: 'world', text: text);
 
   // ไม่ต้องส่ง channelId — backend หา partyId เองจาก membership จริงของผู้ส่ง (กันส่งเข้าห้องผิด)
   void sendPartyMessage(String text) => _send(channelType: 'party', text: text);
