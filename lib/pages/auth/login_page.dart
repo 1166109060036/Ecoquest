@@ -34,6 +34,9 @@ class _LoginPageState extends State<LoginPage> {
 
     if (success) {
       Navigator.pushReplacementNamed(context, '/main');
+    } else if (authProvider.unverifiedEmail != null) {
+      Navigator.pushNamed(context, '/verify-email',
+          arguments: {'email': authProvider.unverifiedEmail, 'resend': true});
     } else {
       showBubbleToast(context, authProvider.errorMessage ?? 'Something went wrong');
     }

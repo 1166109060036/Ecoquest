@@ -23,6 +23,9 @@ class _UpgradeAccountPageState extends State<UpgradeAccountPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
+  final _otpController = TextEditingController();
+  // 2 ขั้นในหน้าเดียว: กดครั้งแรก = ส่ง OTP ไปที่อีเมล -> โชว์ช่องกรอก OTP แล้วกดอีกครั้ง = สร้างบัญชีจริง
+  bool _otpSent = false;
 
   @override
   void dispose() {
@@ -30,17 +33,33 @@ class _UpgradeAccountPageState extends State<UpgradeAccountPage> {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmController.dispose();
+    _otpController.dispose();
     super.dispose();
+  }
+
+  Future<void> _sendOtp() async {
+    final authProvider = context.read<AuthProvider>();
+    final success = await authProvider.requestUpgradeOtp(_emailController.text.trim());
+
+    if (!mounted) return;
+
+    if (success) setState(() => _otpSent = true);
+    showBubbleToast(
+      context,
+      success ? 'We sent a 6-digit code to your email' : authProvider.errorMessage ?? 'Failed to send the code',
+    );
   }
 
   Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (!_otpSent) return _sendOtp();
 
     final authProvider = context.read<AuthProvider>();
     final success = await authProvider.upgradeGuest(
       email: _emailController.text.trim(),
       password: _passwordController.text,
       displayName: _nameController.text.trim(),
+      otp: _otpController.text.trim(),
     );
 
     if (!mounted) return;
@@ -142,6 +161,25 @@ class _UpgradeAccountPageState extends State<UpgradeAccountPage> {
                                     return null;
                                   },
                                 ),
+                                if (_otpSent) ...[
+                                  const SizedBox(height: 16),
+                                  _DarkField(
+                                    controller: _otpController,
+                                    label: '6-digit code from your email',
+                                    keyboardType: TextInputType.number,
+                                    validator: (value) => (value ?? '').trim().length == 6
+                                        ? null
+                                        : 'Please enter the 6-digit code',
+                                  ),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: TextButton(
+                                      onPressed: isLoading ? null : _sendOtp,
+                                      style: TextButton.styleFrom(foregroundColor: Colors.white70),
+                                      child: const Text('Resend code'),
+                                    ),
+                                  ),
+                                ],
                                 const SizedBox(height: 24),
                                 ElevatedButton(
                                   onPressed: isLoading ? null : _handleSubmit,
@@ -160,7 +198,7 @@ class _UpgradeAccountPageState extends State<UpgradeAccountPage> {
                                           child: CircularProgressIndicator(
                                               strokeWidth: 2, color: Colors.white),
                                         )
-                                      : const Text('Create Account',
+                                      : Text(_otpSent ? 'Verify & Create Account' : 'Send Verification Code',
                                           style: TextStyle(
                                               fontSize: 15, fontWeight: FontWeight.w600)),
                                 ),

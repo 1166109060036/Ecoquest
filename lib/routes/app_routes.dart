@@ -3,6 +3,7 @@ import '../pages/auth/splash_page.dart';
 import '../pages/auth/login_page.dart';
 import '../pages/auth/register_page.dart';
 import '../pages/auth/forgot_password_page.dart';
+import '../pages/auth/verify_email_page.dart';
 import '../pages/inventory/camera_page.dart';
 import '../pages/inventory/fridge_page.dart';
 import '../pages/inventory/eco_badge_page.dart';
@@ -39,6 +40,8 @@ final Map<String, WidgetBuilder> appRoutes = {
   '/change-password': (context) => const ChangePasswordPage(),
   '/upgrade-account': (context) => const UpgradeAccountPage(),
   '/forgot-password': (context) => const ForgotPasswordPage(),
+  // หลังสมัคร / login บัญชีที่ยังไม่ยืนยันอีเมล — arguments: {'email': String, 'resend': bool}
+  '/verify-email': (context) => const VerifyEmailPage(),
   // dev/QA เท่านั้น — เมนูเข้าถึงอยู่ในหน้า Settings โชว์เฉพาะ user.isAdmin (ดู settings_page.dart)
   '/admin': (context) => const AdminPage(),
 };

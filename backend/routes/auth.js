@@ -24,6 +24,48 @@ const generateOtp = () => crypto.randomInt(100000, 1000000).toString();
 // กรอก OTP ผิดเกินนี้ = OTP นั้นใช้ไม่ได้ ต้องขอใหม่ (13 ต.ค. 2026 — เดิมเดาได้ไม่จำกัด = เข้าบัญชีใครก็ได้ที่รู้อีเมล)
 const MAX_OTP_ATTEMPTS = 5;
 
+// OTP 2 ชุดใน User ใช้ logic เดียวกัน ต่างกันแค่ชื่อฟิลด์ — prefix 'reset' (ลืมรหัสผ่าน) / 'verify' (ยืนยันอีเมล)
+// ตั้ง OTP ใหม่ลง user (caller ต้อง save เอง) แล้วคืน OTP ตัวจริงไว้ส่งอีเมล
+const issueOtp = async (user, prefix) => {
+  const otp = generateOtp();
+  user[`${prefix}OtpHash`] = await bcrypt.hash(otp, await bcrypt.genSalt(10));
+  user[`${prefix}OtpExpires`] = new Date(Date.now() + RESET_OTP_TTL_MS);
+  user[`${prefix}OtpAttempts`] = 0;
+  return otp;
+};
+
+// คืน null = OTP ถูก (ล้าง OTP ใน user แล้ว ใช้ได้ครั้งเดียว — caller ต้อง save) / string = ข้อความ error
+const checkOtp = async (user, prefix, otp) => {
+  const hashKey = `${prefix}OtpHash`;
+  const expiresKey = `${prefix}OtpExpires`;
+  const attemptsKey = `${prefix}OtpAttempts`;
+  if (!user[hashKey] || !user[expiresKey] || user[expiresKey] < new Date()) {
+    return 'Invalid or expired OTP';
+  }
+
+  if (!(await bcrypt.compare(String(otp), user[hashKey]))) {
+    // นับครั้งที่ผิดแบบ atomic ($inc) — ครบ MAX_OTP_ATTEMPTS ล้าง OTP ทิ้ง ต้องขอใหม่ (ขอใหม่ได้นาทีละครั้ง)
+    const updated = await User.findOneAndUpdate(
+      { _id: user._id, [hashKey]: user[hashKey] },
+      { $inc: { [attemptsKey]: 1 } },
+      { new: true, projection: { [attemptsKey]: 1 } }
+    );
+    if (updated && updated[attemptsKey] >= MAX_OTP_ATTEMPTS) {
+      await User.updateOne(
+        { _id: user._id },
+        { $set: { [hashKey]: null, [expiresKey]: null, [attemptsKey]: 0 } }
+      );
+      return 'Too many wrong codes. Please request a new OTP';
+    }
+    return 'Invalid or expired OTP';
+  }
+
+  user[hashKey] = null;
+  user[expiresKey] = null;
+  user[attemptsKey] = 0;
+  return null;
+};
+
 // ---- จำกัดจำนวนครั้ง (utils/rateLimit.js) — ค่าเผื่อไว้กว้างพอสำหรับ wifi มหาลัยที่หลายคนใช้ IP เดียวกัน ----
 const loginFails = limiter('login-fail', { windowMs: 15 * 60 * 1000, max: 10 }); // ล็อกอินผิด ต่อ IP+อีเมล
 const otpSendMinute = limiter('otp-send-1m', { windowMs: 60 * 1000, max: 1 }); // ขอ OTP ต่ออีเมล
@@ -35,11 +77,24 @@ const limitGuest = limitBy('guest', { windowMs: 60 * 60 * 1000, max: 20 }, byIp,
 const limitOtpIp = limitBy('otp-ip', { windowMs: 15 * 60 * 1000, max: 30 }, byIp);
 const limitAvatar = limitBy('avatar', { windowMs: 60 * 60 * 1000, max: 20 }, byUser);
 
+// ขอ OTP ได้นาทีละครั้ง / ชั่วโมงละ 5 ครั้งต่ออีเมล (ทุก flow รวมกัน) — คืน true = ตอบ 429 ไปแล้ว
+const otpSendBlocked = (res, emailKey) => {
+  if (otpSendMinute.blocked(emailKey) || otpSendHour.blocked(emailKey)) {
+    const wait = otpSendHour.blocked(emailKey) ? otpSendHour.retryAfter(emailKey) : otpSendMinute.retryAfter(emailKey);
+    tooMany(res, wait, 'Please wait a moment before requesting another OTP');
+    return true;
+  }
+  otpSendMinute.hit(emailKey);
+  otpSendHour.hit(emailKey);
+  return false;
+};
+
 // email/password ต้องเป็น string — ส่ง object/array มา (เช่น { "$gt": "" }) ตอบ 400 แทนพังเป็น 500
 const isText = (v) => typeof v === 'string' && v.length > 0 && v.length <= 200;
 
 // @route   POST /api/auth/register
-// @desc    สมัครสมาชิกด้วย email + password
+// @desc    สมัครสมาชิกด้วย email + password — ยังไม่ให้ token จนกว่าจะยืนยัน OTP ที่ส่งไปทางอีเมล
+//          (POST /verify-email) กันสมัครด้วยอีเมลคนอื่น/อีเมลมั่ว
 router.post('/register', limitRegister, async (req, res) => {
   try {
     const { email, password, displayName } = req.body;
@@ -51,32 +106,33 @@ router.post('/register', limitRegister, async (req, res) => {
       return res.status(400).json({ message: 'Password must be at least 6 characters' });
     }
 
-    const existingUser = await User.findOne({ email: email.toLowerCase() });
-    if (existingUser) {
+    const normalizedEmail = email.toLowerCase().trim();
+    // เจอบัญชีที่ยังไม่ยืนยัน = สมัครค้างไว้ (ไม่เคยได้ token) -> เขียนทับด้วยข้อมูลใหม่ได้เลย
+    // ไม่งั้นใครพิมพ์อีเมลคนอื่นสมัครทิ้งไว้ เจ้าของอีเมลจริงจะสมัครไม่ได้อีก
+    let user = await User.findOne({ email: normalizedEmail });
+    if (user && user.emailVerified !== false) {
       return res.status(409).json({ message: 'This email is already registered' });
     }
+    if (otpSendBlocked(res, normalizedEmail)) return;
 
     const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    if (!user) user = new User({ email: normalizedEmail, isGuest: false, emailVerified: false });
+    user.password = await bcrypt.hash(password, salt);
+    user.displayName = displayName || normalizedEmail.split('@')[0];
+    const otp = await issueOtp(user, 'verify');
 
-    const user = await User.create({
-      email,
-      password: hashedPassword,
-      displayName: displayName || email.split('@')[0],
-      isGuest: false,
-    });
+    try {
+      await user.save();
+    } catch (err) {
+      if (err.code === 11000) {
+        return res.status(409).json({ message: 'This email is already registered' });
+      }
+      throw err;
+    }
 
-    const token = generateToken(user._id);
+    await sendOtpEmail(user.email, otp, 'verify');
 
-    res.status(201).json({
-      token,
-      user: {
-        id: user._id,
-        email: user.email,
-        displayName: user.displayName,
-        isGuest: user.isGuest,
-      },
-    });
+    res.status(201).json({ needsVerification: true, email: user.email });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
@@ -111,6 +167,15 @@ router.post('/login', limitLoginIp, async (req, res) => {
       return res.status(401).json({ message: 'Incorrect email or password' });
     }
     loginFails.reset(failKey);
+
+    // รหัสผ่านถูกแต่ยังไม่ยืนยันอีเมล — แอพเอา needsVerification ไปเปิดหน้ากรอก OTP ต่อ
+    if (user.emailVerified === false) {
+      return res.status(403).json({
+        message: 'Please verify your email first',
+        needsVerification: true,
+        email: user.email,
+      });
+    }
 
     const token = generateToken(user._id);
 
@@ -307,19 +372,58 @@ router.post('/notification-preference', authMiddleware, async (req, res) => {
   }
 });
 
+// @route   POST /api/auth/upgrade-guest/send-otp
+// @desc    ขั้นแรกของ upgrade guest — ส่ง OTP ไปที่อีเมลที่จะใช้ (ต้องยืนยันก่อน /upgrade-guest เหมือนสมัครปกติ)
+router.post('/upgrade-guest/send-otp', authMiddleware, limitOtpIp, async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!isText(email)) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+
+    const user = await User.findById(req.userId).select('-avatarData');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    if (!user.isGuest) {
+      return res.status(400).json({ message: 'This account is already registered' });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+    const emailTaken = await User.findOne({ email: normalizedEmail });
+    if (emailTaken && emailTaken.emailVerified !== false) {
+      return res.status(409).json({ message: 'This email is already registered' });
+    }
+    if (otpSendBlocked(res, normalizedEmail)) return;
+
+    user.pendingEmail = normalizedEmail;
+    const otp = await issueOtp(user, 'verify');
+    await user.save();
+    await sendOtpEmail(normalizedEmail, otp, 'verify');
+
+    res.json({ message: 'We have sent a code to your email' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Failed to send OTP. Please try again' });
+  }
+});
+
 // @route   POST /api/auth/upgrade-guest
 // @desc    เปลี่ยนบัญชี Guest ให้เป็นบัญชีปกติ (ตั้ง email + password + ชื่อ)
 // สำคัญ: ใช้ _id เดิม ไม่ได้สร้าง user ใหม่ — points / XP / ประวัติ quest / ของในตู้เย็น เลยติดมาครบ
 // token เดิมก็ยังใช้ได้ต่อ เพราะข้างในเก็บ userId ซึ่งไม่ได้เปลี่ยน
 router.post('/upgrade-guest', authMiddleware, async (req, res) => {
   try {
-    const { email, password, displayName } = req.body;
+    const { email, password, displayName, otp } = req.body;
 
     if (!isText(email) || !isText(password)) {
       return res.status(400).json({ message: 'Email and password are required' });
     }
     if (password.length < 6) {
       return res.status(400).json({ message: 'Password must be at least 6 characters' });
+    }
+    if (!isText(String(otp ?? ''))) {
+      return res.status(400).json({ message: 'Please enter the code we sent to your email' });
     }
 
     // -avatarData กัน Buffer รูปโปรไฟล์ถูกดึงมาโดยไม่ได้ใช้ (route นี้ไม่เกี่ยวกับรูปเลย)
@@ -334,11 +438,23 @@ router.post('/upgrade-guest', authMiddleware, async (req, res) => {
     const normalizedEmail = email.toLowerCase().trim();
 
     const emailTaken = await User.findOne({ email: normalizedEmail });
-    if (emailTaken) {
+    if (emailTaken && emailTaken.emailVerified !== false) {
       return res.status(409).json({ message: 'This email is already registered' });
     }
 
+    // OTP ต้องเป็นของอีเมลเดียวกับที่ขอไว้ใน /upgrade-guest/send-otp
+    if (user.pendingEmail !== normalizedEmail) {
+      return res.status(400).json({ message: 'Please request a code for this email first' });
+    }
+    const otpError = await checkOtp(user, 'verify', otp);
+    if (otpError) {
+      return res.status(400).json({ message: otpError });
+    }
+    // บัญชีสมัครค้างที่ยังไม่ยืนยันอีเมลนี้ (ไม่เคยได้ token ไม่มีความคืบหน้า) — ลบทิ้งให้ guest ใช้อีเมลนี้แทน
+    if (emailTaken) await emailTaken.deleteOne();
+
     const salt = await bcrypt.genSalt(10);
+    user.pendingEmail = null;
     user.email = normalizedEmail;
     user.password = await bcrypt.hash(password, salt);
     user.displayName = (displayName || '').trim() || normalizedEmail.split('@')[0];
@@ -432,6 +548,72 @@ router.post('/change-password', authMiddleware, async (req, res) => {
   }
 });
 
+// @route   POST /api/auth/resend-verification
+// @desc    ขอ OTP ยืนยันอีเมลใหม่ (OTP หมดอายุ / มาจากหน้า login ของบัญชีที่ยังไม่ยืนยัน)
+router.post('/resend-verification', limitOtpIp, async (req, res) => {
+  // ตอบเหมือนกันทุกกรณีเหมือน /forgot-password — ไม่บอกใบ้ว่าอีเมลนี้สมัครค้างไว้ไหม
+  const genericResponse = { message: 'If this email is waiting for verification, we have sent a code to it' };
+  try {
+    const { email } = req.body;
+    if (!isText(email)) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+
+    const emailKey = email.toLowerCase().trim();
+    if (otpSendBlocked(res, emailKey)) return;
+
+    const user = await User.findOne({ email: emailKey, isGuest: false, emailVerified: false });
+    if (!user) {
+      return res.json(genericResponse);
+    }
+
+    const otp = await issueOtp(user, 'verify');
+    await user.save();
+    await sendOtpEmail(user.email, otp, 'verify');
+
+    res.json(genericResponse);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Failed to send OTP. Please try again' });
+  }
+});
+
+// @route   POST /api/auth/verify-email
+// @desc    ยืนยัน OTP ที่ส่งไปตอนสมัคร — ผ่านแล้วได้ token เข้าแอพเหมือน login
+router.post('/verify-email', limitOtpIp, async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!isText(email) || !isText(String(otp ?? ''))) {
+      return res.status(400).json({ message: 'Email and OTP are required' });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase().trim(), isGuest: false, emailVerified: false });
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid or expired OTP' });
+    }
+    const otpError = await checkOtp(user, 'verify', otp);
+    if (otpError) {
+      return res.status(400).json({ message: otpError });
+    }
+
+    user.emailVerified = true;
+    await user.save();
+
+    res.json({
+      token: generateToken(user._id),
+      user: {
+        id: user._id,
+        email: user.email,
+        displayName: user.displayName,
+        isGuest: user.isGuest,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // @route   POST /api/auth/forgot-password
 // @desc    ขอ OTP ไปยังอีเมล เพื่อใช้ตั้งรหัสผ่านใหม่ (ลืมรหัสผ่าน)
 router.post('/forgot-password', limitOtpIp, async (req, res) => {
@@ -444,26 +626,16 @@ router.post('/forgot-password', limitOtpIp, async (req, res) => {
       return res.status(400).json({ message: 'Email is required' });
     }
 
-    // ขอ OTP ได้นาทีละครั้ง / ชั่วโมงละ 5 ครั้งต่ออีเมล — เช็คก่อนค้นหา user ไม่ว่าอีเมลนี้มีจริงไหม
-    // (ตอบเหมือนกันทุกกรณี ไม่บอกใบ้ว่าอีเมลนี้สมัครไว้)
+    // เช็ค rate limit ก่อนค้นหา user ไม่ว่าอีเมลนี้มีจริงไหม (ตอบเหมือนกันทุกกรณี ไม่บอกใบ้ว่าอีเมลนี้สมัครไว้)
     const emailKey = email.toLowerCase().trim();
-    if (otpSendMinute.blocked(emailKey) || otpSendHour.blocked(emailKey)) {
-      const wait = otpSendHour.blocked(emailKey) ? otpSendHour.retryAfter(emailKey) : otpSendMinute.retryAfter(emailKey);
-      return tooMany(res, wait, 'Please wait a moment before requesting another OTP');
-    }
-    otpSendMinute.hit(emailKey);
-    otpSendHour.hit(emailKey);
+    if (otpSendBlocked(res, emailKey)) return;
 
     const user = await User.findOne({ email: emailKey, isGuest: false });
     if (!user) {
       return res.json(genericResponse);
     }
 
-    const otp = generateOtp();
-    const salt = await bcrypt.genSalt(10);
-    user.resetOtpHash = await bcrypt.hash(otp, salt);
-    user.resetOtpExpires = new Date(Date.now() + RESET_OTP_TTL_MS);
-    user.resetOtpAttempts = 0;
+    const otp = await issueOtp(user, 'reset');
     await user.save();
 
     await sendOtpEmail(user.email, otp);
@@ -485,32 +657,13 @@ router.post('/verify-reset-otp', limitOtpIp, async (req, res) => {
     }
 
     const user = await User.findOne({ email: email.toLowerCase(), isGuest: false });
-    if (!user || !user.resetOtpHash || !user.resetOtpExpires || user.resetOtpExpires < new Date()) {
+    if (!user) {
       return res.status(400).json({ message: 'Invalid or expired OTP' });
     }
-
-    const isMatch = await bcrypt.compare(String(otp), user.resetOtpHash);
-    if (!isMatch) {
-      // นับครั้งที่ผิดแบบ atomic ($inc) — ครบ MAX_OTP_ATTEMPTS ล้าง OTP ทิ้ง ต้องขอใหม่ (ขอใหม่ได้นาทีละครั้ง)
-      const updated = await User.findOneAndUpdate(
-        { _id: user._id, resetOtpHash: user.resetOtpHash },
-        { $inc: { resetOtpAttempts: 1 } },
-        { new: true, projection: { resetOtpAttempts: 1 } }
-      );
-      if (updated && updated.resetOtpAttempts >= MAX_OTP_ATTEMPTS) {
-        await User.updateOne(
-          { _id: user._id },
-          { $set: { resetOtpHash: null, resetOtpExpires: null, resetOtpAttempts: 0 } }
-        );
-        return res.status(400).json({ message: 'Too many wrong codes. Please request a new OTP' });
-      }
-      return res.status(400).json({ message: 'Invalid or expired OTP' });
+    const otpError = await checkOtp(user, 'reset', otp);
+    if (otpError) {
+      return res.status(400).json({ message: otpError });
     }
-
-    // ใช้ OTP ได้ครั้งเดียว — ล้างทิ้งทันทีที่ยืนยันผ่าน กันเอาไปใช้ซ้ำ
-    user.resetOtpHash = null;
-    user.resetOtpExpires = null;
-    user.resetOtpAttempts = 0;
     await user.save();
 
     const resetToken = jwt.sign(

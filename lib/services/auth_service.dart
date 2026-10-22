@@ -6,11 +6,23 @@ import '../models/profile_model.dart';
 import '../utils/constants.dart';
 import 'storage_service.dart';
 
+// login ด้วยรหัสผ่านถูกแต่ยังไม่ยืนยันอีเมล (backend ตอบ 403 needsVerification) — หน้า Login ใช้ email
+// ไปเปิดหน้ากรอก OTP ต่อ / toString แบบ Exception ปกติ ให้ provider ตัด 'Exception: ' ไปโชว์ได้เหมือนเดิม
+class EmailNotVerifiedException implements Exception {
+  final String email;
+  final String message;
+  EmailNotVerifiedException(this.email, this.message);
+
+  @override
+  String toString() => 'Exception: $message';
+}
+
 // รวม logic การเรียก API ฝั่ง auth ทั้งหมด (register / login / guest / logout)
 class AuthService {
   final StorageService _storage = StorageService();
 
-  Future<UserModel> register({
+  // สมัครแล้วยังไม่ได้ token — backend ส่ง OTP ไปที่อีเมล ต้องยืนยันด้วย verifyEmail() ก่อนถึงจะเข้าแอพได้
+  Future<void> register({
     required String email,
     required String password,
     String? displayName,
@@ -30,10 +42,37 @@ class AuthService {
     if (response.statusCode != 201) {
       throw Exception(data['message'] ?? 'Sign up failed');
     }
+  }
+
+  // ยืนยัน OTP ที่ได้ตอนสมัคร -> ได้ token เหมือน login
+  Future<UserModel> verifyEmail({required String email, required String otp}) async {
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/auth/verify-email'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email, 'otp': otp}),
+    );
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode != 200) {
+      throw Exception(data['message'] ?? 'Invalid or expired OTP');
+    }
 
     final user = UserModel.fromJson(data['user']);
     await _storage.saveSession(data['token'], user);
     return user;
+  }
+
+  Future<void> resendVerificationOtp({required String email}) async {
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/auth/resend-verification'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email}),
+    );
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode != 200) {
+      throw Exception(data['message'] ?? 'Failed to send OTP');
+    }
   }
 
   Future<UserModel> login({
@@ -48,6 +87,9 @@ class AuthService {
 
     final data = jsonDecode(response.body);
 
+    if (response.statusCode == 403 && data['needsVerification'] == true) {
+      throw EmailNotVerifiedException(data['email'] ?? email, data['message'] ?? 'Please verify your email first');
+    }
     if (response.statusCode != 200) {
       throw Exception(data['message'] ?? 'Sign in failed');
     }
@@ -169,10 +211,29 @@ class AuthService {
 
   // เปลี่ยนบัญชี Guest เป็นบัญชีปกติ — ใช้ user เดิม ข้อมูลความคืบหน้าทั้งหมดติดมาด้วย
   // token เดิมยังใช้ได้ต่อ (userId ไม่เปลี่ยน) เลยแค่อัปเดต user ที่ cache ไว้พอ
+  // ขั้นแรกของ upgrade — ขอ OTP ไปที่อีเมลที่จะใช้ (ต้องยืนยันอีเมลเหมือนสมัครปกติ)
+  Future<void> requestUpgradeOtp({required String email}) async {
+    final token = await _storage.getToken();
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/auth/upgrade-guest/send-otp'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'email': email}),
+    );
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode != 200) {
+      throw Exception(data['message'] ?? 'Failed to send OTP');
+    }
+  }
+
   Future<UserModel> upgradeGuest({
     required String email,
     required String password,
     required String displayName,
+    required String otp,
   }) async {
     final token = await _storage.getToken();
     final response = await http.post(
@@ -185,6 +246,7 @@ class AuthService {
         'email': email,
         'password': password,
         'displayName': displayName,
+        'otp': otp,
       }),
     );
 

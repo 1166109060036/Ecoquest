@@ -41,7 +41,8 @@ class _RegisterPageState extends State<RegisterPage> {
     if (!mounted) return;
 
     if (success) {
-      Navigator.pushReplacementNamed(context, '/main');
+      Navigator.pushReplacementNamed(context, '/verify-email',
+          arguments: {'email': _emailController.text.trim(), 'resend': false});
     } else {
       showBubbleToast(context, authProvider.errorMessage ?? 'Something went wrong');
     }

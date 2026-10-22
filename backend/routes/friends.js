@@ -34,6 +34,7 @@ router.get('/search', authMiddleware, async (req, res) => {
     const users = await User.find({
       displayName: { $regex: escaped, $options: 'i' },
       _id: { $ne: req.userId },
+      emailVerified: { $ne: false }, // บัญชีสมัครค้างที่ยังไม่ยืนยันอีเมล ไม่ใช่ผู้เล่นจริง
     })
       .select(PUBLIC_FIELDS)
       .limit(20);

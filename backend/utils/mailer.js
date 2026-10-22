@@ -11,12 +11,19 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-const sendOtpEmail = async (to, otp) => {
+// purpose: 'reset' (ลืมรหัสผ่าน) / 'verify' (ยืนยันอีเมลตอนสมัคร)
+const COPY = {
+  reset: { subject: 'Your EcoQuest password reset code', action: 'a password reset' },
+  verify: { subject: 'Verify your EcoQuest email', action: 'an EcoQuest account' },
+};
+
+const sendOtpEmail = async (to, otp, purpose = 'reset') => {
+  const { subject, action } = COPY[purpose];
   await transporter.sendMail({
     from: `"EcoQuest" <${process.env.GMAIL_USER}>`,
     to,
-    subject: 'Your EcoQuest password reset code',
-    text: `Your OTP code is ${otp}\n\nThis code expires in 10 minutes.\nIf you did not request a password reset, please ignore this email.`,
+    subject,
+    text: `Your OTP code is ${otp}\n\nThis code expires in 10 minutes.\nIf you did not request ${action}, please ignore this email.`,
   });
 };
 

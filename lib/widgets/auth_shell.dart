@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../utils/constants.dart';
 import 'falling_leaves_overlay.dart';
 import 'pressable_scale.dart';
@@ -422,6 +423,89 @@ class AuthSwitchLink extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 6),
           ),
           child: Text(action, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+        ),
+      ],
+    );
+  }
+}
+
+// ช่องกรอก OTP 6 หลัก + ปุ่มยืนยัน — ใช้ร่วมกันระหว่างหน้าลืมรหัสผ่านกับหน้ายืนยันอีเมลตอนสมัคร
+class AuthOtpStep extends StatelessWidget {
+  final String email;
+  final TextEditingController controller;
+  final bool isLoading;
+  final VoidCallback onSubmit;
+  final VoidCallback onBack;
+  final String backLabel;
+
+  const AuthOtpStep({
+    super.key,
+    required this.email,
+    required this.controller,
+    required this.isLoading,
+    required this.onSubmit,
+    required this.onBack,
+    this.backLabel = 'Change email / resend code',
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.18)),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text.rich(
+          TextSpan(
+            children: [
+              const TextSpan(text: 'Enter the 6-digit code we sent to\n'),
+              TextSpan(
+                text: email,
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 13.5, height: 1.4),
+        ),
+        const SizedBox(height: 18),
+        TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          maxLength: 6,
+          autofocus: true,
+          textAlign: TextAlign.center,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          autofillHints: const [AutofillHints.oneTimeCode],
+          onSubmitted: (_) => isLoading ? null : onSubmit(),
+          cursorColor: Colors.greenAccent,
+          style: const TextStyle(color: Colors.white, fontSize: 28, letterSpacing: 12, fontWeight: FontWeight.bold),
+          decoration: InputDecoration(
+            counterText: '',
+            hintText: '······',
+            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.35), letterSpacing: 12),
+            filled: true,
+            fillColor: Colors.white.withValues(alpha: 0.10),
+            contentPadding: const EdgeInsets.symmetric(vertical: 16),
+            enabledBorder: border,
+            focusedBorder: border.copyWith(borderSide: const BorderSide(color: Colors.greenAccent, width: 1.5)),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          "Didn't get it? Check your spam folder.",
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12),
+        ),
+        const SizedBox(height: 16),
+        AuthPrimaryButton(label: 'Verify code', loading: isLoading, onPressed: onSubmit),
+        const SizedBox(height: 4),
+        TextButton(
+          onPressed: isLoading ? null : onBack,
+          style: TextButton.styleFrom(foregroundColor: Colors.white.withValues(alpha: 0.85)),
+          child: Text(backLabel),
         ),
       ],
     );

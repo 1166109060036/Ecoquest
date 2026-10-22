@@ -15,8 +15,11 @@ class AuthProvider extends ChangeNotifier {
   bool _isProfileLoading = false;
   bool _isUpdatingAvatar = false;
   String? _errorMessage;
+  // login ล่าสุดไม่ผ่านเพราะยังไม่ยืนยันอีเมล -> อีเมลที่ต้องไปกรอก OTP (null = ไม่ใช่กรณีนี้)
+  String? _unverifiedEmail;
 
   UserModel? get user => _user;
+  String? get unverifiedEmail => _unverifiedEmail;
   // ข้อมูล level/xp/streak/สถิติ จาก GET /auth/me — null = ยังโหลดไม่เสร็จ (หรือโหลดไม่ได้)
   ProfileData? get profile => _profile;
   bool get isLoading => _isLoading;
@@ -57,16 +60,33 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // สำเร็จ = ส่ง OTP ไปที่อีเมลแล้ว ยังไม่ได้ login — หน้า Register พาไปหน้า /verify-email ต่อ
   Future<bool> register(String email, String password, {String? displayName}) async {
-    return _runAuthAction(() => _authService.register(
+    return _runAction(() => _authService.register(
           email: email,
           password: password,
           displayName: displayName,
         ));
   }
 
+  Future<bool> verifyEmail(String email, String otp) async {
+    return _runAuthAction(() => _authService.verifyEmail(email: email, otp: otp));
+  }
+
+  Future<bool> resendVerificationOtp(String email) async {
+    return _runAction(() => _authService.resendVerificationOtp(email: email));
+  }
+
   Future<bool> login(String email, String password) async {
-    return _runAuthAction(() => _authService.login(email: email, password: password));
+    _unverifiedEmail = null;
+    return _runAuthAction(() async {
+      try {
+        return await _authService.login(email: email, password: password);
+      } on EmailNotVerifiedException catch (e) {
+        _unverifiedEmail = e.email;
+        rethrow;
+      }
+    });
   }
 
   Future<bool> loginAsGuest() async {
@@ -114,10 +134,15 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // Guest -> บัญชีปกติ (ตั้ง email/password/ชื่อ) — ใช้ _runAuthAction ไม่ได้เพราะต้องรีเฟรชโปรไฟล์ต่อด้วย
+  Future<bool> requestUpgradeOtp(String email) async {
+    return _runAction(() => _authService.requestUpgradeOtp(email: email));
+  }
+
   Future<bool> upgradeGuest({
     required String email,
     required String password,
     required String displayName,
+    required String otp,
   }) async {
     _isLoading = true;
     _errorMessage = null;
@@ -128,6 +153,7 @@ class AuthProvider extends ChangeNotifier {
         email: email,
         password: password,
         displayName: displayName,
+        otp: otp,
       );
       _isLoading = false;
       notifyListeners();

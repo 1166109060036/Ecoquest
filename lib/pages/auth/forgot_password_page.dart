@@ -135,7 +135,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                       isLoading: isLoading,
                       onSubmit: _handleRequestOtp,
                     ),
-                    _Step.otp => _OtpStep(
+                    _Step.otp => AuthOtpStep(
                       email: _emailController.text.trim(),
                       controller: _otpController,
                       isLoading: isLoading,
@@ -271,85 +271,6 @@ class _EmailStep extends StatelessWidget {
           AuthPrimaryButton(label: 'Send code', loading: isLoading, onPressed: onSubmit),
         ],
       ),
-    );
-  }
-}
-
-class _OtpStep extends StatelessWidget {
-  final String email;
-  final TextEditingController controller;
-  final bool isLoading;
-  final VoidCallback onSubmit;
-  final VoidCallback onBack;
-
-  const _OtpStep({
-    required this.email,
-    required this.controller,
-    required this.isLoading,
-    required this.onSubmit,
-    required this.onBack,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final border = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(16),
-      borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.18)),
-    );
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text.rich(
-          TextSpan(
-            children: [
-              const TextSpan(text: 'Enter the 6-digit code we sent to\n'),
-              TextSpan(
-                text: email,
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-              ),
-            ],
-          ),
-          textAlign: TextAlign.center,
-          style: _hintStyle,
-        ),
-        const SizedBox(height: 18),
-        TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          maxLength: 6,
-          autofocus: true,
-          textAlign: TextAlign.center,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          autofillHints: const [AutofillHints.oneTimeCode],
-          onSubmitted: (_) => isLoading ? null : onSubmit(),
-          cursorColor: Colors.greenAccent,
-          style: const TextStyle(color: Colors.white, fontSize: 28, letterSpacing: 12, fontWeight: FontWeight.bold),
-          decoration: InputDecoration(
-            counterText: '',
-            hintText: '······',
-            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.35), letterSpacing: 12),
-            filled: true,
-            fillColor: Colors.white.withValues(alpha: 0.10),
-            contentPadding: const EdgeInsets.symmetric(vertical: 16),
-            enabledBorder: border,
-            focusedBorder: border.copyWith(borderSide: const BorderSide(color: Colors.greenAccent, width: 1.5)),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          "Didn't get it? Check your spam folder.",
-          textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12),
-        ),
-        const SizedBox(height: 16),
-        AuthPrimaryButton(label: 'Verify code', loading: isLoading, onPressed: onSubmit),
-        const SizedBox(height: 4),
-        TextButton(
-          onPressed: isLoading ? null : onBack,
-          style: TextButton.styleFrom(foregroundColor: Colors.white.withValues(alpha: 0.85)),
-          child: const Text('Change email / resend code'),
-        ),
-      ],
     );
   }
 }

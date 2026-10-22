@@ -138,6 +138,16 @@ const UserSchema = new mongoose.Schema(
     // จำนวนครั้งที่กรอก OTP ผิดของ OTP ปัจจุบัน — ครบ 5 = ล้าง OTP ทิ้ง (routes/auth.js)
     resetOtpAttempts: { type: Number, default: 0 },
 
+    // ---- ยืนยันอีเมลด้วย OTP ตอนสมัคร (22 ต.ค. 2026) ----
+    // default true = บัญชีที่สมัครก่อนมีฟีเจอร์นี้ (ไม่มีฟิลด์ใน DB) ถือว่ายืนยันแล้ว — /register ตั้ง false เอง
+    // บัญชีที่ยัง false ไม่เคยได้ token เลย (ไม่มีความคืบหน้า) เลยเขียนทับ/ลบได้ปลอดภัยถ้ามีคนสมัครอีเมลนี้ใหม่
+    emailVerified: { type: Boolean, default: true },
+    verifyOtpHash: { type: String, default: null },
+    verifyOtpExpires: { type: Date, default: null },
+    verifyOtpAttempts: { type: Number, default: 0 },
+    // อีเมลที่ guest ขอ OTP ไว้ตอนจะ upgrade — OTP ผูกกับอีเมลนี้ กันขอ OTP อีเมลตัวเองแล้วไปใช้กับอีเมลคนอื่น
+    pendingEmail: { type: String, default: null },
+
     organization: { type: OrganizationSchema, default: () => ({}) },
   },
   { timestamps: true }
