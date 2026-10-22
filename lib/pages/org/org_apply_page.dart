@@ -23,6 +23,9 @@ class _OrgApplyPageState extends State<OrgApplyPage> {
   final _name = TextEditingController();
   final _description = TextEditingController();
   final _email = TextEditingController();
+  final _otp = TextEditingController();
+  // ส่งคำขอ 2 ขั้น: กดครั้งแรก = ส่ง OTP ไปอีเมลบัญชี -> โชว์ช่องกรอกรหัส แล้วกดอีกครั้ง = ส่งคำขอจริง
+  bool _otpSent = false;
   String _orgType = 'npo';
   OrgProfile? _org;
   bool _canApply = false;
@@ -42,6 +45,7 @@ class _OrgApplyPageState extends State<OrgApplyPage> {
     _name.dispose();
     _description.dispose();
     _email.dispose();
+    _otp.dispose();
     super.dispose();
   }
 
@@ -57,7 +61,8 @@ class _OrgApplyPageState extends State<OrgApplyPage> {
         // สมัครใหม่หลังไม่ผ่าน — เติมข้อมูลเดิมให้แก้ต่อ
         if (_name.text.isEmpty) _name.text = r.org.name;
         if (_description.text.isEmpty) _description.text = r.org.description;
-        if (_email.text.isEmpty) _email.text = r.org.contactEmail.isNotEmpty ? r.org.contactEmail : r.email;
+        // อีเมลติดต่อล็อกเป็นอีเมลบัญชี (แก้ไม่ได้) — backend ใช้อีเมลบัญชีเสมอ
+        _email.text = r.email;
         if (orgTypeLabels.containsKey(r.org.orgType)) _orgType = r.org.orgType;
       });
     } catch (e) {
@@ -78,7 +83,6 @@ class _OrgApplyPageState extends State<OrgApplyPage> {
         name: _name.text.trim(),
         orgType: _orgType,
         description: _description.text.trim(),
-        contactEmail: _email.text.trim(),
       );
       if (!mounted) return;
       showBubbleToast(context, 'Saved');
@@ -98,15 +102,30 @@ class _OrgApplyPageState extends State<OrgApplyPage> {
     }
   }
 
+  Future<void> _sendOtp() async {
+    setState(() => _saving = true);
+    try {
+      await _service.sendApplyOtp();
+      if (!mounted) return;
+      setState(() => _otpSent = true);
+      showBubbleToast(context, 'We sent a 6-digit code to ${_email.text}');
+    } catch (e) {
+      if (mounted) showBubbleToast(context, e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (!_otpSent) return _sendOtp();
     setState(() => _saving = true);
     try {
       final org = await _service.apply(
         name: _name.text.trim(),
         orgType: _orgType,
         description: _description.text.trim(),
-        contactEmail: _email.text.trim(),
+        otp: _otp.text.trim(),
       );
       if (!mounted) return;
       setState(() => _org = org);
@@ -265,12 +284,12 @@ class _OrgApplyPageState extends State<OrgApplyPage> {
         style: TextStyle(color: Colors.grey.shade700, height: 1.4),
       ),
       const SizedBox(height: 18),
-      _form('Send request', _submit),
+      _form(_otpSent ? 'Verify & send request' : 'Send verification code', _submit, withOtp: true),
     ];
   }
 
-  // ฟอร์มข้อมูลองค์กร — ใช้ทั้งสมัครและแก้ไข
-  Widget _form(String buttonLabel, VoidCallback onSubmit) {
+  // ฟอร์มข้อมูลองค์กร — ใช้ทั้งสมัครและแก้ไข (withOtp = ตอนสมัคร โชว์ช่องรหัสหลังขอ OTP แล้ว)
+  Widget _form(String buttonLabel, VoidCallback onSubmit, {bool withOtp = false}) {
     return Form(
       key: _formKey,
       child: Column(
@@ -300,11 +319,30 @@ class _OrgApplyPageState extends State<OrgApplyPage> {
           const SizedBox(height: 8),
           TextFormField(
             controller: _email,
-            keyboardType: TextInputType.emailAddress,
-            decoration: _decoration('Contact email'),
-            validator: (v) =>
-                RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch((v ?? '').trim()) ? null : 'Enter a valid email',
+            readOnly: true,
+            decoration: _decoration('Contact email').copyWith(
+              helperText: 'Your account email is used as the contact email',
+              suffixIcon: const Icon(Icons.lock_outline, size: 18),
+            ),
           ),
+          if (withOtp && _otpSent) ...[
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _otp,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              autofillHints: const [AutofillHints.oneTimeCode],
+              decoration: _decoration('6-digit code from your email'),
+              validator: (v) => (v ?? '').trim().length == 6 ? null : 'Enter the 6-digit code',
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: _saving ? null : _sendOtp,
+                child: const Text('Resend code'),
+              ),
+            ),
+          ],
           const SizedBox(height: 24),
           ElevatedButton(
             onPressed: _saving ? null : onSubmit,

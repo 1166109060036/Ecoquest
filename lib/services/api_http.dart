@@ -23,17 +23,28 @@ const _timeoutMessage = 'The server is taking too long to respond. Please try ag
 const _offlineMessage = 'Cannot connect to the server. Check your internet connection and try again.';
 const _serverDownMessage = 'The server is unavailable right now. Please try again in a moment.';
 
+// Admin 2FA (22 ต.ค. 2026) — token จาก POST /auth/admin-otp/verify แนบไปทุก request อัตโนมัติ (header
+// X-Admin-Token, ดู backend/middleware/admin.js) ไม่ต้องแก้ทุก service ที่มี action แอดมิน (admin/org/feed/reviews)
+// เก็บในหน่วยความจำเท่านั้น — ปิดแอพ/logout = ต้องยืนยัน OTP ใหม่
+String? adminToken;
+
+Map<String, String>? _withAdmin(Map<String, String>? headers) {
+  final token = adminToken;
+  if (token == null) return headers;
+  return {...?headers, 'X-Admin-Token': token};
+}
+
 Future<http.Response> get(Uri url, {Map<String, String>? headers}) =>
-    _send(() => http.get(url, headers: headers));
+    _send(() => http.get(url, headers: _withAdmin(headers)));
 
 Future<http.Response> post(Uri url, {Map<String, String>? headers, Object? body, Encoding? encoding}) =>
-    _send(() => http.post(url, headers: headers, body: body, encoding: encoding));
+    _send(() => http.post(url, headers: _withAdmin(headers), body: body, encoding: encoding));
 
 Future<http.Response> put(Uri url, {Map<String, String>? headers, Object? body, Encoding? encoding}) =>
-    _send(() => http.put(url, headers: headers, body: body, encoding: encoding));
+    _send(() => http.put(url, headers: _withAdmin(headers), body: body, encoding: encoding));
 
 Future<http.Response> delete(Uri url, {Map<String, String>? headers, Object? body, Encoding? encoding}) =>
-    _send(() => http.delete(url, headers: headers, body: body, encoding: encoding));
+    _send(() => http.delete(url, headers: _withAdmin(headers), body: body, encoding: encoding));
 
 Future<http.Response> _send(Future<http.Response> Function() request) async {
   final http.Response response;
@@ -53,6 +64,10 @@ Future<http.Response> _send(Future<http.Response> Function() request) async {
   final isJson = (response.headers['content-type'] ?? '').contains('application/json');
   if (response.statusCode >= 500 && !isJson) {
     throw Exception(_serverDownMessage);
+  }
+  // admin token หมดอายุ (12 ชม.) — ล้างทิ้ง ให้กด Admin Tools ครั้งถัดไปไปหน้ากรอกรหัสใหม่
+  if (response.statusCode == 403 && response.body.contains('"needsAdminOtp":true')) {
+    adminToken = null;
   }
   return response;
 }

@@ -1,4 +1,3 @@
-const crypto = require('crypto');
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -7,7 +6,8 @@ const authMiddleware = require('../middleware/auth');
 const { sendOtpEmail } = require('../utils/mailer');
 const { buildProfileStats } = require('../utils/profilePayload');
 const { avatarUrlFor, cosmeticsFor } = require('../utils/avatar');
-const { adminEmails } = require('../middleware/admin');
+const { adminEmails, isAllowlistedAdmin, ADMIN_SESSION_TTL } = require('../middleware/admin');
+const { issueOtp, checkOtp, otpSendBlocked } = require('../utils/otp');
 const { decodeImage } = require('../utils/imageUpload');
 const { limiter, limitBy, tooMany, byIp, byUser } = require('../utils/rateLimit');
 const { sweepQuietly } = require('../utils/submissions');
@@ -18,76 +18,14 @@ const generateToken = (userId) => {
   return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '30d' });
 };
 
-const RESET_OTP_TTL_MS = 10 * 60 * 1000; // OTP หมดอายุใน 10 นาที
-// crypto.randomInt แทน Math.random (เดาได้ง่ายกว่า) — 6 หลัก 100000-999999
-const generateOtp = () => crypto.randomInt(100000, 1000000).toString();
-// กรอก OTP ผิดเกินนี้ = OTP นั้นใช้ไม่ได้ ต้องขอใหม่ (13 ต.ค. 2026 — เดิมเดาได้ไม่จำกัด = เข้าบัญชีใครก็ได้ที่รู้อีเมล)
-const MAX_OTP_ATTEMPTS = 5;
-
-// OTP 2 ชุดใน User ใช้ logic เดียวกัน ต่างกันแค่ชื่อฟิลด์ — prefix 'reset' (ลืมรหัสผ่าน) / 'verify' (ยืนยันอีเมล)
-// ตั้ง OTP ใหม่ลง user (caller ต้อง save เอง) แล้วคืน OTP ตัวจริงไว้ส่งอีเมล
-const issueOtp = async (user, prefix) => {
-  const otp = generateOtp();
-  user[`${prefix}OtpHash`] = await bcrypt.hash(otp, await bcrypt.genSalt(10));
-  user[`${prefix}OtpExpires`] = new Date(Date.now() + RESET_OTP_TTL_MS);
-  user[`${prefix}OtpAttempts`] = 0;
-  return otp;
-};
-
-// คืน null = OTP ถูก (ล้าง OTP ใน user แล้ว ใช้ได้ครั้งเดียว — caller ต้อง save) / string = ข้อความ error
-const checkOtp = async (user, prefix, otp) => {
-  const hashKey = `${prefix}OtpHash`;
-  const expiresKey = `${prefix}OtpExpires`;
-  const attemptsKey = `${prefix}OtpAttempts`;
-  if (!user[hashKey] || !user[expiresKey] || user[expiresKey] < new Date()) {
-    return 'Invalid or expired OTP';
-  }
-
-  if (!(await bcrypt.compare(String(otp), user[hashKey]))) {
-    // นับครั้งที่ผิดแบบ atomic ($inc) — ครบ MAX_OTP_ATTEMPTS ล้าง OTP ทิ้ง ต้องขอใหม่ (ขอใหม่ได้นาทีละครั้ง)
-    const updated = await User.findOneAndUpdate(
-      { _id: user._id, [hashKey]: user[hashKey] },
-      { $inc: { [attemptsKey]: 1 } },
-      { new: true, projection: { [attemptsKey]: 1 } }
-    );
-    if (updated && updated[attemptsKey] >= MAX_OTP_ATTEMPTS) {
-      await User.updateOne(
-        { _id: user._id },
-        { $set: { [hashKey]: null, [expiresKey]: null, [attemptsKey]: 0 } }
-      );
-      return 'Too many wrong codes. Please request a new OTP';
-    }
-    return 'Invalid or expired OTP';
-  }
-
-  user[hashKey] = null;
-  user[expiresKey] = null;
-  user[attemptsKey] = 0;
-  return null;
-};
-
 // ---- จำกัดจำนวนครั้ง (utils/rateLimit.js) — ค่าเผื่อไว้กว้างพอสำหรับ wifi มหาลัยที่หลายคนใช้ IP เดียวกัน ----
 const loginFails = limiter('login-fail', { windowMs: 15 * 60 * 1000, max: 10 }); // ล็อกอินผิด ต่อ IP+อีเมล
-const otpSendMinute = limiter('otp-send-1m', { windowMs: 60 * 1000, max: 1 }); // ขอ OTP ต่ออีเมล
-const otpSendHour = limiter('otp-send-1h', { windowMs: 60 * 60 * 1000, max: 5 });
 const limitLoginIp = limitBy('login-ip', { windowMs: 15 * 60 * 1000, max: 60 }, byIp);
 const limitRegister = limitBy('register', { windowMs: 60 * 60 * 1000, max: 10 }, byIp);
 const limitGuest = limitBy('guest', { windowMs: 60 * 60 * 1000, max: 20 }, byIp,
   'Too many guest accounts from this network. Please try again later');
 const limitOtpIp = limitBy('otp-ip', { windowMs: 15 * 60 * 1000, max: 30 }, byIp);
 const limitAvatar = limitBy('avatar', { windowMs: 60 * 60 * 1000, max: 20 }, byUser);
-
-// ขอ OTP ได้นาทีละครั้ง / ชั่วโมงละ 5 ครั้งต่ออีเมล (ทุก flow รวมกัน) — คืน true = ตอบ 429 ไปแล้ว
-const otpSendBlocked = (res, emailKey) => {
-  if (otpSendMinute.blocked(emailKey) || otpSendHour.blocked(emailKey)) {
-    const wait = otpSendHour.blocked(emailKey) ? otpSendHour.retryAfter(emailKey) : otpSendMinute.retryAfter(emailKey);
-    tooMany(res, wait, 'Please wait a moment before requesting another OTP');
-    return true;
-  }
-  otpSendMinute.hit(emailKey);
-  otpSendHour.hit(emailKey);
-  return false;
-};
 
 // email/password ต้องเป็น string — ส่ง object/array มา (เช่น { "$gt": "" }) ตอบ 400 แทนพังเป็น 500
 const isText = (v) => typeof v === 'string' && v.length > 0 && v.length <= 200;
@@ -608,6 +546,57 @@ router.post('/verify-email', limitOtpIp, async (req, res) => {
         isGuest: user.isGuest,
       },
     });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   POST /api/auth/admin-otp/send
+// @desc    Admin 2FA ขั้นแรก — ส่ง OTP ไปที่อีเมลของแอดมินเอง (ดู middleware/admin.js)
+router.post('/admin-otp/send', authMiddleware, limitOtpIp, async (req, res) => {
+  try {
+    if (!(await isAllowlistedAdmin(req.userId))) {
+      return res.status(403).json({ message: 'Admin access required' });
+    }
+    const user = await User.findById(req.userId).select('-avatarData');
+    if (otpSendBlocked(res, user.email)) return;
+
+    const otp = await issueOtp(user, 'verify');
+    await user.save();
+    await sendOtpEmail(user.email, otp, 'admin');
+
+    res.json({ message: 'We have sent a code to your email', email: user.email });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Failed to send OTP. Please try again' });
+  }
+});
+
+// @route   POST /api/auth/admin-otp/verify
+// @desc    Admin 2FA — OTP ถูก = ได้ adminToken (แนบใน header X-Admin-Token) ใช้สิทธิ์แอดมินได้ ADMIN_SESSION_TTL
+router.post('/admin-otp/verify', authMiddleware, limitOtpIp, async (req, res) => {
+  try {
+    const { otp } = req.body;
+    if (!isText(String(otp ?? ''))) {
+      return res.status(400).json({ message: 'Please enter the code we sent to your email' });
+    }
+    if (!(await isAllowlistedAdmin(req.userId))) {
+      return res.status(403).json({ message: 'Admin access required' });
+    }
+    const user = await User.findById(req.userId).select('-avatarData');
+    const otpError = await checkOtp(user, 'verify', otp);
+    if (otpError) {
+      return res.status(400).json({ message: otpError });
+    }
+    await user.save();
+
+    const adminToken = jwt.sign(
+      { userId: user._id, purpose: 'admin_2fa' },
+      process.env.JWT_SECRET,
+      { expiresIn: ADMIN_SESSION_TTL }
+    );
+    res.json({ adminToken });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });

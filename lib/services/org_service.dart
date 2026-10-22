@@ -42,17 +42,23 @@ class OrgService {
     );
   }
 
+  // ขั้นแรกของการส่งคำขอ — OTP ไปที่อีเมลบัญชี (apply ต้องแนบรหัสนี้)
+  Future<void> sendApplyOtp() async {
+    _decode(await http.post(_url('/apply/send-otp'), headers: await _headers()), 'Failed to send the code');
+  }
+
+  // อีเมลติดต่อ = อีเมลบัญชีเสมอ (backend ตั้งให้เอง ไม่ต้องส่งไป)
   Future<OrgProfile> apply({
     required String name,
     required String orgType,
     required String description,
-    required String contactEmail,
+    required String otp,
   }) async {
     final data = _decode(
       await http.post(
         _url('/apply'),
         headers: await _headers(),
-        body: jsonEncode({'name': name, 'orgType': orgType, 'description': description, 'contactEmail': contactEmail}),
+        body: jsonEncode({'name': name, 'orgType': orgType, 'description': description, 'otp': otp}),
       ),
       'Failed to send your request',
     );
@@ -64,13 +70,12 @@ class OrgService {
     required String name,
     required String orgType,
     required String description,
-    required String contactEmail,
   }) async {
     final data = _decode(
       await http.put(
         _url('/me'),
         headers: await _headers(),
-        body: jsonEncode({'name': name, 'orgType': orgType, 'description': description, 'contactEmail': contactEmail}),
+        body: jsonEncode({'name': name, 'orgType': orgType, 'description': description}),
       ),
       'Failed to save your changes',
     );

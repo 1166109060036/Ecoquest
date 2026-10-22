@@ -134,6 +134,14 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // Guest -> บัญชีปกติ (ตั้ง email/password/ชื่อ) — ใช้ _runAuthAction ไม่ได้เพราะต้องรีเฟรชโปรไฟล์ต่อด้วย
+  Future<bool> sendAdminOtp() async {
+    return _runAction(() => _authService.sendAdminOtp());
+  }
+
+  Future<bool> verifyAdminOtp(String otp) async {
+    return _runAction(() => _authService.verifyAdminOtp(otp));
+  }
+
   Future<bool> requestUpgradeOtp(String email) async {
     return _runAction(() => _authService.requestUpgradeOtp(email: email));
   }

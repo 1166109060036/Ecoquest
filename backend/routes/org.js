@@ -16,6 +16,8 @@ const { adminMiddleware, adminEmails } = require('../middleware/admin');
 const { awardQuest } = require('../utils/questRewards');
 const { qrFor, parseQr } = require('../utils/orgQr');
 const { limitBy, byUser } = require('../utils/rateLimit');
+const { issueOtp, checkOtp, otpSendBlocked } = require('../utils/otp');
+const { sendOtpEmail } = require('../utils/mailer');
 const { avatarUrlFor } = require('../utils/avatar');
 const { startOfDayFor } = require('../utils/questDay');
 const {
@@ -39,7 +41,6 @@ const MAX_DAYS_AHEAD = 60;
 const MAX_EVENTS_PER_DAY = 3;
 const MAX_CAPACITY = 1000;
 const CATEGORIES = ['food_waste', 'recycling', 'plastic', 'community', 'energy'];
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const limitApply = limitBy('org-apply', { windowMs: 60 * 60 * 1000, max: 5 }, byUser,
   'Too many requests. Please try again later');
@@ -189,42 +190,81 @@ router.get('/me', authMiddleware, async (req, res) => {
 });
 
 // ตรวจข้อมูลองค์กร (ใช้ทั้งตอนสมัครและตอนแก้ไข) — คืน { error } หรือ { fields }
-const readOrgFields = (body, fallbackEmail) => {
+// อีเมลติดต่อ = อีเมลบัญชีเสมอ (22 ต.ค. 2026 — รับปากอาจารย์) ไม่รับจาก body กันใส่อีเมลคนอื่น/อีเมลปลอม
+// อีเมลบัญชียืนยันแล้วตอนสมัคร (OTP) เลยเชื่อได้ว่าองค์กรติดต่อได้จริงทางนี้
+const readOrgFields = (body, accountEmail) => {
   const name = str(body?.name);
   const orgType = str(body?.orgType);
   const description = str(body?.description);
-  const contactEmail = str(body?.contactEmail).toLowerCase() || fallbackEmail;
   if (name.length < 2 || name.length > 60) return { error: 'Organization name must be 2–60 characters' };
   if (!ORG_TYPES.includes(orgType)) return { error: 'Choose an organization type' };
   if (description.length < 10 || description.length > 500) {
     return { error: 'Tell us about your organization (10–500 characters)' };
   }
-  if (!contactEmail || contactEmail.length > 120 || !EMAIL_RE.test(contactEmail)) {
-    return { error: 'Enter a valid contact email' };
-  }
-  return { fields: { name, orgType, description, contactEmail } };
+  return { fields: { name, orgType, description, contactEmail: accountEmail } };
 };
 
+// เช็คว่าบัญชีนี้ส่งคำขอองค์กรได้ไหม — คืนข้อความ error + status หรือ null (ใช้ทั้งตอนขอ OTP และตอนส่งจริง)
+const applyBlocker = (user) => {
+  if (user.isGuest || !user.email) {
+    return [403, 'Create an account with email before registering an organization'];
+  }
+  const status = user.organization?.status || 'none';
+  if (status === 'pending') return [409, 'Your request is already waiting for approval'];
+  if (status === 'approved') return [409, 'Your organization is already approved'];
+  if (status === 'suspended') return [403, 'Your organization was suspended. Please contact the EcoQuest team'];
+  return null;
+};
+
+// @route   POST /api/org/apply/send-otp
+// @desc    ส่ง OTP ไปที่อีเมลบัญชีก่อนส่งคำขอองค์กร (POST /apply ต้องแนบ otp นี้)
+//          ไม่ใช้ limitApply ร่วม (กรอกรหัสผิดไม่กี่ครั้งจะโดนล็อกทั้งชั่วโมง) — otpSendBlocked จำกัดต่ออีเมลอยู่แล้ว
+router.post('/apply/send-otp', authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId).select('-avatarData');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    const blocked = applyBlocker(user);
+    if (blocked) return res.status(blocked[0]).json({ message: blocked[1] });
+    if (otpSendBlocked(res, user.email)) return;
+
+    const otp = await issueOtp(user, 'verify');
+    await user.save();
+    await sendOtpEmail(user.email, otp, 'org');
+
+    res.json({ message: 'We have sent a code to your email', email: user.email });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Failed to send OTP. Please try again' });
+  }
+});
+
 // @route   POST /api/org/apply
-// @desc    สมัครเป็นองค์กร (สถานะ none/rejected เท่านั้น) — body: { name, orgType, description, contactEmail }
+// @desc    สมัครเป็นองค์กร (สถานะ none/rejected เท่านั้น) — body: { name, orgType, description, otp }
+//          otp จาก POST /apply/send-otp / อีเมลติดต่อใช้อีเมลบัญชีเสมอ
 router.post('/apply', authMiddleware, limitApply, async (req, res) => {
   try {
-    const user = await User.findById(req.userId).select('email isGuest organization displayName');
+    const user = await User.findById(req.userId).select(
+      'email isGuest organization displayName verifyOtpHash verifyOtpExpires verifyOtpAttempts'
+    );
     if (!user) return res.status(404).json({ message: 'User not found' });
-    if (user.isGuest || !user.email) {
-      return res.status(403).json({ message: 'Create an account with email before registering an organization' });
-    }
+    const blocked = applyBlocker(user);
+    if (blocked) return res.status(blocked[0]).json({ message: blocked[1] });
     const status = user.organization?.status || 'none';
-    if (status === 'pending') return res.status(409).json({ message: 'Your request is already waiting for approval' });
-    if (status === 'approved') return res.status(409).json({ message: 'Your organization is already approved' });
-    if (status === 'suspended') return res.status(403).json({ message: 'Your organization was suspended. Please contact the EcoQuest team' });
 
     const { error, fields } = readOrgFields(req.body, user.email);
     if (error) return res.status(400).json({ message: error });
     const { name, orgType, description, contactEmail } = fields;
 
+    // เช็ค OTP หลังตรวจฟอร์มผ่านแล้ว — กรอกฟอร์มผิดจะได้ไม่เสียโควตากรอก OTP
+    const otp = req.body?.otp;
+    if (typeof otp !== 'string' && typeof otp !== 'number') {
+      return res.status(400).json({ message: 'Please enter the code we sent to your email' });
+    }
+    const otpError = await checkOtp(user, 'verify', otp);
+    if (otpError) return res.status(400).json({ message: otpError });
+
     const requestedAt = new Date();
-    // CAS ที่สถานะเดิม กันกดส่งซ้อนกัน 2 ครั้ง
+    // CAS ที่สถานะเดิม กันกดส่งซ้อนกัน 2 ครั้ง (+ ล้าง OTP ที่ใช้ไปแล้วในคำสั่งเดียวกัน)
     const updated = await User.findOneAndUpdate(
       { _id: user._id, 'organization.status': { $in: [status, ...(status === 'none' ? [null] : [])] } },
       {
@@ -233,6 +273,9 @@ router.post('/apply', authMiddleware, limitApply, async (req, res) => {
             status: 'pending', name, orgType, description, contactEmail,
             requestedAt, decidedAt: null, decisionNote: '',
           },
+          verifyOtpHash: null,
+          verifyOtpExpires: null,
+          verifyOtpAttempts: 0,
         },
       },
       { new: true, projection: { organization: 1 } }
@@ -266,9 +309,9 @@ router.post('/apply', authMiddleware, limitApply, async (req, res) => {
 });
 
 // @route   PUT /api/org/me
-// @desc    องค์กรที่อนุมัติแล้วแก้ชื่อ/ประเภท/คำอธิบาย/อีเมลติดต่อได้ (15 ต.ค. 2026 — ผู้ใช้ขอ) ไม่ต้องรออนุมัติใหม่
+// @desc    องค์กรที่อนุมัติแล้วแก้ชื่อ/ประเภท/คำอธิบายได้ (15 ต.ค. 2026 — ผู้ใช้ขอ) ไม่ต้องรออนุมัติใหม่
 //          (แอดมินยังปิดองค์กรได้ถ้าแก้เป็นข้อมูลไม่เหมาะสม) — อีเวนต์ดึงชื่อองค์กรสดจาก users อยู่แล้ว ชื่อใหม่ขึ้นทันที
-//          body: { name, orgType, description, contactEmail }
+//          body: { name, orgType, description } — อีเมลติดต่อถูกตั้งเป็นอีเมลบัญชีทุกครั้งที่บันทึก
 router.put('/me', authMiddleware, limitEdit, async (req, res) => {
   try {
     const user = await User.findById(req.userId).select('email organization');

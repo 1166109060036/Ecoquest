@@ -127,6 +127,7 @@ class AuthService {
   }
 
   Future<void> resetGuestSession() async {
+    http.adminToken = null;
     await _storage.clearGuestSession();
     await _storage.clearSession();
   }
@@ -184,7 +185,39 @@ class AuthService {
   }
 
   Future<void> logout() async {
+    http.adminToken = null;
     await _storage.clearSession();
+  }
+
+  // Admin 2FA — ส่ง OTP ไปที่อีเมลแอดมิน คืนอีเมลที่ส่งไป (โชว์ในหน้ากรอกรหัส)
+  Future<String> sendAdminOtp() async {
+    final token = await _storage.getToken();
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/auth/admin-otp/send'),
+      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+    );
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode != 200) {
+      throw Exception(data['message'] ?? 'Failed to send OTP');
+    }
+    return data['email'] ?? '';
+  }
+
+  // OTP ถูก -> เก็บ admin token ไว้ใน api_http ให้แนบไปทุก request ต่อจากนี้
+  Future<void> verifyAdminOtp(String otp) async {
+    final token = await _storage.getToken();
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/auth/admin-otp/verify'),
+      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+      body: jsonEncode({'otp': otp}),
+    );
+
+    final data = jsonDecode(response.body);
+    if (response.statusCode != 200) {
+      throw Exception(data['message'] ?? 'Invalid or expired OTP');
+    }
+    http.adminToken = data['adminToken'];
   }
 
   // ตั้งรูปโปรไฟล์จริง — ส่ง bytes ของรูป (encode เป็น base64) + contentType ขึ้น server ตรงๆ

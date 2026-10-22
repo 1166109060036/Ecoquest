@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
+import '../../services/api_http.dart' as api;
 import '../../services/sound_service.dart';
 import '../../utils/constants.dart';
 import '../../widgets/bubble_toast.dart';
@@ -284,7 +285,9 @@ class SettingsPage extends StatelessWidget {
                               _SettingsMenuItem(
                                 icon: Icons.admin_panel_settings_outlined,
                                 label: 'Admin Tools',
-                                onTap: () => Navigator.pushNamed(context, '/admin'),
+                                // ยังไม่ยืนยัน admin OTP ในรอบนี้ -> ไปหน้ากรอกรหัสก่อน
+                                onTap: () =>
+                                    Navigator.pushNamed(context, api.adminToken == null ? '/admin-verify' : '/admin'),
                               ),
                             ],
                           ],

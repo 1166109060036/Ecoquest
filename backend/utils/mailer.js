@@ -11,10 +11,12 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// purpose: 'reset' (ลืมรหัสผ่าน) / 'verify' (ยืนยันอีเมลตอนสมัคร)
+// purpose: 'reset' (ลืมรหัสผ่าน) / 'verify' (ยืนยันอีเมลตอนสมัคร) / 'org' (ส่งคำขอองค์กร) / 'admin' (admin 2FA)
 const COPY = {
   reset: { subject: 'Your EcoQuest password reset code', action: 'a password reset' },
   verify: { subject: 'Verify your EcoQuest email', action: 'an EcoQuest account' },
+  org: { subject: 'Confirm your EcoQuest organization request', action: 'an organization request' },
+  admin: { subject: 'Your EcoQuest admin access code', action: 'admin access' },
 };
 
 // Render (free) บล็อก port SMTP ขาออก -> nodemailer ค้างจน Connection timeout (22 ต.ค. 2026)

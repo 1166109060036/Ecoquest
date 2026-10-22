@@ -37,7 +37,7 @@ const reasonCounts = (reports) =>
 router.get('/queue', authMiddleware, async (req, res) => {
   try {
     await sweepQuietly();
-    const isAdmin = await isAdminUser(req.userId);
+    const isAdmin = await isAdminUser(req);
     if (!isAdmin) {
       return res.json({ submissions: [], pendingCount: 0, isAdmin: false, reportsToHide: REPORTS_TO_HIDE });
     }
@@ -81,7 +81,7 @@ router.post('/:id/resolve', authMiddleware, async (req, res) => {
     if (!ACTIONS.includes(action)) {
       return res.status(400).json({ message: 'Unknown action' });
     }
-    if (!(await isAdminUser(req.userId))) {
+    if (!(await isAdminUser(req))) {
       return res.status(403).json({ message: 'Only an admin can resolve reports' });
     }
 

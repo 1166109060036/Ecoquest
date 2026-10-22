@@ -47,7 +47,7 @@ router.get('/', authMiddleware, async (req, res) => {
         .select('-photoData')
         .populate('userId', PUBLIC_USER_FIELDS)
         .populate('questId', QUEST_FIELDS),
-      isAdminUser(req.userId),
+      isAdminUser(req),
       User.findById(req.userId).select('isGuest'),
     ]);
     // guest รายงานไม่ได้ (สร้างได้ไม่จำกัด กันรุมรายงานให้โพสต์หาย)
@@ -192,7 +192,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     if (!post || post.removedFromFeed) return res.status(404).json({ message: 'Post not found' });
 
     const isOwner = String(post.userId) === String(req.userId);
-    const isAdmin = isOwner ? false : await isAdminUser(req.userId);
+    const isAdmin = isOwner ? false : await isAdminUser(req);
     if (!isOwner && !isAdmin) {
       return res.status(403).json({ message: 'Only the owner or an admin can remove this post' });
     }

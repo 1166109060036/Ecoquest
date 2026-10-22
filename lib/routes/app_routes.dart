@@ -14,6 +14,7 @@ import '../pages/settings/settings_page.dart';
 import '../pages/settings/change_password_page.dart';
 import '../pages/settings/upgrade_account_page.dart';
 import '../pages/admin/admin_page.dart';
+import '../pages/admin/admin_verify_page.dart';
 import '../pages/shop/shop_page.dart';
 
 // รวม route ทั้งหมดของแอพไว้ที่เดียว เพิ่มหน้าใหม่ก็มาแก้ไฟล์นี้ไฟล์เดียว
@@ -44,4 +45,6 @@ final Map<String, WidgetBuilder> appRoutes = {
   '/verify-email': (context) => const VerifyEmailPage(),
   // dev/QA เท่านั้น — เมนูเข้าถึงอยู่ในหน้า Settings โชว์เฉพาะ user.isAdmin (ดู settings_page.dart)
   '/admin': (context) => const AdminPage(),
+  // Admin 2FA — Settings เปิดหน้านี้แทน /admin ถ้ายังไม่ได้ยืนยัน OTP ในรอบนี้ (ดู api_http.adminToken)
+  '/admin-verify': (context) => const AdminVerifyPage(),
 };
