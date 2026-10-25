@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 // เปลี่ยนหน้าแบบเกม (ผู้ใช้ขอ 14 ต.ค. 2026 — "ให้ดูดีขึ้นเหมือนเกม") แทน FadeForwards เดิม
-// เข้า: หน้าใหม่ "เด้ง" ขยายจาก 92% ขึ้นมาเต็มจอ (easeOutBack) + เลื่อนขึ้นนิด + เฟดเข้า
-// หน้าเดิมที่ถูกทับ: ย่อลงเหลือ 94% + มืดลง ให้รู้สึกว่าหน้าใหม่ลอยขึ้นมาข้างหน้า
+// เข้า: หน้าใหม่เลื่อนขึ้นแบบเด้ง (easeOutBack) + เฟดเข้า / หน้าเดิมที่ถูกทับ: มืดลง
+// ⚠️ ห้าม scale ทั้งหน้า (เคยย่อ/ขยาย 92-94%) — GPU ต้องวาดทั้งหน้าใหม่ทุกเฟรม = กระตุก (23 ต.ค. 2026)
 // ย้อนกลับ: เล่นกลับด้วย easeIn (ไม่เด้งตอนปิด) / Hero รูปเควสยังบินได้ปกติ
 // เครื่องที่เปิดโหมดลดการเคลื่อนไหว -> เฟดอย่างเดียว
 class GamePageTransitionsBuilder extends PageTransitionsBuilder {
@@ -47,14 +47,14 @@ class _GameTransition extends StatelessWidget {
       animation: Listenable.merge([animation, secondaryAnimation]),
       child: child,
       builder: (context, child) {
-        // หน้าเดิมที่ถูกทับ: ย่อ + มืด
+        // หน้าเดิมที่ถูกทับ: มืดลง
         // ⚠️ โครง widget ต้องคงที่ทุกเฟรม (Stack อยู่ตลอด แค่สีโปร่ง 0) — ถ้าเพิ่ม/ถอด Stack ตามค่า u
         // หน้าเดิมจะถูกสร้างใหม่ทั้งหน้า state หาย (ตำแหน่งเลื่อน/ฟอร์มที่กรอกค้าง)
         final u = curve(secondaryAnimation, Curves.easeOutCubic, Curves.easeInCubic);
         final page = Stack(
           fit: StackFit.passthrough,
           children: [
-            Transform.scale(scale: 1 - 0.06 * u, child: child),
+            child!,
             Positioned.fill(
               child: IgnorePointer(
                 child: ColoredBox(color: Colors.black.withValues(alpha: 0.35 * u)),
@@ -62,16 +62,12 @@ class _GameTransition extends StatelessWidget {
             ),
           ],
         );
-        // หน้าใหม่: เด้งขยาย + เลื่อนขึ้น + เฟดเข้า
-        final p = curve(animation, Curves.easeOutBack, Curves.easeInCubic);
+        // หน้าใหม่: เลื่อนขึ้นแบบเด้งเลยจุดนิดนึง + เฟดเข้า
         final fade = curve(animation, const Interval(0, 0.6, curve: Curves.easeOut), Curves.easeIn);
-        final slide = curve(animation, Curves.easeOutCubic, Curves.easeInCubic);
+        final slide = curve(animation, Curves.easeOutBack, Curves.easeInCubic);
         return Opacity(
           opacity: fade.clamp(0.0, 1.0),
-          child: Transform.translate(
-            offset: Offset(0, 36 * (1 - slide)),
-            child: Transform.scale(scale: 0.92 + 0.08 * p, child: page),
-          ),
+          child: Transform.translate(offset: Offset(0, 48 * (1 - slide)), child: page),
         );
       },
     );

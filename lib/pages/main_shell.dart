@@ -41,11 +41,7 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
   late final Animation<Offset> _tabSlide = Tween(
     begin: const Offset(0, 0.015),
     end: Offset.zero,
-  ).animate(CurvedAnimation(parent: _tabFade, curve: Curves.easeOutCubic));
-  // + เด้งขยายจาก 96% (14 ต.ค. 2026 — ให้รู้สึกเหมือนเกม)
-  late final Animation<double> _tabScale = Tween(
-    begin: 0.96,
-    end: 1.0,
+    // เด้งด้วยการเลื่อน (easeOutBack) แทนการขยายทั้งหน้า — ScaleTransition ทั้งแท็บทำให้กระตุก (23 ต.ค. 2026)
   ).animate(CurvedAnimation(parent: _tabFade, curve: Curves.easeOutBack));
   // ระบบตรวจสอบภารกิจ: รางวัลมาตอนหลักฐานผ่าน (อาจเป็นตอนแอพปิดอยู่) — โหลดแจ้งเตือนใหม่ทุกครั้งที่กลับเข้าแอพ
   // แล้วฉลองของที่ผ่านใหม่ด้วยเอฟเฟครางวัลบินเข้าป้าย
@@ -163,18 +159,13 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
           opacity: _tabOpacity,
           child: SlideTransition(
             position: _tabSlide,
-            child: ScaleTransition(
-              scale: _tabScale,
-              child: IndexedStack(
-                index: _currentIndex,
-                // ⚠️ IndexedStack ไม่หยุดแอนิเมชันของแท็บที่ซ่อนอยู่ให้เอง (เช็คใน Flutter 3.47 แล้ว — แค่ไม่ paint)
-                // แอนิเมชันวนไม่รู้จบ (ใบไม้/เอฟเฟกต์โปรไฟล์ใน Home+Profile, skeleton, ไอคอนหายใจ) เลยเดินต่อทุกเฟรม
-                // ทั้งที่มองไม่เห็น = แอพสร้างเฟรมตลอดเวลาและกระตุกในแท็บที่เปิดอยู่ — TickerMode ปิด ticker ของแท็บที่ซ่อน
-                // (state/ตำแหน่งเลื่อนยังอยู่ครบ กลับมาแอนิเมชันเดินต่อเอง)
-                children: [
-                  for (final (i, page) in _pages.indexed) TickerMode(enabled: i == _currentIndex, child: page),
-                ],
-              ),
+            child: IndexedStack(
+              index: _currentIndex,
+              // ⚠️ IndexedStack ไม่หยุดแอนิเมชันของแท็บที่ซ่อนอยู่ให้เอง (เช็คใน Flutter 3.47 แล้ว — แค่ไม่ paint)
+              // แอนิเมชันวนไม่รู้จบ (ใบไม้/เอฟเฟกต์โปรไฟล์ใน Home+Profile, skeleton, ไอคอนหายใจ) เลยเดินต่อทุกเฟรม
+              // ทั้งที่มองไม่เห็น = แอพสร้างเฟรมตลอดเวลาและกระตุกในแท็บที่เปิดอยู่ — TickerMode ปิด ticker ของแท็บที่ซ่อน
+              // (state/ตำแหน่งเลื่อนยังอยู่ครบ กลับมาแอนิเมชันเดินต่อเอง)
+              children: [for (final (i, page) in _pages.indexed) TickerMode(enabled: i == _currentIndex, child: page)],
             ),
           ),
         ),
