@@ -61,6 +61,13 @@ const DEAD_TARGET_CODES = new Set([
 
 // ส่ง push ไปทุกเครื่องของ user — ไม่ throw เด็ดขาด (push ส่งไม่ได้ต้องไม่ทำให้ request หลักพัง)
 // data ส่งได้แต่ string เท่านั้น (ข้อจำกัดของ FCM)
+// ไอคอนนำหน้าชื่อแจ้งเตือนบนแถบแจ้งเตือนของมือถือ (ในแอพใช้ไอคอนของตัวเองอยู่แล้ว เลยใส่แค่ใน push)
+const TITLE_EMOJI = {
+  quest_complete: '🏆', quest_approved: '✅', quest_rejected: '⚠️', achievement: '🏅', bingo: '🎯',
+  streak_milestone: '🔥', fridge_expiring: '⏰', friend_request: '👋', friend_accepted: '🤝',
+  post_removed: '📷', post_reported: '🚩', post_restored: '♻️', org_status: '🏢', org_event: '📅',
+};
+
 const sendPush = async (userId, { title, body, data = {} }) => {
   try {
     const fcm = getMessaging();
@@ -78,11 +85,12 @@ const sendPush = async (userId, { title, body, data = {} }) => {
     );
     const result = await fcm.sendEachForMulticast({
       fids,
-      notification: { title, body },
+      notification: { title: TITLE_EMOJI[data.type] ? `${TITLE_EMOJI[data.type]} ${title}` : title, body },
       data: stringData,
       android: {
         priority: 'high',
-        notification: { color: '#2E7D32' },
+        // ic_stat_ecoquest = ใบไม้สีขาว (android/app/src/main/res/drawable) — แอพเวอร์ชันเก่าที่ไม่มีไฟล์นี้ใช้ไอคอนแอพแทนเอง
+        notification: { color: '#2E7D32', icon: 'ic_stat_ecoquest' },
       },
     });
 

@@ -49,6 +49,13 @@
         <meta-data
             android:name="firebase_messaging_installation_id_enabled"
             android:value="true" />
+        <!-- ไอคอนใบไม้สีขาว + สีเขียวบนแถบแจ้งเตือน (เดิมเป็นไอคอนแอพเต็มสี Android ย่อเป็นวงกลมทึบ) -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_ecoquest" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_green" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

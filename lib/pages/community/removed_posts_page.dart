@@ -98,7 +98,7 @@ class _RemovedPostsPageState extends State<RemovedPostsPage> {
   Widget _card(RemovedPost p) {
     final s = p.post;
     final revoked = p.action == 'revoke';
-    final daysLeft = p.restorableUntil.difference(DateTime.now()).inHours ~/ 24;
+    final daysLeft = (p.restorableUntil.difference(DateTime.now()).inHours / 24).ceil();
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -138,7 +138,7 @@ class _RemovedPostsPageState extends State<RemovedPostsPage> {
                     style: TextStyle(color: revoked ? Colors.redAccent : Colors.orange.shade800, fontSize: 12, fontWeight: FontWeight.w600),
                   ),
                   Text(
-                    '${p.removedAt != null ? formatRelativeTime(p.removedAt!) : ''} · ${daysLeft < 1 ? 'less than a day' : '$daysLeft days'} left',
+                    '${p.removedAt != null ? formatRelativeTime(p.removedAt!) : ''} · ${daysLeft <= 1 ? 'less than a day' : '$daysLeft days'} left',
                     style: TextStyle(color: Colors.grey.shade600, fontSize: 11.5),
                   ),
                   const SizedBox(height: 8),
