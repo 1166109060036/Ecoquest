@@ -673,7 +673,8 @@ router.post('/verify-reset-otp', limitOtpIp, async (req, res) => {
 router.post('/reset-password', async (req, res) => {
   try {
     const { resetToken, newPassword } = req.body;
-    if (!isText(resetToken) || !isText(newPassword)) {
+    // resetToken เป็น JWT ยาว ~210 ตัว เกินเพดาน 200 ของ isText — เช็คแค่เป็นข้อความไม่ยาวผิดปกติ (jwt.verify ตรวจจริงด้านล่าง)
+    if (typeof resetToken !== 'string' || !resetToken || resetToken.length > 2000 || !isText(newPassword)) {
       return res.status(400).json({ message: 'Missing required information' });
     }
     if (newPassword.length < 6) {
