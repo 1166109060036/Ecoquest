@@ -7,6 +7,7 @@ import '../../widgets/bubble_toast.dart';
 import '../../widgets/decorated_avatar.dart';
 import '../../widgets/liquid_glass_dialog.dart';
 import '../../widgets/pressable_scale.dart';
+import 'removed_posts_page.dart';
 
 // หน้าโพสต์ที่ถูกรายงาน — แอดมินเท่านั้น (7 ต.ค. 2026 แทนหน้าตรวจหลักฐานเดิม ReviewPage)
 // อาจารย์ติงว่าให้ผู้เล่นตรวจทุกอันเป็นภาระ + ไม่มีคนตรวจ = ไม่ได้แต้มจนหมดกำลังใจ -> ส่งรูปแล้วได้แต้มทันที
@@ -69,7 +70,7 @@ class _ReportedPostsPageState extends State<ReportedPostsPage> {
         title: 'Take back the points?',
         content: Text(
           'The photo is removed and ${current.isParty ? 'everyone in the party loses' : '${current.user?.displayName ?? 'the player'} loses'} '
-          'the points, XP and CO2 from this quest. This cannot be undone.',
+          'the points, XP and CO2 from this quest. You can restore it within 7 days.',
           textAlign: TextAlign.center,
           style: LiquidGlassDialog.messageStyle,
         ),
@@ -89,8 +90,8 @@ class _ReportedPostsPageState extends State<ReportedPostsPage> {
         context,
         switch (action) {
           'keep' => 'Kept — the post stays in the feed',
-          'remove' => 'Photo removed — points kept',
-          _ => 'Photo removed and points taken back',
+          'remove' => 'Photo removed — points kept (restore within 7 days)',
+          _ => 'Points taken back (restore within 7 days)',
         },
       );
     } catch (e) {
@@ -116,6 +117,13 @@ class _ReportedPostsPageState extends State<ReportedPostsPage> {
         elevation: 0,
         foregroundColor: Colors.black87,
         title: const Text('Reported posts', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+        actions: [
+          IconButton(
+            tooltip: 'Recently removed',
+            icon: const Icon(Icons.restore_rounded),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RemovedPostsPage())),
+          ),
+        ],
       ),
       body: SafeArea(child: _buildBody()),
     );

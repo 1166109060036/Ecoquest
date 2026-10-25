@@ -39,10 +39,11 @@ router.get('/:id/photo', async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({ message: 'Invalid submission id' });
     }
-    if (!isValidPhotoSig('submission', req.params.id, req.query.s)) {
+    const submission = await QuestSubmission.findById(req.params.id).select('photoData photoContentType removedFromFeed');
+    // รูปที่ถูกถอน (เก็บไว้ 7 วันให้กู้คืน) เปิดได้เฉพาะ URL จาก GET /reviews/removed ของแอดมิน — URL เก่าในฟีดใช้ไม่ได้แล้ว
+    if (!isValidPhotoSig(submission && submission.removedFromFeed ? 'removed' : 'submission', req.params.id, req.query.s)) {
       return res.status(404).json({ message: 'Photo not found' });
     }
-    const submission = await QuestSubmission.findById(req.params.id).select('photoData photoContentType');
     // ไม่มีรูปแล้ว = ไม่ผ่านการตรวจ ถูกลบทิ้งไปแล้ว (utils/submissions.js#purgeRejectedPhoto)
     if (!submission || !submission.photoData) return res.status(404).json({ message: 'Photo not found' });
 

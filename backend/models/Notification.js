@@ -31,6 +31,8 @@ const NotificationSchema = new mongoose.Schema(
         'post_reported',
         // บัญชีองค์กร (routes/org.js) — อนุมัติ/ไม่อนุมัติ/ปิด, อีเวนต์ที่ลงทะเบียนไว้ถูกยกเลิก
         'org_status',
+        // แอดมินกู้คืนโพสต์ที่ถอน/ยึดแต้มไป (routes/reviews.js POST /:id/restore)
+        'post_restored',
         'org_event',
       ],
     },

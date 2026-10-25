@@ -148,6 +148,11 @@ const QuestSubmissionSchema = new mongoose.Schema(
     removedFromFeed: { type: Boolean, default: false },
     removedAt: { type: Date, default: null },
     removedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    // กู้คืนได้ถึงเวลานี้ (25 ต.ค. 2026 — สัญญากับอาจารย์ Bun) — แอดมินถอนรูป/ยึดแต้มคืน = ยังเก็บรูปและแต้มไว้ 7 วัน
+    // กด Restore ได้ (routes/reviews.js) / หมดเวลา = sweep ลบรูปทิ้งถาวร (utils/submissions.js#purgeExpiredPhotos)
+    restorableUntil: { type: Date, default: null },
+    // แถว QuestHistory ที่ยึดคืนไป + แต้ม/XP ที่หักจริง (ไม่ติดลบ) ต่อคน — ไว้ใส่คืนตอนกู้คืน
+    revokedHistories: { type: [mongoose.Schema.Types.Mixed], default: undefined },
   },
   { timestamps: true }
 );

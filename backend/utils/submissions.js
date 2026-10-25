@@ -17,7 +17,7 @@ const progression = require('./progression');
 const { awardQuest, awardCheckInDay } = require('./questRewards');
 const { finalDayBase } = require('./checkInRewards');
 const { comboForSubmission } = require('./combo');
-const { notifyQuestCompleted, notifyQuestApproved, notifyPartyReward, notifyProofRevoked } = require('./notifications');
+const { notifyQuestCompleted, notifyQuestApproved, notifyPartyReward, notifyProofRevoked, notifyPostRestored } = require('./notifications');
 const { avatarUrlFor, cosmeticsFor } = require('./avatar');
 const { startOfToday } = require('./questDay');
 const { purgeExpiredFridgePhotos } = require('./fridgePhotos');
@@ -37,6 +37,9 @@ const QUEST_FIELDS = 'title detail category co2eEstimateKg durationDays';
 
 // รายงานครบกี่คน (คนละบัญชี) ถึงซ่อนโพสต์จากฟีดไว้ก่อนแอดมินดู — คนเดียวรายงานยังโชว์อยู่ (กันกลั่นแกล้งคนเดียว)
 const REPORTS_TO_HIDE = 3;
+// แอดมินถอน/ยึดแต้มแล้วกู้คืนได้กี่วัน (สัญญากับอาจารย์ Bun 21 ต.ค. 2026)
+const RESTORE_DAYS = 7;
+const restoreDeadline = () => new Date(Date.now() + RESTORE_DAYS * 24 * 60 * 60 * 1000);
 const REPORT_REASONS = ['not_done', 'personal_info', 'inappropriate', 'other'];
 
 const photoHashOf = (buffer) => crypto.createHash('sha256').update(buffer).digest('hex');
@@ -150,26 +153,32 @@ const approveLegacyPending = async () => {
 // หายไปด้วย) ถอนรูปออกจากฟีด เปลี่ยนเป็น rejected (คอมโบไม่นับแล้ว) + แจ้งเตือนเจ้าของ
 // ไม่ถอนเหรียญที่ปลดล็อกไปแล้ว / โบนัส Bingo / streak (ซับซ้อนเกินไปและได้ไม่คุ้ม — บันทึกเป็นข้อจำกัด)
 // ⚠️ ผู้เรียกต้องล็อกสถานะก่อน (reportStatus open -> revoked แบบ CAS) ไม่งั้นกดซ้อนกันจะยึดซ้ำ
+// level เป็น cache ของ xp
+const syncLevel = async (userId) => {
+  const user = await User.findById(userId).select('xp');
+  if (user) await User.updateOne({ _id: user._id }, { $set: { level: progression.levelFromXp(user.xp) } });
+};
+
 const revokeSubmission = async (submission, adminId) => {
+  // เก็บแถวที่ลบ + ยอดที่หักจริงไว้ใน revokedHistories ให้กู้คืนได้ภายใน RESTORE_DAYS วัน
+  const revoked = [];
   for (const award of submission.awards || []) {
-    const removed = await QuestHistory.deleteOne({ _id: award.historyId });
-    if (removed.deletedCount === 0) continue; // แถวถูกลบไปแล้ว (เช่น Super Energy) — ไม่ยึดซ้ำ
-    const dec = award.checkInDay ? 0 : 1;
-    // ไม่ให้ติดลบ (อาจใช้แต้มไปแล้ว — ร้านปิดอยู่แต่กันไว้)
-    await User.updateOne({ _id: award.userId }, [
-      {
-        $set: {
-          points: { $max: [0, { $subtract: [{ $ifNull: ['$points', 0] }, award.points || 0] }] },
-          xp: { $max: [0, { $subtract: [{ $ifNull: ['$xp', 0] }, award.xp || 0] }] },
-          totalQuestsCompleted: {
-            $max: [0, { $subtract: [{ $ifNull: ['$totalQuestsCompleted', 0] }, dec] }],
-          },
-        },
-      },
-    ]);
-    // level เป็น cache ของ xp
-    const user = await User.findById(award.userId).select('xp');
-    if (user) await User.updateOne({ _id: user._id }, { $set: { level: progression.levelFromXp(user.xp) } });
+    const history = await QuestHistory.findOneAndDelete({ _id: award.historyId }).lean();
+    if (!history) continue; // แถวถูกลบไปแล้ว (เช่น Super Energy) — ไม่ยึดซ้ำ
+    const user = await User.findById(award.userId).select('points xp totalQuestsCompleted');
+    // หักไม่เกินที่มีอยู่ (ไม่ให้ติดลบ) และจำยอดที่หักจริง — กู้คืนจะได้คืนเท่าที่หักไป ไม่มากกว่า
+    const taken = user
+      ? {
+          points: Math.min(user.points || 0, award.points || 0),
+          xp: Math.min(user.xp || 0, award.xp || 0),
+          quests: award.checkInDay ? 0 : Math.min(user.totalQuestsCompleted || 0, 1),
+        }
+      : { points: 0, xp: 0, quests: 0 };
+    if (user) {
+      await User.updateOne({ _id: user._id }, { $inc: { points: -taken.points, xp: -taken.xp, totalQuestsCompleted: -taken.quests } });
+      await syncLevel(user._id);
+    }
+    revoked.push({ userId: award.userId, history, ...taken });
   }
 
   const now = new Date();
@@ -184,13 +193,49 @@ const revokeSubmission = async (submission, adminId) => {
         removedAt: now,
         removedBy: adminId,
         hiddenByReports: false,
+        restorableUntil: restoreDeadline(),
+        revokedHistories: revoked,
       },
-      $unset: { photoData: 1 },
     }
   );
   const quest = await Quest.findById(submission.questId).select('title');
-  const lost = (submission.awards || []).find((a) => String(a.userId) === String(submission.userId));
+  const lost = revoked.find((r) => String(r.userId) === String(submission.userId));
   await safeNotify(() => notifyProofRevoked(submission.userId, quest, submission._id, lost ? lost.points : 0));
+};
+
+// กู้คืนโพสต์ที่แอดมินถอนรูป/ยึดแต้มไป — ⚠️ ผู้เรียกต้องล็อกก่อน (CAS restorableUntil > now -> null) ไม่งั้นกู้ซ้ำได้
+// ถอนรูป: แค่กลับมาโชว์ / ยึดแต้ม: ใส่แถว QuestHistory เดิมคืน (_id เดิม) + คืนแต้ม/XP/จำนวนเควสเท่าที่หักไป
+// คืน แต้มที่เจ้าของโพสต์ได้คืน
+const restoreSubmission = async (submission) => {
+  let ownerPoints = 0;
+  for (const r of submission.revokedHistories || []) {
+    try {
+      await QuestHistory.collection.insertOne(r.history);
+    } catch (err) {
+      if (err.code !== 11000) throw err; // มีอยู่แล้ว (กู้ซ้ำ) — ไม่ใส่ซ้ำ ไม่คืนแต้มซ้ำ
+      continue;
+    }
+    await User.updateOne({ _id: r.userId }, { $inc: { points: r.points || 0, xp: r.xp || 0, totalQuestsCompleted: r.quests || 0 } });
+    await syncLevel(r.userId);
+    if (String(r.userId) === String(submission.userId)) ownerPoints = r.points || 0;
+  }
+  const wasRevoked = submission.status === 'rejected';
+  await QuestSubmission.updateOne(
+    { _id: submission._id },
+    {
+      $set: {
+        reportStatus: submission.reportStatus ? 'kept' : null,
+        removedFromFeed: false,
+        removedAt: null,
+        removedBy: null,
+        ...(wasRevoked ? { status: 'approved', decidedBy: 'instant' } : {}),
+      },
+      $unset: { revokedHistories: 1 },
+    }
+  );
+  const quest = await Quest.findById(submission.questId).select('title');
+  await safeNotify(() => notifyPostRestored(submission.userId, quest, submission._id, ownerPoints));
+  return ownerPoints;
 };
 
 // Today Feed (ผู้ใช้ออกแบบ 30 ก.ย. 2026) — ฟีดโชว์แค่ของที่ผ่านการตรวจ "วันนี้" (ตัดวันตาม utils/questDay.js = เที่ยงคืน
@@ -203,8 +248,12 @@ const purgeExpiredPhotos = () =>
   QuestSubmission.updateMany(
     {
       photoData: { $exists: true },
+      // ยังอยู่ในช่วงกู้คืน (แอดมินถอน/ยึดแต้มไม่เกิน 7 วัน) = เก็บรูปไว้ก่อน
+      restorableUntil: { $not: { $gt: new Date() } },
       $or: [
         { status: 'rejected' },
+        // แอดมินถอนรูป (แต้มอยู่) แล้วพ้นช่วงกู้คืน
+        { removedFromFeed: true },
         // ถูกรายงานรอแอดมินดู = เก็บรูปไว้ก่อน (แอดมินต้องเห็น) ข้ามวันได้
         { status: 'approved', decidedAt: { $lt: startOfToday() }, reportStatus: { $ne: 'open' } },
       ],
@@ -286,6 +335,8 @@ module.exports = {
   awardSubmission,
   approveLegacyPending,
   revokeSubmission,
+  restoreSubmission,
+  restoreDeadline,
   sweepExpiredSubmissions,
   sweepQuietly,
   purgeExpiredPhotos,

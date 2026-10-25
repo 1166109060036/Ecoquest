@@ -91,6 +91,11 @@
     (CO₂/ประวัติหายด้วย) ลบแต้ม/XP (ไม่ติดลบ) totalQuestsCompleted −1 คำนวณ level ใหม่ ทุกคนที่ได้ + status `rejected` +
     ถอนรูป + แจ้ง `quest_rejected` "Proof Not Accepted" / ⚠️ ไม่ถอนเหรียญที่ปลดแล้ว / โบนัส Bingo / streak (ข้อจำกัด)
     / ของก่อน 7 ต.ค. ไม่มี `awards` = ยึดคืนไม่ได้ (`canRevoke: false` ถอนรูปได้อย่างเดียว)
+  - **กู้คืนได้ 7 วัน** (25 ต.ค. 2026 — สัญญากับอาจารย์ Bun): `remove`/`revoke` และแอดมินกดถอนจากฟีด ยังไม่ลบรูป ตั้ง
+    `restorableUntil` = +7 วัน / `revoke` เก็บแถว QuestHistory + ยอดที่หักจริงไว้ใน `revokedHistories` → `GET /api/reviews/removed`
+    + `POST /api/reviews/:id/restore` (CAS, ใส่แถวเดิม _id เดิมคืน, คืนแต้ม/XP/จำนวนเควสเท่าที่หัก, แจ้ง `post_restored`) /
+    หมดเวลา = `purgeExpiredPhotos` ลบรูปถาวร / รูปที่ถูกถอนเปิดได้เฉพาะลายเซ็น `photoSig('removed')` ของแอดมิน / เจ้าของถอนเอง =
+    ลบรูปทันทีเหมือนเดิม / แอพ: ปุ่มนาฬิกาในหน้า Reported posts → `removed_posts_page.dart`
   - แอพ: แท็บ Feed แอดมินเห็นแบนเนอร์ "N reported posts" → `pages/community/reported_posts_page.dart` (แทน review_page.dart
     เดิม — ทีละใบ: Keep / Remove photo / Not a real quest — take back points + dialog ยืนยัน) เข้าจากหน้า Admin ได้ด้วย
   - **ของ `pending` ค้างจากระบบเดิม**: `sweepQuietly()` (lazy ใน GET /quests, /auth/me, /reviews/queue, /feed) เรียก

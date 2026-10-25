@@ -10,6 +10,7 @@ const { startOfToday } = require('../utils/questDay');
 const {
   REPORTS_TO_HIDE,
   REPORT_REASONS,
+  restoreDeadline,
   sweepQuietly,
   toSubmissionPayload,
   PUBLIC_USER_FIELDS,
@@ -207,8 +208,10 @@ router.delete('/:id', authMiddleware, async (req, res) => {
           removedBy: req.userId,
           hiddenByReports: false,
           ...(post.reportStatus === 'open' ? { reportStatus: 'removed' } : {}),
+          // แอดมินถอน = กู้คืนได้ 7 วัน (routes/reviews.js) / เจ้าของถอนเอง = ลบรูปทันที
+          ...(isAdmin ? { restorableUntil: restoreDeadline() } : {}),
         },
-        $unset: { photoData: 1 },
+        ...(isAdmin ? {} : { $unset: { photoData: 1 } }),
       }
     );
     if (updated.modifiedCount === 0) return res.status(404).json({ message: 'Post not found' });

@@ -6,12 +6,15 @@ const { isAdminUser } = require('../middleware/admin');
 const {
   REPORTS_TO_HIDE,
   revokeSubmission,
+  restoreSubmission,
+  restoreDeadline,
   sweepQuietly,
   toSubmissionPayload,
   PUBLIC_USER_FIELDS,
   QUEST_FIELDS,
 } = require('../utils/submissions');
 const { notifyPostRemoved } = require('../utils/notifications');
+const { photoSig } = require('../utils/photoSign');
 const Quest = require('../models/Quest');
 
 // โพสต์ที่ถูกรายงาน — แอดมินเท่านั้น (7 ต.ค. 2026 เลิกคิวให้ผู้เล่นตรวจทุกอัน ส่งรูปแล้วผ่านทันที ดู utils/submissions.js)
@@ -98,8 +101,9 @@ router.post('/:id/resolve', authMiddleware, async (req, res) => {
                 removedFromFeed: true,
                 removedAt: new Date(),
                 removedBy: req.userId,
+                // ยังไม่ลบรูป — กู้คืนได้ 7 วัน (POST /:id/restore) แล้ว sweep ลบเอง
+                restorableUntil: restoreDeadline(),
               },
-              $unset: { photoData: 1 },
             }
           : { $set: { reportStatus: 'revoked' } };
     const post = await QuestSubmission.findOneAndUpdate(
@@ -122,6 +126,64 @@ router.post('/:id/resolve', authMiddleware, async (req, res) => {
       }
     }
     res.json({ message: 'Report resolved', reportStatus: nextStatus });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   GET /api/reviews/removed
+// @desc    โพสต์ที่แอดมินถอนรูป/ยึดแต้มไป ที่ยังกู้คืนได้ (ภายใน 7 วัน) ใหม่สุดก่อน — แอดมินเท่านั้น
+router.get('/removed', authMiddleware, async (req, res) => {
+  try {
+    if (!(await isAdminUser(req))) {
+      return res.status(403).json({ message: 'Only an admin can see removed posts' });
+    }
+    const items = await QuestSubmission.find({ restorableUntil: { $gt: new Date() } })
+      .sort({ removedAt: -1 })
+      .limit(50)
+      .select('-photoData -revokedHistories')
+      .populate('userId', PUBLIC_USER_FIELDS)
+      .populate('questId', QUEST_FIELDS);
+    res.json({
+      submissions: items.map((s) => ({
+        ...toSubmissionPayload(s, req.userId),
+        // รูปที่ถอนแล้วเปิดด้วยลายเซ็นปกติไม่ได้ (routes/submissions.js) — ลายเซ็นแยกให้แอดมินเท่านั้น
+        photoUrl: `/submissions/${s._id}/photo?v=${s.createdAt ? s.createdAt.getTime() : 0}&s=${photoSig('removed', s._id)}`,
+        removedAction: s.status === 'rejected' ? 'revoke' : 'remove',
+        removedAt: s.removedAt,
+        restorableUntil: s.restorableUntil,
+        reportCount: (s.reports || []).length,
+        reportReasons: reasonCounts(s.reports),
+      })),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @route   POST /api/reviews/:id/restore
+// @desc    กู้คืนโพสต์ที่ถอนรูป/ยึดแต้มไปภายใน 7 วัน — รูปกลับมา, แต้มคืน, แจ้งเตือนเจ้าของ
+router.post('/:id/restore', authMiddleware, async (req, res) => {
+  try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid post id' });
+    }
+    if (!(await isAdminUser(req))) {
+      return res.status(403).json({ message: 'Only an admin can restore posts' });
+    }
+    // CAS: กู้ได้ครั้งเดียว และเฉพาะที่ยังไม่หมดเวลา
+    const post = await QuestSubmission.findOneAndUpdate(
+      { _id: req.params.id, restorableUntil: { $gt: new Date() }, photoData: { $exists: true } },
+      { $set: { restorableUntil: null } },
+      { new: true, projection: { photoData: 0 } }
+    );
+    if (!post) {
+      return res.status(409).json({ message: 'This post can no longer be restored' });
+    }
+    const points = await restoreSubmission(post);
+    res.json({ message: 'Post restored', pointsReturned: points });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });

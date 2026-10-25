@@ -196,6 +196,19 @@ const notifyBingo = async (userId, { weekKey, lines, full, points, xp }) => {
   });
 };
 
+// แอดมินกู้คืนโพสต์ (ถอนรูป/ยึดแต้มผิด) ภายใน 7 วัน — รูปกลับมา และแต้มที่ยึดไปคืนให้
+const notifyPostRestored = async (userId, quest, submissionId, points) => {
+  await createNotification({
+    userId,
+    type: 'post_restored',
+    title: 'Post Restored',
+    message: `${quest ? quest.title : 'Your quest'} · an admin restored your photo`
+      + (points ? ` and gave back ${points} points.` : '.'),
+    dedupeKey: `restored:${submissionId}:${Date.now()}`,
+    data: points ? { points } : null,
+  });
+};
+
 // บัญชีองค์กร (routes/org.js) — แอดมินอนุมัติ/ไม่อนุมัติ/ปิดองค์กร (decidedAt อยู่ใน key = สมัครใหม่แล้วได้ใบใหม่)
 const ORG_STATUS_TEXT = {
   approved: ['Organization Approved', 'You can now create events from Settings → My Events.'],
@@ -311,6 +324,7 @@ module.exports = {
   notifyProofRevoked,
   notifyPostReported,
   notifyOrgStatus,
+  notifyPostRestored,
   notifyOrgEventCancelled,
   ensureExpiryNotifications,
   sweepExpiryNotifications,

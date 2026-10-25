@@ -4,6 +4,15 @@ import '../models/submission_model.dart';
 import '../utils/constants.dart';
 import 'storage_service.dart';
 
+// โพสต์ที่แอดมินถอนไปและยังกู้คืนได้ (GET /reviews/removed) — action: remove (แต้มอยู่) / revoke (ยึดแต้มแล้ว)
+class RemovedPost {
+  final SubmissionModel post;
+  final String action;
+  final DateTime? removedAt;
+  final DateTime restorableUntil;
+  const RemovedPost(this.post, this.action, this.removedAt, this.restorableUntil);
+}
+
 // เรียก API หลักฐานภารกิจ (หลักฐานของฉัน / โพสต์ที่ถูกรายงานของแอดมิน) — รูปแบบ HTTP เดียวกับ friend_service.dart
 class SubmissionService {
   final StorageService _storage = StorageService();
@@ -48,6 +57,37 @@ class SubmissionService {
       pendingCount: data['pendingCount'] ?? 0,
       isAdmin: data['isAdmin'] ?? false,
     );
+  }
+
+  // แอดมิน: โพสต์ที่ถอนไปไม่เกิน 7 วัน (กู้คืนได้)
+  Future<List<RemovedPost>> fetchRemoved() async {
+    final response = await http.get(Uri.parse('${AppConstants.baseUrl}/reviews/removed'), headers: await _headers());
+    final data = jsonDecode(response.body);
+    if (response.statusCode != 200) {
+      throw Exception(data['message'] ?? 'Failed to load removed posts');
+    }
+    return ((data['submissions'] ?? []) as List).map((j) {
+      final m = j as Map<String, dynamic>;
+      return RemovedPost(
+        SubmissionModel.fromJson(m),
+        (m['removedAction'] ?? 'remove') as String,
+        DateTime.tryParse(m['removedAt']?.toString() ?? '')?.toLocal(),
+        DateTime.tryParse(m['restorableUntil']?.toString() ?? '')?.toLocal() ?? DateTime.now(),
+      );
+    }).toList();
+  }
+
+  // แอดมิน: กู้คืนโพสต์ — คืน แต้มที่เจ้าของได้คืน
+  Future<int> restorePost(String submissionId) async {
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/reviews/$submissionId/restore'),
+      headers: await _headers(),
+    );
+    final data = jsonDecode(response.body);
+    if (response.statusCode != 200) {
+      throw Exception(data['message'] ?? 'Failed to restore this post');
+    }
+    return (data['pointsReturned'] as num?)?.toInt() ?? 0;
   }
 
   // แอดมินตัดสินโพสต์ที่ถูกรายงาน — action: keep / remove (ถอนรูป แต้มอยู่) / revoke (ถอนรูป + ยึดแต้มคืน)
