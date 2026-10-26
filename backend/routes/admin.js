@@ -20,6 +20,7 @@ const { startOfToday } = require('../utils/questDay');
 const { applyDailyQuestCompletion } = require('../utils/streak');
 
 const router = express.Router();
+router.param('id', require('../utils/idParam'));
 
 // ทุก route ในไฟล์นี้เป็นของ QA/dev เท่านั้น — ต้อง login (authMiddleware) + อีเมลอยู่ใน
 // ADMIN_EMAILS (adminMiddleware) ทั้งคู่เสมอ ดู middleware/admin.js

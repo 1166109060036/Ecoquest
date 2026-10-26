@@ -1,6 +1,7 @@
 import 'package:socket_io_client/socket_io_client.dart' as sio;
 import '../models/chat_message_model.dart';
 import '../utils/constants.dart';
+import 'storage_service.dart';
 
 // สถานะการเชื่อมต่อ WebSocket — ให้ ChatTab โชว์ banner "กำลังเชื่อมต่อ..." แบบไม่บล็อก UI
 // เวลา backend หลับอยู่ (Render free tier sleep หลังไม่มีคนใช้ ~15 นาที) แทนที่จะทำหน้าแชทค้าง
@@ -39,6 +40,10 @@ class ChatSocketService {
           .enableForceNew()
           .build(),
     );
+    // อ่าน token ล่าสุดทุกครั้งที่ (re)connect — เปลี่ยนรหัสผ่านแล้ว token เดิมใช้ไม่ได้ (backend tokenVersion)
+    _socket!.auth = (void Function(Object?) send) {
+      StorageService().getToken().then((t) => send({'token': t ?? token}));
+    };
 
     _socket!.onConnect((_) => onStatusChange(ChatConnectionStatus.connected));
     _socket!.onDisconnect((_) => onStatusChange(ChatConnectionStatus.disconnected));

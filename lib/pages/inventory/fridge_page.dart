@@ -587,6 +587,7 @@ class _AddItemSheetState extends State<_AddItemSheet> {
                     child: TextField(
                       controller: _nameController,
                       focusNode: _nameFocus,
+                      inputFormatters: [LengthLimitingTextInputFormatter(60)], // backend รับไม่เกิน 60
                       autofocus: true, // พิมพ์ได้เลยไม่ต้องแตะช่องก่อน
                       textCapitalization: TextCapitalization.sentences,
                       textInputAction: TextInputAction.done,

@@ -173,6 +173,10 @@ class AuthService {
 
     final data = jsonDecode(response.body);
 
+    // 401 = token ถูกยกเลิก (เปลี่ยน/รีเซ็ตรหัสผ่านจากเครื่องอื่น) — ล้าง session เปิดแอพครั้งหน้าจะไปหน้า login
+    if (response.statusCode == 401 && token != null && token == await _storage.getToken()) {
+      await _storage.clearSession();
+    }
     if (response.statusCode != 200) {
       throw Exception(data['message'] ?? 'Failed to load your profile');
     }
@@ -371,6 +375,11 @@ class AuthService {
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
       throw Exception(data['message'] ?? 'Failed to change password');
+    }
+    // token เดิมถูกยกเลิกแล้ว (backend เพิ่ม tokenVersion) — เก็บ token ใหม่ เครื่องนี้จะได้ไม่หลุด
+    final user = await _storage.getUser();
+    if (data['token'] is String && user != null) {
+      await _storage.saveSession(data['token'] as String, user);
     }
   }
 

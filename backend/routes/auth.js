@@ -14,8 +14,8 @@ const { sweepQuietly } = require('../utils/submissions');
 
 const router = express.Router();
 
-const generateToken = (userId) => {
-  return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '30d' });
+const generateToken = (user) => {
+  return jwt.sign({ userId: user._id, tv: user.tokenVersion || 0 }, process.env.JWT_SECRET, { expiresIn: '30d' });
 };
 
 // ---- จำกัดจำนวนครั้ง (utils/rateLimit.js) — ค่าเผื่อไว้กว้างพอสำหรับ wifi มหาลัยที่หลายคนใช้ IP เดียวกัน ----
@@ -29,6 +29,9 @@ const limitAvatar = limitBy('avatar', { windowMs: 60 * 60 * 1000, max: 20 }, byU
 
 // email/password ต้องเป็น string — ส่ง object/array มา (เช่น { "$gt": "" }) ตอบ 400 แทนพังเป็น 500
 const isText = (v) => typeof v === 'string' && v.length > 0 && v.length <= 200;
+// ชื่อที่แสดงตอนสมัคร/อัปเกรด guest — ไม่ใช่ข้อความหรือว่าง ใช้ชื่อจากอีเมลแทน, ยาวเกินตัดเหลือ MAX_DISPLAY_NAME_LENGTH
+const signUpName = (v, email) =>
+  (typeof v === 'string' && v.trim().slice(0, MAX_DISPLAY_NAME_LENGTH)) || email.split('@')[0];
 
 // @route   POST /api/auth/register
 // @desc    สมัครสมาชิกด้วย email + password — ยังไม่ให้ token จนกว่าจะยืนยัน OTP ที่ส่งไปทางอีเมล
@@ -56,7 +59,7 @@ router.post('/register', limitRegister, async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     if (!user) user = new User({ email: normalizedEmail, isGuest: false, emailVerified: false });
     user.password = await bcrypt.hash(password, salt);
-    user.displayName = displayName || normalizedEmail.split('@')[0];
+    user.displayName = signUpName(displayName, normalizedEmail);
     const otp = await issueOtp(user, 'verify');
 
     try {
@@ -115,7 +118,7 @@ router.post('/login', limitLoginIp, async (req, res) => {
       });
     }
 
-    const token = generateToken(user._id);
+    const token = generateToken(user);
 
     res.json({
       token,
@@ -141,7 +144,7 @@ router.post('/guest', limitGuest, async (req, res) => {
       displayName: `Guest${Math.floor(Math.random() * 100000)}`,
     });
 
-    const token = generateToken(user._id);
+    const token = generateToken(user);
 
     res.status(201).json({
       token,
@@ -257,7 +260,7 @@ const MAX_DISPLAY_NAME_LENGTH = 20;
 // @desc    แก้ไขชื่อที่แสดง (ใช้ได้ทั้ง guest และบัญชีปกติ)
 router.post('/display-name', authMiddleware, async (req, res) => {
   try {
-    const displayName = (req.body.displayName || '').trim();
+    const displayName = typeof req.body.displayName === 'string' ? req.body.displayName.trim() : '';
 
     if (!displayName) {
       return res.status(400).json({ message: 'Display name cannot be empty' });
@@ -395,7 +398,7 @@ router.post('/upgrade-guest', authMiddleware, async (req, res) => {
     user.pendingEmail = null;
     user.email = normalizedEmail;
     user.password = await bcrypt.hash(password, salt);
-    user.displayName = (displayName || '').trim() || normalizedEmail.split('@')[0];
+    user.displayName = signUpName(displayName, normalizedEmail);
     user.isGuest = false;
 
     try {
@@ -477,9 +480,10 @@ router.post('/change-password', authMiddleware, async (req, res) => {
 
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(newPassword, salt);
+    user.tokenVersion = (user.tokenVersion || 0) + 1; // เครื่องอื่นหลุด — เครื่องนี้ได้ token ใหม่ด้านล่าง
     await user.save();
 
-    res.json({ message: 'Password changed successfully' });
+    res.json({ message: 'Password changed successfully', token: generateToken(user) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
@@ -538,7 +542,7 @@ router.post('/verify-email', limitOtpIp, async (req, res) => {
     await user.save();
 
     res.json({
-      token: generateToken(user._id),
+      token: generateToken(user),
       user: {
         id: user._id,
         email: user.email,
@@ -656,7 +660,7 @@ router.post('/verify-reset-otp', limitOtpIp, async (req, res) => {
     await user.save();
 
     const resetToken = jwt.sign(
-      { userId: user._id, purpose: 'password_reset' },
+      { userId: user._id, purpose: 'password_reset', tv: user.tokenVersion || 0 }, // tv: ใช้ตั้งรหัสได้ครั้งเดียว
       process.env.JWT_SECRET,
       { expiresIn: '10m' }
     );
@@ -697,9 +701,13 @@ router.post('/reset-password', async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
+    if ((decoded.tv || 0) !== (user.tokenVersion || 0)) {
+      return res.status(401).json({ message: 'This password reset request has expired. Please request a new OTP' });
+    }
 
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(newPassword, salt);
+    user.tokenVersion = (user.tokenVersion || 0) + 1; // token ล็อกอินเดิมทุกเครื่องใช้ไม่ได้
     await user.save();
 
     res.json({ message: 'Password reset successfully' });

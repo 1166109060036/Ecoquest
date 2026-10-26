@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../models/quest_card_model.dart';
 import '../../providers/auth_provider.dart';
@@ -374,7 +375,7 @@ class _DetailsForm extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             _FieldLabel('Room name'),
-            _DarkTextField(controller: nameController, hint: 'e.g. Saturday cleanup crew'),
+            _DarkTextField(controller: nameController, hint: 'e.g. Saturday cleanup crew', maxLength: 60),
             const SizedBox(height: 16),
             _FieldLabel('Event date & time'),
             Row(
@@ -413,7 +414,7 @@ class _DetailsForm extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             _FieldLabel('Location'),
-            _DarkTextField(controller: locationController, hint: 'e.g. Riverside Park'),
+            _DarkTextField(controller: locationController, hint: 'e.g. Riverside Park', maxLength: 120),
             const SizedBox(height: 16),
             _FieldLabel('Capacity'),
             Row(
@@ -480,13 +481,15 @@ class _FieldLabel extends StatelessWidget {
 class _DarkTextField extends StatelessWidget {
   final TextEditingController controller;
   final String hint;
+  final int maxLength;
 
-  const _DarkTextField({required this.controller, required this.hint});
+  const _DarkTextField({required this.controller, required this.hint, required this.maxLength});
 
   @override
   Widget build(BuildContext context) {
     return TextField(
       controller: controller,
+      inputFormatters: [LengthLimitingTextInputFormatter(maxLength)],
       style: const TextStyle(color: Colors.white),
       textCapitalization: TextCapitalization.sentences,
       decoration: InputDecoration(

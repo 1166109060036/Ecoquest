@@ -9,6 +9,7 @@ const { photoSig, isValidPhotoSig } = require('../utils/photoSign');
 const { purgeExpiredFridgePhotos } = require('../utils/fridgePhotos');
 
 const router = express.Router();
+router.param('id', require('../utils/idParam'));
 
 // กันไฟล์ใหญ่ผิดปกติ — ฝั่งแอพย่อเหลือด้านยาวสุด 640px quality 70 (~50-100KB) อยู่แล้ว
 const MAX_FRIDGE_PHOTO_BYTES = 2 * 1024 * 1024;

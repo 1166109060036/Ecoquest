@@ -84,7 +84,7 @@ router.get('/search', authMiddleware, async (req, res) => {
 router.post('/requests', authMiddleware, async (req, res) => {
   try {
     const { recipientId } = req.body;
-    if (!recipientId || !mongoose.Types.ObjectId.isValid(recipientId)) {
+    if (!mongoose.isObjectIdOrHexString(recipientId)) {
       return res.status(400).json({ message: 'Invalid recipient' });
     }
     if (String(recipientId) === String(req.userId)) {

@@ -27,6 +27,7 @@ const progression = require('../utils/progression');
 const hasCombo = (quest) => quest.type === 'solo' && (quest.durationDays || 1) <= 1;
 
 const router = express.Router();
+router.param('id', require('../utils/idParam'));
 
 // สถานะเช็คอินของเควสหลายวันจากแถว QuestProgress — ใช้ร่วมกัน GET / และ GET /progress ให้ตัวเลขตรงกันทุกหน้า
 // เช็คอินล่าสุดไม่ใช่วันนี้/เมื่อวาน = ลืมไปแล้ว เช็คอินครั้งถัดไปจะนับใหม่เป็นวันที่ 1 — โชว์ 0 เลย

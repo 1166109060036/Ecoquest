@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/constants.dart';
@@ -128,6 +129,7 @@ class _UpgradeAccountPageState extends State<UpgradeAccountPage> {
                                 _DarkField(
                                   controller: _nameController,
                                   label: 'Display name',
+                                  maxLength: 20,
                                   validator: (value) {
                                     if (value == null || value.trim().isEmpty) {
                                       return 'Please enter a display name';
@@ -287,6 +289,7 @@ class _DarkField extends StatefulWidget {
   final bool obscure;
   final TextInputType? keyboardType;
   final String? Function(String?) validator;
+  final int? maxLength;
 
   const _DarkField({
     required this.controller,
@@ -294,6 +297,7 @@ class _DarkField extends StatefulWidget {
     required this.validator,
     this.obscure = false,
     this.keyboardType,
+    this.maxLength,
   });
 
   @override
@@ -310,6 +314,7 @@ class _DarkFieldState extends State<_DarkField> {
       obscureText: _hidden,
       keyboardType: widget.keyboardType,
       validator: widget.validator,
+      inputFormatters: [if (widget.maxLength != null) LengthLimitingTextInputFormatter(widget.maxLength)],
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         labelText: widget.label,

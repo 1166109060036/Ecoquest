@@ -235,6 +235,7 @@ class AuthTextField extends StatefulWidget {
   final FormFieldValidator<String>? validator;
   final ValueChanged<String>? onSubmitted;
   final Iterable<String>? autofillHints;
+  final int? maxLength; // ตัดที่ความยาวนี้ ไม่โชว์ตัวนับ
 
   const AuthTextField({
     super.key,
@@ -247,6 +248,7 @@ class AuthTextField extends StatefulWidget {
     this.validator,
     this.onSubmitted,
     this.autofillHints,
+    this.maxLength,
   });
 
   @override
@@ -271,6 +273,7 @@ class _AuthTextFieldState extends State<AuthTextField> {
       validator: widget.validator,
       onFieldSubmitted: widget.onSubmitted,
       autofillHints: widget.autofillHints,
+      inputFormatters: [if (widget.maxLength != null) LengthLimitingTextInputFormatter(widget.maxLength)],
       style: const TextStyle(color: Colors.white, fontSize: 15),
       cursorColor: Colors.greenAccent,
       decoration: InputDecoration(

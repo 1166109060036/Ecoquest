@@ -82,6 +82,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         controller: _displayNameController,
                         label: 'Display name (optional)',
                         icon: Icons.badge_outlined,
+                        maxLength: 20, // เท่า MAX_DISPLAY_NAME_LENGTH ของ backend
                         textInputAction: TextInputAction.next,
                         autofillHints: const [AutofillHints.nickname],
                       ),

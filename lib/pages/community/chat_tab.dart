@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../models/chat_message_model.dart';
 import '../../models/friend_model.dart';
@@ -363,6 +364,7 @@ class _Composer extends StatelessWidget {
         Expanded(
           child: TextField(
             controller: controller,
+            inputFormatters: [LengthLimitingTextInputFormatter(1000)], // backend ตัดที่ 1000 (sockets/index.js)
             textInputAction: TextInputAction.send,
             onSubmitted: (_) => onSend(),
             decoration: InputDecoration(

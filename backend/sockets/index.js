@@ -51,11 +51,11 @@ const initSocket = (io) => {
   ioInstance = io;
   // auth ตอน handshake ครั้งเดียว (ไม่ใช่ทุกข้อความ) — เช็ค JWT เดียวกับ authMiddleware ของ HTTP
   // ผ่าน verifyToken() ตัวกลาง (ดู utils/verifyToken.js — Phase 0 แยกออกมาให้ใช้ร่วมกันตรงนี้)
-  io.use((socket, next) => {
+  io.use(async (socket, next) => {
     try {
       const token = socket.handshake.auth && socket.handshake.auth.token;
       if (!token) return next(new Error('unauthorized'));
-      socket.userId = verifyToken(token);
+      socket.userId = await verifyToken(token);
       next();
     } catch (err) {
       next(new Error('unauthorized'));

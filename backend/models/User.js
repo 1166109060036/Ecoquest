@@ -53,6 +53,11 @@ const UserSchema = new mongoose.Schema(
       type: String,
       // ไม่ required สำหรับ guest
     },
+    // เพิ่มทุกครั้งที่เปลี่ยน/รีเซ็ตรหัสผ่าน — token ที่ออกก่อนหน้าใช้ไม่ได้ (utils/verifyToken.js)
+    tokenVersion: {
+      type: Number,
+      default: 0,
+    },
     isGuest: {
       type: Boolean,
       default: false,

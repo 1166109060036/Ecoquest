@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const Party = require('../models/Party');
 const PartyMember = require('../models/PartyMember');
 const Quest = require('../models/Quest');
@@ -14,6 +15,7 @@ const { requiredMembers, canStart, canComplete } = require('../utils/partyGate')
 const { syncPartyRoomForUser } = require('../sockets');
 
 const router = express.Router();
+router.param('partyId', require('../utils/idParam'));
 
 // แปลง party (ต้อง populate questId มาก่อนแล้ว) + สมาชิก ให้อยู่ในรูปที่แอพเอาไปโชว์ได้เลย
 const toPartyPayload = async (party, userId) => {
@@ -154,7 +156,7 @@ router.post('/', authMiddleware, async (req, res) => {
   try {
     const { questId, name, eventDate, location, capacity } = req.body;
 
-    const quest = await Quest.findById(questId);
+    const quest = mongoose.isObjectIdOrHexString(questId) ? await Quest.findById(questId) : null;
     if (!quest || !quest.isActive) {
       return res.status(404).json({ message: 'Quest not found' });
     }
@@ -179,9 +181,12 @@ router.post('/', authMiddleware, async (req, res) => {
     }
 
     // ---- validate ฟอร์ม ----
-    const trimmedName = (name || '').toString().trim();
+    const trimmedName = typeof name === 'string' ? name.trim() : '';
     if (!trimmedName) {
       return res.status(400).json({ message: 'Please enter a room name' });
+    }
+    if (trimmedName.length > 60 || (typeof location === 'string' && location.trim().length > 120)) {
+      return res.status(400).json({ message: 'Room name or location is too long' });
     }
 
     const parsedDate = new Date(eventDate);
@@ -209,7 +214,7 @@ router.post('/', authMiddleware, async (req, res) => {
       leaderId: req.userId,
       name: trimmedName,
       eventDate: parsedDate,
-      location: (location || '').toString().trim() || quest.location,
+      location: (typeof location === 'string' && location.trim()) || quest.location,
       capacity: parsedCapacity,
     });
 
