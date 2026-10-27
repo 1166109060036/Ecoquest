@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/chat_message_model.dart';
 import '../services/chat_service.dart';
@@ -101,15 +102,17 @@ class ChatProvider extends ChangeNotifier {
   }
 
   // ไม่ต้องส่ง channelId — backend หา partyId เองจาก membership จริงของผู้ส่ง (กันส่งเข้าห้องผิด)
-  void sendPartyMessage(String text) => _send(channelType: 'party', text: text);
+  // คืน null = ส่งสำเร็จ / ข้อความ error จาก backend (เช่น ส่งรัวเกิน) ให้หน้าแชทโชว์ toast
+  Future<String?> sendPartyMessage(String text) => _send(channelType: 'party', text: text);
 
-  void sendFriendMessage(String friendUserId, String text) =>
+  Future<String?> sendFriendMessage(String friendUserId, String text) =>
       _send(channelType: 'friend', channelId: friendUserId, text: text);
 
-  void _send({required String channelType, String? channelId, required String text}) {
+  Future<String?> _send({required String channelType, String? channelId, required String text}) {
     final trimmed = text.trim();
-    if (trimmed.isEmpty) return;
+    if (trimmed.isEmpty) return Future.value(null);
 
+    final done = Completer<String?>();
     _socketService.sendMessage(
       channelType: channelType,
       channelId: channelId,
@@ -119,8 +122,10 @@ class ChatProvider extends ChangeNotifier {
           _errorMessage = error ?? 'Failed to send message';
           notifyListeners();
         }
+        if (!done.isCompleted) done.complete(ok ? null : _errorMessage);
       },
     );
+    return done.future;
   }
 
   void disconnect() {

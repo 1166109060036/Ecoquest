@@ -4,6 +4,10 @@ const User = require('../models/User');
 const PartyMember = require('../models/PartyMember');
 const Friendship = require('../models/Friendship');
 const { pairKey } = require('../utils/friendKey');
+const { limiter } = require('../utils/rateLimit');
+
+// กันส่งแชทรัว (27 ต.ค. 2026) — ต่อคน ไม่เกิน 10 ข้อความใน 10 วินาที
+const chatSends = limiter('chat-send', { windowMs: 10 * 1000, max: 10 });
 
 // แผนที่ userId -> เซ็ตของ socketId ที่ user นั้นเปิดอยู่ตอนนี้ (คนเดียวเปิดแอพหลายเครื่อง/หลายแท็บ
 // พร้อมกันได้ เลยเป็น Set ไม่ใช่ค่าเดียว) — เก็บใน memory ของโปรเซสนี้เฉยๆ
@@ -86,6 +90,10 @@ const initSocket = (io) => {
         }
         if (text.length > 1000) {
           if (ack) ack({ ok: false, message: 'Message is too long' });
+          return;
+        }
+        if (!chatSends.hit(String(socket.userId))) {
+          if (ack) ack({ ok: false, message: 'You are sending messages too fast. Please wait a moment' });
           return;
         }
 

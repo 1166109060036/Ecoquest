@@ -178,17 +178,24 @@ const buyUpgrade = async (userId, upgradeType) => {
     return { error: { status: 400, message: 'Not enough points' } };
   }
 
-  let saved;
+  // อัพจากระดับที่อ่านไว้เท่านั้น (level: currentLevel) — กดซื้อพร้อมกัน 2 ครั้ง ครั้งที่ 2 ไม่ match
+  // จะไม่ได้ระดับเกิน max หรือจ่ายราคาระดับเก่า (27 ต.ค. 2026) / ระดับ 0 ยังไม่มีแถว = upsert (unique index กันซ้ำ)
+  let saved = null;
+  let failed = null;
   try {
     saved = await UserUpgrade.findOneAndUpdate(
-      { userId, upgradeType },
+      { userId, upgradeType, level: currentLevel },
       { $inc: { level: 1 } },
-      { upsert: true, new: true }
+      { upsert: currentLevel === 0, new: true }
     );
   } catch (err) {
+    if (err.code !== 11000) failed = err;
+  }
+  if (!saved) {
     // อัพระดับไม่สำเร็จ ต้องคืนแต้มที่หักไปแล้ว ไม่งั้นผู้ใช้เสียแต้มฟรีโดยไม่ได้อะไรเลย
     await User.updateOne({ _id: userId }, { $inc: { points: cost } });
-    throw err;
+    if (failed) throw failed;
+    return { error: { status: 409, message: 'This upgrade was just updated. Please try again' } };
   }
 
   return {

@@ -8,6 +8,7 @@ import '../../providers/friend_provider.dart';
 import '../../providers/party_provider.dart';
 import '../../services/chat_socket_service.dart';
 import '../../widgets/breathing_icon.dart';
+import '../../widgets/bubble_toast.dart';
 import '../../widgets/decorated_avatar.dart';
 import '../../widgets/pressable_scale.dart';
 
@@ -71,21 +72,28 @@ class _ChatTabState extends State<ChatTab> {
     context.read<ChatProvider>().loadFriendHistory(chosen.id);
   }
 
-  void _send() {
+  Future<void> _send() async {
     final text = _textController.text;
     if (text.trim().isEmpty) return;
 
     final provider = context.read<ChatProvider>();
+    final Future<String?> sent;
     switch (_channel) {
       case null:
         return;
       case _Channel.party:
-        provider.sendPartyMessage(text);
+        sent = provider.sendPartyMessage(text);
       case _Channel.friend:
         final friend = _selectedFriend;
-        if (friend != null) provider.sendFriendMessage(friend.id, text);
+        if (friend == null) return;
+        sent = provider.sendFriendMessage(friend.id, text);
     }
     _textController.clear();
+    final error = await sent;
+    // ส่งไม่สำเร็จ (เช่น ส่งรัวเกิน) — บอกเหตุผล และคืนข้อความให้ถ้ายังไม่ได้พิมพ์อะไรใหม่
+    if (error == null || !mounted) return;
+    showBubbleToast(context, error);
+    if (_textController.text.isEmpty) _textController.text = text;
   }
 
   @override
