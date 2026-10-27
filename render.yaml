@@ -25,6 +25,12 @@ services:
         sync: false
       - key: GMAIL_APP_PASSWORD
         sync: false
+      # Render บล็อก SMTP — ถ้าตั้งค่านี้ OTP จะส่งผ่าน Brevo API แทน (GMAIL_USER ต้องเป็น sender ที่ verify ใน Brevo)
+      - key: BREVO_API_KEY
+        sync: false
+      # อีเมลแอดมิน คั่นด้วย comma, ไม่ตั้ง = ปิดเครื่องมือแอดมิน
+      - key: ADMIN_EMAILS
+        sync: false
       # Push notification (FCM) — เนื้อหาไฟล์ service account JSON ของ Firebase ทั้งก้อน ดู backend/utils/push.js
       # ไม่ตั้ง = ไม่มี push (แจ้งเตือนในแอพยังใช้ได้)
       - key: FIREBASE_SERVICE_ACCOUNT
