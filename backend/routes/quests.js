@@ -15,7 +15,7 @@ const { startOfToday, todayKey, yesterdayKey } = require('../utils/questDay');
 const { awardQuest, applyStreakNow } = require('../utils/questRewards');
 const { decodeImage } = require('../utils/imageUpload');
 const { limitBy, byUser } = require('../utils/rateLimit');
-const { photoHashOf, isDuplicatePhoto, sweepQuietly, awardSubmission } = require('../utils/submissions');
+const { photoHashOf, claimPhoto, sweepQuietly, awardSubmission } = require('../utils/submissions');
 const { selectVisibleQuests } = require('../utils/questSelection');
 const { shopEnabled } = require('../utils/featureFlags');
 const { comboForNow, comboSummaryToday, nextNewMultiplier } = require('../utils/combo');
@@ -361,7 +361,7 @@ router.post('/:id/complete', authMiddleware, limitProofUploads, async (req, res)
           message: err.message === 'Image is too large' ? 'Photo is too large' : 'Invalid photo data',
         });
       }
-      if (await isDuplicatePhoto(req.userId, photo.hash)) {
+      if (!(await claimPhoto(req, res, photo.hash))) {
         return res.status(409).json({ message: 'This photo was already used — take a new photo' });
       }
     }

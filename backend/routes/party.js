@@ -9,7 +9,7 @@ const QuestSubmission = require('../models/QuestSubmission');
 const { applyStreakNow } = require('../utils/questRewards');
 const { decodeImage } = require('../utils/imageUpload');
 const { limitBy, byUser } = require('../utils/rateLimit');
-const { photoHashOf, isDuplicatePhoto, awardSubmission } = require('../utils/submissions');
+const { photoHashOf, claimPhoto, awardSubmission } = require('../utils/submissions');
 const { avatarUrlFor, cosmeticsFor } = require('../utils/avatar');
 const { requiredMembers, canStart, canComplete } = require('../utils/partyGate');
 const { syncPartyRoomForUser } = require('../sockets');
@@ -77,6 +77,22 @@ const toPartyPayload = async (party, userId) => {
       })),
   };
 };
+
+// เช็ค "อยู่ห้องอื่นแล้ว" / "ห้องเต็ม" ทำก่อน insert — 2 request พร้อมกันผ่านเช็คได้ทั้งคู่
+// เลยเช็คซ้ำหลัง insert แล้วถอนตัวเองออกถ้าชน (ชนกันพอดีอาจถอนทั้งคู่ ผู้ใช้กดใหม่ได้)
+async function membershipConflict(userId, party) {
+  if (await PartyMember.exists({ userId, partyId: { $ne: party._id } })) {
+    return 'You are already in another party. Leave it first.';
+  }
+  if (party.capacity > 0) {
+    const firstIn = await PartyMember.find({ partyId: party._id })
+      .sort({ joinedAt: 1, _id: 1 })
+      .limit(party.capacity)
+      .select('userId');
+    if (!firstIn.some((m) => String(m.userId) === String(userId))) return 'This party is already full';
+  }
+  return null;
+}
 
 // @route   GET /api/party
 // @desc    ห้องที่ user กำลังอยู่ตอนนี้ (เข้าร่วมได้ทีละห้องเดียวตามดีไซน์)
@@ -223,6 +239,12 @@ router.post('/', authMiddleware, async (req, res) => {
       userId: req.userId,
       isLeader: true,
     });
+    const createConflict = await membershipConflict(req.userId, party);
+    if (createConflict) {
+      await PartyMember.deleteMany({ partyId: party._id });
+      await Party.deleteOne({ _id: party._id });
+      return res.status(409).json({ message: createConflict });
+    }
     // ให้ session ที่เปิดค้างอยู่ (ถ้ามี) join ห้องแชทปาร์ตี้ทันที ไม่ต้องรอ reconnect
     syncPartyRoomForUser(req.userId, party._id, 'join');
 
@@ -330,6 +352,11 @@ router.post('/join/:partyId', authMiddleware, async (req, res) => {
       }
       throw err;
     }
+    const joinConflict = await membershipConflict(req.userId, party);
+    if (joinConflict) {
+      await PartyMember.deleteOne({ partyId: party._id, userId: req.userId });
+      return res.status(409).json({ message: joinConflict });
+    }
     syncPartyRoomForUser(req.userId, party._id, 'join');
 
     res.status(201).json({
@@ -429,7 +456,7 @@ router.post('/complete', authMiddleware, limitPartyUploads, async (req, res) => 
         message: err.message === 'Image is too large' ? 'Photo is too large' : 'Invalid photo data',
       });
     }
-    if (await isDuplicatePhoto(req.userId, photo.hash)) {
+    if (!(await claimPhoto(req, res, photo.hash))) {
       return res.status(409).json({ message: 'This photo was already used — take a new photo' });
     }
 

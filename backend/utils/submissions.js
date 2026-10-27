@@ -9,6 +9,7 @@
 // ของที่ยัง pending ค้างจากระบบเดิม sweep อนุมัติให้หมด (approveLegacyPending)
 const crypto = require('crypto');
 const QuestSubmission = require('../models/QuestSubmission');
+const PhotoClaim = require('../models/PhotoClaim');
 const QuestHistory = require('../models/QuestHistory');
 const Quest = require('../models/Quest');
 const Party = require('../models/Party');
@@ -47,6 +48,21 @@ const photoHashOf = (buffer) => crypto.createHash('sha256').update(buffer).diges
 // รูปเดิมของตัวเองส่งซ้ำไม่ได้ทุกสถานะ (กันถ่ายครั้งเดียวใช้ทำเควสซ้ำได้ไม่จำกัด)
 const isDuplicatePhoto = async (userId, photoHash) =>
   Boolean(await QuestSubmission.exists({ userId, photoHash }));
+
+// จองรูปก่อนแล้วค่อยเช็คซ้ำ — 2 request รูปเดียวกันพร้อมกัน ตัวที่สองชน unique index ของ PhotoClaim
+// ปล่อยจองตอน response จบ: ถ้าสำเร็จตอนนั้นมี QuestSubmission แล้ว request หลังจากนี้เจอใน isDuplicatePhoto
+const claimPhoto = async (req, res, photoHash) => {
+  try {
+    await PhotoClaim.create({ userId: req.userId, photoHash });
+  } catch (err) {
+    if (err.code === 11000) return false;
+    throw err;
+  }
+  res.once('close', () => {
+    PhotoClaim.deleteOne({ userId: req.userId, photoHash }).catch((e) => console.error('ปล่อยจองรูปไม่สำเร็จ:', e.message));
+  });
+  return !(await isDuplicatePhoto(req.userId, photoHash));
+};
 
 // ผู้ใช้ปลายทางที่ได้ผลของ submission นี้ (party = สมาชิกทุกคน, อื่นๆ = คนส่ง)
 const recipientsOf = (submission) =>
@@ -331,7 +347,7 @@ module.exports = {
   REPORTS_TO_HIDE,
   REPORT_REASONS,
   photoHashOf,
-  isDuplicatePhoto,
+  claimPhoto,
   awardSubmission,
   approveLegacyPending,
   revokeSubmission,
