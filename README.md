@@ -156,3 +156,5 @@ The deployed API URL is `_deployedApiUrl` in `lib/utils/constants.dart`. It must
 3. In MongoDB Atlas → Network Access, allow `0.0.0.0/0` (Render has no fixed IP).
 
 On the free tier the service sleeps after about 15 minutes without requests. The first request after that is slow, and the 30-minute fridge check does not run while it sleeps.
+
+**Optional: keep it awake.** This is not required; the app works without it. An external cron service (for example cron-job.org) can call `GET /` every 14 minutes so the server never sleeps. This uses about 744 of the 750 free instance hours per month, so only do it if this is the workspace's only free service. If the hours run out, Render suspends all free services until the next month.
