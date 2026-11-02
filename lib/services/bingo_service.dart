@@ -3,6 +3,7 @@ import 'api_http.dart' as http;
 import '../models/bingo_model.dart';
 import '../utils/constants.dart';
 import 'storage_service.dart';
+import '../l10n/tr.dart';
 
 // Eco Bingo รายสัปดาห์ (backend/routes/bingo.js) — รูปแบบ HTTP เดียวกับ submission_service.dart
 class BingoService {
@@ -16,7 +17,7 @@ class BingoService {
     );
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to load Eco Bingo');
+      throw Exception(data['message'] ?? tr('Failed to load Eco Bingo'));
     }
     return BingoCardModel.fromJson(data as Map<String, dynamic>);
   }

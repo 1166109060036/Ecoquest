@@ -4,6 +4,7 @@ import '../models/impact_model.dart';
 import '../models/submission_model.dart';
 import '../utils/constants.dart';
 import 'storage_service.dart';
+import '../l10n/tr.dart';
 
 // ฟีดกิจกรรมชุมชน + ผลกระทบรวมของเมือง (backend/routes/feed.js, backend/routes/impact.js)
 // รูปแบบ HTTP เดียวกับ friend_service.dart
@@ -24,7 +25,7 @@ class FeedService {
     final response = await http.get(Uri.parse('${AppConstants.baseUrl}/feed$query'), headers: await _headers());
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to load the community feed');
+      throw Exception(data['message'] ?? tr('Failed to load the community feed'));
     }
     final items = ((data['items'] ?? []) as List)
         .map((s) => SubmissionModel.fromJson(s as Map<String, dynamic>))
@@ -40,7 +41,7 @@ class FeedService {
     );
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to cheer');
+      throw Exception(data['message'] ?? tr('Failed to cheer'));
     }
     return (cheers: (data['cheers'] ?? 0) as int, cheeredByMe: data['cheeredByMe'] == true);
   }
@@ -53,7 +54,7 @@ class FeedService {
     );
     if (response.statusCode != 200) {
       final data = jsonDecode(response.body);
-      throw Exception(data['message'] ?? 'Failed to remove this post');
+      throw Exception(data['message'] ?? tr('Failed to remove this post'));
     }
   }
 
@@ -66,7 +67,7 @@ class FeedService {
     );
     if (response.statusCode != 200) {
       final data = jsonDecode(response.body);
-      throw Exception(data['message'] ?? 'Failed to report this post');
+      throw Exception(data['message'] ?? tr('Failed to report this post'));
     }
   }
 
@@ -74,7 +75,7 @@ class FeedService {
     final response = await http.get(Uri.parse('${AppConstants.baseUrl}/impact/summary'), headers: await _headers());
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? "Failed to load the city's impact");
+      throw Exception(data['message'] ?? tr("Failed to load the city's impact"));
     }
     return ImpactSummary.fromJson(data as Map<String, dynamic>);
   }

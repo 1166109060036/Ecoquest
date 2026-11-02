@@ -3,6 +3,7 @@ import 'api_http.dart' as http;
 import '../models/inventory_item_model.dart';
 import '../utils/constants.dart';
 import 'storage_service.dart';
+import '../l10n/tr.dart';
 
 // ดึงไอเทมของผู้เล่น (Camera/Fridge เป็นไอเทมตั้งต้นที่ backend แจกให้อัตโนมัติ)
 class InventoryService {
@@ -18,7 +19,7 @@ class InventoryService {
     final data = jsonDecode(response.body);
 
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to load inventory');
+      throw Exception(data['message'] ?? tr('Failed to load inventory'));
     }
 
     return (data['items'] as List)
@@ -36,7 +37,7 @@ class InventoryService {
 
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to buy this item');
+      throw Exception(data['message'] ?? tr('Failed to buy this item'));
     }
   }
 
@@ -50,7 +51,7 @@ class InventoryService {
 
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to use this item');
+      throw Exception(data['message'] ?? tr('Failed to use this item'));
     }
   }
 
@@ -70,7 +71,7 @@ class InventoryService {
 
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to update cosmetics');
+      throw Exception(data['message'] ?? tr('Failed to update cosmetics'));
     }
   }
 }

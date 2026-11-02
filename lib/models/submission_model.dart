@@ -1,6 +1,7 @@
 import 'proof_form.dart';
 import '../utils/constants.dart';
 import 'friend_model.dart';
+import '../l10n/tr.dart';
 
 // หลักฐานการทำภารกิจ 1 ครั้ง (รูปถ่าย) — ดู backend/utils/submissions.js
 // 7 ต.ค. 2026: ส่งรูปแล้วผ่านทันที (เลิกให้ผู้เล่นตรวจ) ผู้เล่นรายงานโพสต์ได้ / แอดมินดูเฉพาะที่ถูกรายงาน
@@ -161,9 +162,9 @@ class ReportQueue {
 }
 
 // เหตุผลที่รายงานได้ — ตรงกับ backend/utils/submissions.js REPORT_REASONS
-const reportReasonLabels = <String, String>{
-  'not_done': "Doesn't show the quest",
-  'personal_info': 'Shows personal info',
-  'inappropriate': 'Inappropriate photo',
-  'other': 'Something else',
+Map<String, String> get reportReasonLabels => <String, String>{
+  'not_done': tr("Doesn't show the quest"),
+  'personal_info': tr('Shows personal info'),
+  'inappropriate': tr('Inappropriate photo'),
+  'other': tr('Something else'),
 };

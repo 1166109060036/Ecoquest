@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/tr.dart';
 
 // ใช้ร่วมกันได้ทุกหน้าหลัก (Home, Inventory, Explore, Party, Profile)
 // ส่ง currentIndex เข้ามาว่าตอนนี้อยู่หน้าไหน แล้วมันจะไฮไลต์ให้เอง
@@ -10,12 +11,12 @@ class AppBottomNavBar extends StatelessWidget {
 
   const AppBottomNavBar({super.key, required this.currentIndex, required this.onTap});
 
-  static const _items = [
-    _NavItemData(icon: Icons.home_rounded, label: 'Home'),
-    _NavItemData(icon: Icons.inventory_2_rounded, label: 'Inventory'),
-    _NavItemData(icon: Icons.explore_rounded, label: 'Explore'),
-    _NavItemData(icon: Icons.diversity_3_rounded, label: 'Community'),
-    _NavItemData(icon: Icons.person_rounded, label: 'Profile'),
+  static List<_NavItemData> get _items => [
+    _NavItemData(icon: Icons.home_rounded, label: tr('Home')),
+    _NavItemData(icon: Icons.inventory_2_rounded, label: tr('Inventory')),
+    _NavItemData(icon: Icons.explore_rounded, label: tr('Explore')),
+    _NavItemData(icon: Icons.diversity_3_rounded, label: tr('Community')),
+    _NavItemData(icon: Icons.person_rounded, label: tr('Profile')),
   ];
 
   @override

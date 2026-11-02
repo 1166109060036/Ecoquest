@@ -3,6 +3,7 @@ import '../../models/org_event_model.dart';
 import '../../services/org_service.dart';
 import '../../utils/date_format.dart';
 import '../../widgets/bubble_toast.dart';
+import '../../l10n/tr.dart';
 
 // ฟอร์มสร้างอีเวนต์ขององค์กร (14 ต.ค. 2026) — กติกาตรวจซ้ำที่ backend/routes/org.js ทุกข้อ:
 // แต้ม 10–40, ยาว 15 นาที–8 ชม., ล่วงหน้าไม่เกิน 60 วัน, รับ 1–1000 คน, ไม่เกิน 3 งานต่อวัน
@@ -63,7 +64,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
     final startAt = _at(_start);
     final endAt = _at(_end);
     if (!endAt.isAfter(startAt)) {
-      showBubbleToast(context, 'The end time must be after the start time');
+      showBubbleToast(context, tr('The end time must be after the start time'));
       return;
     }
     setState(() => _saving = true);
@@ -106,7 +107,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
         backgroundColor: Colors.grey.shade50,
         foregroundColor: Colors.black87,
         elevation: 0,
-        title: const Text('New event'),
+        title: Text(tr('New event')),
       ),
       body: Form(
         key: _formKey,
@@ -116,18 +117,18 @@ class _CreateEventPageState extends State<CreateEventPage> {
             TextFormField(
               controller: _title,
               maxLength: 60,
-              decoration: _decoration('Event name', hint: 'e.g. Riverside Cleanup'),
-              validator: (v) => (v ?? '').trim().length < 3 ? 'At least 3 characters' : null,
+              decoration: _decoration(tr('Event name'), hint: tr('e.g. Riverside Cleanup')),
+              validator: (v) => (v ?? '').trim().length < 3 ? tr('At least 3 characters') : null,
             ),
             const SizedBox(height: 8),
             TextFormField(
               controller: _description,
               maxLength: 1000,
               maxLines: 4,
-              decoration: _decoration('What will people do?', hint: 'What to bring, where to meet...'),
+              decoration: _decoration(tr('What will people do?'), hint: tr('What to bring, where to meet...')),
             ),
             const SizedBox(height: 8),
-            const Text('Category', style: TextStyle(fontWeight: FontWeight.w600)),
+            Text(tr('Category'), style: TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
             Wrap(
               spacing: 8,
@@ -151,20 +152,20 @@ class _CreateEventPageState extends State<CreateEventPage> {
             TextFormField(
               controller: _location,
               maxLength: 120,
-              decoration: _decoration('Location', hint: 'e.g. Nopporo Forest Park, north gate'),
-              validator: (v) => (v ?? '').trim().length < 2 ? 'Enter the location' : null,
+              decoration: _decoration(tr('Location'), hint: tr('e.g. Nopporo Forest Park, north gate')),
+              validator: (v) => (v ?? '').trim().length < 2 ? tr('Enter the location') : null,
             ),
             const SizedBox(height: 8),
-            _PickerTile(icon: Icons.calendar_today, label: 'Date', value: formatEventDate(_date), onTap: _pickDate),
+            _PickerTile(icon: Icons.calendar_today, label: tr('Date'), value: formatEventDate(_date), onTap: _pickDate),
             const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
-                  child: _PickerTile(icon: Icons.schedule, label: 'Start', value: _start.format(context), onTap: () => _pickTime(true)),
+                  child: _PickerTile(icon: Icons.schedule, label: tr('Start'), value: _start.format(context), onTap: () => _pickTime(true)),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: _PickerTile(icon: Icons.schedule, label: 'End', value: _end.format(context), onTap: () => _pickTime(false)),
+                  child: _PickerTile(icon: Icons.schedule, label: tr('End'), value: _end.format(context), onTap: () => _pickTime(false)),
                 ),
               ],
             ),
@@ -172,18 +173,18 @@ class _CreateEventPageState extends State<CreateEventPage> {
             TextFormField(
               controller: _capacity,
               keyboardType: TextInputType.number,
-              decoration: _decoration('Max participants'),
+              decoration: _decoration(tr('Max participants')),
               validator: (v) {
                 final n = int.tryParse((v ?? '').trim());
-                return n == null || n < 1 || n > 1000 ? '1–1000 people' : null;
+                return n == null || n < 1 || n > 1000 ? tr('1–1000 people') : null;
               },
             ),
             const SizedBox(height: 16),
             Row(
               children: [
-                const Expanded(child: Text('Points per participant', style: TextStyle(fontWeight: FontWeight.w600))),
+                Expanded(child: Text(tr('Points per participant'), style: TextStyle(fontWeight: FontWeight.w600))),
                 const SizedBox(width: 8),
-                Text('+$_points P  ·  +$_points XP',
+                Text(tr('+{0} P  ·  +{1} XP', [_points, _points]),
                     style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
               ],
             ),
@@ -197,7 +198,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
               onChanged: (v) => setState(() => _points = v.round()),
             ),
             Text(
-              'Regular party quests give 20–30 points. Use more points for longer or harder events.',
+              tr('Regular party quests give 20–30 points. Use more points for longer or harder events.'),
               style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
             ),
             const SizedBox(height: 24),
@@ -212,7 +213,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
               ),
               child: _saving
                   ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Text('Create event', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                  : Text(tr('Create event'), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
             ),
           ],
         ),

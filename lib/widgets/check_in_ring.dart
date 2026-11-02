@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../l10n/tr.dart';
 
 // วงแหวนเช็คอินของเควสหลายวัน (Food Saver 3/7 Days) — แบ่งเป็นช่องตามจำนวนวัน ช่องที่เช็คอินแล้วเป็นสีเขียว
 // ใช้ 3 ที่: วงเล็กในการ์ดหน้า Progress (quest_card.dart), วงใหญ่ในหน้ารายละเอียด (quest_detail_page.dart),
@@ -251,16 +252,16 @@ class _CheckInCelebrationState extends State<_CheckInCelebration> with SingleTic
     // ส่งรูปแล้วได้แต้มทันที (7 ต.ค. 2026 เลิกรอตรวจ) — บอกแต้มของวันนี้ถ้ารู้ (backend/utils/checkInRewards.js)
     final todayPoints = widget.rewardPoints != null ? '+${widget.rewardPoints} P — ' : '';
     if (widget.finished) {
-      title = 'All ${widget.total} days done!';
-      subtitle = 'Quest complete';
+      title = tr('All {0} days done!', [widget.total]);
+      subtitle = tr('Quest complete');
       titleColor = Colors.greenAccent;
     } else if (widget.restarted) {
-      title = 'Missed a day';
-      subtitle = 'Back to Day 1/${widget.total} · ${todayPoints}see you tomorrow!';
+      title = tr('Missed a day');
+      subtitle = tr('Back to Day 1/{0} · {1}see you tomorrow!', [widget.total, todayPoints]);
       titleColor = Colors.orangeAccent;
     } else {
-      title = 'Day ${widget.daysDone}/${widget.total} checked in';
-      subtitle = todayPoints.isEmpty ? 'See you tomorrow!' : '${todayPoints}see you tomorrow!';
+      title = tr('Day {0}/{1} checked in', [widget.daysDone, widget.total]);
+      subtitle = todayPoints.isEmpty ? tr('See you tomorrow!') : tr('{0}see you tomorrow!', [todayPoints]);
       titleColor = Colors.white;
     }
 

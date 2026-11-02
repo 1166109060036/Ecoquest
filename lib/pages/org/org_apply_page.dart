@@ -5,6 +5,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/org_service.dart';
 import '../../widgets/bubble_toast.dart';
 import 'my_events_page.dart';
+import '../../l10n/tr.dart';
 
 // สมัครเป็นองค์กร / ดูสถานะคำขอ (14 ต.ค. 2026) — เข้าจาก Settings → Organization
 // none/rejected = ฟอร์มสมัคร, pending = รอแอดมิน, approved = ไปหน้า My Events + แก้ข้อมูลได้, suspended = ถูกปิด
@@ -85,7 +86,7 @@ class _OrgApplyPageState extends State<OrgApplyPage> {
         description: _description.text.trim(),
       );
       if (!mounted) return;
-      showBubbleToast(context, 'Saved');
+      showBubbleToast(context, tr('Saved'));
       context.read<AuthProvider>().refreshProfile();
       if (widget.startEditing) {
         Navigator.pop(context, org.name);
@@ -108,7 +109,7 @@ class _OrgApplyPageState extends State<OrgApplyPage> {
       await _service.sendApplyOtp();
       if (!mounted) return;
       setState(() => _otpSent = true);
-      showBubbleToast(context, 'We sent a 6-digit code to ${_email.text}');
+      showBubbleToast(context, tr('We sent a 6-digit code to {0}', [_email.text]));
     } catch (e) {
       if (mounted) showBubbleToast(context, e.toString().replaceFirst('Exception: ', ''));
     } finally {
@@ -129,7 +130,7 @@ class _OrgApplyPageState extends State<OrgApplyPage> {
       );
       if (!mounted) return;
       setState(() => _org = org);
-      showBubbleToast(context, 'Request sent');
+      showBubbleToast(context, tr('Request sent'));
       context.read<AuthProvider>().refreshProfile();
     } catch (e) {
       if (mounted) showBubbleToast(context, e.toString().replaceFirst('Exception: ', ''));
@@ -165,7 +166,7 @@ class _OrgApplyPageState extends State<OrgApplyPage> {
         backgroundColor: Colors.grey.shade50,
         foregroundColor: Colors.black87,
         elevation: 0,
-        title: Text(_editing ? 'Edit organization' : 'Organization'),
+        title: Text(_editing ? tr('Edit organization') : tr('Organization')),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: Colors.green))
@@ -176,7 +177,7 @@ class _OrgApplyPageState extends State<OrgApplyPage> {
                   setState(() => _loading = true);
                   _load();
                 },
-                child: Text('$_error\nTap to try again', textAlign: TextAlign.center),
+                child: Text(tr('{0}\nTap to try again', [_error]), textAlign: TextAlign.center),
               ),
             )
           : ListView(padding: const EdgeInsets.fromLTRB(20, 4, 20, 32), children: _body()),
@@ -191,16 +192,16 @@ class _OrgApplyPageState extends State<OrgApplyPage> {
           _StatusCard(
             icon: Icons.hourglass_top_rounded,
             color: Colors.orange,
-            title: 'Waiting for approval',
-            message: 'The EcoQuest team is checking "${org.name}". You will get a notification when it is approved.',
+            title: tr('Waiting for approval'),
+            message: tr('The EcoQuest team is checking "{0}". You will get a notification when it is approved.', [org.name]),
           ),
         ];
       case 'approved':
         if (_editing) {
           return [
-            Text('Changes are shown on your events right away.', style: TextStyle(color: Colors.grey.shade700)),
+            Text(tr('Changes are shown on your events right away.'), style: TextStyle(color: Colors.grey.shade700)),
             const SizedBox(height: 16),
-            _form('Save changes', _saveEdit),
+            _form(tr('Save changes'), _saveEdit),
           ];
         }
         return [
@@ -208,14 +209,14 @@ class _OrgApplyPageState extends State<OrgApplyPage> {
             icon: Icons.verified_rounded,
             color: Colors.green,
             title: org.name,
-            message: 'Your organization is approved. Create events and players can join them in Explore → Event.',
+            message: tr('Your organization is approved. Create events and players can join them in Explore → Event.'),
           ),
           const SizedBox(height: 16),
           ElevatedButton.icon(
             onPressed: () =>
                 Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => MyEventsPage(orgName: org.name))),
             icon: const Icon(Icons.event_note_rounded),
-            label: const Text('Open My Events'),
+            label: Text(tr('Open My Events')),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green,
               foregroundColor: Colors.white,
@@ -228,7 +229,7 @@ class _OrgApplyPageState extends State<OrgApplyPage> {
           OutlinedButton.icon(
             onPressed: () => setState(() => _editing = true),
             icon: const Icon(Icons.edit_outlined),
-            label: const Text('Edit details'),
+            label: Text(tr('Edit details')),
             style: OutlinedButton.styleFrom(
               foregroundColor: Colors.green.shade800,
               side: BorderSide(color: Colors.green.shade300),
@@ -242,21 +243,20 @@ class _OrgApplyPageState extends State<OrgApplyPage> {
           _StatusCard(
             icon: Icons.block_rounded,
             color: Colors.redAccent,
-            title: 'Organization suspended',
+            title: tr('Organization suspended'),
             message:
-                '"${org.name}" was suspended by the EcoQuest team.'
-                '${org.decisionNote.isNotEmpty ? '\nReason: ${org.decisionNote}' : ''}',
+                tr('"{0}" was suspended by the EcoQuest team.{1}', [org.name, org.decisionNote.isNotEmpty ? '\n${tr('Reason: {0}', [org.decisionNote])}' : '']),
           ),
         ];
     }
 
     if (!_canApply) {
-      return const [
+      return [
         _StatusCard(
           icon: Icons.person_add_alt,
           color: Colors.blueGrey,
-          title: 'Create an account first',
-          message: 'Guest accounts cannot register an organization. Create an account with your email in Settings.',
+          title: tr('Create an account first'),
+          message: tr('Guest accounts cannot register an organization. Create an account with your email in Settings.'),
         ),
       ];
     }
@@ -268,23 +268,23 @@ class _OrgApplyPageState extends State<OrgApplyPage> {
           child: _StatusCard(
             icon: Icons.info_outline,
             color: Colors.redAccent,
-            title: 'Your last request was not approved',
+            title: tr('Your last request was not approved'),
             message: org.decisionNote.isNotEmpty
-                ? 'Note: ${org.decisionNote}'
-                : 'You can update the details and send it again.',
+                ? tr('Note: {0}', [org.decisionNote])
+                : tr('You can update the details and send it again.'),
           ),
         ),
       Text(
-        'Run eco events with EcoQuest',
+        tr('Run eco events with EcoQuest'),
         style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green.shade800),
       ),
       const SizedBox(height: 6),
       Text(
-        'Organizations can create environmental events. Players join in the app, scan your QR code at the event, and get points.',
+        tr('Organizations can create environmental events. Players join in the app, scan your QR code at the event, and get points.'),
         style: TextStyle(color: Colors.grey.shade700, height: 1.4),
       ),
       const SizedBox(height: 18),
-      _form(_otpSent ? 'Verify & send request' : 'Send verification code', _submit, withOtp: true),
+      _form(_otpSent ? tr('Verify & send request') : tr('Send verification code'), _submit, withOtp: true),
     ];
   }
 
@@ -298,13 +298,13 @@ class _OrgApplyPageState extends State<OrgApplyPage> {
           TextFormField(
             controller: _name,
             maxLength: 60,
-            decoration: _decoration('Organization name'),
-            validator: (v) => (v ?? '').trim().length < 2 ? 'Enter the name' : null,
+            decoration: _decoration(tr('Organization name')),
+            validator: (v) => (v ?? '').trim().length < 2 ? tr('Enter the name') : null,
           ),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
             initialValue: _orgType,
-            decoration: _decoration('Type'),
+            decoration: _decoration(tr('Type')),
             items: [for (final e in orgTypeLabels.entries) DropdownMenuItem(value: e.key, child: Text(e.value))],
             onChanged: (v) => setState(() => _orgType = v ?? 'npo'),
           ),
@@ -313,15 +313,15 @@ class _OrgApplyPageState extends State<OrgApplyPage> {
             controller: _description,
             maxLength: 500,
             maxLines: 4,
-            decoration: _decoration('About your organization', hint: 'What you do, your website or social page'),
-            validator: (v) => (v ?? '').trim().length < 10 ? 'At least 10 characters' : null,
+            decoration: _decoration(tr('About your organization'), hint: tr('What you do, your website or social page')),
+            validator: (v) => (v ?? '').trim().length < 10 ? tr('At least 10 characters') : null,
           ),
           const SizedBox(height: 8),
           TextFormField(
             controller: _email,
             readOnly: true,
-            decoration: _decoration('Contact email').copyWith(
-              helperText: 'Your account email is used as the contact email',
+            decoration: _decoration(tr('Contact email')).copyWith(
+              helperText: tr('Your account email is used as the contact email'),
               suffixIcon: const Icon(Icons.lock_outline, size: 18),
             ),
           ),
@@ -332,14 +332,14 @@ class _OrgApplyPageState extends State<OrgApplyPage> {
               keyboardType: TextInputType.number,
               maxLength: 6,
               autofillHints: const [AutofillHints.oneTimeCode],
-              decoration: _decoration('6-digit code from your email'),
-              validator: (v) => (v ?? '').trim().length == 6 ? null : 'Enter the 6-digit code',
+              decoration: _decoration(tr('6-digit code from your email')),
+              validator: (v) => (v ?? '').trim().length == 6 ? null : tr('Enter the 6-digit code'),
             ),
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
                 onPressed: _saving ? null : _sendOtp,
-                child: const Text('Resend code'),
+                child: Text(tr('Resend code')),
               ),
             ),
           ],

@@ -9,6 +9,7 @@ import '../../widgets/staggered_fade_in.dart';
 import 'event_attendees_page.dart';
 import 'event_qr_page.dart';
 import 'scan_checkin_page.dart';
+import '../../l10n/tr.dart';
 
 // รายละเอียดอีเวนต์องค์กร (14 ต.ค. 2026)
 // ผู้เล่น: Join / Cancel registration / Scan QR to check in (ตอนเปิดเช็คอิน)
@@ -63,7 +64,7 @@ class _OrgEventDetailPageState extends State<OrgEventDetailPage> {
       title: title,
       content: Text(message, textAlign: TextAlign.center, style: LiquidGlassDialog.messageStyle),
       actions: [
-        LiquidGlassAction(label: 'Back', onPressed: () => Navigator.pop(context, false)),
+        LiquidGlassAction(label: tr('Back'), onPressed: () => Navigator.pop(context, false)),
         LiquidGlassAction(label: action, color: color, onPressed: () => Navigator.pop(context, true)),
       ],
     );
@@ -77,7 +78,7 @@ class _OrgEventDetailPageState extends State<OrgEventDetailPage> {
     );
     if (result == null || !mounted) return;
     if (result.event.id == _event.id) setState(() => _event = result.event);
-    await handleQuestCompleted(context, result.reward, title: 'Event check-in!');
+    await handleQuestCompleted(context, result.reward, title: tr('Event check-in!'));
   }
 
   @override
@@ -89,7 +90,7 @@ class _OrgEventDetailPageState extends State<OrgEventDetailPage> {
         backgroundColor: Colors.grey.shade50,
         elevation: 0,
         foregroundColor: Colors.black87,
-        title: const Text('Event', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(tr('Event'), style: TextStyle(fontWeight: FontWeight.bold)),
       ),
       body: RefreshIndicator(
         onRefresh: _reload,
@@ -130,21 +131,21 @@ class _OrgEventDetailPageState extends State<OrgEventDetailPage> {
               children: [
                 _Chip(label: e.phaseLabel, color: e.phaseColor),
                 _Chip(label: orgEventCategoryLabels[e.category] ?? e.category, color: Colors.indigo),
-                _Chip(label: '+${e.points} P  ·  +${e.xp} XP', color: Colors.green),
+                _Chip(label: tr('+{0} P  ·  +{1} XP', [e.points, e.xp]), color: Colors.green),
               ],
             ),
             const SizedBox(height: 16),
             _InfoCard(children: [
               _InfoRow(
                 icon: Icons.schedule,
-                text: '${formatEventDateTime(e.startAt)}\nuntil ${_sameDay(e.startAt, e.endAt) ? _hm(e.endAt) : formatEventDateTime(e.endAt)}',
+                text: tr('{0}\nuntil {1}', [formatEventDateTime(e.startAt), _sameDay(e.startAt, e.endAt) ? _hm(e.endAt) : formatEventDateTime(e.endAt)]),
               ),
               _InfoRow(icon: Icons.place_outlined, text: e.location),
               _InfoRow(icon: Icons.groups, text: '${e.joinedCount} / ${e.capacity} joined${e.isMine ? '  ·  ${e.attendedCount} checked in' : ''}'),
             ]),
             if (e.description.isNotEmpty) ...[
               const SizedBox(height: 16),
-              const Text('About this event', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              Text(tr('About this event'), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
               const SizedBox(height: 6),
               Text(e.description, style: TextStyle(color: Colors.grey.shade800, fontSize: 14, height: 1.45)),
             ],
@@ -154,10 +155,8 @@ class _OrgEventDetailPageState extends State<OrgEventDetailPage> {
               children: [
                 Text(
                   e.isMine
-                      ? 'At the event, open "Show check-in QR" on your phone. Participants scan it to get their points. '
-                          'The code changes every 30 seconds, so a photo of it cannot be shared later.'
-                      : 'Come to the event and scan the QR code on the organizer\'s phone to get +${e.points} points. '
-                          'Check-in opens 30 minutes before the start and closes 30 minutes after the end.',
+                      ? tr('At the event, open "Show check-in QR" on your phone. Participants scan it to get their points. The code changes every 30 seconds, so a photo of it cannot be shared later.')
+                      : tr('Come to the event and scan the QR code on the organizer\'s phone to get +{0} points. Check-in opens 30 minutes before the start and closes 30 minutes after the end.', [e.points]),
                   style: TextStyle(color: Colors.green.shade900, fontSize: 12.5, height: 1.4),
                 ),
               ],
@@ -174,7 +173,7 @@ class _OrgEventDetailPageState extends State<OrgEventDetailPage> {
     if (e.isMine) {
       return [
         _Button(
-          label: 'Show check-in QR',
+          label: tr('Show check-in QR'),
           icon: Icons.qr_code_2_rounded,
           onPressed: e.checkInOpen && !_busy
               ? () async {
@@ -182,11 +181,11 @@ class _OrgEventDetailPageState extends State<OrgEventDetailPage> {
                   _reload();
                 }
               : null,
-          hint: e.checkInOpen ? null : (e.isCancelled || e.isEnded ? null : 'Opens 30 minutes before the start'),
+          hint: e.checkInOpen ? null : (e.isCancelled || e.isEnded ? null : tr('Opens 30 minutes before the start')),
         ),
         const SizedBox(height: 10),
         _Button(
-          label: 'Attendees',
+          label: tr('Attendees'),
           icon: Icons.people_alt_outlined,
           outlined: true,
           onPressed: () async {
@@ -197,18 +196,18 @@ class _OrgEventDetailPageState extends State<OrgEventDetailPage> {
         if (e.phase == 'upcoming' && e.attendedCount == 0) ...[
           const SizedBox(height: 10),
           _Button(
-            label: 'Cancel event',
+            label: tr('Cancel event'),
             icon: Icons.event_busy_outlined,
             outlined: true,
             danger: true,
             onPressed: _busy
                 ? null
                 : () async {
-                    if (!await _confirm('Cancel this event?',
-                        'Everyone who joined will be notified. This cannot be undone.', 'Cancel event')) {
+                    if (!await _confirm(tr('Cancel this event?'),
+                        tr('Everyone who joined will be notified. This cannot be undone.'), tr('Cancel event'))) {
                       return;
                     }
-                    await _run(() => _service.cancelEvent(e.id), 'Event cancelled');
+                    await _run(() => _service.cancelEvent(e.id), tr('Event cancelled'));
                   },
           ),
         ],
@@ -218,45 +217,45 @@ class _OrgEventDetailPageState extends State<OrgEventDetailPage> {
     if (e.hasAttended) {
       return [
         _Button(
-          label: 'Checked in${e.myRewardPoints != null ? '  ·  +${e.myRewardPoints} P' : ''}',
+          label: tr('Checked in{0}', [e.myRewardPoints != null ? '  ·  +${e.myRewardPoints} P' : '']),
           icon: Icons.verified_rounded,
           onPressed: null,
         ),
       ];
     }
     if (e.isCancelled || e.isEnded) {
-      return [_Button(label: e.isCancelled ? 'This event was cancelled' : 'This event has ended', onPressed: null)];
+      return [_Button(label: e.isCancelled ? tr('This event was cancelled') : tr('This event has ended'), onPressed: null)];
     }
 
     return [
       if (e.checkInOpen) ...[
-        _Button(label: 'Scan QR to check in', icon: Icons.qr_code_scanner_rounded, onPressed: _busy ? null : _scan),
+        _Button(label: tr('Scan QR to check in'), icon: Icons.qr_code_scanner_rounded, onPressed: _busy ? null : _scan),
         const SizedBox(height: 10),
       ],
       if (!e.isRegistered)
         _Button(
-          label: e.isFull ? 'Full' : 'Join event',
+          label: e.isFull ? tr('Full') : tr('Join event'),
           icon: Icons.event_available_outlined,
           outlined: e.checkInOpen,
-          onPressed: e.isFull || _busy ? null : () => _run(() => _service.register(e.id), 'You joined this event'),
+          onPressed: e.isFull || _busy ? null : () => _run(() => _service.register(e.id), tr('You joined this event')),
         )
       else if (e.canCancelRegistration)
         _Button(
-          label: 'Cancel my registration',
+          label: tr('Cancel my registration'),
           icon: Icons.close_rounded,
           outlined: true,
           danger: true,
           onPressed: _busy
               ? null
               : () async {
-                  if (!await _confirm('Cancel your registration?', 'You can join again later if there is space.', 'Cancel it')) {
+                  if (!await _confirm(tr('Cancel your registration?'), tr('You can join again later if there is space.'), tr('Cancel it'))) {
                     return;
                   }
-                  await _run(() => _service.unregister(e.id), 'Registration cancelled');
+                  await _run(() => _service.unregister(e.id), tr('Registration cancelled'));
                 },
         )
       else
-        const _Button(label: 'You joined this event', icon: Icons.check_rounded, onPressed: null),
+        _Button(label: tr('You joined this event'), icon: Icons.check_rounded, onPressed: null),
     ];
   }
 

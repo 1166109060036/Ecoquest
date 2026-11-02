@@ -22,6 +22,7 @@ import 'quest_detail_page.dart';
 import '../../widgets/skeleton_box.dart';
 import '../../widgets/state_cross_fade.dart';
 import '../../widgets/quest_boost_bar.dart';
+import '../../l10n/tr.dart';
 
 // หน้า Explore เต็มจอ — เจอได้ 2 ทาง: กด "Explore" ที่ bottom nav ตรงๆ
 // หรือลากแผ่น Explore ในหน้า Home ขึ้นสุดจอ (ซึ่งจะสลับมาที่แท็บนี้)
@@ -102,7 +103,7 @@ class _ExplorePageState extends State<ExplorePage> {
       MaterialPageRoute(builder: (_) => const ScanCheckInPage()),
     );
     if (result == null || !mounted) return;
-    await handleQuestCompleted(context, result.reward, title: 'Event check-in!');
+    await handleQuestCompleted(context, result.reward, title: tr('Event check-in!'));
     if (mounted) _loadEvents();
   }
 
@@ -178,7 +179,7 @@ class _ExplorePageState extends State<ExplorePage> {
     if (!mounted) return;
 
     if (!started) {
-      showBubbleToast(context, questProvider.errorMessage ?? 'Failed to start quest');
+      showBubbleToast(context, questProvider.errorMessage ?? tr('Failed to start quest'));
       return;
     }
 
@@ -188,7 +189,7 @@ class _ExplorePageState extends State<ExplorePage> {
       return;
     }
 
-    showBubbleToast(context, 'Quest started — complete it on the Progress page');
+    showBubbleToast(context, tr('Quest started — complete it on the Progress page'));
   }
 
   void _openProgress() {
@@ -236,7 +237,7 @@ class _ExplorePageState extends State<ExplorePage> {
               onPressed: _createParty,
               backgroundColor: Colors.green,
               icon: const Icon(Icons.add, color: Colors.white),
-              label: const Text('Create Party',
+              label: Text(tr('Create Party'),
                   style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
             )
           : null,
@@ -255,18 +256,18 @@ class _ExplorePageState extends State<ExplorePage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Explore',
+                            Text(tr('Explore'),
                                 style: TextStyle(
                                     color: Colors.green, fontSize: 26, fontWeight: FontWeight.bold)),
                             const SizedBox(height: 2),
-                            Text('Explore The Quests',
+                            Text(tr('Explore The Quests'),
                                 style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
                           ],
                         ),
                       ),
                       // สแกน QR เช็คอินอีเวนต์องค์กร
                       IconButton(
-                        tooltip: 'Scan event QR',
+                        tooltip: tr('Scan event QR'),
                         onPressed: _scanCheckIn,
                         style: IconButton.styleFrom(backgroundColor: Colors.grey.shade200),
                         icon: const Icon(Icons.qr_code_scanner_rounded, color: Colors.black54, size: 20),
@@ -284,7 +285,7 @@ class _ExplorePageState extends State<ExplorePage> {
                   TextField(
                     onChanged: (value) => setState(() => _searchQuery = value),
                     decoration: InputDecoration(
-                      hintText: 'Search quests...',
+                      hintText: tr('Search quests...'),
                       hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 14),
                       prefixIcon: Icon(Icons.search, color: Colors.grey.shade500, size: 20),
                       filled: true,
@@ -315,7 +316,7 @@ class _ExplorePageState extends State<ExplorePage> {
                         final filter = _filters[index];
                         final isSelected = filter == _selectedFilter;
                         return ChoiceChip(
-                          label: Text(filter),
+                          label: Text(tr(filter)),
                           selected: isSelected,
                           onSelected: (_) => setState(() => _selectedFilter = filter),
                           selectedColor: Colors.green,
@@ -447,13 +448,13 @@ class _ProgressButton extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(20)),
-            child: const Row(
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Icons.checklist_rounded, color: Colors.black54, size: 18),
                 SizedBox(width: 5),
                 Text(
-                  'Progress',
+                  tr('Progress'),
                   style: TextStyle(color: Colors.black54, fontSize: 12.5, fontWeight: FontWeight.w600),
                 ),
               ],
@@ -500,18 +501,18 @@ class _EmptyState extends StatelessWidget {
     final String? hint;
     if (failed) {
       message = errorMessage!;
-      hint = 'Pull down to try again';
+      hint = tr('Pull down to try again');
     } else if (isPartyFilter) {
-      message = 'No party rooms open right now';
-      hint = 'Tap + to create one';
+      message = tr('No party rooms open right now');
+      hint = tr('Tap + to create one');
     } else if (isEventFilter) {
-      message = query.trim().isNotEmpty ? 'No events found for "$query"' : 'No organization events right now';
-      hint = query.trim().isNotEmpty ? null : 'Events from local organizations will show up here';
+      message = query.trim().isNotEmpty ? tr('No events found for "{0}"', [query]) : tr('No organization events right now');
+      hint = query.trim().isNotEmpty ? null : tr('Events from local organizations will show up here');
     } else if (query.trim().isNotEmpty) {
-      message = 'No quests found for "$query"';
+      message = tr('No quests found for "{0}"', [query]);
       hint = null;
     } else {
-      message = 'No quests in this category';
+      message = tr('No quests in this category');
       hint = null;
     }
 

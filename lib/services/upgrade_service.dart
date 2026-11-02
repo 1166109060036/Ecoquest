@@ -3,6 +3,7 @@ import 'api_http.dart' as http;
 import '../models/upgrade_model.dart';
 import '../utils/constants.dart';
 import 'storage_service.dart';
+import '../l10n/tr.dart';
 
 // เรียก API ร้าน Upgrade Ability — ดูรายการ + ซื้อ
 class UpgradeService {
@@ -18,7 +19,7 @@ class UpgradeService {
     final data = jsonDecode(response.body);
 
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to load upgrades');
+      throw Exception(data['message'] ?? tr('Failed to load upgrades'));
     }
 
     return (data['upgrades'] as List)
@@ -37,7 +38,7 @@ class UpgradeService {
     final data = jsonDecode(response.body);
 
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to buy this upgrade');
+      throw Exception(data['message'] ?? tr('Failed to buy this upgrade'));
     }
 
     return (

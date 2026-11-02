@@ -4,6 +4,7 @@ import '../models/chat_message_model.dart';
 import '../services/chat_service.dart';
 import '../services/chat_socket_service.dart';
 import '../services/storage_service.dart';
+import '../l10n/tr.dart';
 
 // ถือแชททั้ง 2 แบบ (ปาร์ตี้/เพื่อน) — เก็บข้อความแยกต่อ channel key เป็น map คีย์ด้วย message id
 // กันซ้ำตอน reconnect แล้วดึงประวัติ REST ทับของที่ได้จาก socket สดๆ ไปแล้ว
@@ -119,7 +120,7 @@ class ChatProvider extends ChangeNotifier {
       text: trimmed,
       onAck: (ok, error) {
         if (!ok) {
-          _errorMessage = error ?? 'Failed to send message';
+          _errorMessage = error ?? tr('Failed to send message');
           notifyListeners();
         }
         if (!done.isCompleted) done.complete(ok ? null : _errorMessage);

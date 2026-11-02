@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../l10n/tr.dart';
 
 // เอฟเฟค "รางวัลลอยเข้ากระเป๋า" ตอนจบเควส — ป้ายรางวัลโผล่ด้านบนจอ แล้วเหรียญทอง (Points) กับใบไม้เขียว (XP)
 // พุ่งออกจาก origin (กลางจอถ้าไม่ส่งมา) โค้งลอยเข้าไปในป้ายทีละอัน ป้ายเด้งทุกครั้งที่ของเข้า และตัวเลขนับขึ้น
@@ -35,7 +36,7 @@ Future<void> showRewardFly(
       points: points,
       xp: xp,
       origin: origin,
-      title: title,
+      title: tr(title),
       onLanded: () {
         if (!landed.isCompleted) landed.complete();
       },
@@ -302,7 +303,7 @@ class _RewardPill extends StatelessWidget {
                 Expanded(child: Center(child: _value(Icons.stars_rounded, Colors.amber, '+$points P'))),
               if (showXp)
                 Expanded(
-                  child: Center(child: _value(Icons.eco_rounded, Colors.lightGreenAccent.shade400, '+$xp XP')),
+                  child: Center(child: _value(Icons.eco_rounded, Colors.lightGreenAccent.shade400, tr('+{0} XP', [xp]))),
                 ),
             ],
           ),

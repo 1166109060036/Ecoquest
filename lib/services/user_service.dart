@@ -3,6 +3,7 @@ import 'api_http.dart' as http;
 import '../models/public_profile_model.dart';
 import '../utils/constants.dart';
 import 'storage_service.dart';
+import '../l10n/tr.dart';
 
 // เรียก API ดูโปรไฟล์สาธารณะของผู้เล่นคนอื่น
 class UserService {
@@ -25,7 +26,7 @@ class UserService {
     final data = jsonDecode(response.body);
 
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to load this player\'s profile');
+      throw Exception(data['message'] ?? tr('Failed to load this player\'s profile'));
     }
 
     return PublicProfileModel.fromJson(data as Map<String, dynamic>);

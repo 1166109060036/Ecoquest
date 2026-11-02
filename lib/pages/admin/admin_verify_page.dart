@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/auth_shell.dart';
 import '../../widgets/bubble_toast.dart';
+import '../../l10n/tr.dart';
 
 // Admin 2FA (22 ต.ค. 2026) — ต้องกรอก OTP ทางอีเมลก่อนเข้า Admin Tools ทุกครั้งที่เปิดแอพใหม่
 // (backend เช็คจริงที่ middleware/admin.js — หน้านี้แค่ขอ/ยืนยันรหัส) เปิดหน้ามาส่งรหัสให้ทันที
@@ -38,13 +39,13 @@ class _AdminVerifyPageState extends State<AdminVerifyPage> {
     if (!mounted) return;
     showBubbleToast(
       context,
-      success ? 'We have sent an admin code to your email' : authProvider.errorMessage ?? 'Failed to send the code',
+      success ? tr('We have sent an admin code to your email') : authProvider.errorMessage ?? tr('Failed to send the code'),
     );
   }
 
   Future<void> _handleVerify() async {
     if (_otpController.text.trim().length != 6) {
-      showBubbleToast(context, 'Please enter the 6-digit code');
+      showBubbleToast(context, tr('Please enter the 6-digit code'));
       return;
     }
 
@@ -56,7 +57,7 @@ class _AdminVerifyPageState extends State<AdminVerifyPage> {
     if (success) {
       Navigator.pushReplacementNamed(context, '/admin');
     } else {
-      showBubbleToast(context, authProvider.errorMessage ?? 'Invalid or expired code');
+      showBubbleToast(context, authProvider.errorMessage ?? tr('Invalid or expired code'));
     }
   }
 
@@ -72,9 +73,9 @@ class _AdminVerifyPageState extends State<AdminVerifyPage> {
           const SizedBox(height: 24),
           AuthEntrance(
             order: 0,
-            child: const AuthHeader(
-              title: 'Admin verification',
-              subtitle: 'Confirm it is you before using admin tools',
+            child: AuthHeader(
+              title: tr('Admin verification'),
+              subtitle: tr('Confirm it is you before using admin tools'),
               icon: Icons.admin_panel_settings_outlined,
               logoSize: 64,
             ),
@@ -89,7 +90,7 @@ class _AdminVerifyPageState extends State<AdminVerifyPage> {
                 isLoading: auth.isLoading,
                 onSubmit: _handleVerify,
                 onBack: _handleSend,
-                backLabel: 'Resend code',
+                backLabel: tr('Resend code'),
               ),
             ),
           ),

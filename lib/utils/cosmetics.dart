@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/tr.dart';
 
 // แคตตาล็อก "หน้าตา" ของของตกแต่งโปรไฟล์ทั้งหมด — คู่กับ backend/utils/inventory.js#ITEMS
 // (itemType ต้องตรงกันเป๊ะ) backend ไม่ส่ง icon/สี/รูปมาเลยตามธรรมเนียมเดิมของแอพ (ดู
@@ -12,10 +13,10 @@ enum CosmeticSlot { frame, nameStyle, background, effect }
 
 // ชื่อหมวดที่โชว์ผู้ใช้ — ใช้ทั้งหน้า Custom Profile และแท็บ Decorations ในหน้า Shop ให้เรียกเหมือนกัน
 String cosmeticSlotLabel(CosmeticSlot slot) => switch (slot) {
-  CosmeticSlot.frame => 'Avatar Frame',
-  CosmeticSlot.nameStyle => 'Name Style',
-  CosmeticSlot.background => 'Profile Background',
-  CosmeticSlot.effect => 'Ambient Effect',
+  CosmeticSlot.frame => tr('Avatar Frame'),
+  CosmeticSlot.nameStyle => tr('Name Style'),
+  CosmeticSlot.background => tr('Profile Background'),
+  CosmeticSlot.effect => tr('Ambient Effect'),
 };
 
 // ต้องตรงกับรูปแบบที่ AmbientOverlay รองรับ (lib/widgets/falling_leaves_overlay.dart)

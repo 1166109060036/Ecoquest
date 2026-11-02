@@ -3,6 +3,7 @@ import '../models/party_model.dart';
 import '../utils/date_format.dart';
 import 'quest_card.dart'; // ใช้ DifficultyChip ตัวเดียวกับ QuestCard
 import 'pressable_scale.dart';
+import '../l10n/tr.dart';
 
 // การ์ดห้องปาร์ตี้ที่เปิดให้เข้าร่วมได้ ใช้ในลิสต์ Explore (โทนสว่าง)
 // ตั้งใจให้หน้าตาเหมือน QuestCard เป๊ะๆ เพราะโชว์ปนกันอยู่ในลิสต์เดียวกันตอนเลือก chip "All"
@@ -14,7 +15,7 @@ class PartyRoomCard extends StatelessWidget {
 
   const PartyRoomCard({super.key, required this.room, required this.isJoined, this.onJoin});
 
-  String get _actionLabel => isJoined ? 'Joined' : (room.isFull ? 'Full' : 'Join');
+  String get _actionLabel => isJoined ? tr('Joined') : (room.isFull ? tr('Full') : tr('Join'));
   bool get _actionEnabled => !isJoined && !room.isFull;
 
   @override
@@ -65,8 +66,8 @@ class PartyRoomCard extends StatelessWidget {
                             color: Colors.deepOrange,
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: const Text(
-                            'Party',
+                          child: Text(
+                            tr('Party'),
                             style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
                           ),
                         ),

@@ -14,6 +14,7 @@ import '../utils/cosmetics.dart';
 import 'count_up_text.dart';
 import 'decorated_avatar.dart';
 import 'liquid_glass_dialog.dart';
+import '../l10n/tr.dart';
 
 // ---------------------------------------------------------------------------
 // พื้นหลัง — ใส่รูปเองได้ทีหลังผ่าน AppConstants.profileBgAsset
@@ -42,7 +43,7 @@ class ProfileBackground extends StatelessWidget {
       fit: BoxFit.cover,
       errorBuilder: (context, error, stackTrace) {
         return Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -117,7 +118,7 @@ class UserHeader extends StatelessWidget {
           showCameraBadge: onTapAvatar != null,
           onTap: onTapAvatar,
         ),
-        const SizedBox(width: 14),
+        SizedBox(width: 14),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -144,30 +145,30 @@ class UserHeader extends StatelessWidget {
                         shadows: nameStyle?.nameGlow,
                       ),
                     ),
-              const SizedBox(height: 2),
+              SizedBox(height: 2),
               Text(
-                'Lv. ${level.toString().padLeft(2, '0')}',
-                style: const TextStyle(color: Colors.white70, fontSize: 12),
+                tr('Lv. {0}', [level.toString().padLeft(2, '0')]),
+                style: TextStyle(color: Colors.white70, fontSize: 12),
               ),
-              const SizedBox(height: 6),
+              SizedBox(height: 6),
               ClipRRect(
                 borderRadius: BorderRadius.circular(6),
                 child: LinearProgressIndicator(
                   value: progress,
                   minHeight: 6,
                   backgroundColor: Colors.white24,
-                  valueColor: const AlwaysStoppedAnimation(Colors.orangeAccent),
+                  valueColor: AlwaysStoppedAnimation(Colors.orangeAccent),
                 ),
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: 4),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   CountUpNumber(
                     value: xp,
-                    style: const TextStyle(color: Colors.white54, fontSize: 11),
+                    style: TextStyle(color: Colors.white54, fontSize: 11),
                   ),
-                  Text(' / $xpToNext XP', style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                  Text(' / $xpToNext XP', style: TextStyle(color: Colors.white54, fontSize: 11)),
                 ],
               ),
             ],
@@ -213,7 +214,7 @@ class StreakCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(pointsLabel, style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                        Text(tr(pointsLabel), style: const TextStyle(color: Colors.white70, fontSize: 13)),
                         const SizedBox(height: 6),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -248,10 +249,10 @@ class StreakCard extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('Daily Streak',
+                              Text(tr('Daily Streak'),
                                   style: TextStyle(color: Colors.white54, fontSize: 10)),
                               Text(
-                                'Day ${streak.count} / ${streak.cycleLength}',
+                                tr('Day {0} / {1}', [streak.count, streak.cycleLength]),
                                 softWrap: true,
                                 style: const TextStyle(
                                   color: Colors.white,
@@ -276,16 +277,14 @@ class StreakCard extends StatelessWidget {
                               const SizedBox(height: 2),
                               Text(
                                 streak.nextMilestone == null
-                                    ? 'MAX'
-                                    : 'Next: Day ${streak.nextMilestone}',
+                                    ? tr('MAX')
+                                    : tr('Next: Day {0}', [streak.nextMilestone]),
                                 style: const TextStyle(color: Colors.white54, fontSize: 9),
                               ),
                               if (streak.nextReward != null) ...[
                                 const SizedBox(height: 2),
                                 Text(
-                                  '+${formatNumber(streak.nextReward!.points)}P '
-                                  '+${formatNumber(streak.nextReward!.xp)}XP'
-                                  '${streak.nextReward!.itemType != null ? ' + item' : ''}',
+                                  tr('+{0}P +{1}XP{2}', [formatNumber(streak.nextReward!.points), formatNumber(streak.nextReward!.xp), streak.nextReward!.itemType != null ? tr(' + item') : '']),
                                   style: const TextStyle(
                                     color: Colors.white38,
                                     fontSize: 8.5,
@@ -317,12 +316,12 @@ void _showStreakDetail(BuildContext context, StreakInfo streak) {
   LiquidGlassDialog.show<void>(
     context: context,
     icon: const Icon(Icons.local_fire_department, color: Colors.orangeAccent, size: 36),
-    title: 'Daily Streak',
+    title: tr('Daily Streak'),
     content: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          'Day ${streak.count} / ${streak.cycleLength}',
+          tr('Day {0} / {1}', [streak.count, streak.cycleLength]),
           style: const TextStyle(
             color: Colors.white,
             fontSize: 20,
@@ -331,9 +330,8 @@ void _showStreakDetail(BuildContext context, StreakInfo streak) {
           ),
         ),
         const SizedBox(height: 8),
-        const Text(
-          'Complete at least 1 quest a day to keep your streak going. '
-          'Miss a day and it resets back to Day 1.',
+        Text(
+          tr('Complete at least 1 quest a day to keep your streak going. Miss a day and it resets back to Day 1.'),
           textAlign: TextAlign.center,
           style: LiquidGlassDialog.messageStyle,
         ),
@@ -352,7 +350,7 @@ void _showStreakDetail(BuildContext context, StreakInfo streak) {
       ],
     ),
     actions: [
-      LiquidGlassAction(label: 'Got it', color: Colors.orange, onPressed: () => Navigator.pop(context)),
+      LiquidGlassAction(label: tr('Got it'), color: Colors.orange, onPressed: () => Navigator.pop(context)),
     ],
   );
 }
@@ -422,9 +420,8 @@ class _StreakRewardRow extends StatelessWidget {
           Expanded(
             child: Text(
               reward == null
-                  ? 'Day $day'
-                  : 'Day $day — +${formatNumber(reward.points)}P +${formatNumber(reward.xp)}XP'
-                      '${reward.itemType != null ? ' + item' : ''}',
+                  ? tr('Day {0}', [day])
+                  : tr('Day {0} — +{1}P +{2}XP{3}', [day, formatNumber(reward.points), formatNumber(reward.xp), reward.itemType != null ? tr(' + item') : '']),
               style: TextStyle(
                 color: achieved ? Colors.white : Colors.white54,
                 fontSize: 12,
@@ -453,7 +450,7 @@ class StatsCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Stats',
+            Text(tr('Stats'),
                 style: TextStyle(
                     color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
             const SizedBox(height: 14),
@@ -466,19 +463,19 @@ class StatsCard extends StatelessWidget {
                   // ยอดรวมทุกครั้งที่ทำเควสสำเร็จ (นับเควสซ้ำด้วย) ไม่มี "/ ทั้งหมด" แล้ว เพราะเควส
                   // รายวันทำซ้ำได้ไม่จำกัด ไม่มีเลข "ทั้งหมด" ที่ตายตัวให้เทียบ (เหมือน Parties Joined)
                   value: stats.questCompleted.toString().padLeft(2, '0'),
-                  label: 'Quest Completed',
+                  label: tr('Quest Completed'),
                 ),
                 StatItem(
                   icon: Icons.cloud_outlined,
                   iconColor: Colors.lightBlueAccent,
                   value: formatCo2e(stats.co2eEstimateKg),
-                  label: 'CO₂ Saved',
+                  label: tr('CO₂ Saved'),
                 ),
                 StatItem(
                   icon: Icons.groups,
                   iconColor: Colors.orangeAccent,
                   value: stats.partiesJoined.toString().padLeft(2, '0'),
-                  label: 'Parties Joined',
+                  label: tr('Parties Joined'),
                 ),
               ],
             ),
@@ -552,15 +549,15 @@ class QuestHistoryCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Quest History',
+            Text(tr('Quest History'),
                 style: TextStyle(
                     color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
             const SizedBox(height: 12),
             if (history.isEmpty)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(vertical: 8),
                 child: Text(
-                  'No quests completed yet',
+                  tr('No quests completed yet'),
                   style: TextStyle(color: Colors.white54, fontSize: 12),
                 ),
               )
@@ -661,9 +658,9 @@ CategoryVisual categoryVisual(String? category) {
   }
 }
 
-const monthNames = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+List<String> get monthNames => [
+  tr('Jan'), tr('Feb'), tr('Mar'), tr('Apr'), tr('May'), tr('Jun'),
+  tr('Jul'), tr('Aug'), tr('Sep'), tr('Oct'), tr('Nov'), tr('Dec'),
 ];
 
 // ไม่ได้ลง package intl เลยจัดรูปแบบวันที่เอง (แบบเดียวกับที่หน้า Party ใช้)

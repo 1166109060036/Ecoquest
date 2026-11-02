@@ -11,6 +11,7 @@ import '../../widgets/breathing_icon.dart';
 import '../../widgets/bubble_toast.dart';
 import '../../widgets/decorated_avatar.dart';
 import '../../widgets/pressable_scale.dart';
+import '../../l10n/tr.dart';
 
 // แท็บย่อย "Chat" ของหน้า Community — แชทแบบ real-time ผ่าน WebSocket (ดู
 // chat_socket_service.dart/chat_provider.dart) มี 2 ห้อง: Party (คุยกับสมาชิกปาร์ตี้ปัจจุบัน) เปิดได้
@@ -119,7 +120,7 @@ class _ChatTabState extends State<ChatTab> {
         Row(
           children: [
             _ChannelChip(
-              label: 'Party',
+              label: tr('Party'),
               icon: Icons.groups_rounded,
               selected: _channel == _Channel.party,
               enabled: hasParty,
@@ -129,7 +130,7 @@ class _ChatTabState extends State<ChatTab> {
             _ChannelChip(
               label: _channel == _Channel.friend && _selectedFriend != null
                   ? _selectedFriend!.displayName
-                  : 'Friend',
+                  : tr('Friend'),
               icon: Icons.person,
               selected: _channel == _Channel.friend,
               enabled: hasFriends,
@@ -146,14 +147,14 @@ class _ChatTabState extends State<ChatTab> {
           child: _channel == null
               ? _EmptyChat(
                   text: hasParty || hasFriends
-                      ? 'Pick Party or a friend above to start chatting'
-                      : 'Join a party or add a friend to start chatting')
+                      ? tr('Pick Party or a friend above to start chatting')
+                      : tr('Join a party or add a friend to start chatting'))
               : _channel == _Channel.friend && _selectedFriend == null
-              ? const _EmptyChat(text: 'Pick a friend above to start chatting')
+              ? _EmptyChat(text: tr('Pick a friend above to start chatting'))
               : provider.isLoadingHistory && messages.isEmpty
                   ? const Center(child: CircularProgressIndicator(color: Colors.green))
                   : messages.isEmpty
-                      ? const _EmptyChat(text: 'No messages yet — say hello!')
+                      ? _EmptyChat(text: tr('No messages yet — say hello!'))
                       : ListView.builder(
                           controller: _scrollController,
                           itemCount: messages.length,
@@ -198,7 +199,7 @@ class _FriendPickerSheet extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            const Text('Chat with a friend',
+            Text(tr('Chat with a friend'),
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
             const SizedBox(height: 12),
             ConstrainedBox(
@@ -221,7 +222,7 @@ class _FriendPickerSheet extends StatelessWidget {
                       placeholderIconSize: 24,
                     ),
                     title: Text(friend.displayName, style: const TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: Text('Lv. ${friend.level.toString().padLeft(2, '0')}'),
+                    subtitle: Text(tr('Lv. {0}', [friend.level.toString().padLeft(2, '0')])),
                   );
                 },
               ),
@@ -252,7 +253,7 @@ class _ChannelChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = !enabled ? Colors.grey.shade400 : (selected ? Colors.white : Colors.green);
     return Tooltip(
-      message: enabled ? '' : 'Not available yet',
+      message: enabled ? '' : tr('Not available yet'),
       child: PressableScale(
         child: InkWell(
           onTap: onTap,
@@ -286,9 +287,9 @@ class _ConnectionBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final label = switch (status) {
-      ChatConnectionStatus.connecting => 'Connecting to chat...',
-      ChatConnectionStatus.reconnecting => 'Reconnecting...',
-      ChatConnectionStatus.disconnected => 'Disconnected — trying to reconnect...',
+      ChatConnectionStatus.connecting => tr('Connecting to chat...'),
+      ChatConnectionStatus.reconnecting => tr('Reconnecting...'),
+      ChatConnectionStatus.disconnected => tr('Disconnected — trying to reconnect...'),
       ChatConnectionStatus.connected => '',
     };
 
@@ -376,7 +377,7 @@ class _Composer extends StatelessWidget {
             textInputAction: TextInputAction.send,
             onSubmitted: (_) => onSend(),
             decoration: InputDecoration(
-              hintText: 'Type a message...',
+              hintText: tr('Type a message...'),
               hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 13),
               filled: true,
               fillColor: Colors.white,

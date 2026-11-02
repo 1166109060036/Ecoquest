@@ -3,6 +3,7 @@ import 'api_http.dart' as http;
 import '../models/achievement_model.dart';
 import '../utils/constants.dart';
 import 'storage_service.dart';
+import '../l10n/tr.dart';
 
 // ดึงเหรียญ Achievement ของผู้เล่น (ทั้งที่ปลดล็อกแล้วและยังไม่ปลดล็อก + ความคืบหน้า)
 class AchievementService {
@@ -18,7 +19,7 @@ class AchievementService {
     final data = jsonDecode(response.body);
 
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to load achievements');
+      throw Exception(data['message'] ?? tr('Failed to load achievements'));
     }
 
     return (data['achievements'] as List)

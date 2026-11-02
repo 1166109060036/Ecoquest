@@ -3,6 +3,7 @@ import 'api_http.dart' as http;
 import '../models/fridge_item_model.dart';
 import '../utils/constants.dart';
 import 'storage_service.dart';
+import '../l10n/tr.dart';
 
 // เรียก API ของในตู้เย็นทั้งหมด — ทุก endpoint ต้องแนบ token เพราะเป็นข้อมูลรายบุคคล
 class FridgeService {
@@ -25,7 +26,7 @@ class FridgeService {
     final data = jsonDecode(response.body);
 
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to load fridge items');
+      throw Exception(data['message'] ?? tr('Failed to load fridge items'));
     }
 
     return (data['items'] as List)
@@ -44,7 +45,7 @@ class FridgeService {
     final data = jsonDecode(response.body);
 
     if (response.statusCode != 201) {
-      throw Exception(data['message'] ?? 'Failed to save fridge items');
+      throw Exception(data['message'] ?? tr('Failed to save fridge items'));
     }
 
     return (data['items'] as List)
@@ -61,7 +62,7 @@ class FridgeService {
     final data = jsonDecode(response.body);
 
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to remove item');
+      throw Exception(data['message'] ?? tr('Failed to remove item'));
     }
   }
 }

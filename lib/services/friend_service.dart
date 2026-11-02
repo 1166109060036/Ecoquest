@@ -3,6 +3,7 @@ import 'api_http.dart' as http;
 import '../models/friend_model.dart';
 import '../utils/constants.dart';
 import 'storage_service.dart';
+import '../l10n/tr.dart';
 
 // เรียก API ของระบบเพื่อน (ค้นหา/ส่ง-รับ-ปฏิเสธ-ยกเลิกคำขอ/ลิสต์เพื่อน/ลบเพื่อน)
 // รูปแบบ HTTP เดียวกับ party_service.dart เป๊ะๆ
@@ -25,7 +26,7 @@ class FriendService {
 
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to search players');
+      throw Exception(data['message'] ?? tr('Failed to search players'));
     }
 
     return ((data['results'] ?? []) as List)
@@ -43,7 +44,7 @@ class FriendService {
     final data = jsonDecode(response.body);
     // ส่งสำเร็จ (201 คำขอใหม่) หรือ auto-accept ทันที (200 อีกฝ่ายเคยส่งมาก่อนแล้ว) ทั้งคู่ถือว่าสำเร็จ
     if (response.statusCode != 201 && response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to send friend request');
+      throw Exception(data['message'] ?? tr('Failed to send friend request'));
     }
   }
 
@@ -56,7 +57,7 @@ class FriendService {
 
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to load friend requests');
+      throw Exception(data['message'] ?? tr('Failed to load friend requests'));
     }
 
     return ((data['requests'] ?? []) as List)
@@ -72,7 +73,7 @@ class FriendService {
 
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to accept this request');
+      throw Exception(data['message'] ?? tr('Failed to accept this request'));
     }
   }
 
@@ -84,7 +85,7 @@ class FriendService {
 
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to reject this request');
+      throw Exception(data['message'] ?? tr('Failed to reject this request'));
     }
   }
 
@@ -96,7 +97,7 @@ class FriendService {
 
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to cancel this request');
+      throw Exception(data['message'] ?? tr('Failed to cancel this request'));
     }
   }
 
@@ -108,7 +109,7 @@ class FriendService {
 
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to load your friends');
+      throw Exception(data['message'] ?? tr('Failed to load your friends'));
     }
 
     return ((data['friends'] ?? []) as List)
@@ -124,7 +125,7 @@ class FriendService {
 
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to remove this friend');
+      throw Exception(data['message'] ?? tr('Failed to remove this friend'));
     }
   }
 }

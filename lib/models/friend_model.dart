@@ -2,6 +2,7 @@
 // (ผลค้นหาจาก GET /api/friends/search และคำขอจาก GET /api/friends/requests ก็ใช้โครงเดียวกันนี้)
 import '../utils/constants.dart';
 import 'cosmetics_model.dart';
+import '../l10n/tr.dart';
 
 class FriendModel {
   final String id;
@@ -21,7 +22,7 @@ class FriendModel {
   factory FriendModel.fromJson(Map<String, dynamic> json) {
     return FriendModel(
       id: (json['id'] ?? '').toString(),
-      displayName: json['displayName'] ?? 'Player',
+      displayName: json['displayName'] ?? tr('Player'),
       avatarUrl: AppConstants.resolveUrl(json['avatarUrl']),
       cosmetics: EquippedCosmetics.fromJson(json['cosmetics']),
       level: json['level'] ?? 1,

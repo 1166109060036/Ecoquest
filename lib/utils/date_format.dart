@@ -1,9 +1,11 @@
+import '../l10n/tr.dart';
+
 // จัดรูปแบบวันที่/เวลาเอง เพราะโปรเจคยังไม่ได้ลง package intl
 // รวมไว้ที่เดียวเพราะหน้า Party, หน้าสร้างห้อง และการ์ดห้องในหน้า Explore ต้องใช้รูปแบบเดียวกัน
 // (ก่อนหน้านี้ก๊อป _monthNames กันไปคนละไฟล์ พอแก้รูปแบบทีต้องไล่แก้หลายที่)
-const _monthNames = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+List<String> get _monthNames => [
+  tr('Jan'), tr('Feb'), tr('Mar'), tr('Apr'), tr('May'), tr('Jun'),
+  tr('Jul'), tr('Aug'), tr('Sep'), tr('Oct'), tr('Nov'), tr('Dec'),
 ];
 
 String _pad(int n) => n.toString().padLeft(2, '0');
@@ -29,9 +31,9 @@ String formatRelativeTime(DateTime date) {
   final diff = DateTime.now().difference(date);
 
   if (diff.inDays >= 7) return formatEventDate(date);
-  if (diff.inDays >= 2) return '${diff.inDays} days ago';
-  if (diff.inDays == 1) return 'Yesterday';
-  if (diff.inHours >= 1) return '${diff.inHours} hour${diff.inHours == 1 ? '' : 's'} ago';
-  if (diff.inMinutes >= 1) return '${diff.inMinutes} minute${diff.inMinutes == 1 ? '' : 's'} ago';
-  return 'Just now';
+  if (diff.inDays >= 2) return tr('{0} days ago', [diff.inDays]);
+  if (diff.inDays == 1) return tr('Yesterday');
+  if (diff.inHours >= 1) return tr('{0} hour{1} ago', [diff.inHours, diff.inHours == 1 ? '' : 's']);
+  if (diff.inMinutes >= 1) return tr('{0} minute{1} ago', [diff.inMinutes, diff.inMinutes == 1 ? '' : 's']);
+  return tr('Just now');
 }

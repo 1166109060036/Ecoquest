@@ -12,6 +12,7 @@ import '../services/sound_service.dart';
 import '../widgets/liquid_glass_dialog.dart';
 import '../widgets/particle_burst.dart';
 import '../widgets/reward_fly.dart';
+import '../l10n/tr.dart';
 
 // สิ่งที่ต้องทำ "หลังทำ quest สำเร็จ" — เหมือนกันทั้ง 4 ที่ที่ทำ quest ได้
 // (หน้า Explore, แผ่น Explore ในหน้า Home, หน้า Fridge, และหัวหน้าห้องกดจบอีเวนต์ปาร์ตี้)
@@ -39,13 +40,13 @@ Future<void> handleQuestCompleted(BuildContext context, QuestReward reward, {Str
     points: reward.points + (bingo?.points ?? 0),
     xp: reward.xp + (bingo?.xp ?? 0),
     title: bingo != null
-        ? (bingo.full ? 'Eco Bingo — full card!' : 'Eco Bingo!')
+        ? (bingo.full ? tr('Eco Bingo — full card!') : tr('Eco Bingo!'))
         : combo != null && combo.multiplier > 1
-            ? 'Combo ${formatMultiplier(combo.multiplier)}!'
+            ? tr('Combo {0}!', [formatMultiplier(combo.multiplier)])
             // ทำเควสเดิมซ้ำวันเดียวกัน = แต้มลดลง — ชวนลองเควสใหม่ (backend/utils/combo.js)
             : combo != null && combo.repeat
-                ? 'Repeat ${formatMultiplier(combo.multiplier)} — try a new quest!'
-                : title ?? 'Quest complete!',
+                ? tr('Repeat {0} — try a new quest!', [formatMultiplier(combo.multiplier)])
+                : title ?? tr('Quest complete!'),
   );
   SoundService.instance.playQuestSuccess();
 
@@ -97,7 +98,7 @@ Future<void> _showMedalDialog(BuildContext context, List<UnlockedMedal> medals) 
       particleCount: 14,
       duration: Duration(milliseconds: 700),
     ),
-    title: medals.length > 1 ? 'New medals!' : 'New medal!',
+    title: medals.length > 1 ? tr('New medals!') : tr('New medal!'),
     content: Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -137,8 +138,8 @@ Future<void> _showMedalDialog(BuildContext context, List<UnlockedMedal> medals) 
             ),
           ),
         const SizedBox(height: 4),
-        const Text(
-          'Check it in your Inventory.',
+        Text(
+          tr('Check it in your Inventory.'),
           style: TextStyle(
             color: Colors.white60,
             fontSize: 12,
@@ -148,7 +149,7 @@ Future<void> _showMedalDialog(BuildContext context, List<UnlockedMedal> medals) 
       ],
     ),
     actions: [
-      LiquidGlassAction(label: 'Nice', color: Colors.green, onPressed: () => Navigator.pop(context)),
+      LiquidGlassAction(label: tr('Nice'), color: Colors.green, onPressed: () => Navigator.pop(context)),
     ],
   );
 }
@@ -163,14 +164,14 @@ Future<void> _showLevelUpDialog(BuildContext context, int newLevel) {
       particleCount: 26,
       duration: Duration(milliseconds: 1000),
     ),
-    title: 'Level Up!',
+    title: tr('Level Up!'),
     content: Text(
-      "You've reached Level $newLevel",
+      tr("You've reached Level {0}", [newLevel]),
       textAlign: TextAlign.center,
       style: LiquidGlassDialog.messageStyle,
     ),
     actions: [
-      LiquidGlassAction(label: 'Awesome', color: Colors.green, onPressed: () => Navigator.pop(context)),
+      LiquidGlassAction(label: tr('Awesome'), color: Colors.green, onPressed: () => Navigator.pop(context)),
     ],
   );
 }
@@ -186,15 +187,14 @@ Future<void> _showStreakMilestoneDialog(BuildContext context, StreakMilestoneRew
       particleCount: 20,
       duration: Duration(milliseconds: 800),
     ),
-    title: '${streak.day}-Day Streak!',
+    title: tr('{0}-Day Streak!', [streak.day]),
     content: Text(
-      '+${streak.points} points, +${streak.xp} XP'
-      '${streak.itemType != null ? '\n+ a bonus item in your Inventory' : ''}',
+      tr('+{0} points, +{1} XP{2}', [streak.points, streak.xp, streak.itemType != null ? '\n${tr('+ a bonus item in your Inventory')}' : '']),
       textAlign: TextAlign.center,
       style: LiquidGlassDialog.messageStyle,
     ),
     actions: [
-      LiquidGlassAction(label: 'Nice', color: Colors.orange, onPressed: () => Navigator.pop(context)),
+      LiquidGlassAction(label: tr('Nice'), color: Colors.orange, onPressed: () => Navigator.pop(context)),
     ],
   );
 }

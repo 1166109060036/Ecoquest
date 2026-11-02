@@ -6,6 +6,7 @@ import 'achievement_model.dart';
 import 'cosmetics_model.dart';
 import 'profile_model.dart';
 import 'quest_history_model.dart';
+import '../l10n/tr.dart';
 
 class PublicProfileModel {
   final String userId;
@@ -41,7 +42,7 @@ class PublicProfileModel {
 
     return PublicProfileModel(
       userId: (user['id'] ?? '').toString(),
-      displayName: user['displayName'] ?? 'Player',
+      displayName: user['displayName'] ?? tr('Player'),
       avatarUrl: AppConstants.resolveUrl(user['avatarUrl']),
       cosmetics: EquippedCosmetics.fromJson(user['cosmetics']),
       level: user['level'] ?? 1,

@@ -5,6 +5,7 @@ import '../../providers/auth_provider.dart';
 import '../../utils/validators.dart';
 import '../../widgets/auth_shell.dart';
 import '../../widgets/bubble_toast.dart';
+import '../../l10n/tr.dart';
 
 // หน้าลืมรหัสผ่าน — 3 ขั้นตอนในหน้าเดียว: กรอกอีเมล -> กรอก OTP ที่ได้รับทางอีเมล -> ตั้งรหัสผ่านใหม่
 // หน้าตาเข้าชุดกับ Login/Register (widgets/auth_shell.dart — ปรับใหม่ 14 ต.ค. 2026): พื้นหลังรูป + การ์ดกระจก
@@ -47,15 +48,15 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
     if (success) {
       setState(() => _step = _Step.otp);
-      showBubbleToast(context, 'If this email is registered, we have sent a code to it');
+      showBubbleToast(context, tr('If this email is registered, we have sent a code to it'));
     } else {
-      showBubbleToast(context, authProvider.errorMessage ?? 'Failed to send the code');
+      showBubbleToast(context, authProvider.errorMessage ?? tr('Failed to send the code'));
     }
   }
 
   Future<void> _handleVerifyOtp() async {
     if (_otpController.text.trim().length != 6) {
-      showBubbleToast(context, 'Please enter the 6-digit code');
+      showBubbleToast(context, tr('Please enter the 6-digit code'));
       return;
     }
 
@@ -71,17 +72,17 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       _resetToken = resetToken;
       setState(() => _step = _Step.newPassword);
     } else {
-      showBubbleToast(context, authProvider.errorMessage ?? 'Invalid or expired code');
+      showBubbleToast(context, authProvider.errorMessage ?? tr('Invalid or expired code'));
     }
   }
 
   Future<void> _handleResetPassword() async {
     if (_newPasswordController.text.length < 6) {
-      showBubbleToast(context, 'Password must be at least 6 characters');
+      showBubbleToast(context, tr('Password must be at least 6 characters'));
       return;
     }
     if (_newPasswordController.text != _confirmPasswordController.text) {
-      showBubbleToast(context, 'New passwords do not match');
+      showBubbleToast(context, tr('New passwords do not match'));
       return;
     }
 
@@ -91,10 +92,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     if (!mounted) return;
 
     if (success) {
-      showBubbleToast(context, 'Password reset successfully. Please sign in again');
+      showBubbleToast(context, tr('Password reset successfully. Please sign in again'));
       Navigator.pop(context);
     } else {
-      showBubbleToast(context, authProvider.errorMessage ?? 'Failed to reset password');
+      showBubbleToast(context, authProvider.errorMessage ?? tr('Failed to reset password'));
     }
   }
 
@@ -110,9 +111,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           const SizedBox(height: 24),
           AuthEntrance(
             order: 0,
-            child: const AuthHeader(
-              title: 'Forgot password',
-              subtitle: 'We will help you get back to your quests',
+            child: AuthHeader(
+              title: tr('Forgot password'),
+              subtitle: tr('We will help you get back to your quests'),
               icon: Icons.lock_reset_rounded,
               logoSize: 64,
             ),
@@ -157,8 +158,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           AuthEntrance(
             order: 2,
             child: AuthSwitchLink(
-              text: 'Remember your password?',
-              action: 'Sign in',
+              text: tr('Remember your password?'),
+              action: tr('Sign in'),
               onTap: () => Navigator.maybePop(context),
             ),
           ),
@@ -173,7 +174,7 @@ class _StepIndicator extends StatelessWidget {
   final int current;
   const _StepIndicator({required this.current});
 
-  static const _labels = ['Email', 'Code', 'New password'];
+  static List<String> get _labels => [tr('Email'), tr('Code'), tr('New password')];
 
   @override
   Widget build(BuildContext context) {
@@ -255,11 +256,11 @@ class _EmailStep extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Enter the email you signed up with and we will send you a 6-digit code.', style: _hintStyle),
+          Text(tr('Enter the email you signed up with and we will send you a 6-digit code.'), style: _hintStyle),
           const SizedBox(height: 18),
           AuthTextField(
             controller: controller,
-            label: 'Email',
+            label: tr('Email'),
             icon: Icons.mail_outline_rounded,
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.done,
@@ -268,7 +269,7 @@ class _EmailStep extends StatelessWidget {
             onSubmitted: (_) => isLoading ? null : onSubmit(),
           ),
           const SizedBox(height: 20),
-          AuthPrimaryButton(label: 'Send code', loading: isLoading, onPressed: onSubmit),
+          AuthPrimaryButton(label: tr('Send code'), loading: isLoading, onPressed: onSubmit),
         ],
       ),
     );
@@ -293,11 +294,11 @@ class _NewPasswordStep extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('Choose a new password with at least 6 characters.', style: _hintStyle),
+        Text(tr('Choose a new password with at least 6 characters.'), style: _hintStyle),
         const SizedBox(height: 18),
         AuthTextField(
           controller: newPasswordController,
-          label: 'New password',
+          label: tr('New password'),
           icon: Icons.lock_outline_rounded,
           isPassword: true,
           textInputAction: TextInputAction.next,
@@ -306,14 +307,14 @@ class _NewPasswordStep extends StatelessWidget {
         const SizedBox(height: 14),
         AuthTextField(
           controller: confirmPasswordController,
-          label: 'Confirm new password',
+          label: tr('Confirm new password'),
           icon: Icons.lock_reset_rounded,
           isPassword: true,
           textInputAction: TextInputAction.done,
           onSubmitted: (_) => isLoading ? null : onSubmit(),
         ),
         const SizedBox(height: 20),
-        AuthPrimaryButton(label: 'Reset password', loading: isLoading, onPressed: onSubmit),
+        AuthPrimaryButton(label: tr('Reset password'), loading: isLoading, onPressed: onSubmit),
       ],
     );
   }

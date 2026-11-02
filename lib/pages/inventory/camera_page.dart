@@ -10,6 +10,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/photo_storage_service.dart';
 import '../../widgets/bubble_toast.dart';
 import '../../widgets/liquid_glass_dialog.dart';
+import '../../l10n/tr.dart';
 
 // ไอเทม Camera — ถ่ายรูปแล้วได้ "EcoQuest Moment" การ์ดที่มีกรอบเฉพาะของแอพ
 // ต่างจากถ่ายรูปธรรมดาตรงที่แปะข้อมูลผู้เล่นจริง (ชื่อ / Lv. / วันที่) ลงไปในรูปเลย
@@ -50,19 +51,19 @@ class _CameraPageState extends State<CameraPage> {
       }
     } catch (e) {
       if (!mounted) return;
-      showBubbleToast(context, 'Could not open the camera');
+      showBubbleToast(context, tr('Could not open the camera'));
     }
   }
 
   // เรนเดอร์การ์ดบนจอเป็น PNG bytes — ใช้ร่วมกันทั้งตอนเซฟเข้าแอพและเซฟลงเครื่อง
   Future<Uint8List> _renderFrame() async {
     final boundary = _frameKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
-    if (boundary == null) throw Exception('Frame is not ready');
+    if (boundary == null) throw Exception(tr('Frame is not ready'));
 
     // pixelRatio 3 เพื่อให้ไฟล์คมพอเอาไปใช้ต่อ ไม่ใช่ขนาดเท่าที่เห็นบนจอ
     final image = await boundary.toImage(pixelRatio: 3.0);
     final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-    if (byteData == null) throw Exception('Could not render the photo');
+    if (byteData == null) throw Exception(tr('Could not render the photo'));
 
     return byteData.buffer.asUint8List();
   }
@@ -76,7 +77,7 @@ class _CameraPageState extends State<CameraPage> {
         final granted = await Gal.requestAccess(toAlbum: true);
         if (!granted) {
           if (!mounted) return;
-          showBubbleToast(context, 'Photo permission is required to save to your device');
+          showBubbleToast(context, tr('Photo permission is required to save to your device'));
           return;
         }
       }
@@ -89,13 +90,13 @@ class _CameraPageState extends State<CameraPage> {
 
       if (!mounted) return;
       HapticFeedback.lightImpact();
-      showBubbleToast(context, 'Saved to your device gallery');
+      showBubbleToast(context, tr('Saved to your device gallery'));
     } on GalException catch (e) {
       if (!mounted) return;
-      showBubbleToast(context, 'Could not save to device: ${e.type.message}');
+      showBubbleToast(context, tr('Could not save to device: {0}', [e.type.message]));
     } catch (e) {
       if (!mounted) return;
-      showBubbleToast(context, 'Could not save to device');
+      showBubbleToast(context, tr('Could not save to device'));
     }
   }
 
@@ -122,11 +123,11 @@ class _CameraPageState extends State<CameraPage> {
         _shotPath = null;
         _isSaving = false;
       });
-      showBubbleToast(context, 'Moment saved to your collection');
+      showBubbleToast(context, tr('Moment saved to your collection'));
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSaving = false);
-      showBubbleToast(context, 'Could not save: ${e.toString().replaceFirst('Exception: ', '')}');
+      showBubbleToast(context, tr('Could not save: {0}', [e.toString().replaceFirst('Exception: ', '')]));
     }
   }
 
@@ -134,16 +135,16 @@ class _CameraPageState extends State<CameraPage> {
     final confirmed = await LiquidGlassDialog.show<bool>(
       context: context,
       icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 30),
-      title: 'Delete moment?',
-      content: const Text(
-        'This photo will be removed from your collection.',
+      title: tr('Delete moment?'),
+      content: Text(
+        tr('This photo will be removed from your collection.'),
         textAlign: TextAlign.center,
         style: LiquidGlassDialog.messageStyle,
       ),
       actions: [
-        LiquidGlassAction(label: 'Cancel', onPressed: () => Navigator.pop(context, false)),
+        LiquidGlassAction(label: tr('Cancel'), onPressed: () => Navigator.pop(context, false)),
         LiquidGlassAction(
-          label: 'Delete',
+          label: tr('Delete'),
           color: Colors.redAccent,
           onPressed: () => Navigator.pop(context, true),
         ),
@@ -188,7 +189,7 @@ class _CameraPageState extends State<CameraPage> {
                     _saveToDevice(filePath: path);
                   },
                   icon: const Icon(Icons.download, color: Colors.white),
-                  label: const Text('Save to device', style: TextStyle(color: Colors.white)),
+                  label: Text(tr('Save to device'), style: TextStyle(color: Colors.white)),
                 ),
                 const SizedBox(width: 8),
                 TextButton.icon(
@@ -197,7 +198,7 @@ class _CameraPageState extends State<CameraPage> {
                     _confirmDelete(path);
                   },
                   icon: const Icon(Icons.delete_outline, color: Colors.white),
-                  label: const Text('Delete', style: TextStyle(color: Colors.white)),
+                  label: Text(tr('Delete'), style: TextStyle(color: Colors.white)),
                 ),
               ],
             ),
@@ -223,7 +224,7 @@ class _CameraPageState extends State<CameraPage> {
                 children: [
                   _CircleBackButton(onTap: () => Navigator.pop(context)),
                   const SizedBox(width: 10),
-                  const Text('Camera',
+                  Text(tr('Camera'),
                       style: TextStyle(color: Colors.green, fontSize: 22, fontWeight: FontWeight.bold)),
                 ],
               ),
@@ -239,7 +240,7 @@ class _CameraPageState extends State<CameraPage> {
                   : _PreviewView(
                       frameKey: _frameKey,
                       shotPath: _shotPath!,
-                      displayName: user?.displayName ?? 'Player',
+                      displayName: user?.displayName ?? tr('Player'),
                       level: progress?.level ?? user?.level ?? 1,
                       isSaving: _isSaving,
                       onRetake: () => setState(() => _shotPath = null),
@@ -304,7 +305,7 @@ class _PreviewView extends StatelessWidget {
         TextButton.icon(
           onPressed: isSaving ? null : onSaveToDevice,
           icon: const Icon(Icons.download, size: 18, color: Colors.green),
-          label: const Text('Save to device', style: TextStyle(color: Colors.green)),
+          label: Text(tr('Save to device'), style: TextStyle(color: Colors.green)),
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
@@ -319,7 +320,7 @@ class _PreviewView extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
                   ),
-                  child: const Text('Retake'),
+                  child: Text(tr('Retake')),
                 ),
               ),
               const SizedBox(width: 12),
@@ -340,7 +341,7 @@ class _PreviewView extends StatelessWidget {
                           width: 20,
                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                         )
-                      : const Text('Save Moment',
+                      : Text(tr('Save Moment'),
                           style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                 ),
               ),
@@ -459,7 +460,7 @@ class _MomentFrame extends StatelessWidget {
                   Positioned(
                     left: 10,
                     bottom: 10,
-                    child: _StatChip(text: 'Lv. ${level.toString().padLeft(2, '0')}'),
+                    child: _StatChip(text: tr('Lv. {0}', [level.toString().padLeft(2, '0')])),
                   ),
                 ],
               ),
@@ -482,7 +483,7 @@ class _MomentFrame extends StatelessWidget {
                     ),
                     const SizedBox(height: 1),
                     Text(
-                      'Ebetsu City · ${_formatDate(date)}',
+                      tr('Ebetsu City · {0}', [_formatDate(date)]),
                       style: TextStyle(fontSize: 10.5, color: Colors.grey.shade600),
                     ),
                   ],
@@ -557,12 +558,12 @@ class _CollectionView extends StatelessWidget {
                         Icon(Icons.photo_camera_outlined, size: 48, color: Colors.grey.shade400),
                         const SizedBox(height: 12),
                         Text(
-                          'No moments yet',
+                          tr('No moments yet'),
                           style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Capture your eco moments — each photo gets an EcoQuest frame with your level',
+                          tr('Capture your eco moments — each photo gets an EcoQuest frame with your level'),
                           textAlign: TextAlign.center,
                           style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
                         ),
@@ -613,14 +614,14 @@ class _CollectionView extends StatelessWidget {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
                   ),
                   icon: const Icon(Icons.photo_camera, size: 20),
-                  label: const Text('Take Photo',
+                  label: Text(tr('Take Photo'),
                       style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                 ),
               ),
               const SizedBox(width: 10),
               IconButton(
                 onPressed: onPickFromGallery,
-                tooltip: 'Choose from gallery',
+                tooltip: tr('Choose from gallery'),
                 style: IconButton.styleFrom(
                   backgroundColor: Colors.white,
                   padding: const EdgeInsets.all(14),

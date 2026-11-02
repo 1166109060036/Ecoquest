@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'pressable_scale.dart';
 import 'pulse_glow.dart';
+import '../l10n/tr.dart';
 
 // การ์ดแถวเดียวใช้ได้ทั้งไอเทม, achievement medal และของในตู้เย็น
 // thumbnail ซ้าย + ชื่อ/คำอธิบายขวา
@@ -221,7 +222,7 @@ class InventoryCard extends StatelessWidget {
                                     height: 14,
                                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                                   )
-                                : Text(actionLabel ?? 'Use',
+                                : Text(actionLabel ?? tr('Use'),
                                     style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                           ),
                         ),
@@ -236,7 +237,7 @@ class InventoryCard extends StatelessWidget {
                               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                             ),
-                            child: Text(secondaryActionLabel ?? 'Preview',
+                            child: Text(secondaryActionLabel ?? tr('Preview'),
                                 style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                           ),
                         ),

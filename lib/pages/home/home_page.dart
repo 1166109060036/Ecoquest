@@ -22,6 +22,7 @@ import '../profile/profile_page.dart';
 import '../progress/progress_page.dart';
 import '../../widgets/state_cross_fade.dart';
 import '../../widgets/quest_boost_bar.dart';
+import '../../l10n/tr.dart';
 
 // Home = หน้า Profile จริง (เต็มจอ) เป็นพื้นหลัง + แผ่น "Explore" ลอยทับด้านล่าง
 // ใช้หน้า Profile ตัวจริงเป็นพื้นหลังเลย (ไม่ใช่เวอร์ชันย่อ) เพื่อให้ขนาด/หน้าตา
@@ -308,7 +309,7 @@ class _ExploreSheetState extends State<_ExploreSheet> {
     if (!mounted) return;
 
     if (!started) {
-      showBubbleToast(context, questProvider.errorMessage ?? 'Failed to start quest');
+      showBubbleToast(context, questProvider.errorMessage ?? tr('Failed to start quest'));
       return;
     }
 
@@ -318,7 +319,7 @@ class _ExploreSheetState extends State<_ExploreSheet> {
       return;
     }
 
-    showBubbleToast(context, 'Quest started — complete it on the Progress page');
+    showBubbleToast(context, tr('Quest started — complete it on the Progress page'));
   }
 
   void _openProgress() {
@@ -402,8 +403,8 @@ class _ExploreSheetState extends State<_ExploreSheet> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Explore',
+                          Text(
+                            tr('Explore'),
                             style: TextStyle(
                               color: Colors.green,
                               fontSize: 20,
@@ -412,7 +413,7 @@ class _ExploreSheetState extends State<_ExploreSheet> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'Explore The Quests',
+                            tr('Explore The Quests'),
                             style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                           ),
                         ],
@@ -436,7 +437,7 @@ class _ExploreSheetState extends State<_ExploreSheet> {
                       final filter = _filters[index];
                       final isSelected = filter == _selectedFilter;
                       return ChoiceChip(
-                        label: Text(filter),
+                        label: Text(tr(filter)),
                         selected: isSelected,
                         onSelected: (_) {
                           setState(() => _selectedFilter = filter);
@@ -490,10 +491,10 @@ class _ExploreSheetState extends State<_ExploreSheet> {
                                         ? _eventsError
                                         : questProvider.errorMessage) ??
                                 (_selectedFilter == 'Party'
-                                    ? 'No party rooms open right now'
+                                    ? tr('No party rooms open right now')
                                     : _selectedFilter == 'Event'
-                                        ? 'No organization events right now'
-                                        : 'No quests in this category'),
+                                        ? tr('No organization events right now')
+                                        : tr('No quests in this category')),
                             textAlign: TextAlign.center,
                             style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
                           ),
@@ -565,13 +566,13 @@ class _ProgressButton extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(20)),
-            child: const Row(
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Icons.checklist_rounded, color: Colors.black54, size: 18),
                 SizedBox(width: 5),
                 Text(
-                  'Progress',
+                  tr('Progress'),
                   style: TextStyle(color: Colors.black54, fontSize: 12.5, fontWeight: FontWeight.w600),
                 ),
               ],

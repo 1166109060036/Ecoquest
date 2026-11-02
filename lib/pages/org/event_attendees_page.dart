@@ -3,6 +3,7 @@ import '../../models/org_event_model.dart';
 import '../../services/org_service.dart';
 import '../../utils/date_format.dart';
 import '../../widgets/decorated_avatar.dart';
+import '../../l10n/tr.dart';
 
 // รายชื่อผู้ลงทะเบียน + ใครเช็คอินแล้ว (องค์กรเจ้าของงานเท่านั้น) — เช็คอินแล้วขึ้นก่อน
 class EventAttendeesPage extends StatefulWidget {
@@ -53,7 +54,7 @@ class _EventAttendeesPageState extends State<EventAttendeesPage> {
         backgroundColor: Colors.grey.shade50,
         foregroundColor: Colors.black87,
         elevation: 0,
-        title: const Text('Attendees'),
+        title: Text(tr('Attendees')),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: Colors.green))
@@ -67,7 +68,7 @@ class _EventAttendeesPageState extends State<EventAttendeesPage> {
                   Text(_event.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
                   Text(
-                    '${_event.attendedCount} checked in  ·  ${_event.joinedCount} / ${_event.capacity} joined',
+                    tr('{0} checked in  ·  {1} / {2} joined', [_event.attendedCount, _event.joinedCount, _event.capacity]),
                     style: TextStyle(color: Colors.grey.shade700),
                   ),
                   const SizedBox(height: 16),
@@ -76,7 +77,7 @@ class _EventAttendeesPageState extends State<EventAttendeesPage> {
                   else if (_attendees.isEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 40),
-                      child: Text('No one has joined yet', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey.shade600)),
+                      child: Text(tr('No one has joined yet'), textAlign: TextAlign.center, style: TextStyle(color: Colors.grey.shade600)),
                     )
                   else
                     for (final a in _attendees)
@@ -104,8 +105,8 @@ class _EventAttendeesPageState extends State<EventAttendeesPage> {
                                   Text(a.displayName, style: const TextStyle(fontWeight: FontWeight.w600)),
                                   Text(
                                     a.attended && a.attendedAt != null
-                                        ? 'Checked in ${formatRelativeTime(a.attendedAt!)}'
-                                        : 'Lv. ${a.level}  ·  joined',
+                                        ? tr('Checked in {0}', [formatRelativeTime(a.attendedAt!)])
+                                        : tr('Lv. {0}  ·  joined', [a.level]),
                                     style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                                   ),
                                 ],

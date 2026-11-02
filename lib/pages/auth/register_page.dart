@@ -4,6 +4,7 @@ import '../../providers/auth_provider.dart';
 import '../../utils/validators.dart';
 import '../../widgets/auth_shell.dart';
 import '../../widgets/bubble_toast.dart';
+import '../../l10n/tr.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -44,7 +45,7 @@ class _RegisterPageState extends State<RegisterPage> {
       Navigator.pushReplacementNamed(context, '/verify-email',
           arguments: {'email': _emailController.text.trim(), 'resend': false});
     } else {
-      showBubbleToast(context, authProvider.errorMessage ?? 'Something went wrong');
+      showBubbleToast(context, authProvider.errorMessage ?? tr('Something went wrong'));
     }
   }
 
@@ -62,9 +63,9 @@ class _RegisterPageState extends State<RegisterPage> {
           const SizedBox(height: 24),
           AuthEntrance(
             order: 0,
-            child: const AuthHeader(
-              title: 'Join EcoQuest',
-              subtitle: 'Create an account to keep your progress',
+            child: AuthHeader(
+              title: tr('Join EcoQuest'),
+              subtitle: tr('Create an account to keep your progress'),
               logoSize: 64,
             ),
           ),
@@ -80,7 +81,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     children: [
                       AuthTextField(
                         controller: _displayNameController,
-                        label: 'Display name (optional)',
+                        label: tr('Display name (optional)'),
                         icon: Icons.badge_outlined,
                         maxLength: 20, // เท่า MAX_DISPLAY_NAME_LENGTH ของ backend
                         textInputAction: TextInputAction.next,
@@ -89,7 +90,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       const SizedBox(height: 14),
                       AuthTextField(
                         controller: _emailController,
-                        label: 'Email',
+                        label: tr('Email'),
                         icon: Icons.mail_outline_rounded,
                         keyboardType: TextInputType.emailAddress,
                         textInputAction: TextInputAction.next,
@@ -99,7 +100,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       const SizedBox(height: 14),
                       AuthTextField(
                         controller: _passwordController,
-                        label: 'Password',
+                        label: tr('Password'),
                         icon: Icons.lock_outline_rounded,
                         isPassword: true,
                         textInputAction: TextInputAction.next,
@@ -109,15 +110,15 @@ class _RegisterPageState extends State<RegisterPage> {
                       const SizedBox(height: 14),
                       AuthTextField(
                         controller: _confirmPasswordController,
-                        label: 'Confirm password',
+                        label: tr('Confirm password'),
                         icon: Icons.lock_reset_rounded,
                         isPassword: true,
                         textInputAction: TextInputAction.done,
-                        validator: (value) => value != _passwordController.text ? 'Passwords do not match' : null,
+                        validator: (value) => value != _passwordController.text ? tr('Passwords do not match') : null,
                         onSubmitted: (_) => loading ? null : _handleRegister(),
                       ),
                       const SizedBox(height: 22),
-                      AuthPrimaryButton(label: 'Create account', loading: loading, onPressed: _handleRegister),
+                      AuthPrimaryButton(label: tr('Create account'), loading: loading, onPressed: _handleRegister),
                     ],
                   ),
                 ),
@@ -128,8 +129,8 @@ class _RegisterPageState extends State<RegisterPage> {
           AuthEntrance(
             order: 2,
             child: AuthSwitchLink(
-              text: 'Already have an account?',
-              action: 'Sign in',
+              text: tr('Already have an account?'),
+              action: tr('Sign in'),
               onTap: () => Navigator.maybePop(context),
             ),
           ),

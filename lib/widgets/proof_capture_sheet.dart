@@ -5,6 +5,7 @@ import 'bubble_toast.dart';
 import 'pressable_scale.dart';
 import 'privacy_notice.dart';
 import '../models/proof_form.dart';
+import '../l10n/tr.dart';
 
 // รูปหลักฐานที่ผู้ใช้เลือกแล้ว — ส่งต่อให้ QuestProvider.completeQuest / PartyProvider.complete
 class ProofPhoto {
@@ -96,7 +97,7 @@ class _ProofCaptureSheetState extends State<_ProofCaptureSheet> {
     } catch (_) {
       if (!mounted) return;
       // เครื่องไม่มีกล้อง / ผู้ใช้ปฏิเสธ permission
-      showBubbleToast(context, 'Could not open the camera');
+      showBubbleToast(context, tr('Could not open the camera'));
     }
   }
 
@@ -133,9 +134,9 @@ class _ProofCaptureSheetState extends State<_ProofCaptureSheet> {
             const SizedBox(height: 6),
             Text(widget.hint, style: TextStyle(fontSize: 12.5, color: Colors.grey.shade600, height: 1.4)),
             const SizedBox(height: 10),
-            const PrivacyNotice(
-              text: "Don't include personal info such as names, account numbers or receipts. "
-                  'Your photo is shown in the community feed.',
+            PrivacyNotice(
+              text: tr("Don't include personal info such as names, account numbers or receipts. "
+                  'Your photo is shown in the community feed.'),
             ),
             const SizedBox(height: 16),
             // ตัวอย่างรูป / กรอบว่างรอถ่าย — สูงไม่เกิน 40% ของจอ ปุ่มด้านล่างจะได้เห็นโดยไม่ต้องเลื่อน
@@ -169,33 +170,33 @@ class _ProofCaptureSheetState extends State<_ProofCaptureSheet> {
             if (photo == null) ...[
               _SheetButton(
                 icon: Icons.photo_camera_rounded,
-                label: 'Take a photo',
+                label: tr('Take a photo'),
                 filled: true,
                 onPressed: () => _pick(ImageSource.camera),
               ),
               const SizedBox(height: 8),
               _SheetButton(
                 icon: Icons.photo_library_outlined,
-                label: 'Choose from gallery',
+                label: tr('Choose from gallery'),
                 onPressed: () => _pick(ImageSource.gallery),
               ),
             ] else ...[
               _SheetButton(
                 icon: Icons.send_rounded,
-                label: _formValid ? 'Submit' : 'Answer the questions above',
+                label: _formValid ? tr('Submit') : tr('Answer the questions above'),
                 filled: true,
                 onPressed: _formValid ? () => Navigator.pop(context, _withDetails(photo)) : null,
               ),
               const SizedBox(height: 8),
               _SheetButton(
                 icon: Icons.refresh_rounded,
-                label: 'Retake',
+                label: tr('Retake'),
                 onPressed: () => setState(() => _photo = null),
               ),
             ],
             const SizedBox(height: 8),
             Text(
-              'You get your reward right away. Other players can report photos that do not show the quest.',
+              tr('You get your reward right away. Other players can report photos that do not show the quest.'),
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
             ),
@@ -234,7 +235,7 @@ class _ProofFormFields extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (form.asksChoices) ...[
-          Text(form.choiceLabel ?? 'Pick all that apply', style: labelStyle),
+          Text(form.choiceLabel ?? tr('Pick all that apply'), style: labelStyle),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -256,12 +257,12 @@ class _ProofFormFields extends StatelessWidget {
         if (form.asksCount) ...[
           Row(
             children: [
-              Expanded(child: Text(form.countLabel ?? 'How many?', style: labelStyle)),
+              Expanded(child: Text(form.countLabel ?? tr('How many?'), style: labelStyle)),
               IconButton(
                 onPressed: count > 1 ? () => onCount(count - 1) : null,
                 icon: const Icon(Icons.remove_circle_outline),
                 color: Colors.teal,
-                tooltip: 'Less',
+                tooltip: tr('Less'),
               ),
               SizedBox(
                 width: 36,
@@ -273,7 +274,7 @@ class _ProofFormFields extends StatelessWidget {
                 onPressed: count < max ? () => onCount(count + 1) : null,
                 icon: const Icon(Icons.add_circle_outline),
                 color: Colors.teal,
-                tooltip: 'More',
+                tooltip: tr('More'),
               ),
             ],
           ),

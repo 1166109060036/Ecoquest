@@ -1,5 +1,6 @@
 import '../utils/constants.dart';
 import 'cosmetics_model.dart';
+import '../l10n/tr.dart';
 
 class UserModel {
   final String id;
@@ -50,7 +51,7 @@ class UserModel {
     return UserModel(
       id: json['id'] ?? json['_id'],
       email: json['email'],
-      displayName: json['displayName'] ?? 'Player',
+      displayName: json['displayName'] ?? tr('Player'),
       isGuest: json['isGuest'] ?? false,
       avatarUrl: AppConstants.resolveUrl(json['avatarUrl']),
       cosmetics: EquippedCosmetics.fromJson(json['cosmetics']),

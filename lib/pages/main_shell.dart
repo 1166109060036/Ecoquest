@@ -17,6 +17,7 @@ import 'inventory/inventory_page.dart';
 import 'explore/explore_page.dart';
 import 'community/community_page.dart';
 import 'profile/profile_page.dart';
+import '../l10n/tr.dart';
 
 // Shell กลางที่ถือ bottom nav ไว้ตัวเดียว แล้วสลับเนื้อหาข้างในด้วย IndexedStack
 // ใช้ IndexedStack แทน Navigator.push เพราะจะเก็บ state ของแต่ละ tab ไว้
@@ -110,10 +111,10 @@ class _MainShellState extends State<MainShell> with SingleTickerProviderStateMix
         points: approved.points,
         xp: approved.xp,
         title: approved.bingo
-            ? 'Eco Bingo!'
+            ? tr('Eco Bingo!')
             : approved.count > 1
-            ? '${approved.count} quests complete!'
-            : 'Quest complete!',
+            ? tr('{0} quests complete!', [approved.count])
+            : tr('Quest complete!'),
       );
       final questProvider = context.read<QuestProvider>();
       await Future.wait([

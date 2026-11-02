@@ -9,6 +9,7 @@ import '../../widgets/decorated_avatar.dart';
 import '../../widgets/liquid_glass_dialog.dart';
 import '../../widgets/pressable_scale.dart';
 import '../profile/player_profile_page.dart';
+import '../../l10n/tr.dart';
 
 // แท็บย่อย "Friend" ของหน้า Community — ค้นหาผู้เล่นด้วยชื่อ/ส่งคำขอเพื่อน, คำขอที่รอตอบ (เข้า/ออก),
 // ลิสต์เพื่อนที่มีอยู่แล้ว ข้อมูลจริงจาก GET/POST /api/friends/* (ดู friend_provider.dart)
@@ -62,16 +63,16 @@ class _FriendTabState extends State<FriendTab> {
     final confirmed = await LiquidGlassDialog.show<bool>(
       context: context,
       icon: const Icon(Icons.person_remove_rounded, color: Colors.redAccent, size: 28),
-      title: 'Remove friend?',
+      title: tr('Remove friend?'),
       content: Text(
-        '${friend.displayName} will be removed from your friends list.',
+        tr('{0} will be removed from your friends list.', [friend.displayName]),
         textAlign: TextAlign.center,
         style: LiquidGlassDialog.messageStyle,
       ),
       actions: [
-        LiquidGlassAction(label: 'Cancel', onPressed: () => Navigator.pop(context, false)),
+        LiquidGlassAction(label: tr('Cancel'), onPressed: () => Navigator.pop(context, false)),
         LiquidGlassAction(
-          label: 'Remove',
+          label: tr('Remove'),
           color: Colors.redAccent,
           onPressed: () => Navigator.pop(context, true),
         ),
@@ -82,7 +83,7 @@ class _FriendTabState extends State<FriendTab> {
     final provider = context.read<FriendProvider>();
     final ok = await provider.removeFriend(friend.id);
     if (!mounted || ok) return;
-    showBubbleToast(context, provider.errorMessage ?? 'Failed to remove this friend');
+    showBubbleToast(context, provider.errorMessage ?? tr('Failed to remove this friend'));
   }
 
   Future<void> _sendRequest(FriendSearchResultModel result) async {
@@ -93,7 +94,7 @@ class _FriendTabState extends State<FriendTab> {
       // รีเฟรชผลค้นหาเดิมด้วย ให้ปุ่ม Add ตรงแถวนี้เปลี่ยนเป็น Pending/Friends ทันทีโดยไม่ต้องพิมพ์ค้นหาใหม่
       await provider.search(_searchController.text);
     } else {
-      showBubbleToast(context, provider.errorMessage ?? 'Failed to send friend request');
+      showBubbleToast(context, provider.errorMessage ?? tr('Failed to send friend request'));
     }
   }
 
@@ -101,21 +102,21 @@ class _FriendTabState extends State<FriendTab> {
     final provider = context.read<FriendProvider>();
     final ok = await provider.acceptRequest(request.id);
     if (!mounted || ok) return;
-    showBubbleToast(context, provider.errorMessage ?? 'Failed to accept this request');
+    showBubbleToast(context, provider.errorMessage ?? tr('Failed to accept this request'));
   }
 
   Future<void> _rejectRequest(FriendRequestModel request) async {
     final provider = context.read<FriendProvider>();
     final ok = await provider.rejectRequest(request.id);
     if (!mounted || ok) return;
-    showBubbleToast(context, provider.errorMessage ?? 'Failed to reject this request');
+    showBubbleToast(context, provider.errorMessage ?? tr('Failed to reject this request'));
   }
 
   Future<void> _cancelRequest(FriendRequestModel request) async {
     final provider = context.read<FriendProvider>();
     final ok = await provider.cancelRequest(request.id);
     if (!mounted || ok) return;
-    showBubbleToast(context, provider.errorMessage ?? 'Failed to cancel this request');
+    showBubbleToast(context, provider.errorMessage ?? tr('Failed to cancel this request'));
   }
 
   @override
@@ -133,7 +134,7 @@ class _FriendTabState extends State<FriendTab> {
             _onSearchChanged(value);
           },
           decoration: InputDecoration(
-            hintText: 'Search players by name...',
+            hintText: tr('Search players by name...'),
             hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 14),
             prefixIcon: Icon(Icons.search, color: Colors.grey.shade500, size: 20),
             suffixIcon: isSearchMode
@@ -219,7 +220,7 @@ class _SearchResultsList extends StatelessWidget {
       return _EmptyHint(icon: Icons.cloud_off, text: errorMessage!);
     }
     if (results.isEmpty) {
-      return const _EmptyHint(icon: Icons.search_off, text: 'No players found');
+      return _EmptyHint(icon: Icons.search_off, text: tr('No players found'));
     }
 
     return ListView.separated(
@@ -252,11 +253,11 @@ class _RelationshipAction extends StatelessWidget {
   Widget build(BuildContext context) {
     switch (relationship) {
       case FriendRelationship.friends:
-        return const _StatusPill(label: 'Friends', color: Colors.green);
+        return _StatusPill(label: tr('Friends'), color: Colors.green);
       case FriendRelationship.pendingOutgoing:
-        return const _StatusPill(label: 'Pending', color: Colors.orange);
+        return _StatusPill(label: tr('Pending'), color: Colors.orange);
       case FriendRelationship.pendingIncoming:
-        return const _StatusPill(label: 'Respond below', color: Colors.blue);
+        return _StatusPill(label: tr('Respond below'), color: Colors.blue);
       case FriendRelationship.none:
         return PressableScale(
           child: ElevatedButton(
@@ -269,7 +270,7 @@ class _RelationshipAction extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             ),
-            child: const Text('Add', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            child: Text(tr('Add'), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
           ),
         );
     }
@@ -329,16 +330,16 @@ class _FriendsAndRequestsList extends StatelessWidget {
 
     final hasAnything = friends.isNotEmpty || incomingRequests.isNotEmpty || outgoingRequests.isNotEmpty;
     if (!hasAnything) {
-      return const _EmptyHint(
+      return _EmptyHint(
         icon: Icons.person_add_alt_1_rounded,
-        text: 'No friends yet — search for players above to add some',
+        text: tr('No friends yet — search for players above to add some'),
       );
     }
 
     return ListView(
       children: [
         if (incomingRequests.isNotEmpty) ...[
-          const _SectionLabel('Incoming requests'),
+          _SectionLabel(tr('Incoming requests')),
           const SizedBox(height: 8),
           for (final request in incomingRequests) ...[
             _FriendUserRow(
@@ -351,14 +352,14 @@ class _FriendsAndRequestsList extends StatelessWidget {
                     child: IconButton(
                       onPressed: isBusy ? null : () => onReject(request),
                       icon: const Icon(Icons.close, color: Colors.redAccent),
-                      tooltip: 'Reject',
+                      tooltip: tr('Reject'),
                     ),
                   ),
                   PressableScale(
                     child: IconButton(
                       onPressed: isBusy ? null : () => onAccept(request),
                       icon: const Icon(Icons.check, color: Colors.green),
-                      tooltip: 'Accept',
+                      tooltip: tr('Accept'),
                     ),
                   ),
                 ],
@@ -369,7 +370,7 @@ class _FriendsAndRequestsList extends StatelessWidget {
           const SizedBox(height: 8),
         ],
         if (outgoingRequests.isNotEmpty) ...[
-          const _SectionLabel('Sent requests'),
+          _SectionLabel(tr('Sent requests')),
           const SizedBox(height: 8),
           for (final request in outgoingRequests) ...[
             _FriendUserRow(
@@ -377,7 +378,7 @@ class _FriendsAndRequestsList extends StatelessWidget {
               onTap: () => onTapUser(request.user),
               trailing: TextButton(
                 onPressed: isBusy ? null : () => onCancel(request),
-                child: const Text('Cancel', style: TextStyle(color: Colors.redAccent)),
+                child: Text(tr('Cancel'), style: TextStyle(color: Colors.redAccent)),
               ),
             ),
             const SizedBox(height: 10),
@@ -385,7 +386,7 @@ class _FriendsAndRequestsList extends StatelessWidget {
           const SizedBox(height: 8),
         ],
         if (friends.isNotEmpty) ...[
-          const _SectionLabel('Friends'),
+          _SectionLabel(tr('Friends')),
           const SizedBox(height: 8),
           for (final friend in friends) ...[
             _FriendUserRow(
@@ -395,7 +396,7 @@ class _FriendsAndRequestsList extends StatelessWidget {
                 child: IconButton(
                   onPressed: isBusy ? null : () => onRemoveFriend(friend),
                   icon: Icon(Icons.person_remove_outlined, color: Colors.grey.shade500, size: 20),
-                  tooltip: 'Remove friend',
+                  tooltip: tr('Remove friend'),
                 ),
               ),
             ),
@@ -468,7 +469,7 @@ class _FriendUserRow extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
-                      'Lv. ${user.level.toString().padLeft(2, '0')}',
+                      tr('Lv. {0}', [user.level.toString().padLeft(2, '0')]),
                       style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                     ),
                   ],

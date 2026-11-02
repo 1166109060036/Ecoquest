@@ -8,6 +8,7 @@ import '../../widgets/leaf_refresh_indicator.dart';
 import '../../widgets/skeleton_box.dart';
 import '../../widgets/staggered_fade_in.dart';
 import '../../widgets/state_cross_fade.dart';
+import '../../l10n/tr.dart';
 
 // หน้า Notification — เข้าจากปุ่มกระดิ่งมุมขวาบนของหน้า Profile
 // push ทับ MainShell เลยไม่มี bottom nav ให้เห็น (เหมือนหน้า Settings)
@@ -107,8 +108,8 @@ class _TopBar extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 10),
-        const Text(
-          'Notification',
+        Text(
+          tr('Notification'),
           style: TextStyle(color: Colors.green, fontSize: 22, fontWeight: FontWeight.bold),
         ),
       ],
@@ -215,7 +216,7 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              failed ? errorMessage! : 'No notifications yet',
+              failed ? errorMessage! : tr('No notifications yet'),
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
             ),

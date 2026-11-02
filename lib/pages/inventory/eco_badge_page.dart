@@ -6,6 +6,7 @@ import '../../widgets/breathing_icon.dart';
 import '../../widgets/leaf_refresh_indicator.dart';
 import '../../widgets/medal_badge.dart';
 import '../../widgets/skeleton_box.dart';
+import '../../l10n/tr.dart';
 
 // หน้าดูเหรียญ Achievement — เข้าจากไอเทม Eco Badge ในหน้า Inventory (แนวเดียวกับที่ไอเทม Fridge เปิดไป FridgePage)
 // เหรียญหลายขั้น (6 ต.ค. 2026): แต่ละหมวดมี Bronze / Silver / Gold — โชว์ทุกหมวด เหรียญที่ได้แล้วขึ้นก่อน
@@ -36,7 +37,7 @@ class EcoBadgePage extends StatelessWidget {
                 children: [
                   _CircleBackButton(onTap: () => Navigator.pop(context)),
                   const SizedBox(width: 10),
-                  const Text('Eco Badge',
+                  Text(tr('Eco Badge'),
                       style: TextStyle(color: Colors.green, fontSize: 22, fontWeight: FontWeight.bold)),
                   const SizedBox(width: 8),
                   Padding(
@@ -154,7 +155,7 @@ class _MedalTierCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 if (medal.maxed)
-                  Text('All tiers complete · ${medal.count} quests',
+                  Text(tr('All tiers complete · {0} quests', [medal.count]),
                       style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: medalTierColor('gold')))
                 else ...[
                   ClipRRect(
@@ -244,13 +245,13 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              failed ? errorMessage! : 'No medals collected yet',
+              failed ? errorMessage! : tr('No medals collected yet'),
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
             ),
             const SizedBox(height: 6),
             Text(
-              failed ? 'Pull down to try again' : 'Complete quests to earn your first Achievement medal',
+              failed ? tr('Pull down to try again') : tr('Complete quests to earn your first Achievement medal'),
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
             ),

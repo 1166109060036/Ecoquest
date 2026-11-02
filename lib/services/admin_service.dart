@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'api_http.dart' as http;
 import '../utils/constants.dart';
 import 'storage_service.dart';
+import '../l10n/tr.dart';
 
 // เรียก /api/admin/* ทั้งหมด — dev/QA เท่านั้น เข้าได้เฉพาะอีเมลใน ADMIN_EMAILS ฝั่ง backend
 // (ดู backend/middleware/admin.js) ถ้าไม่ใช่ admin backend จะตอบ 403 ทุกเมธอดในไฟล์นี้
@@ -20,7 +21,7 @@ class AdminService {
     );
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Admin request failed');
+      throw Exception(data['message'] ?? tr('Admin request failed'));
     }
     return data;
   }
@@ -33,7 +34,7 @@ class AdminService {
     );
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Admin request failed');
+      throw Exception(data['message'] ?? tr('Admin request failed'));
     }
     return data;
   }

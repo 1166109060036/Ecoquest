@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'utils/game_page_transition.dart';
 import 'providers/auth_provider.dart';
@@ -17,6 +18,7 @@ import 'routes/app_routes.dart';
 import 'services/app_photo_storage.dart';
 import 'services/sound_service.dart';
 import 'services/push_service.dart';
+import 'l10n/tr.dart';
 
 void main() async {
   // ต้อง ensureInitialized ก่อนเรียก plugin ใดๆ (path_provider) ตอนแอพยังไม่เริ่ม
@@ -26,6 +28,8 @@ void main() async {
   await AppPhotoStorage.init();
   // ต้องโหลดระดับเสียงที่เคยตั้งไว้ก่อนเริ่มเล่นเพลง ไม่งั้นจะดังสุดวูบนึงก่อนค่อยปรับลง
   await SoundService.instance.loadSavedVolumes();
+  // ภาษาที่เลือกไว้ (ไม่เคยเลือก = ตามภาษามือถือ) ต้องรู้ก่อน widget แรก build
+  await loadSavedLanguage();
   // Firebase ต้อง init ก่อน runApp — ไม่มี google-services.json ก็ไม่พัง แค่ไม่มี push (ดู push_service.dart)
   await PushService.instance.init();
   SoundService.instance.attachLifecycle();
@@ -54,29 +58,35 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AdminProvider()),
         ChangeNotifierProvider(create: (_) => BingoProvider()),
       ],
-      child: MaterialApp(
-        // แตะ push แล้วเปิดหน้า Notification จากนอก widget tree ได้
-        navigatorKey: PushService.instance.navigatorKey,
-        title: 'EcoQuest',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          primarySwatch: Colors.green,
-          useMaterial3: true,
-          // เล่นเสียงคลิกเฉพาะตอนแตะ widget ที่กดได้จริงๆ (ปุ่ม, InkWell ฯลฯ) เท่านั้น ไม่ใช่ทุกจุดที่
-          // แตะหน้าจอเหมือนที่เคยลองด้วย Listener ก่อนหน้านี้ — ดูเหตุผลเต็มๆ ที่ SoundSplashFactory
-          // ใน sound_service.dart
-          splashFactory: SoundSplashFactory(InkRipple.splashFactory),
-          // เปลี่ยนหน้า (push/pop) แบบเกม — หน้าใหม่เด้งขยายขึ้นมา หน้าเดิมย่อ+มืดลง (ผู้ใช้ขอ 14 ต.ค. 2026
-          // แทน FadeForwards เดิม) ดู utils/game_page_transition.dart — Hero รูปเควส (quest_card.dart) ยังบินได้ปกติ
-          pageTransitionsTheme: const PageTransitionsTheme(
-            builders: {
-              TargetPlatform.android: GamePageTransitionsBuilder(),
-              TargetPlatform.iOS: GamePageTransitionsBuilder(),
-            },
+      child: ValueListenableBuilder<Locale>(
+        valueListenable: appLocale,
+        builder: (context, locale, _) => MaterialApp(
+          // แตะ push แล้วเปิดหน้า Notification จากนอก widget tree ได้
+          navigatorKey: PushService.instance.navigatorKey,
+          title: 'EcoQuest',
+          locale: locale,
+          supportedLocales: [for (final code in supportedLanguages.keys) Locale(code)],
+          localizationsDelegates: GlobalMaterialLocalizations.delegates,
+          debugShowCheckedModeBanner: false,
+          theme: ThemeData(
+            primarySwatch: Colors.green,
+            useMaterial3: true,
+            // เล่นเสียงคลิกเฉพาะตอนแตะ widget ที่กดได้จริงๆ (ปุ่ม, InkWell ฯลฯ) เท่านั้น ไม่ใช่ทุกจุดที่
+            // แตะหน้าจอเหมือนที่เคยลองด้วย Listener ก่อนหน้านี้ — ดูเหตุผลเต็มๆ ที่ SoundSplashFactory
+            // ใน sound_service.dart
+            splashFactory: SoundSplashFactory(InkRipple.splashFactory),
+            // เปลี่ยนหน้า (push/pop) แบบเกม — หน้าใหม่เด้งขยายขึ้นมา หน้าเดิมย่อ+มืดลง (ผู้ใช้ขอ 14 ต.ค. 2026
+            // แทน FadeForwards เดิม) ดู utils/game_page_transition.dart — Hero รูปเควส (quest_card.dart) ยังบินได้ปกติ
+            pageTransitionsTheme: const PageTransitionsTheme(
+              builders: {
+                TargetPlatform.android: GamePageTransitionsBuilder(),
+                TargetPlatform.iOS: GamePageTransitionsBuilder(),
+              },
+            ),
           ),
+          initialRoute: '/splash',
+          routes: appRoutes,
         ),
-        initialRoute: '/splash',
-        routes: appRoutes,
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'chat_tab.dart';
 import 'feed_tab.dart';
 import 'friend_tab.dart';
 import 'party_tab.dart';
+import '../../l10n/tr.dart';
 
 // หน้า Community — แทนที่หน้า Party เดิมในแท็บล่างสุด (index 3 เหมือนเดิม แค่เปลี่ยนชื่อ/ไอคอน
 // ดู bottom_nav_bar.dart) มี 4 แท็บย่อยผ่าน TabBar (⚠️ เป็น TabBar ตัวแรกในโปรเจคนี้ ไม่เคยมีมาก่อน):
@@ -40,12 +41,12 @@ class _CommunityPageState extends State<CommunityPage> with SingleTickerProvider
       body: SafeArea(
         child: Column(
           children: [
-            const Padding(
+            Padding(
               padding: EdgeInsets.fromLTRB(20, 8, 20, 0),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  'Community',
+                  tr('Community'),
                   style: TextStyle(color: Colors.green, fontSize: 26, fontWeight: FontWeight.bold),
                 ),
               ),
@@ -58,11 +59,11 @@ class _CommunityPageState extends State<CommunityPage> with SingleTickerProvider
               indicatorColor: Colors.green,
               indicatorSize: TabBarIndicatorSize.label,
               labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-              tabs: const [
-                Tab(text: 'Feed'),
-                Tab(text: 'Friend'),
-                Tab(text: 'Party'),
-                Tab(text: 'Chat'),
+              tabs: [
+                Tab(text: tr('Feed')),
+                Tab(text: tr('Friend')),
+                Tab(text: tr('Party')),
+                Tab(text: tr('Chat')),
               ],
             ),
             Expanded(

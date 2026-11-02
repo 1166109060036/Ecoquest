@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/org_event_model.dart';
 import '../../services/org_service.dart';
 import '../../widgets/bubble_toast.dart';
+import '../../l10n/tr.dart';
 
 // แอดมินจัดการบัญชีองค์กร (14 ต.ค. 2026) — backend/routes/org.js /admin/*
 // Pending: Approve / Reject · Approved: Suspend (ยกเลิกอีเวนต์ที่ยังไม่เริ่ม) · Suspended: Reinstate
@@ -13,7 +14,7 @@ class OrgRequestsPage extends StatefulWidget {
 }
 
 class _OrgRequestsPageState extends State<OrgRequestsPage> {
-  static const _tabs = {'pending': 'Pending', 'approved': 'Approved', 'suspended': 'Suspended', 'rejected': 'Rejected'};
+  static Map<String, String> get _tabs => {'pending': tr('Pending'), 'approved': tr('Approved'), 'suspended': tr('Suspended'), 'rejected': tr('Rejected')};
 
   final _service = OrgService();
   String _status = 'pending';
@@ -57,11 +58,11 @@ class _OrgRequestsPageState extends State<OrgRequestsPage> {
         content: TextField(
           controller: controller,
           maxLength: 300,
-          decoration: const InputDecoration(hintText: 'Reason (optional, the organization will see it)'),
+          decoration: InputDecoration(hintText: tr('Reason (optional, the organization will see it)')),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Back')),
-          TextButton(onPressed: () => Navigator.pop(context, controller.text.trim()), child: const Text('Confirm')),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Back'))),
+          TextButton(onPressed: () => Navigator.pop(context, controller.text.trim()), child: Text(tr('Confirm'))),
         ],
       ),
     );
@@ -70,7 +71,7 @@ class _OrgRequestsPageState extends State<OrgRequestsPage> {
   Future<void> _decide(OrgRequest r, String action) async {
     String note = '';
     if (action != 'approve') {
-      final n = await _askNote(action == 'reject' ? 'Reject ${r.organization.name}?' : 'Suspend ${r.organization.name}?');
+      final n = await _askNote(action == 'reject' ? tr('Reject {0}?', [r.organization.name]) : tr('Suspend {0}?', [r.organization.name]));
       if (n == null) return;
       note = n;
     }
@@ -78,7 +79,7 @@ class _OrgRequestsPageState extends State<OrgRequestsPage> {
     try {
       await _service.decide(r.userId, action, note: note);
       if (!mounted) return;
-      showBubbleToast(context, switch (action) { 'approve' => 'Approved', 'reject' => 'Rejected', _ => 'Suspended' });
+      showBubbleToast(context, switch (action) { 'approve' => tr('Approved'), 'reject' => tr('Rejected'), _ => tr('Suspended') });
       await _load();
     } catch (e) {
       if (mounted) showBubbleToast(context, e.toString().replaceFirst('Exception: ', ''));
@@ -90,7 +91,7 @@ class _OrgRequestsPageState extends State<OrgRequestsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Organizations')),
+      appBar: AppBar(title: Text(tr('Organizations'))),
       body: Column(
         children: [
           SizedBox(
@@ -126,7 +127,7 @@ class _OrgRequestsPageState extends State<OrgRequestsPage> {
                         if (_error != null)
                           Padding(padding: const EdgeInsets.all(24), child: Text(_error!, textAlign: TextAlign.center))
                         else if (_items.isEmpty)
-                          const Padding(padding: EdgeInsets.all(40), child: Text('Nothing here', textAlign: TextAlign.center))
+                          Padding(padding: EdgeInsets.all(40), child: Text(tr('Nothing here'), textAlign: TextAlign.center))
                         else
                           for (final r in _items) _card(r),
                       ],
@@ -150,12 +151,12 @@ class _OrgRequestsPageState extends State<OrgRequestsPage> {
             Text(o.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             Text('${orgTypeLabels[o.orgType] ?? o.orgType}  ·  ${o.contactEmail}',
                 style: TextStyle(color: Colors.grey.shade700, fontSize: 12.5)),
-            Text('Account: ${r.displayName} (${r.email})', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+            Text(tr('Account: {0} ({1})', [r.displayName, r.email]), style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
             const SizedBox(height: 8),
             Text(o.description),
             if (o.decisionNote.isNotEmpty) ...[
               const SizedBox(height: 6),
-              Text('Note: ${o.decisionNote}', style: TextStyle(color: Colors.grey.shade600, fontStyle: FontStyle.italic)),
+              Text(tr('Note: {0}', [o.decisionNote]), style: TextStyle(color: Colors.grey.shade600, fontStyle: FontStyle.italic)),
             ],
             const SizedBox(height: 10),
             if (busy)
@@ -165,16 +166,16 @@ class _OrgRequestsPageState extends State<OrgRequestsPage> {
                 spacing: 8,
                 children: [
                   if (o.status == 'pending') ...[
-                    FilledButton(onPressed: () => _decide(r, 'approve'), child: const Text('Approve')),
-                    OutlinedButton(onPressed: () => _decide(r, 'reject'), child: const Text('Reject')),
+                    FilledButton(onPressed: () => _decide(r, 'approve'), child: Text(tr('Approve'))),
+                    OutlinedButton(onPressed: () => _decide(r, 'reject'), child: Text(tr('Reject'))),
                   ],
                   if (o.status == 'approved')
                     OutlinedButton(
                       onPressed: () => _decide(r, 'suspend'),
                       style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
-                      child: const Text('Suspend'),
+                      child: Text(tr('Suspend')),
                     ),
-                  if (o.status == 'suspended') FilledButton(onPressed: () => _decide(r, 'approve'), child: const Text('Reinstate')),
+                  if (o.status == 'suspended') FilledButton(onPressed: () => _decide(r, 'approve'), child: Text(tr('Reinstate'))),
                 ],
               ),
           ],

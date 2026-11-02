@@ -5,6 +5,7 @@ import '../utils/constants.dart';
 import 'falling_leaves_overlay.dart';
 import 'pressable_scale.dart';
 import 'staggered_fade_in.dart';
+import '../l10n/tr.dart';
 
 // ชิ้นส่วนหน้าตาที่หน้า Login / Register ใช้ร่วมกัน (ปรับให้สวยขึ้น 14 ต.ค. 2026)
 // ภาพพื้นหลังเดียวกับหน้า Profile/Settings + ใบไม้ร่วง + การ์ดกระจกฝ้า ให้รู้สึกเป็นแอพเดียวกันตั้งแต่หน้าแรก
@@ -75,7 +76,7 @@ class AuthScaffold extends StatelessWidget {
                   color: Colors.black.withValues(alpha: 0.38),
                   shape: const CircleBorder(),
                   child: IconButton(
-                    tooltip: 'Back',
+                    tooltip: tr('Back'),
                     icon: const Icon(Icons.arrow_back, color: Colors.white),
                     onPressed: () => Navigator.maybePop(context),
                   ),
@@ -283,7 +284,7 @@ class _AuthTextFieldState extends State<AuthTextField> {
         prefixIcon: Icon(widget.icon, color: Colors.white70, size: 20),
         suffixIcon: widget.isPassword
             ? IconButton(
-                tooltip: _obscure ? 'Show password' : 'Hide password',
+                tooltip: _obscure ? tr('Show password') : tr('Hide password'),
                 icon: Icon(
                   _obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
                   color: Colors.white70,
@@ -326,7 +327,7 @@ class AuthPrimaryButton extends StatelessWidget {
                 : [Colors.grey.shade600, Colors.grey.shade700],
           ),
           boxShadow: enabled
-              ? [BoxShadow(color: Colors.green.withValues(alpha: 0.45), blurRadius: 14, offset: const Offset(0, 4))]
+              ? [BoxShadow(color: Colors.green.withValues(alpha: 0.45), blurRadius: 14, offset: Offset(0, 4))]
               : null,
         ),
         child: Material(
@@ -338,14 +339,14 @@ class AuthPrimaryButton extends StatelessWidget {
               height: 52,
               child: Center(
                 child: loading
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 22,
                         height: 22,
                         child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white),
                       )
                     : Text(
                         label,
-                        style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
+                        style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
                       ),
               ),
             ),
@@ -370,12 +371,12 @@ class AuthSecondaryButton extends StatelessWidget {
       child: OutlinedButton.icon(
         onPressed: onPressed,
         icon: Icon(icon ?? Icons.person_outline, size: 20),
-        label: Text(label, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+        label: Text(label, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
         style: OutlinedButton.styleFrom(
           foregroundColor: Colors.white,
           backgroundColor: Colors.white.withValues(alpha: 0.08),
           side: BorderSide(color: Colors.white.withValues(alpha: 0.45)),
-          minimumSize: const Size.fromHeight(50),
+          minimumSize: Size.fromHeight(50),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
         ),
       ),
@@ -394,7 +395,7 @@ class AuthOrDivider extends StatelessWidget {
       children: [
         line,
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: EdgeInsets.symmetric(horizontal: 12),
           child: Text('or', style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13)),
         ),
         line,
@@ -423,9 +424,9 @@ class AuthSwitchLink extends StatelessWidget {
           onPressed: onTap,
           style: TextButton.styleFrom(
             foregroundColor: Colors.greenAccent,
-            padding: const EdgeInsets.symmetric(horizontal: 6),
+            padding: EdgeInsets.symmetric(horizontal: 6),
           ),
-          child: Text(action, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+          child: Text(action, style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
         ),
       ],
     );
@@ -463,7 +464,7 @@ class AuthOtpStep extends StatelessWidget {
         Text.rich(
           TextSpan(
             children: [
-              const TextSpan(text: 'Enter the 6-digit code we sent to\n'),
+              TextSpan(text: tr('Enter the 6-digit code we sent to\n')),
               TextSpan(
                 text: email,
                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
@@ -498,17 +499,17 @@ class AuthOtpStep extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          "Didn't get it? Check your spam folder.",
+          tr("Didn't get it? Check your spam folder."),
           textAlign: TextAlign.center,
           style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 12),
         ),
         const SizedBox(height: 16),
-        AuthPrimaryButton(label: 'Verify code', loading: isLoading, onPressed: onSubmit),
+        AuthPrimaryButton(label: tr('Verify code'), loading: isLoading, onPressed: onSubmit),
         const SizedBox(height: 4),
         TextButton(
           onPressed: isLoading ? null : onBack,
           style: TextButton.styleFrom(foregroundColor: Colors.white.withValues(alpha: 0.85)),
-          child: Text(backLabel),
+          child: Text(tr(backLabel)),
         ),
       ],
     );

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/auth_shell.dart';
 import '../../widgets/bubble_toast.dart';
+import '../../l10n/tr.dart';
 
 // หน้ายืนยันอีเมลด้วย OTP หลังสมัคร (22 ต.ค. 2026) — ยืนยันผ่านแล้วถึงได้ token เข้าแอพ
 // arguments: {'email': String, 'resend': bool} — resend = true ตอนมาจากหน้า Login (บัญชีสมัครค้างไว้ OTP เดิม
@@ -36,7 +37,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
 
   Future<void> _handleVerify() async {
     if (_otpController.text.trim().length != 6) {
-      showBubbleToast(context, 'Please enter the 6-digit code');
+      showBubbleToast(context, tr('Please enter the 6-digit code'));
       return;
     }
 
@@ -48,7 +49,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
     if (success) {
       Navigator.pushNamedAndRemoveUntil(context, '/main', (_) => false);
     } else {
-      showBubbleToast(context, authProvider.errorMessage ?? 'Invalid or expired code');
+      showBubbleToast(context, authProvider.errorMessage ?? tr('Invalid or expired code'));
     }
   }
 
@@ -59,7 +60,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
     if (!mounted) return;
     showBubbleToast(
       context,
-      success ? 'We have sent a new code to your email' : authProvider.errorMessage ?? 'Failed to send the code',
+      success ? tr('We have sent a new code to your email') : authProvider.errorMessage ?? tr('Failed to send the code'),
     );
   }
 
@@ -75,9 +76,9 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
           const SizedBox(height: 24),
           AuthEntrance(
             order: 0,
-            child: const AuthHeader(
-              title: 'Verify your email',
-              subtitle: 'One last step before your first quest',
+            child: AuthHeader(
+              title: tr('Verify your email'),
+              subtitle: tr('One last step before your first quest'),
               icon: Icons.mark_email_read_outlined,
               logoSize: 64,
             ),
@@ -92,7 +93,7 @@ class _VerifyEmailPageState extends State<VerifyEmailPage> {
                 isLoading: isLoading,
                 onSubmit: _handleVerify,
                 onBack: _handleResend,
-                backLabel: 'Resend code',
+                backLabel: tr('Resend code'),
               ),
             ),
           ),

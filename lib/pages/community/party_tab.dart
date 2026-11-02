@@ -17,6 +17,7 @@ import '../../widgets/pulse_glow.dart';
 import '../../widgets/skeleton_box.dart';
 import '../../widgets/staggered_fade_in.dart';
 import '../profile/player_profile_page.dart';
+import '../../l10n/tr.dart';
 
 // แท็บย่อย "Party" ของหน้า Community — โชว์แค่ "ห้องของฉัน" เท่านั้น (ไม่มีลิสต์ห้องให้เลือกเข้าร่วมแล้ว
 // ย้ายไปอยู่หน้า Explore ตอนเลือก chip "Party" แทน ดู explore_page.dart + party_room_card.dart)
@@ -70,16 +71,16 @@ class _PartyTabState extends State<PartyTab> {
     final confirmed = await LiquidGlassDialog.show<bool>(
       context: context,
       icon: const Icon(Icons.logout_rounded, color: Colors.redAccent, size: 28),
-      title: 'Leave party?',
-      content: const Text(
-        'You will leave this event and will have to join again if you change your mind',
+      title: tr('Leave party?'),
+      content: Text(
+        tr('You will leave this event and will have to join again if you change your mind'),
         textAlign: TextAlign.center,
         style: LiquidGlassDialog.messageStyle,
       ),
       actions: [
-        LiquidGlassAction(label: 'Cancel', onPressed: () => Navigator.pop(context, false)),
+        LiquidGlassAction(label: tr('Cancel'), onPressed: () => Navigator.pop(context, false)),
         LiquidGlassAction(
-          label: 'Leave Party',
+          label: tr('Leave Party'),
           color: Colors.redAccent,
           onPressed: () => Navigator.pop(context, true),
         ),
@@ -96,7 +97,7 @@ class _PartyTabState extends State<PartyTab> {
     if (!mounted) return;
 
     if (!ok) {
-      showBubbleToast(context, partyProvider.errorMessage ?? 'Failed to leave the party');
+      showBubbleToast(context, partyProvider.errorMessage ?? tr('Failed to leave the party'));
       return;
     }
     // กลับมาที่หน้ารายการห้อง -> รีเฟรชลิสต์ห้องให้ทันสถานะล่าสุด และรีเฟรช quest list
@@ -116,7 +117,7 @@ class _PartyTabState extends State<PartyTab> {
     if (!mounted) return;
 
     if (!ok) {
-      showBubbleToast(context, partyProvider.errorMessage ?? 'Failed to start this event');
+      showBubbleToast(context, partyProvider.errorMessage ?? tr('Failed to start this event'));
     }
   }
 
@@ -125,8 +126,8 @@ class _PartyTabState extends State<PartyTab> {
   Future<void> _confirmCompleteEvent() async {
     final proof = await showProofCaptureSheet(
       context,
-      title: 'Group photo',
-      hint: 'Take one photo of your group at the event. Every member gets the reward right away.',
+      title: tr('Group photo'),
+      hint: tr('Take one photo of your group at the event. Every member gets the reward right away.'),
     );
     if (proof == null || !mounted) return;
 
@@ -136,7 +137,7 @@ class _PartyTabState extends State<PartyTab> {
     if (!mounted) return;
 
     if (reward == null) {
-      showBubbleToast(context, partyProvider.errorMessage ?? 'Failed to complete this event');
+      showBubbleToast(context, partyProvider.errorMessage ?? tr('Failed to complete this event'));
       return;
     }
 
@@ -219,13 +220,13 @@ class _NoPartyState extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              failed ? errorMessage! : "You're not in a party yet",
+              failed ? errorMessage! : tr("You're not in a party yet"),
               textAlign: TextAlign.center,
               style: const TextStyle(color: Colors.black87, fontSize: 16, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 6),
             Text(
-              failed ? 'Pull down to try again' : 'Browse open parties in the Explore tab',
+              failed ? tr('Pull down to try again') : tr('Browse open parties in the Explore tab'),
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
             ),
@@ -239,7 +240,7 @@ class _NoPartyState extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
               ),
-              child: const Text('Browse Parties', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+              child: Text(tr('Browse Parties'), style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
             ),
           ],
         ),
@@ -292,7 +293,7 @@ class _PartyView extends StatelessWidget {
                           key: ValueKey(leader.userId),
                           child: _MemberRow(
                             member: leader,
-                            roleLabel: 'Party Leader',
+                            roleLabel: tr('Party Leader'),
                             showArrow: true,
                             onTap: () => onTapMember(leader),
                           ),
@@ -308,7 +309,7 @@ class _PartyView extends StatelessWidget {
                           delay: Duration(milliseconds: 40 * entry.key.clamp(0, 10)),
                           child: _MemberRow(
                             member: entry.value,
-                            roleLabel: 'Party Member',
+                            roleLabel: tr('Party Member'),
                             // ทุกแถวกดได้เหมือนกัน ไม่ใช่แค่แถวหัวหน้า
                             showArrow: true,
                             onTap: () => onTapMember(entry.value),
@@ -329,7 +330,7 @@ class _PartyView extends StatelessWidget {
           width: double.infinity,
           child: TextButton(
             onPressed: isBusy ? null : onLeave,
-            child: const Text('Leave Party', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w600)),
+            child: Text(tr('Leave Party'), style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w600)),
           ),
         ),
       ],
@@ -361,17 +362,17 @@ class _PartyActionArea extends StatelessWidget {
   Widget build(BuildContext context) {
     // ห้องค้างสถานะรอตรวจจากระบบเดิม — backend ปิดให้เป็น completed เองตอน sweep (utils/submissions.js)
     if (party.isReviewing) {
-      return const _WaitingPill(text: 'Group photo sent — finishing up');
+      return _WaitingPill(text: tr('Group photo sent — finishing up'));
     }
     if (party.isStarted) {
       final countdown = party.completeCountdownAt(now);
       final ready = countdown == null;
 
       if (!party.isLeader) {
-        return const _WaitingPill(text: 'Event in progress — waiting for the leader to complete it');
+        return _WaitingPill(text: tr('Event in progress — waiting for the leader to complete it'));
       }
       return _GateButton(
-        label: ready ? 'Complete Event' : 'Available in ${formatCountdown(countdown)}',
+        label: ready ? tr('Complete Event') : tr('Available in {0}', [formatCountdown(countdown)]),
         enabled: ready,
         isBusy: isBusy,
         onPressed: onComplete,
@@ -385,16 +386,16 @@ class _PartyActionArea extends StatelessWidget {
     if (!party.isLeader) {
       return _WaitingPill(
         text: party.memberCount < PartyModel.minMembersToStart
-            ? 'Waiting for more members (${party.memberCount}/${PartyModel.minMembersToStart})'
-            : 'Waiting for the leader to start this event',
+            ? tr('Waiting for more members ({0}/{1})', [party.memberCount, PartyModel.minMembersToStart])
+            : tr('Waiting for the leader to start this event'),
       );
     }
     return _GateButton(
       label: ready
-          ? 'Start Event'
+          ? tr('Start Event')
           : party.memberCount < PartyModel.minMembersToStart
-              ? 'Waiting for members (${party.memberCount}/${PartyModel.minMembersToStart})'
-              : 'Starts ${formatEventDateTime(party.eventDate)}',
+              ? tr('Waiting for members ({0}/{1})', [party.memberCount, PartyModel.minMembersToStart])
+              : tr('Starts {0}', [formatEventDateTime(party.eventDate)]),
       enabled: ready,
       isBusy: isBusy,
       onPressed: onStart,
@@ -524,8 +525,8 @@ class _CompletedView extends StatelessWidget {
                     children: [
                       const Icon(Icons.emoji_events, color: Colors.amber, size: 40),
                       const SizedBox(height: 10),
-                      const Text(
-                        'Event completed!',
+                      Text(
+                        tr('Event completed!'),
                         style: TextStyle(color: Colors.black87, fontSize: 18, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 4),
@@ -541,7 +542,7 @@ class _CompletedView extends StatelessWidget {
                         runSpacing: 8,
                         children: [
                           _RewardChip(label: '+${quest.scorePoints} P', color: Colors.amber.shade800),
-                          _RewardChip(label: '+${quest.xpReward} XP', color: Colors.green.shade700),
+                          _RewardChip(label: tr('+{0} XP', [quest.xpReward]), color: Colors.green.shade700),
                           _RewardChip(label: formatCo2e(quest.co2eEstimateKg), color: Colors.blue.shade700),
                         ],
                       ),
@@ -560,7 +561,7 @@ class _CompletedView extends StatelessWidget {
                           delay: Duration(milliseconds: 40 * entry.key.clamp(0, 10)),
                           child: _MemberRow(
                             member: entry.value,
-                            roleLabel: entry.value.isLeader ? 'Party Leader' : 'Party Member',
+                            roleLabel: entry.value.isLeader ? tr('Party Leader') : tr('Party Member'),
                             showArrow: true,
                             onTap: () => onTapMember(entry.value),
                           ),
@@ -585,7 +586,7 @@ class _CompletedView extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
               ),
-              child: const Text('Back to Parties', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+              child: Text(tr('Back to Parties'), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
             ),
           ),
         ),
@@ -651,7 +652,7 @@ class _EventCard extends StatelessWidget {
                 const SizedBox(height: 10),
                 _InfoLine(
                   icon: Icons.place_outlined,
-                  text: party.location.isEmpty ? 'Location to be announced' : party.location,
+                  text: party.location.isEmpty ? tr('Location to be announced') : party.location,
                 ),
                 const SizedBox(height: 6),
                 _InfoLine(icon: Icons.calendar_today_outlined, text: formatEventDateTime(party.eventDate)),
@@ -674,7 +675,7 @@ class _EventCard extends StatelessWidget {
                   runSpacing: 8,
                   children: [
                     _RewardChip(label: '+${quest.scorePoints} P', color: Colors.amber.shade800),
-                    _RewardChip(label: '+${quest.xpReward} XP', color: Colors.green.shade700),
+                    _RewardChip(label: tr('+{0} XP', [quest.xpReward]), color: Colors.green.shade700),
                     _RewardChip(label: formatCo2e(quest.co2eEstimateKg), color: Colors.blue.shade700),
                   ],
                 ),
@@ -858,7 +859,7 @@ class _MemberRow extends StatelessWidget {
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
-                            'You',
+                            tr('You'),
                             style: TextStyle(color: Colors.green.shade800, fontSize: 9, fontWeight: FontWeight.bold),
                           ),
                         ),
@@ -867,7 +868,7 @@ class _MemberRow extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '$roleLabel  ·  Lv. ${member.level.toString().padLeft(2, '0')}',
+                    tr('{0}  ·  Lv. {1}', [roleLabel, member.level.toString().padLeft(2, '0')]),
                     style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                   ),
                 ],

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../models/org_event_model.dart';
 import '../../services/org_service.dart';
+import '../../l10n/tr.dart';
 
 // QR เช็คอินเต็มจอสำหรับองค์กร (14 ต.ค. 2026) — เปิดค้างไว้ที่งานให้ผู้เข้าร่วมสแกน
 // โค้ดเปลี่ยนทุก 30 วิ (backend/utils/orgQr.js) -> ขอใหม่ตาม expiresInMs ที่ server บอก
@@ -80,7 +81,7 @@ class _EventQrPageState extends State<EventQrPage> {
         backgroundColor: Colors.white,
         foregroundColor: Colors.black87,
         elevation: 0,
-        title: const Text('Check-in QR'),
+        title: Text(tr('Check-in QR')),
       ),
       body: SafeArea(
         child: Center(
@@ -92,7 +93,7 @@ class _EventQrPageState extends State<EventQrPage> {
                 Text(widget.event.title,
                     textAlign: TextAlign.center, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
-                Text('Scan with EcoQuest to get +${widget.event.points} points',
+                Text(tr('Scan with EcoQuest to get +{0} points', [widget.event.points]),
                     style: TextStyle(color: Colors.grey.shade700, fontSize: 14)),
                 const SizedBox(height: 24),
                 if (_payload != null)
@@ -127,7 +128,7 @@ class _EventQrPageState extends State<EventQrPage> {
                   ),
                 ),
                 const SizedBox(height: 6),
-                Text('The code changes every 30 seconds', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                Text(tr('The code changes every 30 seconds'), style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
                 if (_error != null && _payload != null) ...[
                   const SizedBox(height: 6),
                   Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.redAccent, fontSize: 12)),
@@ -141,7 +142,7 @@ class _EventQrPageState extends State<EventQrPage> {
                     children: [
                       const Icon(Icons.how_to_reg_rounded, color: Colors.green),
                       const SizedBox(width: 8),
-                      Text('$_attended checked in',
+                      Text(tr('{0} checked in', [_attended]),
                           style: TextStyle(color: Colors.green.shade800, fontSize: 16, fontWeight: FontWeight.bold)),
                     ],
                   ),

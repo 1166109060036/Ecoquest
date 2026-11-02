@@ -18,6 +18,7 @@ import '../../widgets/skeleton_box.dart';
 import '../../widgets/staggered_fade_in.dart';
 import '../explore/quest_detail_page.dart';
 import '../../widgets/state_cross_fade.dart';
+import '../../l10n/tr.dart';
 
 // หน้า Progress — เควสที่กด Start ไว้แล้วแต่ยังไม่กด Complete (ค้างได้ไม่จำกัดวัน จนกว่าจะกด
 // Complete เอง) เข้าได้จากปุ่มมุมขวาบนของหน้า Explore และแผ่น Explore ในหน้า Home
@@ -80,8 +81,8 @@ class _ProgressPageState extends State<ProgressPage> {
     if (quest.requiresProof) {
       proof = await showProofCaptureSheet(
         context,
-        title: quest.isMultiDay ? 'Check in with a photo' : 'Show that you did it',
-        hint: quest.detail.isNotEmpty ? quest.detail : 'Take a clear photo that shows you completed "${quest.title}".',
+        title: quest.isMultiDay ? tr('Check in with a photo') : tr('Show that you did it'),
+        hint: quest.detail.isNotEmpty ? quest.detail : tr('Take a clear photo that shows you completed "{0}".', [quest.title]),
         form: quest.proofForm,
       );
       if (proof == null || !mounted) return;
@@ -103,7 +104,7 @@ class _ProgressPageState extends State<ProgressPage> {
         await _showFridgeFirstDialog(quest);
         return;
       }
-      showBubbleToast(context, error.isNotEmpty ? error : 'Failed to complete quest');
+      showBubbleToast(context, error.isNotEmpty ? error : tr('Failed to complete quest'));
       return;
     }
 
@@ -145,15 +146,15 @@ class _ProgressPageState extends State<ProgressPage> {
     final openFridge = await LiquidGlassDialog.show<bool>(
       context: context,
       icon: const Icon(Icons.kitchen_rounded, color: Colors.greenAccent, size: 30),
-      title: 'Add your fridge items first',
-      content: const Text(
-        'Save at least one item with its expiration date today, then complete the quest.',
+      title: tr('Add your fridge items first'),
+      content: Text(
+        tr('Save at least one item with its expiration date today, then complete the quest.'),
         textAlign: TextAlign.center,
         style: LiquidGlassDialog.messageStyle,
       ),
       actions: [
-        LiquidGlassAction(label: 'Cancel', onPressed: () => Navigator.pop(context, false)),
-        LiquidGlassAction(label: 'Open Fridge', color: Colors.green, onPressed: () => Navigator.pop(context, true)),
+        LiquidGlassAction(label: tr('Cancel'), onPressed: () => Navigator.pop(context, false)),
+        LiquidGlassAction(label: tr('Open Fridge'), color: Colors.green, onPressed: () => Navigator.pop(context, true)),
       ],
     );
     if (openFridge != true || !mounted) return;
@@ -209,8 +210,8 @@ class _ProgressPageState extends State<ProgressPage> {
                 children: [
                   _CircleBackButton(onTap: () => Navigator.pop(context)),
                   const SizedBox(width: 10),
-                  const Text(
-                    'Progress',
+                  Text(
+                    tr('Progress'),
                     style: TextStyle(color: Colors.green, fontSize: 22, fontWeight: FontWeight.bold),
                   ),
                 ],
@@ -268,13 +269,13 @@ class _MyPartyCard extends StatelessWidget {
   String get _statusLabel {
     switch (party.status) {
       case 'started':
-        return 'In progress';
+        return tr('In progress');
       case 'reviewing': // ของเก่าจากระบบให้คนตรวจ — backend ปิดให้เป็น completed เอง
-        return 'Finishing up';
+        return tr('Finishing up');
       case 'completed':
-        return 'Completed';
+        return tr('Completed');
       default:
-        return 'Open';
+        return tr('Open');
     }
   }
 
@@ -385,13 +386,13 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              'No quests in progress',
+              tr('No quests in progress'),
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
             ),
             const SizedBox(height: 6),
             Text(
-              'Start one from Explore',
+              tr('Start one from Explore'),
               style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
             ),
           ],

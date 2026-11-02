@@ -3,6 +3,7 @@ import 'api_http.dart' as http;
 import '../models/chat_message_model.dart';
 import '../utils/constants.dart';
 import 'storage_service.dart';
+import '../l10n/tr.dart';
 
 // เรียก API ดึงประวัติแชท (REST อย่างเดียว) — ส่งข้อความจริงทำผ่าน WebSocket เท่านั้น
 // (ดู chat_socket_service.dart) เพราะมีทางเขียนทางเดียวชัดเจน ไม่ต้องกังวลว่าข้อความจะมาจาก 2 ทาง
@@ -46,7 +47,7 @@ class ChatService {
 
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to load chat history');
+      throw Exception(data['message'] ?? tr('Failed to load chat history'));
     }
 
     return ((data['messages'] ?? []) as List)

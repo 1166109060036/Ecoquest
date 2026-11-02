@@ -17,6 +17,7 @@ import '../../widgets/falling_leaves_overlay.dart';
 import '../../widgets/leaf_refresh_indicator.dart';
 import '../../widgets/pressable_scale.dart';
 import '../../widgets/pulse_glow.dart';
+import '../../l10n/tr.dart';
 
 class ProfilePage extends StatelessWidget {
   // หน้า Home เอา ProfilePage ตัวนี้ไปใช้เป็นพื้นหลังด้วย ตรงนั้นต้องปิด pull-to-refresh
@@ -90,7 +91,7 @@ class ProfilePage extends StatelessWidget {
                       const _TopBar(),
                       const SizedBox(height: 16),
                       UserHeader(
-                        displayName: user?.displayName ?? 'Player',
+                        displayName: user?.displayName ?? tr('Player'),
                         avatarUrl: user?.avatarUrl,
                         frameItemType: user?.cosmetics.frame,
                         nameStyleItemType: user?.cosmetics.nameStyle,
@@ -156,7 +157,7 @@ class ProfilePage extends StatelessWidget {
       final ok = await authProvider.updateAvatar(null);
       if (!context.mounted) return;
       if (!ok) {
-        showBubbleToast(context, authProvider.errorMessage ?? 'Failed to remove photo');
+        showBubbleToast(context, authProvider.errorMessage ?? tr('Failed to remove photo'));
       }
       return;
     }
@@ -181,12 +182,12 @@ class ProfilePage extends StatelessWidget {
       final ok = await authProvider.updateAvatar(bytes, contentType: contentType);
       if (!context.mounted) return;
       if (!ok) {
-        showBubbleToast(context, authProvider.errorMessage ?? 'Failed to update photo');
+        showBubbleToast(context, authProvider.errorMessage ?? tr('Failed to update photo'));
       }
     } catch (e) {
       if (!context.mounted) return;
       // เครื่องไม่มีกล้อง / ผู้ใช้ปฏิเสธ permission
-      showBubbleToast(context, 'Could not open the camera');
+      showBubbleToast(context, tr('Could not open the camera'));
     }
   }
 
@@ -198,7 +199,7 @@ class ProfilePage extends StatelessWidget {
     if (!context.mounted) return;
 
     if (!ok) {
-      showBubbleToast(context, upgradeProvider.errorMessage ?? 'Failed to buy this upgrade');
+      showBubbleToast(context, upgradeProvider.errorMessage ?? tr('Failed to buy this upgrade'));
       return;
     }
 
@@ -238,23 +239,23 @@ class _AvatarSourceSheet extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            const Text('Profile Photo',
+            Text(tr('Profile Photo'),
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
             const SizedBox(height: 8),
             ListTile(
               leading: const Icon(Icons.photo_camera, color: Colors.green),
-              title: const Text('Take Photo'),
+              title: Text(tr('Take Photo')),
               onTap: () => Navigator.pop(context, 'camera'),
             ),
             ListTile(
               leading: const Icon(Icons.photo_library_outlined, color: Colors.green),
-              title: const Text('Choose from Gallery'),
+              title: Text(tr('Choose from Gallery')),
               onTap: () => Navigator.pop(context, 'gallery'),
             ),
             if (hasAvatar)
               ListTile(
                 leading: const Icon(Icons.delete_outline, color: Colors.red),
-                title: const Text('Remove Photo', style: TextStyle(color: Colors.red)),
+                title: Text(tr('Remove Photo'), style: TextStyle(color: Colors.red)),
                 onTap: () => Navigator.pop(context, 'remove'),
               ),
           ],
@@ -314,9 +315,9 @@ class _CustomizeProfileButton extends StatelessWidget {
             children: [
               const Icon(Icons.auto_awesome, color: Colors.orangeAccent, size: 18),
               const SizedBox(width: 10),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'Custom Profile',
+                  tr('Custom Profile'),
                   style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
                 ),
               ),
@@ -347,8 +348,8 @@ class _TopBar extends StatelessWidget {
           icon: Icons.settings,
           onTap: () => Navigator.pushNamed(context, '/settings'),
         ),
-        const Text(
-          'Profile',
+        Text(
+          tr('Profile'),
           style: TextStyle(
             color: Colors.white70,
             fontSize: 14,
@@ -460,14 +461,14 @@ class _UpgradeAbilityCardState extends State<_UpgradeAbilityCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Upgrade your Ability',
+            Text(tr('Upgrade your Ability'),
                 style: TextStyle(
                     color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
             const SizedBox(height: 12),
             if (widget.upgrades.isEmpty)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(vertical: 8),
-                child: Text('No upgrades available',
+                child: Text(tr('No upgrades available'),
                     style: TextStyle(color: Colors.white54, fontSize: 12)),
               )
             else
@@ -536,7 +537,7 @@ class _UpgradeRow extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                'Lv. ${upgrade.level} / ${upgrade.maxLevel}',
+                tr('Lv. {0} / {1}', [upgrade.level, upgrade.maxLevel]),
                 style: const TextStyle(color: Colors.white38, fontSize: 9.5),
               ),
             ],
@@ -556,7 +557,7 @@ class _UpgradeRow extends StatelessWidget {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             ),
             child: maxed
-                ? const Text('MAX', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700))
+                ? Text(tr('MAX'), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700))
                 : Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [

@@ -1,3 +1,5 @@
+import '../l10n/tr.dart';
+
 // ข้อความแชท 1 ข้อความ — ข้อมูลจริงจาก GET /api/chat/<channel>/messages (ประวัติ) และ event
 // 'chat:message' ที่มาจาก WebSocket แบบ real-time (ดู chat_socket_service.dart) ทั้งคู่ใช้โครงเดียวกัน
 class ChatMessageModel {
@@ -25,7 +27,7 @@ class ChatMessageModel {
       channelType: json['channelType'] ?? '',
       channelId: (json['channelId'] ?? '').toString(),
       fromUserId: (json['fromUserId'] ?? '').toString(),
-      fromDisplayName: json['fromDisplayName'] ?? 'Player',
+      fromDisplayName: json['fromDisplayName'] ?? tr('Player'),
       text: json['text'] ?? '',
       createdAt: DateTime.parse(json['createdAt']),
     );

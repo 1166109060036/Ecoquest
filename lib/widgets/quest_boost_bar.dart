@@ -6,6 +6,7 @@ import '../providers/bingo_provider.dart';
 import '../providers/quest_provider.dart';
 import 'bubble_toast.dart';
 import 'pressable_scale.dart';
+import '../l10n/tr.dart';
 
 // แถบบนลิสต์เควส (หน้า Explore + แผ่น Explore ในหน้า Home) — 2 กลไกที่ทำให้อยากทำเควสต่อ (30 ก.ย. 2026):
 //   Eco Bingo รายสัปดาห์ (แตะเปิดการ์ด) + Daily Variety Combo วันนี้ (แตะดูกติกา)
@@ -18,8 +19,7 @@ class QuestBoostBar extends StatelessWidget {
   void _showComboRules(BuildContext context, ComboSummary combo) {
     showBubbleToast(
       context,
-      'Each different quest today boosts your points (up to ${formatMultiplier(combo.maxMultiplier)}). '
-      'Repeating a quest gives less each time.',
+      tr('Each different quest today boosts your points (up to {0}). Repeating a quest gives less each time.', [formatMultiplier(combo.maxMultiplier)]),
     );
   }
 
@@ -38,9 +38,9 @@ class QuestBoostBar extends StatelessWidget {
               icon: Icons.grid_on_rounded,
               color: Colors.green.shade700,
               background: Colors.green.shade50,
-              title: 'Eco Bingo',
+              title: tr('Eco Bingo'),
               subtitle: card.full
-                  ? 'Full card!'
+                  ? tr('Full card!')
                   : '${card.doneCount}/${card.questCount} · $lines line${lines == 1 ? '' : 's'}',
               onTap: () => Navigator.push(
                 context,
@@ -55,11 +55,11 @@ class QuestBoostBar extends StatelessWidget {
               icon: Icons.bolt_rounded,
               color: Colors.orange.shade800,
               background: Colors.orange.shade50,
-              title: combo.distinctToday == 0 ? 'Daily combo' : 'Combo · ${combo.distinctToday} today',
+              title: combo.distinctToday == 0 ? tr('Daily combo') : tr('Combo · {0} today', [combo.distinctToday]),
               // ต้นวันยังไม่มีคอมโบ (×1) — บอกกติกาแทนตัวเลขที่ไม่ชวนทำ
               subtitle: combo.distinctToday == 0
-                  ? 'Mix quests = bonus'
-                  : 'Next new quest ${formatMultiplier(combo.nextNewMultiplier)}',
+                  ? tr('Mix quests = bonus')
+                  : tr('Next new quest {0}', [formatMultiplier(combo.nextNewMultiplier)]),
               onTap: () => _showComboRules(context, combo),
             ),
           ),

@@ -1,3 +1,5 @@
+import '../l10n/tr.dart';
+
 // ประวัติ quest ที่ทำสำเร็จ — มาจาก GET /api/quests/history
 class QuestHistoryEntry {
   final String id;
@@ -19,7 +21,7 @@ class QuestHistoryEntry {
   factory QuestHistoryEntry.fromJson(Map<String, dynamic> json) {
     return QuestHistoryEntry(
       id: (json['id'] ?? '').toString(),
-      questTitle: json['questTitle'] ?? 'Unknown quest',
+      questTitle: json['questTitle'] ?? tr('Unknown quest'),
       category: json['category'],
       pointsEarned: json['pointsEarned'] ?? 0,
       xpEarned: json['xpEarned'] ?? 0,

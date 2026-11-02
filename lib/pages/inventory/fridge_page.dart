@@ -17,6 +17,7 @@ import '../../widgets/bubble_toast.dart';
 import '../../widgets/inventory_card.dart';
 import '../../widgets/liquid_glass_dialog.dart';
 import '../../widgets/staggered_fade_in.dart';
+import '../../l10n/tr.dart';
 
 // หน้าดูของในตู้เย็น + บันทึกของใหม่ — เข้าได้ 2 ทาง:
 //   1) กดไอเทม Fridge ในหน้า Inventory -> ดูของอย่างเดียว ไม่มีปุ่ม Add Item/Remove
@@ -50,15 +51,13 @@ Future<void> openFridgeQuest(BuildContext context, QuestCardModel quest) async {
     await LiquidGlassDialog.show<void>(
       context: context,
       icon: const Icon(Icons.kitchen_rounded, color: Colors.greenAccent, size: 30),
-      title: 'How this quest works',
-      content: const Text(
-        '1. Tap "Add Item" and record the food in your fridge with its expiration date\n'
-        '2. Tap "Save" at the top right\n'
-        '3. Complete the quest — that\'s it!',
+      title: tr('How this quest works'),
+      content: Text(
+        tr('1. Tap "Add Item" and record the food in your fridge with its expiration date\n2. Tap "Save" at the top right\n3. Complete the quest — that\'s it!'),
         style: LiquidGlassDialog.messageStyle,
       ),
       actions: [
-        LiquidGlassAction(label: 'Got it', color: Colors.green, onPressed: () => Navigator.pop(context)),
+        LiquidGlassAction(label: tr('Got it'), color: Colors.green, onPressed: () => Navigator.pop(context)),
       ],
     );
     if (!context.mounted) return;
@@ -158,7 +157,7 @@ class _FridgePageState extends State<FridgePage> {
     if (!mounted) return;
 
     if (!saved) {
-      showBubbleToast(context, fridgeProvider.errorMessage ?? 'Failed to save items');
+      showBubbleToast(context, fridgeProvider.errorMessage ?? tr('Failed to save items'));
       return;
     }
 
@@ -166,23 +165,23 @@ class _FridgePageState extends State<FridgePage> {
 
     final quest = widget.quest;
     if (!widget.forQuest || quest == null) {
-      showBubbleToast(context, 'Fridge items saved');
+      showBubbleToast(context, tr('Fridge items saved'));
       return;
     }
 
     final completeNow = await LiquidGlassDialog.show<bool>(
       context: context,
       icon: const Icon(Icons.check_circle_rounded, color: Colors.greenAccent, size: 30),
-      title: 'Fridge saved!',
-      content: const Text(
-        'Your quest is ready to complete.',
+      title: tr('Fridge saved!'),
+      content: Text(
+        tr('Your quest is ready to complete.'),
         textAlign: TextAlign.center,
         style: LiquidGlassDialog.messageStyle,
       ),
       actions: [
-        LiquidGlassAction(label: 'Later', onPressed: () => Navigator.pop(context, false)),
+        LiquidGlassAction(label: tr('Later'), onPressed: () => Navigator.pop(context, false)),
         LiquidGlassAction(
-          label: 'Complete quest',
+          label: tr('Complete quest'),
           color: Colors.green,
           onPressed: () => Navigator.pop(context, true),
         ),
@@ -190,7 +189,7 @@ class _FridgePageState extends State<FridgePage> {
     );
     if (!mounted) return;
     if (completeNow != true) {
-      showBubbleToast(context, 'You can complete the quest later on the Progress page');
+      showBubbleToast(context, tr('You can complete the quest later on the Progress page'));
       return;
     }
 
@@ -198,7 +197,7 @@ class _FridgePageState extends State<FridgePage> {
     final reward = await questProvider.completeQuest(quest.id);
     if (!mounted) return;
     if (reward == null) {
-      showBubbleToast(context, questProvider.errorMessage ?? 'Failed to complete quest');
+      showBubbleToast(context, questProvider.errorMessage ?? tr('Failed to complete quest'));
       return;
     }
 
@@ -211,16 +210,16 @@ class _FridgePageState extends State<FridgePage> {
     final confirmed = await LiquidGlassDialog.show<bool>(
       context: context,
       icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 30),
-      title: 'Remove item?',
+      title: tr('Remove item?'),
       content: Text(
-        '"${item.name}" will be removed from your fridge.',
+        tr('"{0}" will be removed from your fridge.', [item.name]),
         textAlign: TextAlign.center,
         style: LiquidGlassDialog.messageStyle,
       ),
       actions: [
-        LiquidGlassAction(label: 'Cancel', onPressed: () => Navigator.pop(context, false)),
+        LiquidGlassAction(label: tr('Cancel'), onPressed: () => Navigator.pop(context, false)),
         LiquidGlassAction(
-          label: 'Remove',
+          label: tr('Remove'),
           color: Colors.redAccent,
           onPressed: () => Navigator.pop(context, true),
         ),
@@ -233,7 +232,7 @@ class _FridgePageState extends State<FridgePage> {
     final ok = await fridgeProvider.deleteItem(item.id);
     if (!ok) {
       if (!mounted) return;
-      showBubbleToast(context, fridgeProvider.errorMessage ?? 'Failed to remove item');
+      showBubbleToast(context, fridgeProvider.errorMessage ?? tr('Failed to remove item'));
       return;
     }
 
@@ -260,7 +259,7 @@ class _FridgePageState extends State<FridgePage> {
               onPressed: _openAddItemSheet,
               backgroundColor: Colors.green,
               icon: const Icon(Icons.add, color: Colors.white),
-              label: const Text('Add Item',
+              label: Text(tr('Add Item'),
                   style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
             )
           : null,
@@ -274,7 +273,7 @@ class _FridgePageState extends State<FridgePage> {
                 children: [
                   _CircleBackButton(onTap: () => Navigator.pop(context)),
                   const SizedBox(width: 10),
-                  const Text('Fridge',
+                  Text(tr('Fridge'),
                       style: TextStyle(color: Colors.green, fontSize: 22, fontWeight: FontWeight.bold)),
                   const Spacer(),
                   // ค่อยๆ fade เข้า/ออก จะได้ไม่กระตุกตอนเพิ่มของชิ้นแรก
@@ -301,7 +300,7 @@ class _FridgePageState extends State<FridgePage> {
                           children: [
                             // ---- ของที่กรอกไว้แต่ยังไม่ได้ Save ----
                             if (drafts.isNotEmpty) ...[
-                              const _SectionLabel('Not saved yet'),
+                              _SectionLabel(tr('Not saved yet')),
                               const SizedBox(height: 8),
                               for (int i = 0; i < drafts.length; i++) ...[
                                 FadeSlideIn(
@@ -315,7 +314,7 @@ class _FridgePageState extends State<FridgePage> {
                                 const SizedBox(height: 14),
                               ],
                               const SizedBox(height: 4),
-                              const _SectionLabel('In your fridge'),
+                              _SectionLabel(tr('In your fridge')),
                               const SizedBox(height: 8),
                             ],
                             // ---- เรียงตามวันหมดอายุ / วันที่เพิ่ม ----
@@ -331,7 +330,7 @@ class _FridgePageState extends State<FridgePage> {
                               Padding(
                                 padding: const EdgeInsets.symmetric(vertical: 12),
                                 child: Text(
-                                  'Nothing saved yet',
+                                  tr('Nothing saved yet'),
                                   style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
                                 ),
                               )
@@ -362,7 +361,7 @@ class _FridgePageState extends State<FridgePage> {
                                   // ปุ่ม Remove โผล่ให้เห็นชัดๆ เฉพาะตอนเปิดผ่านเควส (แก้ไขของได้เต็มที่)
                                   // ส่วนโหมดดูอย่างเดียวจากหน้า Inventory ยังต้องกดค้างเหมือนเดิม
                                   // (long-press ยังใช้ได้ทั้งสองโหมด เผื่อใครถนัดกดค้างมากกว่า)
-                                  actionLabel: widget.forQuest ? 'Remove' : null,
+                                  actionLabel: widget.forQuest ? tr('Remove') : null,
                                   actionColor: Colors.redAccent,
                                   onAction: widget.forQuest ? () => _confirmDelete(item) : null,
                                 ),
@@ -407,7 +406,7 @@ class _SaveButton extends StatelessWidget {
               width: 16,
               child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
             )
-          : Text('Save ($count)',
+          : Text(tr('Save ({0})', [count]),
               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
     );
   }
@@ -466,7 +465,7 @@ class _AddItemSheetState extends State<_AddItemSheet> {
     } catch (e) {
       if (!mounted) return;
       // เครื่องไม่มีกล้อง / ผู้ใช้ปฏิเสธ permission
-      showBubbleToast(context, 'Could not open the camera');
+      showBubbleToast(context, tr('Could not open the camera'));
     }
   }
 
@@ -491,11 +490,11 @@ class _AddItemSheetState extends State<_AddItemSheet> {
     final name = _nameController.text.trim();
 
     if (name.isEmpty) {
-      showBubbleToast(context, 'Please enter the item name');
+      showBubbleToast(context, tr('Please enter the item name'));
       return null;
     }
     if (_expirationDate == null) {
-      showBubbleToast(context, 'Please pick an expiration date');
+      showBubbleToast(context, tr('Please pick an expiration date'));
       return null;
     }
 
@@ -566,7 +565,7 @@ class _AddItemSheetState extends State<_AddItemSheet> {
                 ),
               ),
               const SizedBox(height: 16),
-              const Text('Add Item',
+              Text(tr('Add Item'),
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
               const SizedBox(height: 16),
               // ---- รูป + ชื่อ อยู่แถวเดียวกัน ประหยัดพื้นที่ตอนคีย์บอร์ดขึ้น ----
@@ -593,8 +592,8 @@ class _AddItemSheetState extends State<_AddItemSheet> {
                       textInputAction: TextInputAction.done,
                       onSubmitted: (_) => _add(keepOpen: false),
                       decoration: InputDecoration(
-                        labelText: 'Item name',
-                        hintText: 'e.g. Milk',
+                        labelText: tr('Item name'),
+                        hintText: tr('e.g. Milk'),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                     ),
@@ -605,11 +604,11 @@ class _AddItemSheetState extends State<_AddItemSheet> {
               // ---- ปุ่มลัดวันหมดอายุ กดทีเดียวจบ ไม่ต้องเปิด date picker ----
               Row(
                 children: [
-                  _QuickDateChip(label: '3 days', onTap: () => _setQuickDate(const Duration(days: 3))),
+                  _QuickDateChip(label: tr('3 days'), onTap: () => _setQuickDate(const Duration(days: 3))),
                   const SizedBox(width: 8),
-                  _QuickDateChip(label: '1 week', onTap: () => _setQuickDate(const Duration(days: 7))),
+                  _QuickDateChip(label: tr('1 week'), onTap: () => _setQuickDate(const Duration(days: 7))),
                   const SizedBox(width: 8),
-                  _QuickDateChip(label: '1 month', onTap: () => _setQuickDate(const Duration(days: 30))),
+                  _QuickDateChip(label: tr('1 month'), onTap: () => _setQuickDate(const Duration(days: 30))),
                 ],
               ),
               const SizedBox(height: 10),
@@ -618,7 +617,7 @@ class _AddItemSheetState extends State<_AddItemSheet> {
                 borderRadius: BorderRadius.circular(12),
                 child: InputDecorator(
                   decoration: InputDecoration(
-                    labelText: 'Expiration date',
+                    labelText: tr('Expiration date'),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   child: Row(
@@ -627,7 +626,7 @@ class _AddItemSheetState extends State<_AddItemSheet> {
                       const SizedBox(width: 8),
                       Text(
                         _expirationDate == null
-                            ? 'Tap to pick a date'
+                            ? tr('Tap to pick a date')
                             : _formatDate(_expirationDate!),
                         style: TextStyle(
                           color: _expirationDate == null ? Colors.grey.shade500 : Colors.black87,
@@ -641,7 +640,7 @@ class _AddItemSheetState extends State<_AddItemSheet> {
               const SizedBox(height: 14),
               Row(
                 children: [
-                  const Text('Quantity', style: TextStyle(fontSize: 14, color: Colors.black87)),
+                  Text(tr('Quantity'), style: TextStyle(fontSize: 14, color: Colors.black87)),
                   const Spacer(),
                   IconButton(
                     onPressed: _quantity > 1 ? () => setState(() => _quantity--) : null,
@@ -667,11 +666,11 @@ class _AddItemSheetState extends State<_AddItemSheet> {
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
                 ),
-                child: const Text('Add', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                child: Text(tr('Add'), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
               ),
               TextButton(
                 onPressed: () => _add(keepOpen: true),
-                child: const Text('Add another', style: TextStyle(color: Colors.green)),
+                child: Text(tr('Add another'), style: TextStyle(color: Colors.green)),
               ),
             ],
           ),
@@ -724,12 +723,12 @@ class _PhotoPickerBox extends StatelessWidget {
                       errorBuilder: (_, _, _) =>
                           const Icon(Icons.broken_image_outlined, color: Colors.green),
                     )
-                  : const Column(
+                  : Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(Icons.photo_camera, color: Colors.green, size: 24),
                         SizedBox(height: 2),
-                        Text('Photo',
+                        Text(tr('Photo'),
                             style: TextStyle(fontSize: 10, color: Colors.green)),
                       ],
                     ),
@@ -831,7 +830,7 @@ class _DraftCard extends StatelessWidget {
                         fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
                 const SizedBox(height: 4),
                 Text(
-                  'Expires ${_formatDate(draft.expirationDate)}  ·  x${draft.quantity}',
+                  tr('Expires {0}  ·  x{1}', [_formatDate(draft.expirationDate), draft.quantity]),
                   style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
                 ),
               ],
@@ -840,7 +839,7 @@ class _DraftCard extends StatelessWidget {
           IconButton(
             onPressed: onRemove,
             icon: Icon(Icons.close, color: Colors.grey.shade500, size: 20),
-            tooltip: 'Remove',
+            tooltip: tr('Remove'),
           ),
         ],
       ),
@@ -884,9 +883,9 @@ class _SortChips extends StatelessWidget {
       runSpacing: 6,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        Text('Sort by', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-        chip(_FridgeSort.expiration, 'Expiration date', Icons.event_rounded),
-        chip(_FridgeSort.added, 'Date added', Icons.schedule_rounded),
+        Text(tr('Sort by'), style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+        chip(_FridgeSort.expiration, tr('Expiration date'), Icons.event_rounded),
+        chip(_FridgeSort.added, tr('Date added'), Icons.schedule_rounded),
       ],
     );
   }
@@ -919,9 +918,9 @@ String _describeExpiry(FridgeItemModel item, DateTime now) {
   if (item.isExpiredAt(now)) {
     // รูปถูกลบอัตโนมัติตอนหมดอายุ (ประหยัดพื้นที่) — บอกให้รู้ว่าไม่ได้หายเพราะบั๊ก
     final hadPhoto = item.photoRemoved || item.photoUrl != null;
-    return hadPhoto ? 'Expired ($date) · photo removed' : 'Expired ($date)';
+    return hadPhoto ? tr('Expired ({0}) · photo removed', [date]) : tr('Expired ({0})', [date]);
   }
-  return 'Expires $date · ${_formatRemaining(item.remainingFrom(now))} left';
+  return tr('Expires {0} · {1} left', [date, _formatRemaining(item.remainingFrom(now))]);
 }
 
 String _formatDate(DateTime date) => '${date.day}/${date.month}/${date.year}';
@@ -980,14 +979,14 @@ class _EmptyState extends StatelessWidget {
                 size: 48, color: Colors.grey.shade400),
             const SizedBox(height: 12),
             Text(
-              failed ? errorMessage! : 'Your fridge is empty',
+              failed ? errorMessage! : tr('Your fridge is empty'),
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
             ),
             if (!failed) ...[
               const SizedBox(height: 6),
               Text(
-                'Tap "Add Item" to record food and expiration dates',
+                tr('Tap "Add Item" to record food and expiration dates'),
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
               ),

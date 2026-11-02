@@ -4,6 +4,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../models/org_event_model.dart';
 import '../../models/quest_card_model.dart';
 import '../../services/org_service.dart';
+import '../../l10n/tr.dart';
 
 class CheckInResult {
   final QuestReward reward;
@@ -67,7 +68,7 @@ class _ScanCheckInPageState extends State<ScanCheckInPage> {
     if (code == null) {
       setState(() {
         _busy = false;
-        _message = 'No QR code found in this photo. Try a clearer picture.';
+        _message = tr('No QR code found in this photo. Try a clearer picture.');
       });
       return;
     }
@@ -100,15 +101,15 @@ class _ScanCheckInPageState extends State<ScanCheckInPage> {
       appBar: AppBar(
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
-        title: const Text('Scan to check in'),
+        title: Text(tr('Scan to check in')),
         actions: [
           IconButton(
-            tooltip: 'Choose a photo',
+            tooltip: tr('Choose a photo'),
             icon: const Icon(Icons.photo_library_outlined),
             onPressed: _busy ? null : _pickFromGallery,
           ),
           IconButton(
-            tooltip: 'Flashlight',
+            tooltip: tr('Flashlight'),
             icon: const Icon(Icons.flashlight_on_outlined),
             onPressed: () => _controller.toggleTorch(),
           ),
@@ -124,8 +125,8 @@ class _ScanCheckInPageState extends State<ScanCheckInPage> {
                 padding: const EdgeInsets.all(32),
                 child: Text(
                   error.errorCode == MobileScannerErrorCode.permissionDenied
-                      ? 'EcoQuest needs camera access to scan the QR code. Allow it in your phone settings.'
-                      : 'The camera could not start. Please try again.',
+                      ? tr('EcoQuest needs camera access to scan the QR code. Allow it in your phone settings.')
+                      : tr('The camera could not start. Please try again.'),
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: Colors.white70, fontSize: 14),
                 ),
@@ -173,8 +174,8 @@ class _ScanCheckInPageState extends State<ScanCheckInPage> {
                       Expanded(
                         child: Text(
                           _busy
-                              ? 'Checking in…'
-                              : _message ?? 'Point the camera at the QR code on the organizer\'s phone.',
+                              ? tr('Checking in…')
+                              : _message ?? tr('Point the camera at the QR code on the organizer\'s phone.'),
                           style: const TextStyle(color: Colors.white, fontSize: 13.5, height: 1.35),
                         ),
                       ),
@@ -185,7 +186,7 @@ class _ScanCheckInPageState extends State<ScanCheckInPage> {
                 OutlinedButton.icon(
                   onPressed: _busy ? null : _pickFromGallery,
                   icon: const Icon(Icons.photo_library_outlined),
-                  label: const Text('Choose QR photo from gallery'),
+                  label: Text(tr('Choose QR photo from gallery')),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.white,
                     backgroundColor: Colors.black.withValues(alpha: 0.45),

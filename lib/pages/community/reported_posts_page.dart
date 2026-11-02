@@ -8,6 +8,7 @@ import '../../widgets/decorated_avatar.dart';
 import '../../widgets/liquid_glass_dialog.dart';
 import '../../widgets/pressable_scale.dart';
 import 'removed_posts_page.dart';
+import '../../l10n/tr.dart';
 
 // หน้าโพสต์ที่ถูกรายงาน — แอดมินเท่านั้น (7 ต.ค. 2026 แทนหน้าตรวจหลักฐานเดิม ReviewPage)
 // อาจารย์ติงว่าให้ผู้เล่นตรวจทุกอันเป็นภาระ + ไม่มีคนตรวจ = ไม่ได้แต้มจนหมดกำลังใจ -> ส่งรูปแล้วได้แต้มทันที
@@ -47,7 +48,7 @@ class _ReportedPostsPageState extends State<ReportedPostsPage> {
       if (!mounted) return;
       setState(() {
         _queue = queue.submissions;
-        _error = queue.isAdmin ? null : 'Only an admin can see reported posts';
+        _error = queue.isAdmin ? null : tr('Only an admin can see reported posts');
         _isLoading = false;
       });
     } catch (e) {
@@ -67,16 +68,15 @@ class _ReportedPostsPageState extends State<ReportedPostsPage> {
       final ok = await LiquidGlassDialog.show<bool>(
         context: context,
         icon: const Icon(Icons.remove_circle_outline_rounded, color: Colors.redAccent, size: 28),
-        title: 'Take back the points?',
+        title: tr('Take back the points?'),
         content: Text(
-          'The photo is removed and ${current.isParty ? 'everyone in the party loses' : '${current.user?.displayName ?? 'the player'} loses'} '
-          'the points, XP and CO2 from this quest. You can restore it within 7 days.',
+          tr('The photo is removed and {0} the points, XP and CO2 from this quest. You can restore it within 7 days.', [current.isParty ? tr('everyone in the party loses') : tr('{0} loses', [current.user?.displayName ?? tr('the player')])]),
           textAlign: TextAlign.center,
           style: LiquidGlassDialog.messageStyle,
         ),
         actions: [
-          LiquidGlassAction(label: 'Cancel', onPressed: () => Navigator.pop(context, false)),
-          LiquidGlassAction(label: 'Take back', color: Colors.redAccent, onPressed: () => Navigator.pop(context, true)),
+          LiquidGlassAction(label: tr('Cancel'), onPressed: () => Navigator.pop(context, false)),
+          LiquidGlassAction(label: tr('Take back'), color: Colors.redAccent, onPressed: () => Navigator.pop(context, true)),
         ],
       );
       if (ok != true || !mounted) return;
@@ -89,9 +89,9 @@ class _ReportedPostsPageState extends State<ReportedPostsPage> {
       showBubbleToast(
         context,
         switch (action) {
-          'keep' => 'Kept — the post stays in the feed',
-          'remove' => 'Photo removed — points kept (restore within 7 days)',
-          _ => 'Points taken back (restore within 7 days)',
+          'keep' => tr('Kept — the post stays in the feed'),
+          'remove' => tr('Photo removed — points kept (restore within 7 days)'),
+          _ => tr('Points taken back (restore within 7 days)'),
         },
       );
     } catch (e) {
@@ -116,10 +116,10 @@ class _ReportedPostsPageState extends State<ReportedPostsPage> {
         backgroundColor: Colors.grey.shade50,
         elevation: 0,
         foregroundColor: Colors.black87,
-        title: const Text('Reported posts', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+        title: Text(tr('Reported posts'), style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
         actions: [
           IconButton(
-            tooltip: 'Recently removed',
+            tooltip: tr('Recently removed'),
             icon: const Icon(Icons.restore_rounded),
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RemovedPostsPage())),
           ),
@@ -132,13 +132,13 @@ class _ReportedPostsPageState extends State<ReportedPostsPage> {
   Widget _buildBody() {
     if (_isLoading) return const Center(child: CircularProgressIndicator(color: Colors.green));
     if (_error != null) {
-      return _EmptyReports(icon: Icons.cloud_off, title: _error!, subtitle: 'Pull back and try again', onRetry: _load);
+      return _EmptyReports(icon: Icons.cloud_off, title: _error!, subtitle: tr('Pull back and try again'), onRetry: _load);
     }
     if (_queue.isEmpty) {
       return _EmptyReports(
         icon: Icons.verified_rounded,
-        title: _handledCount > 0 ? 'All reports handled' : 'All clear',
-        subtitle: 'No reported posts right now',
+        title: _handledCount > 0 ? tr('All reports handled') : tr('All clear'),
+        subtitle: tr('No reported posts right now'),
         onRetry: _load,
       );
     }
@@ -160,7 +160,7 @@ class _ReportedPostsPageState extends State<ReportedPostsPage> {
                 children: [
                   Expanded(
                     child: _ActionButton(
-                      label: 'Keep',
+                      label: tr('Keep'),
                       icon: Icons.check_rounded,
                       color: Colors.green,
                       busy: _isBusy,
@@ -170,7 +170,7 @@ class _ReportedPostsPageState extends State<ReportedPostsPage> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: _ActionButton(
-                      label: 'Remove photo',
+                      label: tr('Remove photo'),
                       icon: Icons.hide_image_outlined,
                       color: Colors.orange.shade800,
                       busy: _isBusy,
@@ -185,7 +185,7 @@ class _ReportedPostsPageState extends State<ReportedPostsPage> {
                 SizedBox(
                   width: double.infinity,
                   child: _ActionButton(
-                    label: 'Not a real quest — take back points',
+                    label: tr('Not a real quest — take back points'),
                     icon: Icons.remove_circle_outline_rounded,
                     color: Colors.redAccent,
                     filled: true,
@@ -213,10 +213,10 @@ class _ReportedCard extends StatelessWidget {
     final quest = s.quest;
     final user = s.user;
     final what = s.isParty
-        ? 'Group photo from a party event'
+        ? tr('Group photo from a party event')
         : s.isCheckIn
-            ? 'Day ${s.checkInDay}/${s.checkInTotal} check-in'
-            : 'Quest photo';
+            ? tr('Day {0}/{1} check-in', [s.checkInDay, s.checkInTotal])
+            : tr('Quest photo');
 
     return Container(
       decoration: BoxDecoration(
@@ -245,7 +245,7 @@ class _ReportedCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(user?.displayName ?? 'Player',
+                      Text(user?.displayName ?? tr('Player'),
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                       Text(formatRelativeTime(s.submittedAt),
                           style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
@@ -305,22 +305,22 @@ class _ReportedCard extends StatelessWidget {
                           color: Colors.grey.shade100,
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: Text('Hidden from the feed',
+                        child: Text(tr('Hidden from the feed'),
                             style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Colors.grey.shade700)),
                       ),
                   ],
                 ),
                 const SizedBox(height: 12),
-                Text(quest?.title ?? 'Quest',
+                Text(quest?.title ?? tr('Quest'),
                     style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Color(0xFF1B5E20))),
                 const SizedBox(height: 2),
                 Text(
-                  s.rewardPoints > 0 ? '$what · earned +${s.rewardPoints} P' : what,
+                  s.rewardPoints > 0 ? tr('{0} · earned +{1} P', [what, s.rewardPoints]) : what,
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
                 if (quest != null && quest.detail.isNotEmpty) ...[
                   const SizedBox(height: 12),
-                  const Text('Does the photo show this?',
+                  Text(tr('Does the photo show this?'),
                       style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: Colors.black87)),
                   const SizedBox(height: 4),
                   Text(quest.detail, style: TextStyle(fontSize: 12.5, color: Colors.grey.shade700, height: 1.45)),
@@ -338,7 +338,7 @@ class _ReportedCard extends StatelessWidget {
                         Icon(Icons.fact_check_outlined, size: 18, color: Colors.teal.shade700),
                         const SizedBox(width: 8),
                         Expanded(
-                          child: Text('They reported: ${s.details!.summary}',
+                          child: Text(tr('They reported: {0}', [s.details!.summary]),
                               style: TextStyle(fontSize: 12.5, height: 1.4, color: Colors.teal.shade900)),
                         ),
                       ],
@@ -451,7 +451,7 @@ class _EmptyReports extends StatelessWidget {
             TextButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Refresh'),
+              label: Text(tr('Refresh')),
               style: TextButton.styleFrom(foregroundColor: Colors.green),
             ),
           ],

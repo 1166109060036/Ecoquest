@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import '../l10n/tr.dart';
 
 // ตัวกลางเรียก HTTP ของทุก service — ชื่อ/รูปแบบฟังก์ชันเหมือน package:http เป๊ะ แต่ละ service เลย
 // เปลี่ยนแค่บรรทัด import (`import 'api_http.dart' as http;`) ไม่ต้องแก้ทุกจุดที่เรียก
@@ -19,9 +20,9 @@ import 'package:http/http.dart' as http;
 // server หลับจะ timeout ทั้งที่อีกไม่กี่วิ server ก็ตอบแล้ว
 Duration requestTimeout = const Duration(seconds: 60);
 
-const _timeoutMessage = 'The server is taking too long to respond. Please try again.';
-const _offlineMessage = 'Cannot connect to the server. Check your internet connection and try again.';
-const _serverDownMessage = 'The server is unavailable right now. Please try again in a moment.';
+String get _timeoutMessage => tr('The server is taking too long to respond. Please try again.');
+String get _offlineMessage => tr('Cannot connect to the server. Check your internet connection and try again.');
+String get _serverDownMessage => tr('The server is unavailable right now. Please try again in a moment.');
 
 // Admin 2FA (22 ต.ค. 2026) — token จาก POST /auth/admin-otp/verify แนบไปทุก request อัตโนมัติ (header
 // X-Admin-Token, ดู backend/middleware/admin.js) ไม่ต้องแก้ทุก service ที่มี action แอดมิน (admin/org/feed/reviews)

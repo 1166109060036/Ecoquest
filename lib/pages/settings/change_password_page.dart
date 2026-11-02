@@ -4,6 +4,7 @@ import '../../providers/auth_provider.dart';
 import '../../utils/constants.dart';
 import '../../widgets/bubble_toast.dart';
 import '../../widgets/falling_leaves_overlay.dart';
+import '../../l10n/tr.dart';
 
 // หน้าเปลี่ยนรหัสผ่าน — เข้าถึงจากหน้า Settings แบ่งเป็น 2 ขั้นตอน:
 // 1) กรอกรหัสผ่านเดิม กดยืนยัน -> เช็คกับ backend ก่อนว่าถูกไหม
@@ -35,7 +36,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
 
   Future<void> _handleVerifyOldPassword() async {
     if (_oldPasswordController.text.isEmpty) {
-      showBubbleToast(context, 'Please enter your current password');
+      showBubbleToast(context, tr('Please enter your current password'));
       return;
     }
 
@@ -47,17 +48,17 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     if (success) {
       setState(() => _step = _Step.newPassword);
     } else {
-      showBubbleToast(context, authProvider.errorMessage ?? 'Incorrect password');
+      showBubbleToast(context, authProvider.errorMessage ?? tr('Incorrect password'));
     }
   }
 
   Future<void> _handleChangePassword() async {
     if (_newPasswordController.text.length < 6) {
-      showBubbleToast(context, 'New password must be at least 6 characters');
+      showBubbleToast(context, tr('New password must be at least 6 characters'));
       return;
     }
     if (_newPasswordController.text != _confirmPasswordController.text) {
-      showBubbleToast(context, 'New passwords do not match');
+      showBubbleToast(context, tr('New passwords do not match'));
       return;
     }
 
@@ -70,10 +71,10 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     if (!mounted) return;
 
     if (success) {
-      showBubbleToast(context, 'Password changed successfully');
+      showBubbleToast(context, tr('Password changed successfully'));
       Navigator.pop(context);
     } else {
-      showBubbleToast(context, authProvider.errorMessage ?? 'Failed to change password');
+      showBubbleToast(context, authProvider.errorMessage ?? tr('Failed to change password'));
     }
   }
 
@@ -132,19 +133,19 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                             _Step.oldPassword => Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  const Text(
-                                    'Enter your current password to verify it is you',
+                                  Text(
+                                    tr('Enter your current password to verify it is you'),
                                     textAlign: TextAlign.center,
                                     style: TextStyle(color: Colors.white70, fontSize: 13),
                                   ),
                                   const SizedBox(height: 16),
                                   _PasswordField(
                                     controller: _oldPasswordController,
-                                    label: 'Current password',
+                                    label: tr('Current password'),
                                   ),
                                   const SizedBox(height: 24),
                                   _SubmitButton(
-                                    label: 'Confirm',
+                                    label: tr('Confirm'),
                                     isLoading: isLoading,
                                     onPressed: _handleVerifyOldPassword,
                                   ),
@@ -153,24 +154,24 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                             _Step.newPassword => Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  const Text(
-                                    'Set a new password',
+                                  Text(
+                                    tr('Set a new password'),
                                     textAlign: TextAlign.center,
                                     style: TextStyle(color: Colors.white70, fontSize: 13),
                                   ),
                                   const SizedBox(height: 16),
                                   _PasswordField(
                                     controller: _newPasswordController,
-                                    label: 'New password',
+                                    label: tr('New password'),
                                   ),
                                   const SizedBox(height: 16),
                                   _PasswordField(
                                     controller: _confirmPasswordController,
-                                    label: 'Confirm new password',
+                                    label: tr('Confirm new password'),
                                   ),
                                   const SizedBox(height: 24),
                                   _SubmitButton(
-                                    label: 'Save New Password',
+                                    label: tr('Save New Password'),
                                     isLoading: isLoading,
                                     onPressed: _handleChangePassword,
                                   ),
@@ -263,9 +264,9 @@ class _TopBar extends StatelessWidget {
             child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
           ),
         ),
-        const Expanded(
+        Expanded(
           child: Text(
-            'Change Password',
+            tr('Change Password'),
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Colors.white,

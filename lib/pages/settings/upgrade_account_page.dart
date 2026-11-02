@@ -6,6 +6,7 @@ import '../../utils/constants.dart';
 import '../../utils/validators.dart';
 import '../../widgets/bubble_toast.dart';
 import '../../widgets/falling_leaves_overlay.dart';
+import '../../l10n/tr.dart';
 
 // หน้าเปลี่ยนบัญชี Guest -> บัญชีปกติ (ตั้งชื่อ + email + password)
 // เข้าจากเมนูในหน้า Settings ซึ่งจะโชว์เฉพาะตอนที่ล็อกอินอยู่แบบ Guest
@@ -47,7 +48,7 @@ class _UpgradeAccountPageState extends State<UpgradeAccountPage> {
     if (success) setState(() => _otpSent = true);
     showBubbleToast(
       context,
-      success ? 'We sent a 6-digit code to your email' : authProvider.errorMessage ?? 'Failed to send the code',
+      success ? tr('We sent a 6-digit code to your email') : authProvider.errorMessage ?? tr('Failed to send the code'),
     );
   }
 
@@ -66,10 +67,10 @@ class _UpgradeAccountPageState extends State<UpgradeAccountPage> {
     if (!mounted) return;
 
     if (success) {
-      showBubbleToast(context, 'Account created! You can now sign in with your email.');
+      showBubbleToast(context, tr('Account created! You can now sign in with your email.'));
       Navigator.pop(context);
     } else {
-      showBubbleToast(context, authProvider.errorMessage ?? 'Failed to create your account');
+      showBubbleToast(context, authProvider.errorMessage ?? tr('Failed to create your account'));
     }
   }
 
@@ -120,19 +121,19 @@ class _UpgradeAccountPageState extends State<UpgradeAccountPage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                const Text(
-                                  'Your progress stays with you — points, quests and fridge items all carry over.',
+                                Text(
+                                  tr('Your progress stays with you — points, quests and fridge items all carry over.'),
                                   textAlign: TextAlign.center,
                                   style: TextStyle(color: Colors.white70, fontSize: 12.5, height: 1.4),
                                 ),
                                 const SizedBox(height: 20),
                                 _DarkField(
                                   controller: _nameController,
-                                  label: 'Display name',
+                                  label: tr('Display name'),
                                   maxLength: 20,
                                   validator: (value) {
                                     if (value == null || value.trim().isEmpty) {
-                                      return 'Please enter a display name';
+                                      return tr('Please enter a display name');
                                     }
                                     return null;
                                   },
@@ -140,25 +141,25 @@ class _UpgradeAccountPageState extends State<UpgradeAccountPage> {
                                 const SizedBox(height: 16),
                                 _DarkField(
                                   controller: _emailController,
-                                  label: 'Email',
+                                  label: tr('Email'),
                                   keyboardType: TextInputType.emailAddress,
                                   validator: Validators.validateEmail,
                                 ),
                                 const SizedBox(height: 16),
                                 _DarkField(
                                   controller: _passwordController,
-                                  label: 'Password',
+                                  label: tr('Password'),
                                   obscure: true,
                                   validator: Validators.validatePassword,
                                 ),
                                 const SizedBox(height: 16),
                                 _DarkField(
                                   controller: _confirmController,
-                                  label: 'Confirm password',
+                                  label: tr('Confirm password'),
                                   obscure: true,
                                   validator: (value) {
                                     if (value != _passwordController.text) {
-                                      return 'Passwords do not match';
+                                      return tr('Passwords do not match');
                                     }
                                     return null;
                                   },
@@ -167,18 +168,18 @@ class _UpgradeAccountPageState extends State<UpgradeAccountPage> {
                                   const SizedBox(height: 16),
                                   _DarkField(
                                     controller: _otpController,
-                                    label: '6-digit code from your email',
+                                    label: tr('6-digit code from your email'),
                                     keyboardType: TextInputType.number,
                                     validator: (value) => (value ?? '').trim().length == 6
                                         ? null
-                                        : 'Please enter the 6-digit code',
+                                        : tr('Please enter the 6-digit code'),
                                   ),
                                   Align(
                                     alignment: Alignment.centerRight,
                                     child: TextButton(
                                       onPressed: isLoading ? null : _sendOtp,
                                       style: TextButton.styleFrom(foregroundColor: Colors.white70),
-                                      child: const Text('Resend code'),
+                                      child: Text(tr('Resend code')),
                                     ),
                                   ),
                                 ],
@@ -200,7 +201,7 @@ class _UpgradeAccountPageState extends State<UpgradeAccountPage> {
                                           child: CircularProgressIndicator(
                                               strokeWidth: 2, color: Colors.white),
                                         )
-                                      : Text(_otpSent ? 'Verify & Create Account' : 'Send Verification Code',
+                                      : Text(_otpSent ? tr('Verify & Create Account') : tr('Send Verification Code'),
                                           style: TextStyle(
                                               fontSize: 15, fontWeight: FontWeight.w600)),
                                 ),
@@ -264,9 +265,9 @@ class _TopBar extends StatelessWidget {
             child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
           ),
         ),
-        const Expanded(
+        Expanded(
           child: Text(
-            'Create Account',
+            tr('Create Account'),
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Colors.white,

@@ -6,6 +6,7 @@ import '../../services/user_service.dart';
 import '../../utils/cosmetics.dart';
 import '../../widgets/profile_sections.dart';
 import '../../widgets/falling_leaves_overlay.dart';
+import '../../l10n/tr.dart';
 
 // โปรไฟล์สาธารณะของผู้เล่นคนอื่น — ดูอย่างเดียว แก้ไขอะไรไม่ได้
 // เข้าได้จากการกดแถวสมาชิกในหน้า Party (ไม่ใช่แถวของตัวเอง)
@@ -117,7 +118,7 @@ class _PlayerProfilePageState extends State<PlayerProfilePage> {
                                         StreakCard(
                                           points: profile.points,
                                           streak: profile.streak,
-                                          pointsLabel: 'Point',
+                                          pointsLabel: tr('Point'),
                                         ),
                                         const SizedBox(height: 16),
                                         StatsCard(stats: profile.stats),
@@ -193,7 +194,7 @@ class _ErrorState extends StatelessWidget {
             Icon(Icons.cloud_off, size: 48, color: Colors.white.withValues(alpha: 0.6)),
             const SizedBox(height: 12),
             Text(
-              message ?? 'Could not load this player\'s profile',
+              message ?? tr('Could not load this player\'s profile'),
               textAlign: TextAlign.center,
               style: const TextStyle(color: Colors.white70, fontSize: 14),
             ),
@@ -207,7 +208,7 @@ class _ErrorState extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
               ),
-              child: const Text('Try Again'),
+              child: Text(tr('Try Again')),
             ),
           ],
         ),
@@ -237,11 +238,11 @@ class _MedalsCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Achievements',
+            Text(tr('Achievements'),
                 style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
             const SizedBox(height: 14),
             if (sorted.isEmpty)
-              const Text('No medals yet', style: TextStyle(color: Colors.white54, fontSize: 12))
+              Text(tr('No medals yet'), style: TextStyle(color: Colors.white54, fontSize: 12))
             else
               Wrap(
                 spacing: 16,

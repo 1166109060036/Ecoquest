@@ -6,6 +6,7 @@ import '../../widgets/org_event_card.dart';
 import 'create_event_page.dart';
 import 'org_apply_page.dart';
 import 'org_event_detail_page.dart';
+import '../../l10n/tr.dart';
 
 // หน้าจัดการอีเวนต์ขององค์กร (14 ต.ค. 2026) — ลิสต์อีเวนต์ที่สร้าง + ปุ่มสร้างใหม่
 // เข้าได้จาก Settings → My Events (บัญชีองค์กรที่อนุมัติแล้ว)
@@ -54,7 +55,7 @@ class _MyEventsPageState extends State<MyEventsPage> {
       MaterialPageRoute(builder: (_) => const CreateEventPage()),
     );
     if (created == null || !mounted) return;
-    showBubbleToast(context, 'Event created');
+    showBubbleToast(context, tr('Event created'));
     _load();
   }
 
@@ -79,13 +80,13 @@ class _MyEventsPageState extends State<MyEventsPage> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('My Events', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text(tr('My Events'), style: TextStyle(fontWeight: FontWeight.bold)),
             Text(_orgName, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
           ],
         ),
         actions: [
           IconButton(
-            tooltip: 'Edit organization',
+            tooltip: tr('Edit organization'),
             icon: const Icon(Icons.edit_outlined),
             onPressed: () async {
               final name = await Navigator.push<String>(
@@ -104,8 +105,8 @@ class _MyEventsPageState extends State<MyEventsPage> {
         onPressed: _create,
         backgroundColor: Colors.green,
         icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text(
-          'New event',
+        label: Text(
+          tr('New event'),
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
         ),
       ),
@@ -122,7 +123,7 @@ class _MyEventsPageState extends State<MyEventsPage> {
                     Padding(
                       padding: const EdgeInsets.only(top: 40),
                       child: Text(
-                        '$_error\nPull down to try again',
+                        tr('{0}\nPull down to try again', [_error]),
                         textAlign: TextAlign.center,
                         style: TextStyle(color: Colors.grey.shade600),
                       ),
@@ -134,10 +135,10 @@ class _MyEventsPageState extends State<MyEventsPage> {
                         children: [
                           Icon(Icons.event_note_outlined, size: 48, color: Colors.grey.shade400),
                           const SizedBox(height: 12),
-                          Text('No events yet', style: TextStyle(color: Colors.grey.shade700, fontSize: 15)),
+                          Text(tr('No events yet'), style: TextStyle(color: Colors.grey.shade700, fontSize: 15)),
                           const SizedBox(height: 4),
                           Text(
-                            'Tap "New event" to invite players to your activity',
+                            tr('Tap "New event" to invite players to your activity'),
                             textAlign: TextAlign.center,
                             style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
                           ),
@@ -146,14 +147,14 @@ class _MyEventsPageState extends State<MyEventsPage> {
                     )
                   else ...[
                     if (active.isNotEmpty) ...[
-                      const _Header('Upcoming'),
+                      _Header(tr('Upcoming')),
                       for (final e in active) ...[
                         OrgEventCard(event: e, onTap: () => _open(e)),
                         const SizedBox(height: 10),
                       ],
                     ],
                     if (past.isNotEmpty) ...[
-                      const _Header('Past'),
+                      _Header(tr('Past')),
                       for (final e in past) ...[
                         OrgEventCard(event: e, onTap: () => _open(e)),
                         const SizedBox(height: 10),

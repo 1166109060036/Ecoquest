@@ -1,3 +1,5 @@
+import '../l10n/tr.dart';
+
 // ผลกระทบรวมของผู้เล่นทั้งเมือง — GET /api/impact/summary (backend/routes/impact.js)
 // การ์ด "Ebetsu's impact" บนสุดของแท็บ Feed ใน Community
 class ImpactSummary {
@@ -10,7 +12,7 @@ class ImpactSummary {
   factory ImpactSummary.fromJson(Map<String, dynamic> json) => ImpactSummary(
         allTime: ImpactPeriod.fromJson((json['allTime'] ?? {}) as Map<String, dynamic>),
         thisWeek: ImpactPeriod.fromJson((json['thisWeek'] ?? {}) as Map<String, dynamic>),
-        city: json['city'] ?? 'Ebetsu',
+        city: json['city'] ?? tr('Ebetsu'),
       );
 }
 
@@ -55,10 +57,10 @@ class ImpactPeriod {
   String get treeComparison {
     if (cedarTreeYears >= 1) {
       final trees = cedarTreeYears >= 10 ? cedarTreeYears.round().toString() : cedarTreeYears.toStringAsFixed(1);
-      return 'what $trees cedar trees absorb in a year';
+      return tr('what {0} cedar trees absorb in a year', [trees]);
     }
     final days = cedarTreeDays < 1 ? 1 : cedarTreeDays;
-    return 'what one cedar tree absorbs in $days day${days == 1 ? '' : 's'}';
+    return tr('what one cedar tree absorbs in {0} day{1}', [days, days == 1 ? '' : 's']);
   }
 }
 

@@ -5,6 +5,7 @@ import '../models/party_model.dart';
 import '../models/quest_card_model.dart';
 import '../utils/constants.dart';
 import 'storage_service.dart';
+import '../l10n/tr.dart';
 
 // เรียก API ของระบบห้องปาร์ตี้ (สร้างห้องจาก party quest / เข้าร่วม / หัวหน้ากดจบอีเวนต์)
 class PartyService {
@@ -28,7 +29,7 @@ class PartyService {
     final data = jsonDecode(response.body);
 
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to load your party');
+      throw Exception(data['message'] ?? tr('Failed to load your party'));
     }
     if (data['party'] == null) return null;
 
@@ -45,7 +46,7 @@ class PartyService {
     final data = jsonDecode(response.body);
 
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to load party rooms');
+      throw Exception(data['message'] ?? tr('Failed to load party rooms'));
     }
 
     return ((data['rooms'] ?? []) as List)
@@ -76,7 +77,7 @@ class PartyService {
     final data = jsonDecode(response.body);
 
     if (response.statusCode != 201) {
-      throw Exception(data['message'] ?? 'Failed to create the party');
+      throw Exception(data['message'] ?? tr('Failed to create the party'));
     }
 
     return PartyModel.fromJson(data['party'] as Map<String, dynamic>);
@@ -91,7 +92,7 @@ class PartyService {
     final data = jsonDecode(response.body);
 
     if (response.statusCode != 201) {
-      throw Exception(data['message'] ?? 'Failed to join this party');
+      throw Exception(data['message'] ?? tr('Failed to join this party'));
     }
 
     return PartyModel.fromJson(data['party'] as Map<String, dynamic>);
@@ -107,7 +108,7 @@ class PartyService {
     final data = jsonDecode(response.body);
 
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to start this event');
+      throw Exception(data['message'] ?? tr('Failed to start this event'));
     }
 
     return PartyModel.fromJson(data['party'] as Map<String, dynamic>);
@@ -122,7 +123,7 @@ class PartyService {
     final data = jsonDecode(response.body);
 
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to leave the party');
+      throw Exception(data['message'] ?? tr('Failed to leave the party'));
     }
   }
 
@@ -144,7 +145,7 @@ class PartyService {
     final data = jsonDecode(response.body);
 
     if (response.statusCode != 200 && response.statusCode != 201) {
-      throw Exception(data['message'] ?? 'Failed to complete this event');
+      throw Exception(data['message'] ?? tr('Failed to complete this event'));
     }
 
     return PartyCompleteReward(

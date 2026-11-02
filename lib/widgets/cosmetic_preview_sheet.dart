@@ -5,6 +5,7 @@ import '../providers/auth_provider.dart';
 import '../utils/cosmetics.dart';
 import 'falling_leaves_overlay.dart';
 import 'profile_sections.dart';
+import '../l10n/tr.dart';
 
 // ดูตัวอย่างของตกแต่งก่อนซื้อ — วาดส่วนหัวโปรไฟล์จริงของผู้เล่น (ชื่อ/รูป/เลเวล) ด้วย widget ชุดเดียวกับ
 // หน้า Profile เป๊ะ (ProfileBackground + AmbientOverlay + UserHeader) โดยสวมชิ้นที่กำลังดูแทนช่องของมัน
@@ -102,8 +103,8 @@ class _CosmeticPreviewSheet extends StatelessWidget {
                             color: item.accentColor.withValues(alpha: 0.85),
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          child: const Text(
-                            'PREVIEW',
+                          child: Text(
+                            tr('PREVIEW'),
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 10,
@@ -129,7 +130,7 @@ class _CosmeticPreviewSheet extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
                     UserHeader(
-                      displayName: user?.displayName ?? 'Player',
+                      displayName: user?.displayName ?? tr('Player'),
                       avatarUrl: user?.avatarUrl,
                       frameItemType: frame,
                       nameStyleItemType: nameStyle,
@@ -140,8 +141,8 @@ class _CosmeticPreviewSheet extends StatelessWidget {
                     const Spacer(),
                     Text(
                       owned
-                          ? 'You already own this — equip it from Custom Profile.'
-                          : 'This is how your profile will look with ${item.title}.',
+                          ? tr('You already own this — equip it from Custom Profile.')
+                          : tr('This is how your profile will look with {0}.', [item.title]),
                       textAlign: TextAlign.center,
                       style: const TextStyle(color: Colors.white70, fontSize: 12.5),
                     ),
@@ -157,7 +158,7 @@ class _CosmeticPreviewSheet extends StatelessWidget {
                               padding: const EdgeInsets.symmetric(vertical: 13),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                             ),
-                            child: const Text('Close', style: TextStyle(fontWeight: FontWeight.w600)),
+                            child: Text(tr('Close'), style: TextStyle(fontWeight: FontWeight.w600)),
                           ),
                         ),
                         if (!owned) ...[
@@ -180,7 +181,7 @@ class _CosmeticPreviewSheet extends StatelessWidget {
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                               ),
                               child: Text(
-                                canAfford ? 'Buy · ${item.cost} P' : 'Need ${item.cost} P',
+                                canAfford ? tr('Buy · {0} P', [item.cost]) : tr('Need {0} P', [item.cost]),
                                 style: const TextStyle(fontWeight: FontWeight.w700),
                               ),
                             ),

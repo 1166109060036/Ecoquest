@@ -10,6 +10,7 @@ import '../../widgets/falling_leaves_overlay.dart';
 import '../../widgets/liquid_glass_dialog.dart';
 import '../org/my_events_page.dart';
 import '../org/org_apply_page.dart';
+import '../../l10n/tr.dart';
 
 // หน้า Settings — เข้าถึงจากปุ่ม Settings บนหน้า Profile
 // ตอนนี้มีแค่ข้อมูลบัญชี + ปุ่ม Logout (ใช้งานได้จริง) ยังไม่มี toggle/setting อื่น
@@ -23,7 +24,7 @@ class SettingsPage extends StatelessWidget {
 
     final newName = await LiquidGlassDialog.show<String>(
       context: context,
-      title: 'Edit Display Name',
+      title: tr('Edit Display Name'),
       content: TextField(
         controller: controller,
         autofocus: true,
@@ -32,7 +33,7 @@ class SettingsPage extends StatelessWidget {
         style: const TextStyle(color: Colors.white),
         cursorColor: Colors.white,
         decoration: InputDecoration(
-          hintText: 'Your name',
+          hintText: tr('Your name'),
           hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
           counterStyle: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
           enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.4))),
@@ -40,9 +41,9 @@ class SettingsPage extends StatelessWidget {
         ),
       ),
       actions: [
-        LiquidGlassAction(label: 'Cancel', onPressed: () => Navigator.pop(context)),
+        LiquidGlassAction(label: tr('Cancel'), onPressed: () => Navigator.pop(context)),
         LiquidGlassAction(
-          label: 'Save',
+          label: tr('Save'),
           color: Colors.green,
           onPressed: () => Navigator.pop(context, controller.text.trim()),
         ),
@@ -56,19 +57,45 @@ class SettingsPage extends StatelessWidget {
 
     showBubbleToast(
       context,
-      success ? 'Display name updated' : (authProvider.errorMessage ?? 'Failed to update your name'),
+      success ? tr('Display name updated') : (authProvider.errorMessage ?? tr('Failed to update your name')),
     );
+  }
+
+  // '' = ตามภาษามือถือ (ค่าเริ่มต้น) — เลือกแล้ว tr.dart สั่ง build ใหม่ทั้งแอพเอง
+  Future<void> _chooseLanguage(BuildContext context) async {
+    final options = {'': tr('Phone setting'), ...supportedLanguages};
+    final current = chosenLanguage ?? '';
+    final picked = await LiquidGlassDialog.show<String>(
+      context: context,
+      icon: const Icon(Icons.translate_rounded, color: Colors.green, size: 28),
+      title: tr('Language'),
+      content: Column(
+        children: [
+          for (final e in options.entries)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: LiquidGlassAction(
+                label: e.value,
+                color: e.key == current ? Colors.green : null,
+                onPressed: () => Navigator.pop(context, e.key),
+              ),
+            ),
+        ],
+      ),
+    );
+    if (picked == null || picked == current) return;
+    await setLanguage(picked.isEmpty ? null : picked);
   }
 
   void _showAbout(BuildContext context) {
     LiquidGlassDialog.show<void>(
       context: context,
       icon: const Icon(Icons.eco_rounded, color: Colors.green, size: 30),
-      title: 'About EcoQuest',
+      title: tr('About EcoQuest'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text('Version ${AppConstants.appVersion}',
+          Text(tr('Version {0}', [AppConstants.appVersion]),
               style: const TextStyle(
                 color: Colors.white70,
                 fontWeight: FontWeight.w600,
@@ -76,16 +103,15 @@ class SettingsPage extends StatelessWidget {
                 shadows: [Shadow(color: Colors.black45, blurRadius: 6)],
               )),
           const SizedBox(height: 10),
-          const Text(
-            'An environmental gamification app that turns everyday eco-friendly actions '
-            'in Ebetsu City into quests, points, and rewards.',
+          Text(
+            tr('An environmental gamification app that turns everyday eco-friendly actions in Ebetsu City into quests, points, and rewards.'),
             textAlign: TextAlign.center,
             style: LiquidGlassDialog.messageStyle,
           ),
         ],
       ),
       actions: [
-        LiquidGlassAction(label: 'Close', color: Colors.green, onPressed: () => Navigator.pop(context)),
+        LiquidGlassAction(label: tr('Close'), color: Colors.green, onPressed: () => Navigator.pop(context)),
       ],
     );
   }
@@ -94,16 +120,16 @@ class SettingsPage extends StatelessWidget {
     final confirmed = await LiquidGlassDialog.show<bool>(
       context: context,
       icon: const Icon(Icons.logout_rounded, color: Colors.redAccent, size: 28),
-      title: 'Log out?',
-      content: const Text(
-        'You will need to sign in again to continue',
+      title: tr('Log out?'),
+      content: Text(
+        tr('You will need to sign in again to continue'),
         textAlign: TextAlign.center,
         style: LiquidGlassDialog.messageStyle,
       ),
       actions: [
-        LiquidGlassAction(label: 'Cancel', onPressed: () => Navigator.pop(context, false)),
+        LiquidGlassAction(label: tr('Cancel'), onPressed: () => Navigator.pop(context, false)),
         LiquidGlassAction(
-          label: 'Log Out',
+          label: tr('Log Out'),
           color: Colors.redAccent,
           onPressed: () => Navigator.pop(context, true),
         ),
@@ -131,16 +157,16 @@ class SettingsPage extends StatelessWidget {
     final confirmed = await LiquidGlassDialog.show<bool>(
       context: context,
       icon: const Icon(Icons.refresh_rounded, color: Colors.redAccent, size: 28),
-      title: 'Start new guest account?',
-      content: const Text(
-        'This guest\'s progress will be permanently lost and cannot be recovered.',
+      title: tr('Start new guest account?'),
+      content: Text(
+        tr('This guest\'s progress will be permanently lost and cannot be recovered.'),
         textAlign: TextAlign.center,
         style: LiquidGlassDialog.messageStyle,
       ),
       actions: [
-        LiquidGlassAction(label: 'Cancel', onPressed: () => Navigator.pop(context, false)),
+        LiquidGlassAction(label: tr('Cancel'), onPressed: () => Navigator.pop(context, false)),
         LiquidGlassAction(
-          label: 'Start New',
+          label: tr('Start New'),
           color: Colors.redAccent,
           onPressed: () => Navigator.pop(context, true),
         ),
@@ -199,14 +225,14 @@ class SettingsPage extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             _AccountCard(
-                              displayName: user?.displayName ?? 'Player',
+                              displayName: user?.displayName ?? tr('Player'),
                               email: user?.email,
                               isGuest: user?.isGuest ?? false,
                             ),
                             const SizedBox(height: 14),
                             _SettingsMenuItem(
                               icon: Icons.badge_outlined,
-                              label: 'Edit Display Name',
+                              label: tr('Edit Display Name'),
                               onTap: () => _editDisplayName(context),
                             ),
                             if (user?.isGuest ?? false) ...[
@@ -215,16 +241,16 @@ class SettingsPage extends StatelessWidget {
                               const SizedBox(height: 14),
                               _SettingsMenuItem(
                                 icon: Icons.person_add_alt,
-                                label: 'Create an account',
-                                subtitle: 'Guest progress is lost when you log out',
+                                label: tr('Create an account'),
+                                subtitle: tr('Guest progress is lost when you log out'),
                                 highlighted: true,
                                 onTap: () => Navigator.pushNamed(context, '/upgrade-account'),
                               ),
                               const SizedBox(height: 14),
                               _SettingsMenuItem(
                                 icon: Icons.refresh,
-                                label: 'Start New Guest Account',
-                                subtitle: 'Current guest progress will be permanently lost',
+                                label: tr('Start New Guest Account'),
+                                subtitle: tr('Current guest progress will be permanently lost'),
                                 onTap: () => _confirmResetGuest(context),
                               ),
                             ] else ...[
@@ -232,7 +258,7 @@ class SettingsPage extends StatelessWidget {
                               const SizedBox(height: 14),
                               _SettingsMenuItem(
                                 icon: Icons.lock_outline,
-                                label: 'Change Password',
+                                label: tr('Change Password'),
                                 onTap: () => Navigator.pushNamed(context, '/change-password'),
                               ),
                             ],
@@ -241,10 +267,10 @@ class SettingsPage extends StatelessWidget {
                               const SizedBox(height: 14),
                               _SettingsMenuItem(
                                 icon: Icons.apartment_rounded,
-                                label: (user?.isOrganization ?? false) ? 'My Events' : 'Organization',
+                                label: (user?.isOrganization ?? false) ? tr('My Events') : tr('Organization'),
                                 subtitle: (user?.isOrganization ?? false)
                                     ? user!.organizationName
-                                    : 'Run eco events for EcoQuest players',
+                                    : tr('Run eco events for EcoQuest players'),
                                 onTap: () => Navigator.push(
                                   context,
                                   MaterialPageRoute(
@@ -260,7 +286,7 @@ class SettingsPage extends StatelessWidget {
                             const SizedBox(height: 14),
                             _VolumeSliderItem(
                               icon: Icons.music_note_outlined,
-                              label: 'Background Music',
+                              label: tr('Background Music'),
                               initialValue: SoundService.instance.musicVolume,
                               onChanged: (v) => SoundService.instance.setMusicVolume(v, persist: false),
                               onChangeEnd: (v) => SoundService.instance.setMusicVolume(v),
@@ -268,15 +294,24 @@ class SettingsPage extends StatelessWidget {
                             const SizedBox(height: 14),
                             _VolumeSliderItem(
                               icon: Icons.volume_up_outlined,
-                              label: 'Sound Effects',
+                              label: tr('Sound Effects'),
                               initialValue: SoundService.instance.clickVolume,
                               onChanged: (v) => SoundService.instance.setClickVolume(v, persist: false),
                               onChangeEnd: (v) => SoundService.instance.setClickVolume(v),
                             ),
                             const SizedBox(height: 14),
                             _SettingsMenuItem(
+                              icon: Icons.translate_rounded,
+                              label: tr('Language'),
+                              subtitle: chosenLanguage == null
+                                  ? tr('Phone setting ({0})', [supportedLanguages[appLanguage]])
+                                  : supportedLanguages[appLanguage],
+                              onTap: () => _chooseLanguage(context),
+                            ),
+                            const SizedBox(height: 14),
+                            _SettingsMenuItem(
                               icon: Icons.info_outline,
-                              label: 'About',
+                              label: tr('About'),
                               onTap: () => _showAbout(context),
                             ),
                             if (user?.isAdmin ?? false) ...[
@@ -284,7 +319,7 @@ class SettingsPage extends StatelessWidget {
                               const SizedBox(height: 14),
                               _SettingsMenuItem(
                                 icon: Icons.admin_panel_settings_outlined,
-                                label: 'Admin Tools',
+                                label: tr('Admin Tools'),
                                 // ยังไม่ยืนยัน admin OTP ในรอบนี้ -> ไปหน้ากรอกรหัสก่อน
                                 onTap: () =>
                                     Navigator.pushNamed(context, api.adminToken == null ? '/admin-verify' : '/admin'),
@@ -304,7 +339,7 @@ class SettingsPage extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
                       ),
-                      child: const Text('Logout', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                      child: Text(tr('Logout'), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
                     ),
                   ],
                 ),
@@ -368,12 +403,12 @@ class _TopBar extends StatelessWidget {
         Expanded(
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
-              Icon(Icons.settings, color: Colors.white, size: 20),
-              SizedBox(width: 8),
+            children: [
+              const Icon(Icons.settings, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
               Text(
-                'SETTINGS',
-                style: TextStyle(
+                tr('SETTINGS'),
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -427,7 +462,7 @@ class _AccountCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  isGuest ? 'Guest Account' : (email ?? ''),
+                  isGuest ? tr('Guest Account') : (email ?? ''),
                   style: const TextStyle(color: Colors.white60, fontSize: 12),
                 ),
               ],
@@ -463,7 +498,7 @@ class _NotificationToggleItemState extends State<_NotificationToggleItem> {
 
     if (!success) {
       setState(() => _enabled = !value);
-      showBubbleToast(context, authProvider.errorMessage ?? 'Failed to update notification setting');
+      showBubbleToast(context, authProvider.errorMessage ?? tr('Failed to update notification setting'));
     }
   }
 
@@ -480,9 +515,9 @@ class _NotificationToggleItemState extends State<_NotificationToggleItem> {
         children: [
           const Icon(Icons.notifications_outlined, color: Colors.white70, size: 20),
           const SizedBox(width: 14),
-          const Expanded(
+          Expanded(
             child: Text(
-              'Notifications',
+              tr('Notifications'),
               style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
             ),
           ),

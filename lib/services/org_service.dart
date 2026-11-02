@@ -4,6 +4,7 @@ import '../models/org_event_model.dart';
 import '../models/quest_card_model.dart';
 import '../utils/constants.dart';
 import 'storage_service.dart';
+import '../l10n/tr.dart';
 
 // บัญชีองค์กร + อีเวนต์องค์กร (backend/routes/org.js) — รูปแบบ HTTP เดียวกับ feed_service.dart
 class OrgService {
@@ -34,7 +35,7 @@ class OrgService {
 
   // ---- บัญชีองค์กร ----
   Future<({OrgProfile org, bool canApply, String email})> fetchMyOrg() async {
-    final data = _decode(await http.get(_url('/me'), headers: await _headers()), 'Failed to load your organization');
+    final data = _decode(await http.get(_url('/me'), headers: await _headers()), tr('Failed to load your organization'));
     return (
       org: OrgProfile.fromJson(data['organization'] as Map<String, dynamic>?),
       canApply: data['canApply'] == true,
@@ -44,7 +45,7 @@ class OrgService {
 
   // ขั้นแรกของการส่งคำขอ — OTP ไปที่อีเมลบัญชี (apply ต้องแนบรหัสนี้)
   Future<void> sendApplyOtp() async {
-    _decode(await http.post(_url('/apply/send-otp'), headers: await _headers()), 'Failed to send the code');
+    _decode(await http.post(_url('/apply/send-otp'), headers: await _headers()), tr('Failed to send the code'));
   }
 
   // อีเมลติดต่อ = อีเมลบัญชีเสมอ (backend ตั้งให้เอง ไม่ต้องส่งไป)
@@ -60,7 +61,7 @@ class OrgService {
         headers: await _headers(),
         body: jsonEncode({'name': name, 'orgType': orgType, 'description': description, 'otp': otp}),
       ),
-      'Failed to send your request',
+      tr('Failed to send your request'),
     );
     return OrgProfile.fromJson(data['organization'] as Map<String, dynamic>?);
   }
@@ -77,35 +78,35 @@ class OrgService {
         headers: await _headers(),
         body: jsonEncode({'name': name, 'orgType': orgType, 'description': description}),
       ),
-      'Failed to save your changes',
+      tr('Failed to save your changes'),
     );
     return OrgProfile.fromJson(data['organization'] as Map<String, dynamic>?);
   }
 
   // ---- อีเวนต์ ----
   Future<List<OrgEventModel>> fetchEvents() async =>
-      _events(_decode(await http.get(_url('/events'), headers: await _headers()), 'Failed to load events'));
+      _events(_decode(await http.get(_url('/events'), headers: await _headers()), tr('Failed to load events')));
 
   Future<List<OrgEventModel>> fetchJoinedEvents() async =>
-      _events(_decode(await http.get(_url('/events/joined'), headers: await _headers()), 'Failed to load your events'));
+      _events(_decode(await http.get(_url('/events/joined'), headers: await _headers()), tr('Failed to load your events')));
 
   Future<List<OrgEventModel>> fetchMyEvents() async =>
-      _events(_decode(await http.get(_url('/events/mine'), headers: await _headers()), 'Failed to load your events'));
+      _events(_decode(await http.get(_url('/events/mine'), headers: await _headers()), tr('Failed to load your events')));
 
   Future<OrgEventModel> fetchEvent(String id) async {
-    final data = _decode(await http.get(_url('/events/$id'), headers: await _headers()), 'Failed to load this event');
+    final data = _decode(await http.get(_url('/events/$id'), headers: await _headers()), tr('Failed to load this event'));
     return OrgEventModel.fromJson(data['event'] as Map<String, dynamic>);
   }
 
   Future<OrgEventModel> register(String id) async {
-    final data = _decode(await http.post(_url('/events/$id/register'), headers: await _headers()), 'Failed to join');
+    final data = _decode(await http.post(_url('/events/$id/register'), headers: await _headers()), tr('Failed to join'));
     return OrgEventModel.fromJson(data['event'] as Map<String, dynamic>);
   }
 
   Future<OrgEventModel> unregister(String id) async {
     final data = _decode(
       await http.delete(_url('/events/$id/register'), headers: await _headers()),
-      'Failed to cancel',
+      tr('Failed to cancel'),
     );
     return OrgEventModel.fromJson(data['event'] as Map<String, dynamic>);
   }
@@ -114,7 +115,7 @@ class OrgService {
   Future<({QuestReward reward, OrgEventModel event})> checkIn(String code) async {
     final data = _decode(
       await http.post(_url('/checkin'), headers: await _headers(), body: jsonEncode({'code': code})),
-      'Check-in failed',
+      tr('Check-in failed'),
     );
     return (
       reward: QuestReward.fromResponse(data),
@@ -148,7 +149,7 @@ class OrgService {
           'points': points,
         }),
       ),
-      'Failed to create the event',
+      tr('Failed to create the event'),
     );
     return OrgEventModel.fromJson(data['event'] as Map<String, dynamic>);
   }
@@ -156,7 +157,7 @@ class OrgService {
   Future<OrgEventModel> cancelEvent(String id) async {
     final data = _decode(
       await http.post(_url('/events/$id/cancel'), headers: await _headers()),
-      'Failed to cancel the event',
+      tr('Failed to cancel the event'),
     );
     return OrgEventModel.fromJson(data['event'] as Map<String, dynamic>);
   }
@@ -164,7 +165,7 @@ class OrgService {
   Future<({OrgEventModel event, List<OrgAttendee> attendees})> fetchAttendees(String id) async {
     final data = _decode(
       await http.get(_url('/events/$id/attendees'), headers: await _headers()),
-      'Failed to load attendees',
+      tr('Failed to load attendees'),
     );
     return (
       event: OrgEventModel.fromJson(data['event'] as Map<String, dynamic>),
@@ -178,7 +179,7 @@ class OrgService {
   Future<({String payload, int expiresInMs})> fetchQr(String id) async {
     final data = _decode(
       await http.get(_url('/events/$id/qr'), headers: await _headers()),
-      'Failed to load the QR code',
+      tr('Failed to load the QR code'),
     );
     return (payload: (data['payload'] ?? '') as String, expiresInMs: (data['expiresInMs'] as num?)?.toInt() ?? 30000);
   }
@@ -187,7 +188,7 @@ class OrgService {
   Future<List<OrgRequest>> fetchRequests(String status) async {
     final data = _decode(
       await http.get(_url('/admin/requests?status=$status'), headers: await _headers()),
-      'Failed to load organization requests',
+      tr('Failed to load organization requests'),
     );
     return ((data['requests'] ?? []) as List).map((r) => OrgRequest.fromJson(r as Map<String, dynamic>)).toList();
   }
@@ -200,7 +201,7 @@ class OrgService {
         headers: await _headers(),
         body: jsonEncode({'action': action, 'note': note}),
       ),
-      'Failed to update this organization',
+      tr('Failed to update this organization'),
     );
   }
 }

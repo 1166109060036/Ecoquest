@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/auth_shell.dart';
+import '../../l10n/tr.dart';
 
 // หน้าแรกที่เปิดขึ้นมา ใช้เช็คว่ามี session ค้างอยู่ไหม
 // ถ้ามี -> ไป home, ถ้าไม่มี -> ไป login
@@ -84,7 +85,7 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Small eco quests, real impact',
+                        tr('Small eco quests, real impact'),
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.85),
                           fontSize: 14,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/org_event_model.dart';
 import '../utils/date_format.dart';
 import 'pressable_scale.dart';
+import '../l10n/tr.dart';
 
 // การ์ดอีเวนต์องค์กรในลิสต์ Explore (chip "Event" และ "All") — โทน/ขนาดเดียวกับ PartyRoomCard ที่โชว์ปนกัน
 class OrgEventCard extends StatelessWidget {
@@ -11,11 +12,11 @@ class OrgEventCard extends StatelessWidget {
   const OrgEventCard({super.key, required this.event, required this.onTap});
 
   String get _statusLabel {
-    if (event.isMine) return 'Your event';
-    if (event.hasAttended) return 'Checked in';
-    if (event.isRegistered) return 'Joined';
-    if (event.isFull) return 'Full';
-    return 'View';
+    if (event.isMine) return tr('Your event');
+    if (event.hasAttended) return tr('Checked in');
+    if (event.isRegistered) return tr('Joined');
+    if (event.isFull) return tr('Full');
+    return tr('View');
   }
 
   @override
@@ -69,8 +70,8 @@ class OrgEventCard extends StatelessWidget {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                 decoration: BoxDecoration(color: Colors.indigo, borderRadius: BorderRadius.circular(10)),
-                                child: const Text(
-                                  'Event',
+                                child: Text(
+                                  tr('Event'),
                                   style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
                                 ),
                               ),
@@ -85,7 +86,7 @@ class OrgEventCard extends StatelessWidget {
                           const SizedBox(width: 3),
                           Flexible(
                             child: Text(
-                              event.org?.name ?? 'Organization',
+                              event.org?.name ?? tr('Organization'),
                               style: TextStyle(color: Colors.grey.shade700, fontSize: 11, fontWeight: FontWeight.w600),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -178,7 +179,7 @@ class _DateTile extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(live ? 'LIVE' : _months[date.month - 1],
+          Text(live ? tr('LIVE') : tr(_months[date.month - 1]),
               style: TextStyle(color: fg, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
           Text('${date.day}', style: TextStyle(color: fg, fontSize: 22, fontWeight: FontWeight.bold, height: 1.1)),
         ],

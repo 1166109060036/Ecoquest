@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/quest_card_model.dart';
 import 'check_in_ring.dart';
 import 'pressable_scale.dart';
+import '../l10n/tr.dart';
 
 class QuestCard extends StatelessWidget {
   final QuestCardModel quest;
@@ -28,27 +29,27 @@ class QuestCard extends StatelessWidget {
     switch (quest.category) {
       case QuestCardCategory.party:
         return _CategoryStyle(
-          label: 'Party',
+          label: tr('Party'),
           badgeColor: Colors.deepOrange,
           // เควส party ไม่ได้กด "เข้าร่วม" ตรงนี้แล้ว — ต้องกดสร้างห้องก่อน คนอื่นถึงเข้าร่วมได้
           // (การ์ดนี้เป็นแค่ template ไม่ใช่ห้องจริง — ห้องที่เข้าร่วมได้แสดงเป็น PartyRoomCard
           // ในลิสต์ Explore ตอนเลือก chip "Party" แทน ดู party_room_card.dart)
-          actionLabel: 'Create Party',
+          actionLabel: tr('Create Party'),
           actionColor: Colors.green,
         );
       case QuestCardCategory.event:
         return _CategoryStyle(
-          label: 'Event',
+          label: tr('Event'),
           badgeColor: Colors.blue,
-          actionLabel: 'Join',
+          actionLabel: tr('Join'),
           actionColor: Colors.blue,
           titleColor: Colors.blue,
         );
       case QuestCardCategory.solo:
         return _CategoryStyle(
-          label: 'Solo',
+          label: tr('Solo'),
           badgeColor: Colors.redAccent,
-          actionLabel: 'Start',
+          actionLabel: tr('Start'),
           actionColor: Colors.teal,
         );
     }
@@ -60,10 +61,10 @@ class QuestCard extends StatelessWidget {
   // เควสหลายวัน (Food Saver 3/7): ในหน้า Progress กดได้วันละครั้ง = "Check in" / เช็คอินแล้ว = "Checked in"
   // ส่วนใน Explore ระหว่างทาง (ยังไม่ครบ) ให้เป็น "In progress" แม้วันนี้จะเช็คอินแล้ว — ยังไม่จบ
   String _actionLabel(_CategoryStyle style) {
-    if (quest.isMultiDay && progressMode) return quest.checkedInToday ? 'Checked in' : 'Check in';
-    if (quest.isMultiDay && quest.inProgress) return 'In progress';
-    if (progressMode) return 'Complete';
-    if (quest.inProgress) return 'In progress';
+    if (quest.isMultiDay && progressMode) return quest.checkedInToday ? tr('Checked in') : tr('Check in');
+    if (quest.isMultiDay && quest.inProgress) return tr('In progress');
+    if (progressMode) return tr('Complete');
+    if (quest.inProgress) return tr('In progress');
     return style.actionLabel;
   }
 
@@ -224,9 +225,9 @@ class DifficultyChip extends StatelessWidget {
     if (difficulty.isEmpty) return const SizedBox.shrink();
 
     final (label, color) = switch (difficulty) {
-      'easy' => ('Easy', Colors.green),
-      'medium' => ('Medium', Colors.orange),
-      'hard' => ('Hard', Colors.redAccent),
+      'easy' => (tr('Easy'), Colors.green),
+      'medium' => (tr('Medium'), Colors.orange),
+      'hard' => (tr('Hard'), Colors.redAccent),
       // เผื่อ backend เพิ่มระดับใหม่มาแล้วแอพยังไม่รู้จัก
       _ => (difficulty, Colors.blueGrey),
     };
@@ -367,7 +368,7 @@ class _PartyEventInfoRow extends StatelessWidget {
             const SizedBox(width: 3),
             Flexible(
               child: Text(
-                openPartyCount > 0 ? '$openPartyCount room${openPartyCount > 1 ? 's' : ''} open' : 'No rooms yet',
+                openPartyCount > 0 ? tr('{0} room{1} open', [openPartyCount, openPartyCount > 1 ? 's' : '']) : tr('No rooms yet'),
                 style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
                 overflow: TextOverflow.ellipsis,
                 maxLines: 1,
@@ -408,7 +409,7 @@ class _SoloInfoRow extends StatelessWidget {
     // เควสหลายวัน: หน้า Progress โชว์ความคืบหน้า "Day 2/7" / หน้า Explore บอกว่าเป็นเควสกี่วัน
     if (durationDays > 1) {
       // เช็คอินวันนี้แล้ว = ไอคอนติ๊กสีเขียวบอกอยู่แล้ว ไม่ต่อข้อความยาว (ช่องนี้แคบ ปุ่มด้านขวากินที่เยอะ)
-      final label = progressMode ? 'Day $daysDone/$durationDays' : '$durationDays-day check-in';
+      final label = progressMode ? tr('Day {0}/{1}', [daysDone, durationDays]) : tr('{0}-day check-in', [durationDays]);
       final done = progressMode && checkedInToday;
       final bonus = completionBonus;
       // หน้า Explore: ชิปสีส้มบอกโบนัสจบเควสให้เด่น — ดึงให้คนเลือกเควสหลายวัน (ผู้ใช้สั่ง 6 ต.ค. 2026)
@@ -430,7 +431,7 @@ class _SoloInfoRow extends StatelessWidget {
                     const SizedBox(width: 3),
                     Flexible(
                       child: Text(
-                        '$durationDays days · +$bonus bonus',
+                        tr('{0} days · +{1} bonus', [durationDays, bonus]),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.orange.shade800),
@@ -497,7 +498,7 @@ class _SoloInfoRow extends StatelessWidget {
         const SizedBox(width: 4),
         Flexible(
           child: Text(
-            done ? 'Done $timesToday× today' : 'Repeatable',
+            done ? tr('Done {0}× today', [timesToday]) : tr('Repeatable'),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(

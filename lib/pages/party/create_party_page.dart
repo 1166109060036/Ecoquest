@@ -9,6 +9,7 @@ import '../../utils/constants.dart';
 import '../../utils/date_format.dart';
 import '../../widgets/bubble_toast.dart';
 import '../../widgets/falling_leaves_overlay.dart';
+import '../../l10n/tr.dart';
 
 // หน้าสร้างห้อง (Party) จาก party quest ที่มีอยู่แล้ว — เหมือนสร้างห้องในเกมให้คนอื่นกดเข้าร่วม
 // เข้าถึงได้ทางเดียว: กดปุ่ม + (FAB) มุมขวาล่างของหน้า Explore ตอนเลือก chip "Party"
@@ -49,7 +50,7 @@ class _CreatePartyPageState extends State<CreatePartyPage> {
   // quest template เก่าบางอันยังมี capacity: 0 (ไม่จำกัด) ค้างอยู่ -> clamp ขึ้นมาที่ขั้นต่ำเสมอ
   void _applyQuest(QuestCardModel quest) {
     _selectedQuest = quest;
-    _nameController.text = '${quest.title} Party';
+    _nameController.text = tr('{0} Party', [quest.title]);
     _locationController.text = quest.location;
     _capacity = quest.capacity > _minPartyCapacity ? quest.capacity : _minPartyCapacity;
   }
@@ -101,19 +102,19 @@ class _CreatePartyPageState extends State<CreatePartyPage> {
 
     final name = _nameController.text.trim();
     if (name.isEmpty) {
-      showBubbleToast(context, 'Please enter a room name');
+      showBubbleToast(context, tr('Please enter a room name'));
       return;
     }
     if (_eventDate == null) {
-      showBubbleToast(context, 'Please pick the event date and time');
+      showBubbleToast(context, tr('Please pick the event date and time'));
       return;
     }
     if (_eventDate!.isBefore(DateTime.now())) {
-      showBubbleToast(context, 'Event date must be in the future');
+      showBubbleToast(context, tr('Event date must be in the future'));
       return;
     }
     if (_capacity < _minPartyCapacity) {
-      showBubbleToast(context, 'Capacity must allow at least 2 members');
+      showBubbleToast(context, tr('Capacity must allow at least 2 members'));
       return;
     }
 
@@ -129,11 +130,11 @@ class _CreatePartyPageState extends State<CreatePartyPage> {
     if (!mounted) return;
 
     if (success) {
-      showBubbleToast(context, 'Party created!');
+      showBubbleToast(context, tr('Party created!'));
       // ส่ง true กลับไปให้หน้า Explore เอาไปสลับไปแท็บ Party ให้อัตโนมัติ
       Navigator.pop(context, true);
     } else {
-      showBubbleToast(context, partyProvider.errorMessage ?? 'Failed to create the party');
+      showBubbleToast(context, partyProvider.errorMessage ?? tr('Failed to create the party'));
     }
   }
 
@@ -228,17 +229,17 @@ class _QuestPicker extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          'Choose a party quest to host',
+        Text(
+          tr('Choose a party quest to host'),
           textAlign: TextAlign.center,
           style: TextStyle(color: Colors.white70, fontSize: 13),
         ),
         const SizedBox(height: 16),
         Expanded(
           child: quests.isEmpty
-              ? const Center(
+              ? Center(
                   child: Text(
-                    'No party quests available right now',
+                    tr('No party quests available right now'),
                     style: TextStyle(color: Colors.white70),
                   ),
                 )
@@ -294,8 +295,8 @@ class _QuestPickerTile extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       locked
-                          ? 'Requires Lv. ${quest.minLevelToHost}'
-                          : '+${quest.pointsReward} P  ·  +${quest.xpReward} XP',
+                          ? tr('Requires Lv. {0}', [quest.minLevelToHost])
+                          : tr('+{0} P  ·  +{1} XP', [quest.pointsReward, quest.xpReward]),
                       style: TextStyle(
                         color: locked ? Colors.orangeAccent : Colors.white60,
                         fontSize: 12,
@@ -363,28 +364,28 @@ class _DetailsForm extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    'Hosting: ${quest.title}',
+                    tr('Hosting: {0}', [quest.title]),
                     style: const TextStyle(color: Colors.white70, fontSize: 13),
                   ),
                 ),
                 TextButton(
                   onPressed: onChangeQuest,
-                  child: const Text('Change', style: TextStyle(color: Colors.green)),
+                  child: Text(tr('Change'), style: TextStyle(color: Colors.green)),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            _FieldLabel('Room name'),
-            _DarkTextField(controller: nameController, hint: 'e.g. Saturday cleanup crew', maxLength: 60),
+            _FieldLabel(tr('Room name')),
+            _DarkTextField(controller: nameController, hint: tr('e.g. Saturday cleanup crew'), maxLength: 60),
             const SizedBox(height: 16),
-            _FieldLabel('Event date & time'),
+            _FieldLabel(tr('Event date & time')),
             Row(
               children: [
-                _QuickDateChip(label: 'Tomorrow', onTap: () => onQuickDate(const Duration(days: 1))),
+                _QuickDateChip(label: tr('Tomorrow'), onTap: () => onQuickDate(const Duration(days: 1))),
                 const SizedBox(width: 8),
-                _QuickDateChip(label: 'In 3 days', onTap: () => onQuickDate(const Duration(days: 3))),
+                _QuickDateChip(label: tr('In 3 days'), onTap: () => onQuickDate(const Duration(days: 3))),
                 const SizedBox(width: 8),
-                _QuickDateChip(label: 'Next week', onTap: () => onQuickDate(const Duration(days: 7))),
+                _QuickDateChip(label: tr('Next week'), onTap: () => onQuickDate(const Duration(days: 7))),
               ],
             ),
             const SizedBox(height: 8),
@@ -402,7 +403,7 @@ class _DetailsForm extends StatelessWidget {
                     const Icon(Icons.calendar_today, size: 16, color: Colors.white70),
                     const SizedBox(width: 8),
                     Text(
-                      eventDate == null ? 'Tap to pick date & time' : formatEventDateTime(eventDate!),
+                      eventDate == null ? tr('Tap to pick date & time') : formatEventDateTime(eventDate!),
                       style: TextStyle(
                         color: eventDate == null ? Colors.white54 : Colors.white,
                         fontSize: 14,
@@ -413,10 +414,10 @@ class _DetailsForm extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            _FieldLabel('Location'),
-            _DarkTextField(controller: locationController, hint: 'e.g. Riverside Park', maxLength: 120),
+            _FieldLabel(tr('Location')),
+            _DarkTextField(controller: locationController, hint: tr('e.g. Riverside Park'), maxLength: 120),
             const SizedBox(height: 16),
-            _FieldLabel('Capacity'),
+            _FieldLabel(tr('Capacity')),
             Row(
               children: [
                 Text(
@@ -437,7 +438,7 @@ class _DetailsForm extends StatelessWidget {
               ],
             ),
             Text(
-              'The room must be full before the leader can start the event',
+              tr('The room must be full before the leader can start the event'),
               style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 11.5),
             ),
             const SizedBox(height: 20),
@@ -456,7 +457,7 @@ class _DetailsForm extends StatelessWidget {
                       width: 20,
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
-                  : const Text('Create Party', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                  : Text(tr('Create Party'), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
             ),
           ],
         ),
@@ -579,9 +580,9 @@ class _TopBar extends StatelessWidget {
             child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
           ),
         ),
-        const Expanded(
+        Expanded(
           child: Text(
-            'CREATE PARTY',
+            tr('CREATE PARTY'),
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Colors.white,

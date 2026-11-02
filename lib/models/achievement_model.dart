@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/tr.dart';
 
 // ขั้นของเหรียญ (Bronze / Silver / Gold) — backend/utils/achievements.js
 class MedalTier {
@@ -106,7 +107,7 @@ class AchievementMedalModel {
       count: json['count'] ?? json['progress'] ?? 0,
       // backend เก่าที่ยังไม่มีขั้น: ปลดล็อกแล้ว = Bronze
       tier: json['tier'] ?? (unlocked ? 'bronze' : null),
-      tierLabel: json['tierLabel'] ?? (unlocked ? 'Bronze' : null),
+      tierLabel: json['tierLabel'] ?? (unlocked ? tr('Bronze') : null),
       tierUnlockedAt: DateTime.tryParse(json['tierUnlockedAt']?.toString() ?? '')?.toLocal(),
       nextTier: json['nextTier'],
       maxed: json['maxed'] == true,

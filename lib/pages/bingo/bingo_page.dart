@@ -8,6 +8,7 @@ import '../../widgets/bubble_toast.dart';
 import '../../widgets/leaf_refresh_indicator.dart';
 import '../../widgets/pressable_scale.dart';
 import '../explore/quest_detail_page.dart';
+import '../../l10n/tr.dart';
 
 // หน้า Eco Bingo รายสัปดาห์ (backend/utils/bingo.js) — อาจารย์อยากให้ "อยากทำเควสต่อไปเรื่อยๆ" (30 ก.ย. 2026)
 // การ์ด 3x3 ช่องกลางฟรี / ช่องติดเมื่อเควสผ่านการตรวจ / ครบแถวได้โบนัสเองอัตโนมัติ (แจ้งเตือน + เอฟเฟครางวัลที่ main_shell)
@@ -33,17 +34,17 @@ class _BingoPageState extends State<BingoPage> {
   void _openCell(BingoCell cell) {
     if (cell.free) return;
     if (cell.done) {
-      showBubbleToast(context, 'Done this week — nice!');
+      showBubbleToast(context, tr('Done this week — nice!'));
       return;
     }
     if (cell.pending) {
-      showBubbleToast(context, 'Almost there — this tile fills in shortly');
+      showBubbleToast(context, tr('Almost there — this tile fills in shortly'));
       return;
     }
     final quests = context.read<QuestProvider>().quests;
     final quest = quests.where((q) => q.id == cell.questId).firstOrNull;
     if (quest == null) {
-      showBubbleToast(context, 'This quest is not available right now');
+      showBubbleToast(context, tr('This quest is not available right now'));
       return;
     }
     Navigator.push(
@@ -62,14 +63,14 @@ class _BingoPageState extends State<BingoPage> {
         backgroundColor: Colors.grey.shade50,
         elevation: 0,
         foregroundColor: Colors.black87,
-        title: const Text('Eco Bingo', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+        title: Text(tr('Eco Bingo'), style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
       ),
       body: SafeArea(
         child: card == null
             ? Center(
                 child: provider.isLoading
                     ? const CircularProgressIndicator(color: Colors.green)
-                    : Text(provider.errorMessage ?? 'Could not load Eco Bingo',
+                    : Text(provider.errorMessage ?? tr('Could not load Eco Bingo'),
                         style: TextStyle(color: Colors.grey.shade600)),
               )
             : LeafRefreshIndicator(
@@ -83,8 +84,7 @@ class _BingoPageState extends State<BingoPage> {
                     _BingoGrid(card: card, onTap: _openCell),
                     const SizedBox(height: 14),
                     Text(
-                      'Tiles fill in when you complete the quest. Complete a row, column or diagonal for a bonus — '
-                      'the free tile in the middle counts for everyone.',
+                      tr('Tiles fill in when you complete the quest. Complete a row, column or diagonal for a bonus — the free tile in the middle counts for everyone.'),
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 12, color: Colors.grey.shade600, height: 1.4),
                     ),
@@ -102,9 +102,9 @@ class _BingoHeader extends StatelessWidget {
 
   String get _endsIn {
     final left = card.weekEndsAt.difference(DateTime.now());
-    if (left.inDays >= 1) return 'New card in ${left.inDays} day${left.inDays == 1 ? '' : 's'}';
-    if (left.inHours >= 1) return 'New card in ${left.inHours} h';
-    return 'New card soon';
+    if (left.inDays >= 1) return tr('New card in {0} day{1}', [left.inDays, left.inDays == 1 ? '' : 's']);
+    if (left.inHours >= 1) return tr('New card in {0} h', [left.inHours]);
+    return tr('New card soon');
   }
 
   @override
@@ -127,8 +127,8 @@ class _BingoHeader extends StatelessWidget {
             children: [
               const Icon(Icons.grid_on_rounded, color: Colors.white, size: 20),
               const SizedBox(width: 8),
-              const Expanded(
-                child: Text('This week\'s card',
+              Expanded(
+                child: Text(tr('This week\'s card'),
                     style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
               ),
               Text(_endsIn, style: const TextStyle(color: Colors.white70, fontSize: 11.5)),
@@ -136,12 +136,12 @@ class _BingoHeader extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            card.full ? 'Full card complete!' : '${card.doneCount}/${card.questCount} quests · $lines line${lines == 1 ? '' : 's'}',
+            card.full ? tr('Full card complete!') : '${card.doneCount}/${card.questCount} quests · $lines line${lines == 1 ? '' : 's'}',
             style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 8),
           Text(
-            '+${card.linePoints} P per line · +${card.fullPoints} P for the full card',
+            tr('+{0} P per line · +{1} P for the full card', [card.linePoints, card.fullPoints]),
             style: const TextStyle(color: Colors.white, fontSize: 12.5),
           ),
         ],
@@ -212,7 +212,7 @@ class _BingoTile extends StatelessWidget {
                     children: [
                       Icon(Icons.eco_rounded, color: Colors.green.shade600, size: 30),
                       const SizedBox(height: 2),
-                      Text('FREE',
+                      Text(tr('FREE'),
                           style: TextStyle(
                               fontSize: 12, fontWeight: FontWeight.w800, color: Colors.green.shade700)),
                     ],
@@ -273,7 +273,7 @@ class _BingoTile extends StatelessWidget {
                             color: Colors.orange.shade600,
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Text('1 more!',
+                          child: Text(tr('1 more!'),
                               style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.w800)),
                         ),
                       ),

@@ -13,6 +13,7 @@ import '../../widgets/liquid_glass_dialog.dart';
 import '../../widgets/skeleton_box.dart';
 import '../../widgets/staggered_fade_in.dart';
 import '../../widgets/state_cross_fade.dart';
+import '../../l10n/tr.dart';
 
 // หน้า Inventory — ไอเทมที่มีอยู่จริงเท่านั้น (Camera, Fridge, Eco Badge, ไอเทม Energy ที่ซื้อไว้)
 // สูงสุด 100 ช่อง (capacity) ตามดีไซน์
@@ -43,16 +44,16 @@ class InventoryPage extends StatelessWidget {
       final confirmed = await LiquidGlassDialog.show<bool>(
         context: context,
         icon: const Icon(Icons.bolt_rounded, color: Colors.amber, size: 30),
-        title: 'Use Super Energy?',
-        content: const Text(
-          "This resets all quests you've completed today so you can complete them again. "
-          'Points/XP already earned stay — this just re-opens today\'s quests.',
+        title: tr('Use Super Energy?'),
+        content: Text(
+          tr("This resets all quests you've completed today so you can complete them again. "
+              'Points/XP already earned stay — this just re-opens today\'s quests.'),
           textAlign: TextAlign.center,
           style: LiquidGlassDialog.messageStyle,
         ),
         actions: [
-          LiquidGlassAction(label: 'Cancel', onPressed: () => Navigator.pop(context, false)),
-          LiquidGlassAction(label: 'Use', color: Colors.green, onPressed: () => Navigator.pop(context, true)),
+          LiquidGlassAction(label: tr('Cancel'), onPressed: () => Navigator.pop(context, false)),
+          LiquidGlassAction(label: tr('Use'), color: Colors.green, onPressed: () => Navigator.pop(context, true)),
         ],
       );
       if (confirmed != true || !context.mounted) return;
@@ -63,7 +64,7 @@ class InventoryPage extends StatelessWidget {
     if (!context.mounted) return;
 
     if (!success) {
-      showBubbleToast(context, inventoryProvider.errorMessage ?? 'Failed to use this item');
+      showBubbleToast(context, inventoryProvider.errorMessage ?? tr('Failed to use this item'));
       return;
     }
 
@@ -77,11 +78,11 @@ class InventoryPage extends StatelessWidget {
   }
 
   String _successMessage(String itemType) => switch (itemType) {
-        'red_energy' => '2x Points activated for 30 minutes!',
-        'blue_energy' => '2x XP activated for 30 minutes!',
-        'green_energy' => '2x Party Points activated for 30 minutes!',
-        'super_energy' => "Today's quests were reset — go complete them again!",
-        _ => 'Item used',
+        'red_energy' => tr('2x Points activated for 30 minutes!'),
+        'blue_energy' => tr('2x XP activated for 30 minutes!'),
+        'green_energy' => tr('2x Party Points activated for 30 minutes!'),
+        'super_energy' => tr("Today's quests were reset — go complete them again!"),
+        _ => tr('Item used'),
       };
 
   @override
@@ -129,7 +130,7 @@ class InventoryPage extends StatelessWidget {
                 children: [
                   _CircleBackButton(onTap: () => onNavigateToTab?.call(_homeTabIndex)),
                   const SizedBox(width: 10),
-                  const Text('Inventory',
+                  Text(tr('Inventory'),
                       style: TextStyle(color: Colors.green, fontSize: 22, fontWeight: FontWeight.bold)),
                   const SizedBox(width: 8),
                   Padding(
@@ -181,7 +182,7 @@ class InventoryPage extends StatelessWidget {
                                     description: entry.description,
                                     quantity: entry.quantity,
                                     onTap: entry.onTap,
-                                    actionLabel: 'Use',
+                                    actionLabel: tr('Use'),
                                     actionColor: entry.actionColor,
                                     onAction: entry.onUse,
                                     actionBusy: entry.onUse != null &&
@@ -281,13 +282,13 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              failed ? errorMessage! : 'No items in your inventory yet',
+              failed ? errorMessage! : tr('No items in your inventory yet'),
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
             ),
             const SizedBox(height: 6),
             Text(
-              'Pull down to try again',
+              tr('Pull down to try again'),
               style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
             ),
           ],

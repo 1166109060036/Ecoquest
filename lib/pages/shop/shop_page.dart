@@ -12,6 +12,7 @@ import '../../widgets/inventory_card.dart';
 import '../../widgets/leaf_refresh_indicator.dart';
 import '../../widgets/skeleton_box.dart';
 import '../../widgets/staggered_fade_in.dart';
+import '../../l10n/tr.dart';
 
 // หน้า Item Shop — เข้าจากปุ่มร้านค้าข้างปุ่มกระดิ่งมุมขวาบนของหน้า Profile
 // push ทับ MainShell เลยไม่มี bottom nav ให้เห็น (เหมือนหน้า Notification/Settings)
@@ -51,7 +52,7 @@ class _ShopPageState extends State<ShopPage> with SingleTickerProviderStateMixin
     if (!context.mounted) return;
 
     if (!success) {
-      showBubbleToast(context, inventoryProvider.errorMessage ?? 'Failed to buy this item');
+      showBubbleToast(context, inventoryProvider.errorMessage ?? tr('Failed to buy this item'));
       return;
     }
 
@@ -88,8 +89,8 @@ class _ShopPageState extends State<ShopPage> with SingleTickerProviderStateMixin
                 children: [
                   _CircleBackButton(onTap: () => Navigator.pop(context)),
                   const SizedBox(width: 10),
-                  const Text(
-                    'Item Shop',
+                  Text(
+                    tr('Item Shop'),
                     style: TextStyle(color: Colors.green, fontSize: 22, fontWeight: FontWeight.bold),
                   ),
                   const Spacer(),
@@ -104,9 +105,9 @@ class _ShopPageState extends State<ShopPage> with SingleTickerProviderStateMixin
               labelColor: Colors.green,
               unselectedLabelColor: Colors.grey.shade500,
               indicatorColor: Colors.green,
-              tabs: const [
-                Tab(text: 'Items'),
-                Tab(text: 'Decorations'),
+              tabs: [
+                Tab(text: tr('Items')),
+                Tab(text: tr('Decorations')),
               ],
             ),
             Expanded(
@@ -120,7 +121,7 @@ class _ShopPageState extends State<ShopPage> with SingleTickerProviderStateMixin
                     celebratingItemType: _celebratingItemType,
                     onBuy: (item) => _buyItem(context, item),
                     onRefresh: () => _onRefresh(context),
-                    emptyMessage: 'No items available right now',
+                    emptyMessage: tr('No items available right now'),
                   ),
                   _ShopList(
                     items: cosmeticItems,
@@ -129,7 +130,7 @@ class _ShopPageState extends State<ShopPage> with SingleTickerProviderStateMixin
                     celebratingItemType: _celebratingItemType,
                     onBuy: (item) => _buyItem(context, item),
                     onRefresh: () => _onRefresh(context),
-                    emptyMessage: 'No decorations available right now',
+                    emptyMessage: tr('No decorations available right now'),
                     groupBySlot: true,
                     onPreview: (item) => showCosmeticPreview(
                       context,
@@ -249,12 +250,12 @@ class _ShopList extends StatelessWidget {
               title: item.title,
               description: item.description,
               quantity: item.quantity > 0 ? item.quantity : null,
-              actionLabel: 'Buy · ${item.cost} P',
+              actionLabel: tr('Buy · {0} P', [item.cost]),
               actionColor: item.accentColor,
               onAction: owned || !canAfford ? null : () => onBuy(item),
               actionBusy: inventoryProvider.busyItemType == item.itemType,
               celebrate: celebratingItemType == item.itemType,
-              secondaryActionLabel: onPreview != null ? 'Preview' : null,
+              secondaryActionLabel: onPreview != null ? tr('Preview') : null,
               onSecondaryAction: onPreview != null ? () => onPreview!(item) : null,
             ),
           );
@@ -315,7 +316,7 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              'Pull down to try again',
+              tr('Pull down to try again'),
               style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
             ),
           ],

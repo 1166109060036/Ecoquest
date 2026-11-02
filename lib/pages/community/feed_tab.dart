@@ -17,6 +17,7 @@ import '../../widgets/staggered_fade_in.dart';
 import '../../widgets/state_cross_fade.dart';
 import '../profile/player_profile_page.dart';
 import 'reported_posts_page.dart';
+import '../../l10n/tr.dart';
 
 // แท็บ Feed ใน Community (แท็บแรก) — อาจารย์ให้คนอื่นเห็นข้อมูลภารกิจ และให้รู้สึกว่าภารกิจช่วยโลกจริง (28 ก.ย. 2026)
 //   1) การ์ด "Ebetsu's impact" — CO2 ที่ผู้เล่นทั้งเมืองลดได้รวมกัน + เทียบเป็นต้นสนดูดซับ (backend/routes/impact.js)
@@ -135,15 +136,15 @@ class _FeedTabState extends State<FeedTab> with AutomaticKeepAliveClientMixin {
     final confirmed = await LiquidGlassDialog.show<bool>(
       context: context,
       icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 28),
-      title: 'Remove this post?',
+      title: tr('Remove this post?'),
       content: Text(
-        'The photo will be deleted and the post will no longer appear in the feed. Points already earned are kept.',
+        tr('The photo will be deleted and the post will no longer appear in the feed. Points already earned are kept.'),
         textAlign: TextAlign.center,
         style: LiquidGlassDialog.messageStyle,
       ),
       actions: [
-        LiquidGlassAction(label: 'Cancel', onPressed: () => Navigator.pop(context, false)),
-        LiquidGlassAction(label: 'Remove', color: Colors.redAccent, onPressed: () => Navigator.pop(context, true)),
+        LiquidGlassAction(label: tr('Cancel'), onPressed: () => Navigator.pop(context, false)),
+        LiquidGlassAction(label: tr('Remove'), color: Colors.redAccent, onPressed: () => Navigator.pop(context, true)),
       ],
     );
     if (confirmed != true || !mounted) return;
@@ -151,7 +152,7 @@ class _FeedTabState extends State<FeedTab> with AutomaticKeepAliveClientMixin {
       await _feedService.removePost(post.id);
       if (!mounted) return;
       setState(() => _posts = _posts.where((p) => p.id != post.id).toList());
-      showBubbleToast(context, 'Post removed');
+      showBubbleToast(context, tr('Post removed'));
     } catch (e) {
       if (mounted) showBubbleToast(context, e.toString().replaceFirst('Exception: ', ''));
     }
@@ -170,7 +171,7 @@ class _FeedTabState extends State<FeedTab> with AutomaticKeepAliveClientMixin {
       if (!mounted) return;
       final index = _posts.indexWhere((p) => p.id == post.id);
       if (index >= 0) setState(() => _posts[index] = _posts[index].copyWith(reportedByMe: true));
-      showBubbleToast(context, 'Thanks — an admin will take a look');
+      showBubbleToast(context, tr('Thanks — an admin will take a look'));
     } catch (e) {
       if (mounted) showBubbleToast(context, e.toString().replaceFirst('Exception: ', ''));
     }
@@ -199,18 +200,18 @@ class _FeedTabState extends State<FeedTab> with AutomaticKeepAliveClientMixin {
       ],
       const SizedBox(height: 16),
       // Today Feed — backend ส่งมาแค่ของวันนี้ ขึ้นวันใหม่ (เที่ยงคืนเวลาญี่ปุ่น) รูปเมื่อวานถูกลบ (backend/routes/feed.js)
-      const Text("Today's quests",
+      Text(tr("Today's quests"),
           style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87)),
       const SizedBox(height: 2),
-      Text("Starts fresh every midnight · tap ⋮ to report a photo that doesn't look right",
+      Text(tr("Starts fresh every midnight · tap ⋮ to report a photo that doesn't look right"),
           style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
       const SizedBox(height: 10),
       if (_error != null)
         _FeedEmpty(icon: Icons.cloud_off, text: _error!)
       else if (_posts.isEmpty)
-        const _FeedEmpty(
+        _FeedEmpty(
           icon: Icons.eco_outlined,
-          text: 'No quests today yet — complete one and it will show up here',
+          text: tr('No quests today yet — complete one and it will show up here'),
         )
       else
         for (var i = 0; i < _posts.length; i++) ...[
@@ -295,7 +296,7 @@ class _ImpactCard extends StatelessWidget {
             children: [
               const Icon(Icons.public_rounded, color: Colors.white, size: 18),
               const SizedBox(width: 6),
-              Text("${impact.city}'s impact",
+              Text(tr("{0}'s impact", [impact.city]),
                   style: const TextStyle(color: Colors.white, fontSize: 13.5, fontWeight: FontWeight.w700)),
             ],
           ),
@@ -318,7 +319,7 @@ class _ImpactCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 4),
-          Text('saved together by ${all.players} player${all.players == 1 ? '' : 's'}',
+          Text(tr('saved together by {0} player{1}', [all.players, all.players == 1 ? '' : 's']),
               style: const TextStyle(color: Colors.white70, fontSize: 12.5)),
           const SizedBox(height: 12),
           Container(
@@ -346,9 +347,9 @@ class _ImpactCard extends StatelessWidget {
           const SizedBox(height: 12),
           Row(
             children: [
-              _ImpactStat(label: 'This week', value: formatCo2e(week.co2eKg)),
-              _ImpactStat(label: 'Quests done', value: '${all.questsCompleted}'),
-              _ImpactStat(label: 'This week', value: '${week.questsCompleted} quests'),
+              _ImpactStat(label: tr('This week'), value: formatCo2e(week.co2eKg)),
+              _ImpactStat(label: tr('Quests done'), value: '${all.questsCompleted}'),
+              _ImpactStat(label: tr('This week'), value: '${week.questsCompleted} quests'),
             ],
           ),
         ],
@@ -390,7 +391,7 @@ class _CountedImpactRow extends StatelessWidget {
             ),
           ),
           if (thisWeek > 0)
-            Text('+$thisWeek this week', style: const TextStyle(color: Colors.white70, fontSize: 11)),
+            Text(tr('+{0} this week', [thisWeek]), style: const TextStyle(color: Colors.white70, fontSize: 11)),
         ],
       ),
     );
@@ -451,9 +452,9 @@ class _ReportsBanner extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(count == 1 ? '1 reported post' : '$count reported posts',
+                      Text(count == 1 ? tr('1 reported post') : tr('{0} reported posts', [count]),
                           style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: Colors.orange.shade900)),
-                      Text('Players flagged these photos — take a look',
+                      Text(tr('Players flagged these photos — take a look'),
                           style: TextStyle(fontSize: 11.5, color: Colors.orange.shade800)),
                     ],
                   ),
@@ -483,14 +484,14 @@ class _ReportReasonSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Padding(
+            Padding(
               padding: EdgeInsets.fromLTRB(20, 4, 20, 2),
-              child: Text('Report this post',
+              child: Text(tr('Report this post'),
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-              child: Text('An admin will check it. The player is not told who reported.',
+              child: Text(tr('An admin will check it. The player is not told who reported.'),
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
             ),
             for (final entry in reportReasonLabels.entries)
@@ -529,9 +530,9 @@ class _FeedPostCard extends StatelessWidget {
     final quest = post.quest;
     final co2 = quest?.co2PerSubmission;
     final action = post.isParty
-        ? 'completed a party event'
+        ? tr('completed a party event')
         : post.isCheckIn
-            ? 'checked in Day ${post.checkInDay}/${post.checkInTotal}'
+            ? tr('checked in Day {0}/{1}', [post.checkInDay, post.checkInTotal])
             : 'completed';
 
     return Container(
@@ -575,7 +576,7 @@ class _FeedPostCard extends StatelessWidget {
                             style: const TextStyle(fontSize: 13, color: Colors.black87),
                             children: [
                               TextSpan(
-                                  text: user?.displayName ?? 'Player',
+                                  text: user?.displayName ?? tr('Player'),
                                   style: const TextStyle(fontWeight: FontWeight.bold)),
                               TextSpan(text: ' $action'),
                             ],
@@ -591,32 +592,32 @@ class _FeedPostCard extends StatelessWidget {
                   if (post.reportedByMe)
                     Padding(
                       padding: const EdgeInsets.only(left: 6),
-                      child: Text('Reported', style: TextStyle(fontSize: 11, color: Colors.orange.shade700)),
+                      child: Text(tr('Reported'), style: TextStyle(fontSize: 11, color: Colors.orange.shade700)),
                     ),
                   if (onRemove != null || onReport != null)
                     PopupMenuButton<String>(
-                      tooltip: 'More',
+                      tooltip: tr('More'),
                       icon: Icon(Icons.more_vert_rounded, color: Colors.grey.shade500),
                       onSelected: (v) => v == 'report' ? onReport?.call() : onRemove?.call(),
                       itemBuilder: (_) => [
                         if (onReport != null)
-                          const PopupMenuItem(
+                          PopupMenuItem(
                             value: 'report',
                             child: ListTile(
                               dense: true,
                               contentPadding: EdgeInsets.zero,
                               leading: Icon(Icons.flag_outlined),
-                              title: Text('Report post'),
+                              title: Text(tr('Report post')),
                             ),
                           ),
                         if (onRemove != null)
-                          const PopupMenuItem(
+                          PopupMenuItem(
                             value: 'remove',
                             child: ListTile(
                               dense: true,
                               contentPadding: EdgeInsets.zero,
                               leading: Icon(Icons.delete_outline_rounded),
-                              title: Text('Remove post'),
+                              title: Text(tr('Remove post')),
                             ),
                           ),
                       ],
@@ -646,7 +647,7 @@ class _FeedPostCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(quest?.title ?? 'Quest',
+                      Text(quest?.title ?? tr('Quest'),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.bold, color: Color(0xFF1B5E20))),
@@ -706,7 +707,7 @@ class _CheerButton extends StatelessWidget {
                 child: Icon(active ? Icons.eco_rounded : Icons.eco_outlined, color: color, size: 22),
               ),
               const SizedBox(width: 4),
-              Text(count > 0 ? '$count' : 'Cheer',
+              Text(count > 0 ? '$count' : tr('Cheer'),
                   style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: color)),
             ],
           ),

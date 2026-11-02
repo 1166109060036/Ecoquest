@@ -5,6 +5,7 @@ import '../models/user_model.dart';
 import '../models/profile_model.dart';
 import '../utils/constants.dart';
 import 'storage_service.dart';
+import '../l10n/tr.dart';
 
 // login ด้วยรหัสผ่านถูกแต่ยังไม่ยืนยันอีเมล (backend ตอบ 403 needsVerification) — หน้า Login ใช้ email
 // ไปเปิดหน้ากรอก OTP ต่อ / toString แบบ Exception ปกติ ให้ provider ตัด 'Exception: ' ไปโชว์ได้เหมือนเดิม
@@ -40,7 +41,7 @@ class AuthService {
     final data = jsonDecode(response.body);
 
     if (response.statusCode != 201) {
-      throw Exception(data['message'] ?? 'Sign up failed');
+      throw Exception(data['message'] ?? tr('Sign up failed'));
     }
   }
 
@@ -54,7 +55,7 @@ class AuthService {
 
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Invalid or expired OTP');
+      throw Exception(data['message'] ?? tr('Invalid or expired OTP'));
     }
 
     final user = UserModel.fromJson(data['user']);
@@ -71,7 +72,7 @@ class AuthService {
 
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to send OTP');
+      throw Exception(data['message'] ?? tr('Failed to send OTP'));
     }
   }
 
@@ -88,10 +89,10 @@ class AuthService {
     final data = jsonDecode(response.body);
 
     if (response.statusCode == 403 && data['needsVerification'] == true) {
-      throw EmailNotVerifiedException(data['email'] ?? email, data['message'] ?? 'Please verify your email first');
+      throw EmailNotVerifiedException(data['email'] ?? email, data['message'] ?? tr('Please verify your email first'));
     }
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Sign in failed');
+      throw Exception(data['message'] ?? tr('Sign in failed'));
     }
 
     final user = UserModel.fromJson(data['user']);
@@ -117,7 +118,7 @@ class AuthService {
     final data = jsonDecode(response.body);
 
     if (response.statusCode != 201) {
-      throw Exception(data['message'] ?? 'Guest sign in failed');
+      throw Exception(data['message'] ?? tr('Guest sign in failed'));
     }
 
     final user = UserModel.fromJson(data['user']);
@@ -178,7 +179,7 @@ class AuthService {
       await _storage.clearSession();
     }
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to load your profile');
+      throw Exception(data['message'] ?? tr('Failed to load your profile'));
     }
 
     final profile = ProfileData.fromJson(data);
@@ -203,7 +204,7 @@ class AuthService {
 
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to send OTP');
+      throw Exception(data['message'] ?? tr('Failed to send OTP'));
     }
     return data['email'] ?? '';
   }
@@ -219,7 +220,7 @@ class AuthService {
 
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Invalid or expired OTP');
+      throw Exception(data['message'] ?? tr('Invalid or expired OTP'));
     }
     http.adminToken = data['adminToken'];
   }
@@ -242,7 +243,7 @@ class AuthService {
 
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to update avatar');
+      throw Exception(data['message'] ?? tr('Failed to update avatar'));
     }
   }
 
@@ -262,7 +263,7 @@ class AuthService {
 
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to send OTP');
+      throw Exception(data['message'] ?? tr('Failed to send OTP'));
     }
   }
 
@@ -290,7 +291,7 @@ class AuthService {
     final data = jsonDecode(response.body);
 
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to create your account');
+      throw Exception(data['message'] ?? tr('Failed to create your account'));
     }
 
     final user = UserModel.fromJson(data['user']);
@@ -317,7 +318,7 @@ class AuthService {
 
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to update your name');
+      throw Exception(data['message'] ?? tr('Failed to update your name'));
     }
   }
 
@@ -335,7 +336,7 @@ class AuthService {
 
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to update notification setting');
+      throw Exception(data['message'] ?? tr('Failed to update notification setting'));
     }
   }
 
@@ -353,7 +354,7 @@ class AuthService {
 
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Incorrect password');
+      throw Exception(data['message'] ?? tr('Incorrect password'));
     }
   }
 
@@ -374,7 +375,7 @@ class AuthService {
 
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to change password');
+      throw Exception(data['message'] ?? tr('Failed to change password'));
     }
     // token เดิมถูกยกเลิกแล้ว (backend เพิ่ม tokenVersion) — เก็บ token ใหม่ เครื่องนี้จะได้ไม่หลุด
     final user = await _storage.getUser();
@@ -393,7 +394,7 @@ class AuthService {
 
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to send OTP');
+      throw Exception(data['message'] ?? tr('Failed to send OTP'));
     }
   }
 
@@ -410,7 +411,7 @@ class AuthService {
 
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Invalid or expired OTP');
+      throw Exception(data['message'] ?? tr('Invalid or expired OTP'));
     }
     return data['resetToken'];
   }
@@ -428,7 +429,7 @@ class AuthService {
 
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to reset password');
+      throw Exception(data['message'] ?? tr('Failed to reset password'));
     }
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../services/submission_service.dart';
 import '../../utils/date_format.dart';
 import '../../widgets/bubble_toast.dart';
+import '../../l10n/tr.dart';
 
 // โพสต์ที่แอดมินถอนรูป/ยึดแต้มไป และยังกู้คืนได้ (ภายใน 7 วัน — backend/routes/reviews.js GET /removed)
 // กด Restore = รูปกลับมา + คืนแต้มที่ยึดไป + แจ้งเตือนเจ้าของ (สัญญากับอาจารย์ Bun 21 ต.ค. 2026)
@@ -49,7 +50,7 @@ class _RemovedPostsPageState extends State<RemovedPostsPage> {
     try {
       final points = await _service.restorePost(p.post.id);
       if (!mounted) return;
-      showBubbleToast(context, points > 0 ? 'Restored — $points points given back' : 'Restored — the photo is back');
+      showBubbleToast(context, points > 0 ? tr('Restored — {0} points given back', [points]) : tr('Restored — the photo is back'));
       setState(() => _items = _items.where((i) => i.post.id != p.post.id).toList());
     } catch (e) {
       if (mounted) showBubbleToast(context, e.toString().replaceFirst('Exception: ', ''));
@@ -66,7 +67,7 @@ class _RemovedPostsPageState extends State<RemovedPostsPage> {
         backgroundColor: Colors.grey.shade50,
         elevation: 0,
         foregroundColor: Colors.black87,
-        title: const Text('Recently removed', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+        title: Text(tr('Recently removed'), style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: Colors.green))
@@ -77,7 +78,7 @@ class _RemovedPostsPageState extends State<RemovedPostsPage> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
                 children: [
-                  Text('Posts you removed in the last 7 days. Restore brings the photo back and returns any points taken.',
+                  Text(tr('Posts you removed in the last 7 days. Restore brings the photo back and returns any points taken.'),
                       style: TextStyle(color: Colors.grey.shade700, fontSize: 13)),
                   const SizedBox(height: 12),
                   if (_error != null)
@@ -85,7 +86,7 @@ class _RemovedPostsPageState extends State<RemovedPostsPage> {
                   else if (_items.isEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 60),
-                      child: Text('Nothing to restore', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey.shade600)),
+                      child: Text(tr('Nothing to restore'), textAlign: TextAlign.center, style: TextStyle(color: Colors.grey.shade600)),
                     )
                   else
                     for (final p in _items) _card(p),
@@ -130,15 +131,15 @@ class _RemovedPostsPageState extends State<RemovedPostsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(s.quest?.title ?? 'Quest', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text(s.quest?.title ?? tr('Quest'), style: const TextStyle(fontWeight: FontWeight.bold)),
                   Text(s.user?.displayName ?? '', style: TextStyle(color: Colors.grey.shade700, fontSize: 12)),
                   const SizedBox(height: 4),
                   Text(
-                    revoked ? 'Photo removed · ${s.rewardPoints} points taken back' : 'Photo removed · points kept',
+                    revoked ? tr('Photo removed · {0} points taken back', [s.rewardPoints]) : tr('Photo removed · points kept'),
                     style: TextStyle(color: revoked ? Colors.redAccent : Colors.orange.shade800, fontSize: 12, fontWeight: FontWeight.w600),
                   ),
                   Text(
-                    '${p.removedAt != null ? formatRelativeTime(p.removedAt!) : ''} · ${daysLeft <= 1 ? 'less than a day' : '$daysLeft days'} left',
+                    tr('{0} · {1} left', [p.removedAt != null ? formatRelativeTime(p.removedAt!) : '', daysLeft <= 1 ? tr('less than a day') : tr('{0} days', [daysLeft])]),
                     style: TextStyle(color: Colors.grey.shade600, fontSize: 11.5),
                   ),
                   const SizedBox(height: 8),
@@ -149,7 +150,7 @@ class _RemovedPostsPageState extends State<RemovedPostsPage> {
                       icon: _busyId == s.id
                           ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                           : const Icon(Icons.restore_rounded, size: 18),
-                      label: const Text('Restore'),
+                      label: Text(tr('Restore')),
                       style: FilledButton.styleFrom(backgroundColor: Colors.green),
                     ),
                   ),

@@ -10,6 +10,7 @@ import '../../widgets/inventory_card.dart';
 import '../../widgets/leaf_refresh_indicator.dart';
 import '../../widgets/skeleton_box.dart';
 import '../../widgets/staggered_fade_in.dart';
+import '../../l10n/tr.dart';
 
 // key ที่ backend ใช้เก็บ cosmetics ต่อ slot (PUT /inventory/cosmetics) — ต้องตรงกับ
 // backend/models/User.js#CosmeticsSchema เป๊ะๆ
@@ -49,7 +50,7 @@ class CustomizeProfilePage extends StatelessWidget {
     if (!success) {
       showBubbleToast(
         context,
-        inventoryProvider.errorMessage ?? 'Failed to update cosmetics',
+        inventoryProvider.errorMessage ?? tr('Failed to update cosmetics'),
       );
       return;
     }
@@ -115,8 +116,8 @@ class CustomizeProfilePage extends StatelessWidget {
                 children: [
                   _CircleBackButton(onTap: () => Navigator.pop(context)),
                   const SizedBox(width: 10),
-                  const Text(
-                    'Custom Profile',
+                  Text(
+                    tr('Custom Profile'),
                     style: TextStyle(
                       color: Colors.green,
                       fontSize: 22,
@@ -187,8 +188,8 @@ class CustomizeProfilePage extends StatelessWidget {
                               title: item.title,
                               description: item.description,
                               actionLabel: entry.isEquipped
-                                  ? 'Equipped'
-                                  : 'Equip',
+                                  ? tr('Equipped')
+                                  : tr('Equip'),
                               actionColor: entry.isEquipped
                                   ? Colors.grey
                                   : item.accentColor,
@@ -264,13 +265,13 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              failed ? errorMessage! : 'No decorations yet',
+              failed ? errorMessage! : tr('No decorations yet'),
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
             ),
             const SizedBox(height: 6),
             Text(
-              failed ? 'Pull down to try again' : 'Buy some from the Shop',
+              failed ? tr('Pull down to try again') : tr('Buy some from the Shop'),
               style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
             ),
           ],

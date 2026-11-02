@@ -5,6 +5,7 @@ import '../models/quest_card_model.dart';
 import '../models/quest_history_model.dart';
 import '../utils/constants.dart';
 import 'storage_service.dart';
+import '../l10n/tr.dart';
 
 // เรียก API ฝั่ง quest ทั้งหมด (ลิสต์ quest / ทำ quest สำเร็จ)
 // ทั้ง 2 endpoint ต้องแนบ token เพราะ backend ต้องรู้ว่าเป็น quest ของ user คนไหน
@@ -23,7 +24,7 @@ class QuestService {
     final data = jsonDecode(response.body);
 
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to load quests');
+      throw Exception(data['message'] ?? tr('Failed to load quests'));
     }
 
     final comboJson = data['combo'] as Map<String, dynamic>?;
@@ -46,7 +47,7 @@ class QuestService {
     final data = jsonDecode(response.body);
 
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to load quest history');
+      throw Exception(data['message'] ?? tr('Failed to load quest history'));
     }
 
     return (data['history'] as List)
@@ -79,7 +80,7 @@ class QuestService {
     final data = jsonDecode(response.body);
 
     if (response.statusCode != 200 && response.statusCode != 201) {
-      throw Exception(data['message'] ?? 'Failed to complete quest');
+      throw Exception(data['message'] ?? tr('Failed to complete quest'));
     }
 
     return QuestReward.fromResponse(data);
@@ -99,7 +100,7 @@ class QuestService {
     final data = jsonDecode(response.body);
 
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to start quest');
+      throw Exception(data['message'] ?? tr('Failed to start quest'));
     }
   }
 
@@ -114,7 +115,7 @@ class QuestService {
     final data = jsonDecode(response.body);
 
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to cancel quest');
+      throw Exception(data['message'] ?? tr('Failed to cancel quest'));
     }
   }
 
@@ -129,7 +130,7 @@ class QuestService {
     final data = jsonDecode(response.body);
 
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to load quest progress');
+      throw Exception(data['message'] ?? tr('Failed to load quest progress'));
     }
 
     return (data['progress'] as List)

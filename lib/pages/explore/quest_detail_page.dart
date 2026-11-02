@@ -3,6 +3,7 @@ import '../../models/quest_card_model.dart';
 import '../../utils/co2_format.dart';
 import '../../widgets/check_in_ring.dart';
 import '../../widgets/quest_card.dart';
+import '../../l10n/tr.dart';
 
 // หน้ารายละเอียด quest — เข้าโดยกดที่ตัวการ์ด quest (ปุ่ม Start บนการ์ดยังทำงานเหมือนเดิม)
 // โครงตามดีไซน์: รูปปกเต็มความกว้างด้านบน -> การ์ดขาวคร่อมขึ้นมาทับรูป -> ปุ่มล่างสุด
@@ -33,11 +34,11 @@ class QuestDetailPage extends StatelessWidget {
     switch (quest.category) {
       case QuestCardCategory.party:
         // ต้องสร้างห้องก่อน คนอื่นถึงจะเข้าร่วมได้ — ตรงกับปุ่มบนการ์ดในหน้า Explore/Home
-        return const _CategoryStyle('Party', Colors.deepOrange, 'Create Party');
+        return _CategoryStyle(tr('Party'), Colors.deepOrange, tr('Create Party'));
       case QuestCardCategory.event:
-        return const _CategoryStyle('Event', Colors.blue, 'Join');
+        return _CategoryStyle(tr('Event'), Colors.blue, tr('Join'));
       case QuestCardCategory.solo:
-        return const _CategoryStyle('Solo', Colors.redAccent, 'Start');
+        return _CategoryStyle(tr('Solo'), Colors.redAccent, tr('Start'));
     }
   }
 
@@ -52,8 +53,8 @@ class QuestDetailPage extends StatelessWidget {
     final VoidCallback? onPressed;
     if (quest.isMultiDay && completeMode) {
       label = quest.checkedInToday
-          ? 'Checked in today · Day ${quest.daysDone}/${quest.durationDays}'
-          : 'Check in with a photo · Day ${quest.daysDone + 1}/${quest.durationDays}';
+          ? tr('Checked in today · Day {0}/{1}', [quest.daysDone, quest.durationDays])
+          : tr('Check in with a photo · Day {0}/{1}', [quest.daysDone + 1, quest.durationDays]);
       onPressed = quest.checkedInToday
           ? null
           : () async {
@@ -61,17 +62,17 @@ class QuestDetailPage extends StatelessWidget {
               await onComplete?.call(quest);
             };
     } else if (quest.isMultiDay && quest.inProgress) {
-      label = 'In progress';
+      label = tr('In progress');
       onPressed = null;
     } else if (completeMode) {
       // เควสที่ต้องมีหลักฐาน — กดแล้วเปิดแผ่นถ่ายรูป (ระบบตรวจสอบภารกิจ) บอกไว้ตั้งแต่บนปุ่มเลย
-      label = quest.requiresProof ? 'Complete with a photo' : 'Complete';
+      label = quest.requiresProof ? tr('Complete with a photo') : tr('Complete');
       onPressed = () async {
         Navigator.pop(context);
         await onComplete?.call(quest);
       };
     } else if (quest.inProgress) {
-      label = 'In progress';
+      label = tr('In progress');
       onPressed = null;
     } else {
       label = style.actionLabel;
@@ -298,20 +299,20 @@ class _MainCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Quest Detail',
+                    Text(tr('Quest Detail'),
                         style: TextStyle(
                             fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87)),
                     const SizedBox(height: 8),
                     Text(
                       quest.detail.isNotEmpty
                           ? quest.detail
-                          : 'No description for this quest yet.',
+                          : tr('No description for this quest yet.'),
                       style: TextStyle(fontSize: 12.5, color: Colors.grey.shade700, height: 1.5),
                     ),
                     const SizedBox(height: 16),
                     Row(
                       children: [
-                        const Text('Point',
+                        Text(tr('Point'),
                             style: TextStyle(
                                 fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87)),
                         const Spacer(),
@@ -360,7 +361,7 @@ class _CheckInProgressCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final today = quest.checkedInToday;
     return _SectionCard(
-      title: 'Your progress',
+      title: tr('Your progress'),
       child: Row(
         children: [
           CheckInRing(
@@ -395,7 +396,7 @@ class _CheckInProgressCard extends StatelessWidget {
                     const SizedBox(width: 6),
                     Flexible(
                       child: Text(
-                        today ? 'Checked in today' : 'Not checked in yet today',
+                        today ? tr('Checked in today') : tr('Not checked in yet today'),
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
@@ -407,7 +408,7 @@ class _CheckInProgressCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Check in once a day on the Progress page. Missing a day restarts from Day 1.',
+                  tr('Check in once a day on the Progress page. Missing a day restarts from Day 1.'),
                   style: TextStyle(fontSize: 11.5, color: Colors.grey.shade600, height: 1.4),
                 ),
               ],
@@ -436,24 +437,24 @@ class _RewardCard extends StatelessWidget {
             icon: Icons.stars_rounded,
             color: Colors.amber.shade700,
             value: '+${quest.displayPoints}',
-            label: checkIn != null ? 'Points total' : 'Points',
+            label: checkIn != null ? tr('Points total') : tr('Points'),
           ),
           _RewardItem(
             icon: Icons.trending_up_rounded,
             color: Colors.green,
             value: '+${quest.displayXp}',
-            label: checkIn != null ? 'XP total' : 'XP',
+            label: checkIn != null ? tr('XP total') : 'XP',
           ),
           _RewardItem(
             icon: Icons.cloud_outlined,
             color: Colors.lightBlue,
             value: formatCo2e(quest.co2eEstimateKg),
-            label: 'CO₂ saved',
+            label: tr('CO₂ saved'),
           ),
         ],
       );
     return _SectionCard(
-      title: 'What you get',
+      title: tr('What you get'),
       child: checkIn == null
           ? row
           : Column(
@@ -477,20 +478,19 @@ class _RewardCard extends StatelessWidget {
                         children: [
                           Icon(Icons.local_fire_department, size: 18, color: Colors.orange.shade700),
                           const SizedBox(width: 6),
-                          Text('${quest.durationDays}-day challenge',
+                          Text(tr('{0}-day challenge', [quest.durationDays]),
                               style: TextStyle(
                                   fontSize: 13, fontWeight: FontWeight.bold, color: Colors.orange.shade900)),
                         ],
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        '+${checkIn.daily.points} P every day you check in, '
-                        'plus a +${checkIn.completionBonus.points} P bonus when you finish all ${quest.durationDays} days.',
+                        tr('+{0} P every day you check in, plus a +{1} P bonus when you finish all {2} days.', [checkIn.daily.points, checkIn.completionBonus.points, quest.durationDays]),
                         style: TextStyle(fontSize: 12.5, height: 1.4, color: Colors.grey.shade800),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Miss a day and you start again from Day 1 — points you already earned are kept.',
+                        tr('Miss a day and you start again from Day 1 — points you already earned are kept.'),
                         style: TextStyle(fontSize: 11.5, height: 1.4, color: Colors.grey.shade600),
                       ),
                     ],
@@ -560,24 +560,24 @@ class _AboutCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _SectionCard(
-      title: 'About this quest',
+      title: tr('About this quest'),
       child: Column(
         children: [
           _InfoRow(
             icon: Icons.category_outlined,
-            label: 'Category',
+            label: tr('Category'),
             value: _pretty(quest.questCategory),
           ),
           const SizedBox(height: 10),
           _InfoRow(
             icon: Icons.fitness_center_rounded,
-            label: 'Difficulty',
+            label: tr('Difficulty'),
             value: _pretty(quest.difficulty),
           ),
           const SizedBox(height: 10),
           _InfoRow(
             icon: Icons.public_rounded,
-            label: 'Impact',
+            label: tr('Impact'),
             value: _pretty(quest.impact),
           ),
           // เควสหลายวันเช็คอินได้วันละครั้งตามธรรมชาติของเควส — นอกนั้นทำซ้ำได้ไม่จำกัดต่อวัน
@@ -585,9 +585,9 @@ class _AboutCard extends StatelessWidget {
             const SizedBox(height: 10),
             _InfoRow(
               icon: quest.timesToday > 0 ? Icons.check_circle : Icons.refresh_rounded,
-              label: 'Repeat',
-              value: 'Anytime',
-              note: quest.timesToday > 0 ? 'Done ${quest.timesToday}× today' : 'No daily limit',
+              label: tr('Repeat'),
+              value: tr('Anytime'),
+              note: quest.timesToday > 0 ? tr('Done {0}× today', [quest.timesToday]) : tr('No daily limit'),
               highlight: quest.timesToday > 0,
             ),
           ],

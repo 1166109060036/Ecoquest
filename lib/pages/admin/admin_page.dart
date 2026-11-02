@@ -11,6 +11,7 @@ import '../../providers/fridge_provider.dart';
 import '../../providers/notification_provider.dart';
 import '../community/reported_posts_page.dart';
 import 'org_requests_page.dart';
+import '../../l10n/tr.dart';
 
 // หน้า Admin/Debug — dev/QA เท่านั้น เข้าได้เฉพาะ user.isAdmin (เช็คซ้ำจริงที่ backend ทุก request
 // ผ่าน backend/middleware/admin.js) ใช้ "รีโมตคอนโทรล" ค่า/สถานะของระบบต่างๆ ตรงๆ ข้ามการเล่นเกมจริง
@@ -29,7 +30,7 @@ class _AdminPageState extends State<AdminPage> {
   final _xpController = TextEditingController();
   final _grantQuantityController = TextEditingController(text: '1');
   final _upgradeLevelController = TextEditingController();
-  final _fridgeNameController = TextEditingController(text: 'Test Milk');
+  final _fridgeNameController = TextEditingController(text: tr('Test Milk'));
   final _fridgeHoursController = TextEditingController(text: '-1');
 
   String? _selectedQuestId;
@@ -64,7 +65,7 @@ class _AdminPageState extends State<AdminPage> {
 
     if (!success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(adminProvider.errorMessage ?? 'Action failed'), backgroundColor: Colors.red.shade700),
+        SnackBar(content: Text(adminProvider.errorMessage ?? tr('Action failed')), backgroundColor: Colors.red.shade700),
       );
       return;
     }
@@ -74,7 +75,7 @@ class _AdminPageState extends State<AdminPage> {
     }
     if (!context.mounted) return;
     ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(successMessage), backgroundColor: Colors.green.shade700));
+        .showSnackBar(SnackBar(content: Text(tr(successMessage)), backgroundColor: Colors.green.shade700));
   }
 
   Future<bool> _confirm(BuildContext context, String title, String message) async {
@@ -84,10 +85,10 @@ class _AdminPageState extends State<AdminPage> {
         title: Text(title),
         content: Text(message),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(tr('Cancel'))),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Confirm', style: TextStyle(color: Colors.red)),
+            child: Text(tr('Confirm'), style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -114,7 +115,7 @@ class _AdminPageState extends State<AdminPage> {
 
     if (raw == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(admin.errorMessage ?? 'Failed to load')),
+        SnackBar(content: Text(admin.errorMessage ?? tr('Failed to load'))),
       );
       return;
     }
@@ -123,11 +124,11 @@ class _AdminPageState extends State<AdminPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Raw User Document'),
+        title: Text(tr('Raw User Document')),
         content: SingleChildScrollView(
           child: SelectableText(encoder.convert(raw), style: const TextStyle(fontFamily: 'monospace', fontSize: 12)),
         ),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Close')))],
       ),
     );
   }
@@ -145,7 +146,7 @@ class _AdminPageState extends State<AdminPage> {
     return Scaffold(
       backgroundColor: Colors.grey.shade100,
       appBar: AppBar(
-        title: const Text('Admin Tools'),
+        title: Text(tr('Admin Tools')),
         backgroundColor: Colors.grey.shade900,
         foregroundColor: Colors.white,
       ),
@@ -157,8 +158,8 @@ class _AdminPageState extends State<AdminPage> {
               padding: EdgeInsets.only(bottom: 8),
               child: LinearProgressIndicator(minHeight: 3),
             ),
-          const Text(
-            'dev/QA only — actions here bypass normal game rules and affect your own account directly.',
+          Text(
+            tr('dev/QA only — actions here bypass normal game rules and affect your own account directly.'),
             style: TextStyle(fontSize: 12, color: Colors.black54, fontStyle: FontStyle.italic),
           ),
           const SizedBox(height: 8),
@@ -167,8 +168,8 @@ class _AdminPageState extends State<AdminPage> {
           Card(
             child: ListTile(
               leading: const Icon(Icons.flag_outlined),
-              title: const Text('Reported posts'),
-              subtitle: const Text('Keep, remove the photo, or take back points'),
+              title: Text(tr('Reported posts')),
+              subtitle: Text(tr('Keep, remove the photo, or take back points')),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportedPostsPage())),
             ),
@@ -176,8 +177,8 @@ class _AdminPageState extends State<AdminPage> {
           Card(
             child: ListTile(
               leading: const Icon(Icons.apartment_rounded),
-              title: const Text('Organizations'),
-              subtitle: const Text('Approve, reject or suspend organization accounts'),
+              title: Text(tr('Organizations')),
+              subtitle: Text(tr('Approve, reject or suspend organization accounts')),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const OrgRequestsPage())),
             ),
@@ -186,12 +187,12 @@ class _AdminPageState extends State<AdminPage> {
 
           // ---- User ----
           _Section(
-            title: 'User',
+            title: tr('User'),
             icon: Icons.person,
             children: [
               Row(
                 children: [
-                  Expanded(child: _numberField(_pointsController, 'Points')),
+                  Expanded(child: _numberField(_pointsController, tr('Points'))),
                   const SizedBox(width: 8),
                   Expanded(child: _numberField(_xpController, 'XP')),
                 ],
@@ -204,10 +205,10 @@ class _AdminPageState extends State<AdminPage> {
                     points: int.tryParse(_pointsController.text),
                     xp: int.tryParse(_xpController.text),
                   ),
-                  successMessage: 'Stats updated',
+                  successMessage: tr('Stats updated'),
                   onSuccess: [auth.refreshProfile],
                 ),
-                child: const Text('Set Points / XP'),
+                child: Text(tr('Set Points / XP')),
               ),
               const Divider(),
               Wrap(
@@ -220,10 +221,10 @@ class _AdminPageState extends State<AdminPage> {
                     onPressed: () => _run(
                       context,
                       admin.service.clearBoosts,
-                      successMessage: 'Boosts cleared',
+                      successMessage: tr('Boosts cleared'),
                       onSuccess: [auth.refreshProfile],
                     ),
-                    child: const Text('Clear Boosts'),
+                    child: Text(tr('Clear Boosts')),
                   ),
                 ],
               ),
@@ -233,11 +234,11 @@ class _AdminPageState extends State<AdminPage> {
                 children: [
                   OutlinedButton(
                     onPressed: () => _showRawUser(context),
-                    child: const Text('View Raw User JSON'),
+                    child: Text(tr('View Raw User JSON')),
                   ),
                   OutlinedButton(
                     onPressed: () => auth.updateAvatar(null),
-                    child: const Text('Clear Avatar'),
+                    child: Text(tr('Clear Avatar')),
                   ),
                 ],
               ),
@@ -245,15 +246,15 @@ class _AdminPageState extends State<AdminPage> {
               ElevatedButton(
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade700, foregroundColor: Colors.white),
                 onPressed: () async {
-                  if (!await _confirm(context, 'Reset account?',
-                      'Wipes quest history, achievements, inventory and upgrades, and resets points/xp/level/streak. This cannot be undone.')) {
+                  if (!await _confirm(context, tr('Reset account?'),
+                      tr('Wipes quest history, achievements, inventory and upgrades, and resets points/xp/level/streak. This cannot be undone.'))) {
                     return;
                   }
                   if (!context.mounted) return;
                   await _run(
                     context,
                     admin.service.resetAccount,
-                    successMessage: 'Account reset',
+                    successMessage: tr('Account reset'),
                     onSuccess: [
                       auth.refreshProfile,
                       () => context.read<QuestProvider>().loadQuests(),
@@ -263,19 +264,19 @@ class _AdminPageState extends State<AdminPage> {
                     ],
                   );
                 },
-                child: const Text('Reset Account (destructive)'),
+                child: Text(tr('Reset Account (destructive)')),
               ),
             ],
           ),
 
           // ---- Quest ----
           _Section(
-            title: 'Quest',
+            title: tr('Quest'),
             icon: Icons.flag,
             children: [
               DropdownButtonFormField<String>(
                 initialValue: _selectedQuestId,
-                decoration: const InputDecoration(labelText: 'Quest', border: OutlineInputBorder()),
+                decoration: InputDecoration(labelText: tr('Quest'), border: OutlineInputBorder()),
                 items: [
                   for (final q in quests) DropdownMenuItem(value: q.id, child: Text(q.title, overflow: TextOverflow.ellipsis)),
                 ],
@@ -288,14 +289,14 @@ class _AdminPageState extends State<AdminPage> {
                     : () => _run(
                           context,
                           () => admin.service.forceCompleteQuest(_selectedQuestId!),
-                          successMessage: 'Quest force-completed',
+                          successMessage: tr('Quest force-completed'),
                           onSuccess: [
                             auth.refreshProfile,
                             () => context.read<QuestProvider>().loadQuests(),
                             () => context.read<AchievementProvider>().loadAchievements(),
                           ],
                         ),
-                child: const Text('Force Complete Selected Quest'),
+                child: Text(tr('Force Complete Selected Quest')),
               ),
               const Divider(),
               Wrap(
@@ -305,25 +306,25 @@ class _AdminPageState extends State<AdminPage> {
                     onPressed: () => _run(
                       context,
                       admin.service.resetQuestsToday,
-                      successMessage: "Today's quests reset",
+                      successMessage: tr("Today's quests reset"),
                       onSuccess: [() => context.read<QuestProvider>().loadQuests()],
                     ),
-                    child: const Text("Reset Today's Quests"),
+                    child: Text(tr("Reset Today's Quests")),
                   ),
                   OutlinedButton(
                     onPressed: () async {
-                      if (!await _confirm(context, 'Reset all quest history?', 'Deletes every completion record for your account.')) {
+                      if (!await _confirm(context, tr('Reset all quest history?'), tr('Deletes every completion record for your account.'))) {
                         return;
                       }
                       if (!context.mounted) return;
                       await _run(
                         context,
                         admin.service.resetQuestsAll,
-                        successMessage: 'All quest history reset',
+                        successMessage: tr('All quest history reset'),
                         onSuccess: [() => context.read<QuestProvider>().loadQuests()],
                       );
                     },
-                    child: const Text('Reset All Quest History'),
+                    child: Text(tr('Reset All Quest History')),
                   ),
                 ],
               ),
@@ -332,12 +333,12 @@ class _AdminPageState extends State<AdminPage> {
 
           // ---- Party ----
           _Section(
-            title: 'Party',
+            title: tr('Party'),
             icon: Icons.groups,
             children: [
               OutlinedButton(
                 onPressed: _loadingParties ? null : () => _loadParties(context),
-                child: Text(_loadingParties ? 'Loading...' : 'Load Parties (latest 50)'),
+                child: Text(_loadingParties ? tr('Loading...') : tr('Load Parties (latest 50)')),
               ),
               const SizedBox(height: 8),
               for (final p in _parties)
@@ -345,7 +346,7 @@ class _AdminPageState extends State<AdminPage> {
                   child: ListTile(
                     dense: true,
                     title: Text('${p['name']} — ${p['questTitle']}'),
-                    subtitle: Text('${p['status']} · ${p['memberCount']} member(s)'),
+                    subtitle: Text(tr('{0} · {1} member(s)', [p['status'], p['memberCount']])),
                     // 'completed' เท่านั้นที่ทำอะไรต่อไม่ได้แล้ว — 'open'/'started' ยังกด force ต่อได้
                     trailing: p['status'] == 'completed'
                         ? null
@@ -357,19 +358,19 @@ class _AdminPageState extends State<AdminPage> {
                                   onPressed: () => _run(
                                     context,
                                     () => admin.service.forceStartParty(p['id']),
-                                    successMessage: 'Party force-started',
+                                    successMessage: tr('Party force-started'),
                                     onSuccess: [() => _loadParties(context)],
                                   ),
-                                  child: const Text('Start'),
+                                  child: Text(tr('Start')),
                                 ),
                               TextButton(
                                 onPressed: () => _run(
                                   context,
                                   () => admin.service.forceCompleteParty(p['id']),
-                                  successMessage: 'Party force-completed',
+                                  successMessage: tr('Party force-completed'),
                                   onSuccess: [() => _loadParties(context)],
                                 ),
-                                child: const Text('Complete'),
+                                child: Text(tr('Complete')),
                               ),
                             ],
                           ),
@@ -380,7 +381,7 @@ class _AdminPageState extends State<AdminPage> {
 
           // ---- Achievement ----
           _Section(
-            title: 'Achievement',
+            title: tr('Achievement'),
             icon: Icons.emoji_events,
             children: [
               for (final m in medals)
@@ -389,7 +390,7 @@ class _AdminPageState extends State<AdminPage> {
                     dense: true,
                     title: Text(m.title),
                     // เหรียญหลายขั้น — กดแต่ละครั้งปลดล็อกขั้นถัดไป (backend /admin/achievements/:medalType/unlock)
-                    subtitle: Text('${m.tierLabel ?? 'Locked'} · ${m.count} quests'),
+                    subtitle: Text(tr('{0} · {1} quests', [m.tierLabel ?? 'Locked', m.count])),
                     trailing: m.maxed
                         ? Icon(Icons.check_circle, color: m.tierColor)
                         : TextButton(
@@ -402,37 +403,37 @@ class _AdminPageState extends State<AdminPage> {
                                 () => context.read<InventoryProvider>().loadInventory(),
                               ],
                             ),
-                            child: Text('Unlock ${m.nextTierLabel ?? ''}'.trim()),
+                            child: Text(tr('Unlock {0}', [m.nextTierLabel ?? '']).trim()),
                           ),
                   ),
                 ),
               const Divider(),
               OutlinedButton(
                 onPressed: () async {
-                  if (!await _confirm(context, 'Reset achievements?', 'Removes every unlocked medal for your account.')) {
+                  if (!await _confirm(context, tr('Reset achievements?'), tr('Removes every unlocked medal for your account.'))) {
                     return;
                   }
                   if (!context.mounted) return;
                   await _run(
                     context,
                     admin.service.resetAchievements,
-                    successMessage: 'Achievements reset',
+                    successMessage: tr('Achievements reset'),
                     onSuccess: [() => context.read<AchievementProvider>().loadAchievements()],
                   );
                 },
-                child: const Text('Reset Achievements'),
+                child: Text(tr('Reset Achievements')),
               ),
             ],
           ),
 
           // ---- Inventory ----
           _Section(
-            title: 'Inventory',
+            title: tr('Inventory'),
             icon: Icons.inventory_2,
             children: [
               DropdownButtonFormField<String>(
                 initialValue: _selectedItemType,
-                decoration: const InputDecoration(labelText: 'Item', border: OutlineInputBorder()),
+                decoration: InputDecoration(labelText: tr('Item'), border: OutlineInputBorder()),
                 items: [
                   for (final i in items) DropdownMenuItem(value: i.itemType, child: Text(i.title)),
                 ],
@@ -441,7 +442,7 @@ class _AdminPageState extends State<AdminPage> {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  Expanded(child: _numberField(_grantQuantityController, 'Quantity')),
+                  Expanded(child: _numberField(_grantQuantityController, tr('Quantity'))),
                   const SizedBox(width: 8),
                   ElevatedButton(
                     onPressed: _selectedItemType == null
@@ -452,50 +453,50 @@ class _AdminPageState extends State<AdminPage> {
                                 _selectedItemType!,
                                 int.tryParse(_grantQuantityController.text) ?? 1,
                               ),
-                              successMessage: 'Item granted',
+                              successMessage: tr('Item granted'),
                               onSuccess: [() => context.read<InventoryProvider>().loadInventory()],
                             ),
-                    child: const Text('Grant'),
+                    child: Text(tr('Grant')),
                   ),
                 ],
               ),
               const Divider(),
               OutlinedButton(
                 onPressed: () async {
-                  if (!await _confirm(context, 'Reset inventory?', 'Removes every item (starter items are re-granted automatically).')) {
+                  if (!await _confirm(context, tr('Reset inventory?'), tr('Removes every item (starter items are re-granted automatically).'))) {
                     return;
                   }
                   if (!context.mounted) return;
                   await _run(
                     context,
                     admin.service.resetInventory,
-                    successMessage: 'Inventory reset',
+                    successMessage: tr('Inventory reset'),
                     onSuccess: [() => context.read<InventoryProvider>().loadInventory()],
                   );
                 },
-                child: const Text('Reset Inventory'),
+                child: Text(tr('Reset Inventory')),
               ),
             ],
           ),
 
           // ---- Upgrade ----
           _Section(
-            title: 'Upgrade',
+            title: tr('Upgrade'),
             icon: Icons.bolt,
             children: [
               DropdownButtonFormField<String>(
                 initialValue: _selectedUpgradeType,
-                decoration: const InputDecoration(labelText: 'Upgrade', border: OutlineInputBorder()),
+                decoration: InputDecoration(labelText: tr('Upgrade'), border: OutlineInputBorder()),
                 items: [
                   for (final u in upgrades)
-                    DropdownMenuItem(value: u.upgradeType, child: Text('${u.title} (max ${u.maxLevel})')),
+                    DropdownMenuItem(value: u.upgradeType, child: Text(tr('{0} (max {1})', [u.title, u.maxLevel]))),
                 ],
                 onChanged: (v) => setState(() => _selectedUpgradeType = v),
               ),
               const SizedBox(height: 8),
               Row(
                 children: [
-                  Expanded(child: _numberField(_upgradeLevelController, 'Level')),
+                  Expanded(child: _numberField(_upgradeLevelController, tr('Level'))),
                   const SizedBox(width: 8),
                   ElevatedButton(
                     onPressed: _selectedUpgradeType == null
@@ -506,10 +507,10 @@ class _AdminPageState extends State<AdminPage> {
                                 _selectedUpgradeType!,
                                 int.tryParse(_upgradeLevelController.text) ?? 0,
                               ),
-                              successMessage: 'Upgrade level set',
+                              successMessage: tr('Upgrade level set'),
                               onSuccess: [() => context.read<UpgradeProvider>().loadUpgrades()],
                             ),
-                    child: const Text('Set Level'),
+                    child: Text(tr('Set Level')),
                   ),
                 ],
               ),
@@ -518,7 +519,7 @@ class _AdminPageState extends State<AdminPage> {
 
           // ---- Notification ----
           _Section(
-            title: 'Notification',
+            title: tr('Notification'),
             icon: Icons.notifications,
             children: [
               Wrap(
@@ -529,10 +530,10 @@ class _AdminPageState extends State<AdminPage> {
                       onPressed: () => _run(
                         context,
                         () => admin.service.testNotification(type),
-                        successMessage: 'Test notification sent',
+                        successMessage: tr('Test notification sent'),
                         onSuccess: [() => context.read<NotificationProvider>().loadNotifications()],
                       ),
-                      child: Text('Test: $type'),
+                      child: Text(tr('Test: {0}', [type])),
                     ),
                 ],
               ),
@@ -541,27 +542,27 @@ class _AdminPageState extends State<AdminPage> {
 
           // ---- Fridge ----
           _Section(
-            title: 'Fridge',
+            title: tr('Fridge'),
             icon: Icons.kitchen,
             children: [
               TextField(
                 controller: _fridgeNameController,
-                decoration: const InputDecoration(labelText: 'Item name', border: OutlineInputBorder()),
+                decoration: InputDecoration(labelText: tr('Item name'), border: OutlineInputBorder()),
               ),
               const SizedBox(height: 8),
-              _numberField(_fridgeHoursController, 'Expires in hours (negative = already expired)'),
+              _numberField(_fridgeHoursController, tr('Expires in hours (negative = already expired)')),
               const SizedBox(height: 8),
               ElevatedButton(
                 onPressed: () => _run(
                   context,
                   () => admin.service.addTestFridgeItem(
-                    _fridgeNameController.text.trim().isEmpty ? 'Test Item' : _fridgeNameController.text.trim(),
+                    _fridgeNameController.text.trim().isEmpty ? tr('Test Item') : _fridgeNameController.text.trim(),
                     int.tryParse(_fridgeHoursController.text) ?? -1,
                   ),
-                  successMessage: 'Test fridge item added',
+                  successMessage: tr('Test fridge item added'),
                   onSuccess: [() => context.read<FridgeProvider>().loadItems()],
                 ),
-                child: const Text('Add Test Fridge Item'),
+                child: Text(tr('Add Test Fridge Item')),
               ),
             ],
           ),
@@ -584,7 +585,7 @@ class _AdminPageState extends State<AdminPage> {
       onPressed: () => _run(
         context,
         () => context.read<AdminProvider>().service.setBoost(color, 30),
-        successMessage: '${color[0].toUpperCase()}${color.substring(1)} Energy active (30m)',
+        successMessage: tr('{0}{1} Energy active (30m)', [color[0].toUpperCase(), color.substring(1)]),
         onSuccess: [auth.refreshProfile],
       ),
       child: Text('${color[0].toUpperCase()}${color.substring(1)} +30m'),

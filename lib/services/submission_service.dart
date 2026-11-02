@@ -3,6 +3,7 @@ import 'api_http.dart' as http;
 import '../models/submission_model.dart';
 import '../utils/constants.dart';
 import 'storage_service.dart';
+import '../l10n/tr.dart';
 
 // โพสต์ที่แอดมินถอนไปและยังกู้คืนได้ (GET /reviews/removed) — action: remove (แต้มอยู่) / revoke (ยึดแต้มแล้ว)
 class RemovedPost {
@@ -37,7 +38,7 @@ class SubmissionService {
     );
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to load your submissions');
+      throw Exception(data['message'] ?? tr('Failed to load your submissions'));
     }
     return _parseList(data['submissions']);
   }
@@ -50,7 +51,7 @@ class SubmissionService {
     );
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to load reported posts');
+      throw Exception(data['message'] ?? tr('Failed to load reported posts'));
     }
     return ReportQueue(
       submissions: _parseList(data['submissions']),
@@ -64,7 +65,7 @@ class SubmissionService {
     final response = await http.get(Uri.parse('${AppConstants.baseUrl}/reviews/removed'), headers: await _headers());
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to load removed posts');
+      throw Exception(data['message'] ?? tr('Failed to load removed posts'));
     }
     return ((data['submissions'] ?? []) as List).map((j) {
       final m = j as Map<String, dynamic>;
@@ -85,7 +86,7 @@ class SubmissionService {
     );
     final data = jsonDecode(response.body);
     if (response.statusCode != 200) {
-      throw Exception(data['message'] ?? 'Failed to restore this post');
+      throw Exception(data['message'] ?? tr('Failed to restore this post'));
     }
     return (data['pointsReturned'] as num?)?.toInt() ?? 0;
   }
@@ -99,7 +100,7 @@ class SubmissionService {
     );
     if (response.statusCode != 200) {
       final data = jsonDecode(response.body);
-      throw Exception(data['message'] ?? 'Failed to resolve this report');
+      throw Exception(data['message'] ?? tr('Failed to resolve this report'));
     }
   }
 }

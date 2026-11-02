@@ -1,26 +1,27 @@
 import 'package:flutter/material.dart';
 import '../utils/constants.dart';
+import '../l10n/tr.dart';
 
 // บัญชีองค์กร + อีเวนต์องค์กร (14 ต.ค. 2026) — ข้อมูลจาก backend/routes/org.js
 // องค์กรสร้างอีเวนต์ -> ผู้เล่นลงทะเบียน -> มางานแล้วสแกน QR ที่องค์กรเปิด -> ได้แต้มทันที
 
 // ประเภทองค์กร — key ตรงกับ ORG_TYPES ใน backend/models/User.js
-const orgTypeLabels = {
-  'npo': 'Non-profit / NPO',
-  'company': 'Company',
-  'school': 'School / University',
-  'government': 'Local government',
-  'community': 'Community group',
-  'other': 'Other',
+Map<String, String> get orgTypeLabels => {
+  'npo': tr('Non-profit / NPO'),
+  'company': tr('Company'),
+  'school': tr('School / University'),
+  'government': tr('Local government'),
+  'community': tr('Community group'),
+  'other': tr('Other'),
 };
 
 // หมวดอีเวนต์ = หมวดเควส (นับเข้าเหรียญของหมวดนั้น)
-const orgEventCategoryLabels = {
-  'community': 'Community',
-  'recycling': 'Recycling',
-  'plastic': 'Plastic',
-  'food_waste': 'Food Waste',
-  'energy': 'Energy',
+Map<String, String> get orgEventCategoryLabels => {
+  'community': tr('Community'),
+  'recycling': tr('Recycling'),
+  'plastic': tr('Plastic'),
+  'food_waste': tr('Food Waste'),
+  'energy': tr('Energy'),
 };
 
 IconData orgEventCategoryIcon(String category) => switch (category) {
@@ -74,7 +75,7 @@ class OrgInfo {
 
   factory OrgInfo.fromJson(Map<String, dynamic> json) => OrgInfo(
         id: (json['id'] ?? '').toString(),
-        name: json['name'] ?? 'Organization',
+        name: json['name'] ?? tr('Organization'),
         orgType: json['orgType'] ?? '',
         avatarUrl: AppConstants.resolveUrl(json['avatarUrl']),
       );
@@ -131,10 +132,10 @@ class OrgEventModel {
   bool get canCancelRegistration => isRegistered && phase == 'upcoming';
 
   String get phaseLabel => switch (phase) {
-        'live' => 'Happening now',
-        'ended' => 'Ended',
-        'cancelled' => 'Cancelled',
-        _ => 'Upcoming',
+        'live' => tr('Happening now'),
+        'ended' => tr('Ended'),
+        'cancelled' => tr('Cancelled'),
+        _ => tr('Upcoming'),
       };
 
   Color get phaseColor => switch (phase) {
@@ -188,7 +189,7 @@ class OrgAttendee {
 
   factory OrgAttendee.fromJson(Map<String, dynamic> json) => OrgAttendee(
         userId: (json['userId'] ?? '').toString(),
-        displayName: json['displayName'] ?? 'Player',
+        displayName: json['displayName'] ?? tr('Player'),
         level: (json['level'] as num?)?.toInt() ?? 1,
         avatarUrl: AppConstants.resolveUrl(json['avatarUrl']),
         attended: json['status'] == 'attended',

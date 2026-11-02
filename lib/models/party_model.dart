@@ -4,6 +4,7 @@ import '../utils/constants.dart';
 import '../utils/quest_image.dart';
 import 'cosmetics_model.dart';
 import 'quest_card_model.dart' show QuestReward;
+import '../l10n/tr.dart';
 
 // ผลตอบกลับตอนหัวหน้ากดจบอีเวนต์ — ต้องคืนทั้งรางวัลของหัวหน้าเอง (ไปเด้ง handleQuestCompleted
 // แบบเดียวกับ quest ทั่วไป) และห้องล่าสุด (สถานะเปลี่ยนเป็น completed แล้ว) ไปอัปเดต provider
@@ -41,7 +42,7 @@ class PartyMemberModel {
   factory PartyMemberModel.fromJson(Map<String, dynamic> json) {
     return PartyMemberModel(
       userId: (json['userId'] ?? '').toString(),
-      name: json['displayName'] ?? 'Player',
+      name: json['displayName'] ?? tr('Player'),
       avatarUrl: AppConstants.resolveUrl(json['avatarUrl']),
       cosmetics: EquippedCosmetics.fromJson(json['cosmetics']),
       level: json['level'] ?? 1,
