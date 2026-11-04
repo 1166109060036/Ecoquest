@@ -172,6 +172,7 @@ router.get('/me', authMiddleware, async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
+    if (user.language !== req.lang) await User.updateOne({ _id: user._id }, { language: req.lang });
 
     // progress (level/xp) + streak (Daily Streak) + stats (จำนวนเควส/CO2/ปาร์ตี้) ใช้ตัวช่วยร่วมกับ
     // GET /users/:id (ดูโปรไฟล์คนอื่น) เพื่อให้คิดเลขแบบเดียวกันเป๊ะๆ

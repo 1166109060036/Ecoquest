@@ -85,6 +85,8 @@ class SettingsPage extends StatelessWidget {
     );
     if (picked == null || picked == current) return;
     await setLanguage(picked.isEmpty ? null : picked);
+    // GET /auth/me บอก server ว่าเปลี่ยนภาษาแล้ว — push ที่ส่งหลังจากนี้จะเป็นภาษาใหม่
+    if (context.mounted) context.read<AuthProvider>().refreshProfile();
   }
 
   void _showAbout(BuildContext context) {

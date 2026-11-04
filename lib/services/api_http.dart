@@ -29,10 +29,10 @@ String get _serverDownMessage => tr('The server is unavailable right now. Please
 // เก็บในหน่วยความจำเท่านั้น — ปิดแอพ/logout = ต้องยืนยัน OTP ใหม่
 String? adminToken;
 
+// Accept-Language = ภาษาที่เลือกในแอพ — server แปลข้อความตอบกลับ/ชื่อเควส/แจ้งเตือนตามนี้ (backend/utils/i18n.js)
 Map<String, String>? _withAdmin(Map<String, String>? headers) {
   final token = adminToken;
-  if (token == null) return headers;
-  return {...?headers, 'X-Admin-Token': token};
+  return {...?headers, 'Accept-Language': appLanguage, 'X-Admin-Token': ?token};
 }
 
 Future<http.Response> get(Uri url, {Map<String, String>? headers}) =>

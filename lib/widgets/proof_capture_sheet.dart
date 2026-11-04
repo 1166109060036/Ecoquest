@@ -243,7 +243,8 @@ class _ProofFormFields extends StatelessWidget {
             children: [
               for (final c in form.choices)
                 FilterChip(
-                  label: Text(c),
+                  // ส่งค่าอังกฤษกลับ server ตามเดิม (server เทียบกับรายการของเควส) แปลแค่ตอนโชว์
+                  label: Text(tr(c)),
                   selected: selected.contains(c),
                   onSelected: (_) => onToggle(c),
                   selectedColor: Colors.teal.shade50,

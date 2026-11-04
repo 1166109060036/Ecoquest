@@ -29,6 +29,7 @@ const orgRoutes = require('./routes/org');
 const adminRoutes = require('./routes/admin');
 const { initSocket } = require('./sockets');
 
+const { i18nMiddleware } = require('./utils/i18n');
 const app = express();
 // ต้องมี http.createServer(app) แยกออกมาจาก app เอง เพื่อให้ socket.io attach ตัวเองเข้ากับ
 // HTTP server ตัวเดียวกันได้ (แต่ก่อนใช้ app.listen(...) ตรงๆ ซึ่งไม่มี handle ให้ socket.io เกาะ)
@@ -77,6 +78,8 @@ app.use(cors());
 // (base64 กินพื้นที่มากกว่าไฟล์จริง ~33% ยิ่งบวก JSON overhead) เลยขยับเป็น 6mb ให้พอ
 // แต่ไม่ปล่อยไม่จำกัดไปเลย กันคนส่ง payload ใหญ่ผิดปกติมาถล่ม server
 app.use(express.json({ limit: '6mb' }));
+// แปลข้อความที่ตอบกลับตามภาษาของแอพ (Accept-Language) — ดู utils/i18n.js
+app.use(i18nMiddleware);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/quests', questRoutes);

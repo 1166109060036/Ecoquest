@@ -13,6 +13,7 @@ Detailed design notes (in Thai) are in `PROJECT_CONTEXT.md`. Quest data and COâ‚
 | Database | MongoDB Atlas (free tier, 512 MB). Photos are stored as binary data inside the documents |
 | Email | One-time codes (OTP) are sent with the Brevo email API on Render (Render blocks SMTP), or with Gmail SMTP when the server runs locally |
 | Push | Firebase Cloud Messaging. Firebase is used only for push; all data stays in MongoDB |
+| Languages | English and Japanese. The app translates its own text with `tr()` (`lib/l10n/`), and sends `Accept-Language` so the server translates quests, messages and notifications (`backend/utils/i18n.js`, `backend/i18n/ja.js`) |
 | Hosting | Render free web service (`render.yaml`) |
 
 ```mermaid

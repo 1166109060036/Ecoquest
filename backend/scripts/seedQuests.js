@@ -582,7 +582,7 @@ async function seedQuests({ verbose = true } = {}) {
   return active;
 }
 
-module.exports = { seedQuests };
+module.exports = { seedQuests, QUESTS };
 
 // รันตรงๆ ด้วย `npm run seed:quests` — กรณีนี้ต้องต่อ/ตัด connection เอง
 if (require.main === module) {

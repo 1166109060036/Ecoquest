@@ -90,6 +90,12 @@ const UserSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    // ภาษาของแอพที่ใช้ล่าสุด (อัปเดตตอน GET /auth/me และลงทะเบียน push) — ใช้แปล push ที่ส่งตอนไม่มี request ของคนนั้น
+    language: {
+      type: String,
+      enum: ['en', 'ja'],
+      default: 'en',
+    },
     // Firebase Installation ID (FID) ของแต่ละเครื่องที่ login บัญชีนี้อยู่ (ส่ง push ทุกเครื่อง) — แอพส่งมาที่
     // POST /api/notifications/push-id ตอนเข้าแอพ และลบออกตอน logout / อันไหนที่ FCM ตอบว่าใช้ไม่ได้แล้ว
     // utils/push.js ลบทิ้งเอง — select: false = ไม่หลุดไปกับ query user ทั่วไป

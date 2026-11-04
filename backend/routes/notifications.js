@@ -47,7 +47,7 @@ router.post('/push-id', authMiddleware, async (req, res) => {
     return res.status(400).json({ message: 'Invalid push id' });
   }
   try {
-    await registerPushId(req.userId, fid);
+    await registerPushId(req.userId, fid, req.lang);
     res.json({ message: 'Push id saved' });
   } catch (err) {
     console.error(err);

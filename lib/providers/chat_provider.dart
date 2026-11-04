@@ -120,7 +120,8 @@ class ChatProvider extends ChangeNotifier {
       text: trimmed,
       onAck: (ok, error) {
         if (!ok) {
-          _errorMessage = error ?? tr('Failed to send message');
+          // ข้อความ error ของ socket มาจาก server เป็นอังกฤษ (ไม่ผ่าน middleware แปล) — แปลฝั่งแอพแทน
+          _errorMessage = tr(error ?? 'Failed to send message');
           notifyListeners();
         }
         if (!done.isCompleted) done.complete(ok ? null : _errorMessage);

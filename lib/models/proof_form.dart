@@ -1,3 +1,5 @@
+import '../l10n/tr.dart';
+
 // ฟอร์มเก็บข้อมูลเพิ่มตอนส่งรูปหลักฐาน — เควสที่ backend ตั้ง Quest.proofForm ไว้ (backend/utils/proofForm.js)
 // เช่น "Return Containers to the Store": ส่งคืนอะไร (เลือกได้หลายอัน) / กี่ชิ้น / ร้านไหน (ไม่บังคับ)
 class ProofForm {
@@ -44,8 +46,8 @@ class ProofDetails {
 
   // บรรทัดสรุปให้ผู้ตรวจ/ฟีด เช่น "Food trays, Milk cartons · 6 items · at Coop"
   String get summary => [
-        if (choices.isNotEmpty) choices.join(', '),
-        if (count != null) '$count ${count == 1 ? 'item' : 'items'}',
-        if (place != null && place!.isNotEmpty) 'at $place',
+        if (choices.isNotEmpty) choices.map(tr).join(', '),
+        if (count != null) count == 1 ? tr('1 item') : tr('{0} items', [count]),
+        if (place != null && place!.isNotEmpty) tr('at {0}', [place]),
       ].join(' · ');
 }

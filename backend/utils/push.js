@@ -2,6 +2,7 @@ const { initializeApp, cert } = require('firebase-admin/app');
 const { getMessaging: getFcm } = require('firebase-admin/messaging');
 const User = require('../models/User');
 
+const { translateText } = require('./i18n');
 // ส่ง push notification ผ่าน Firebase Cloud Messaging (FCM) — เด้งบนหน้าจอโทรศัพท์แม้ปิดแอพอยู่
 //
 // ต้องตั้ง env FIREBASE_SERVICE_ACCOUNT = เนื้อหาไฟล์ service account JSON ทั้งก้อน (Firebase Console →
@@ -37,12 +38,12 @@ const getMessaging = () => {
 
 // จำ FID ของเครื่องนี้ให้ user — ดึง FID เดียวกันออกจากบัญชีอื่นก่อน (เครื่องเดียว logout แล้ว login บัญชีใหม่
 // อาจได้ FID เดิม ไม่งั้นแจ้งเตือนของบัญชีเก่าจะเด้งเข้าเครื่องคนอื่น) เก็บไม่เกิน 10 เครื่องล่าสุด
-const registerPushId = async (userId, fid) => {
+const registerPushId = async (userId, fid, language = 'en') => {
   await User.updateMany({ _id: { $ne: userId }, pushIds: fid }, { $pull: { pushIds: fid } });
   await User.updateOne({ _id: userId }, { $pull: { pushIds: fid } });
   await User.updateOne(
     { _id: userId },
-    { $push: { pushIds: { $each: [fid], $slice: -MAX_PUSH_IDS_PER_USER } } }
+    { $push: { pushIds: { $each: [fid], $slice: -MAX_PUSH_IDS_PER_USER } }, $set: { language } }
   );
   console.log(`[push] registered device for user ${userId}`);
 };
@@ -73,12 +74,16 @@ const sendPush = async (userId, { title, body, data = {} }) => {
     const fcm = getMessaging();
     if (!fcm) return;
 
-    const user = await User.findById(userId).select('+pushIds');
+    const user = await User.findById(userId).select('+pushIds language');
     const fids = user?.pushIds ?? [];
     if (fids.length === 0) {
       console.log(`[push] user ${userId} has no registered device — skipped`);
       return;
     }
+
+    // แจ้งเตือนเก็บเป็นอังกฤษ แปลตอนส่งตามภาษาที่เครื่องของ user ใช้ล่าสุด
+    title = translateText(title, user.language);
+    body = translateText(body, user.language);
 
     const stringData = Object.fromEntries(
       Object.entries(data).filter(([, v]) => v != null).map(([k, v]) => [k, String(v)])
