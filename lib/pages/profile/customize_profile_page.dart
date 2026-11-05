@@ -25,6 +25,7 @@ String _slotKey(CosmeticSlot slot) => switch (slot) {
 // (ย้ายมาจากหน้า Inventory เดิม เพราะของตกแต่งเป็นเรื่องของโปรไฟล์โดยตรง ไม่ใช่ไอเทมที่ "ใช้" แบบ
 // ไอเทม Energy) ซื้อของตกแต่งยังทำที่แท็บ Decorations ในหน้า Shop เหมือนเดิม — หน้านี้แค่ใส่/ถอด
 // ของที่ซื้อไว้แล้วเท่านั้น (ดูของที่มีอยู่จริงจาก GET /api/inventory ตัวเดียวกับหน้า Inventory)
+// ร้านปิดอยู่ (SHOP_ENABLED) = server นับว่ามีของตกแต่งครบทุกชิ้น หน้านี้เลยโชว์ทั้งหมดให้ใส่ได้ฟรี
 class CustomizeProfilePage extends StatelessWidget {
   const CustomizeProfilePage({super.key});
 

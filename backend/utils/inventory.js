@@ -2,6 +2,7 @@ const InventoryItem = require('../models/InventoryItem');
 const User = require('../models/User');
 const QuestHistory = require('../models/QuestHistory');
 const { startOfToday } = require('./questDay');
+const { shopEnabled } = require('./featureFlags');
 
 // บัฟจากไอเทม Energy อยู่ได้นาน 30 นาทีนับจากตอนใช้ (ดู useItem ด้านล่าง)
 const BOOST_DURATION_MS = 30 * 60 * 1000;
@@ -196,7 +197,8 @@ const getInventory = async (userId) => {
     itemType: item.itemType,
     title: item.title,
     description: item.description,
-    quantity: ownedMap.get(item.itemType) ?? 0,
+    // ร้านปิด = ของตกแต่งทุกชิ้นใช้ได้ฟรี (ไม่มีทางซื้อแล้ว) นับว่ามี 1 ชิ้น
+    quantity: ownedMap.get(item.itemType) ?? (item.slot && !shopEnabled() ? 1 : 0),
     cost: item.cost ?? null,
     // มีค่า = ของตกแต่งโปรไฟล์ (frame/nameStyle/background/effect) — ไม่มีค่า = ไอเทมทั่วไป
     slot: item.slot ?? null,
@@ -322,8 +324,8 @@ const equipCosmetics = async (userId, patch) => {
     itemTypesToOwn.push(value);
   }
 
-  if (itemTypesToOwn.length > 0) {
-    // query เดียวเช็คทุกชิ้นพร้อมกัน ไม่ query ทีละชิ้น
+  if (itemTypesToOwn.length > 0 && shopEnabled()) {
+    // ร้านปิด = ข้ามการเช็คความเป็นเจ้าของ ของตกแต่งทุกชิ้นใส่ได้ฟรี — query เดียวเช็คทุกชิ้นพร้อมกัน ไม่ query ทีละชิ้น
     const owned = await InventoryItem.find({
       userId,
       itemType: { $in: itemTypesToOwn },
