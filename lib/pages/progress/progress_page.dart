@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../models/org_event_model.dart';
 import '../../models/party_model.dart';
 import '../../models/quest_card_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/party_provider.dart';
 import '../../providers/quest_provider.dart';
+import '../../services/org_service.dart';
 import '../../utils/quest_completion.dart';
 import '../../widgets/breathing_icon.dart';
 import '../../widgets/check_in_ring.dart';
@@ -12,6 +14,8 @@ import '../../widgets/proof_capture_sheet.dart';
 import '../../widgets/bubble_toast.dart';
 import '../../widgets/liquid_glass_dialog.dart';
 import '../inventory/fridge_page.dart';
+import '../org/org_event_detail_page.dart';
+import '../../widgets/org_event_card.dart';
 import '../../widgets/leaf_refresh_indicator.dart';
 import '../../widgets/quest_card.dart';
 import '../../widgets/skeleton_box.dart';
@@ -42,6 +46,8 @@ class _ProgressPageState extends State<ProgressPage> {
   static const int _partyTabIndex = 3;
 
   bool _isLoading = true;
+  // อีเวนต์ที่ลงทะเบียนไว้ ยังไม่ได้เช็คอิน และยังไม่จบ (ทั้งที่กำลังจะมาและกำลังจัดอยู่)
+  List<OrgEventModel> _events = [];
 
   @override
   void initState() {
@@ -53,8 +59,18 @@ class _ProgressPageState extends State<ProgressPage> {
     await Future.wait([
       context.read<QuestProvider>().loadProgress(),
       context.read<PartyProvider>().loadParty(),
+      // โหลดอีเวนต์ไม่ได้ก็แค่ไม่โชว์ ไม่ทำให้หน้า Progress พัง
+      OrgService().fetchJoinedEvents().then((events) {
+        _events = events.where((e) => e.isRegistered && !e.isEnded && !e.isCancelled).toList()
+          ..sort((a, b) => a.startAt.compareTo(b.startAt));
+      }).catchError((_) {}),
     ]);
     if (mounted) setState(() => _isLoading = false);
+  }
+
+  Future<void> _openEvent(OrgEventModel event) async {
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => OrgEventDetailPage(event: event)));
+    if (mounted) _load();
   }
 
   void _openQuestDetail(QuestCardModel quest) {
@@ -175,10 +191,15 @@ class _ProgressPageState extends State<ProgressPage> {
     final partyProvider = context.watch<PartyProvider>();
     final quests = questProvider.inProgress;
     final party = partyProvider.party;
-    final isEmpty = quests.isEmpty && party == null;
+    final isEmpty = quests.isEmpty && party == null && _events.isEmpty;
 
-    // ลิสต์แบนๆ: ห้อง party (ถ้ามี) -> เควสที่กำลังทำ
+    // ลิสต์แบนๆ: อีเวนต์ที่ลงทะเบียนไว้ -> ห้อง party (ถ้ามี) -> เควสที่กำลังทำ
     final items = <Widget>[
+      for (final event in _events)
+        FadeSlideIn(
+          key: ValueKey('event-${event.id}'),
+          child: OrgEventCard(event: event, onTap: () => _openEvent(event)),
+        ),
       if (party != null)
         FadeSlideIn(
           key: ValueKey('party-${party.id}'),

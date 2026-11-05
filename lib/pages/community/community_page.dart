@@ -72,7 +72,7 @@ class _CommunityPageState extends State<CommunityPage> with SingleTickerProvider
                 child: TabBarView(
                   controller: _tabController,
                   children: [
-                    const FeedTab(),
+                    FeedTab(onPartyJoined: () => _tabController.animateTo(2)),
                     const FriendTab(),
                     PartyTab(onNavigateToTab: widget.onNavigateToTab),
                     const ChatTab(),

@@ -807,4 +807,6 @@ const ja = <String, String>{
   'You are sending messages too fast. Please wait a moment': '送信が速すぎます。少し待ってください',
   'Unknown chat channel': 'チャットが見つかりません',
   'Missing friend id': '友達が選ばれていません',
+  'Events & parties': 'イベント＆パーティー',
+  'Open now — tap one to join': '参加受付中 — タップして参加',
 };

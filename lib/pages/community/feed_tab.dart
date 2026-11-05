@@ -1,5 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../models/impact_model.dart';
+import '../../models/org_event_model.dart';
+import '../../providers/party_provider.dart';
+import '../../services/org_service.dart';
+import '../../utils/party_actions.dart';
+import '../../widgets/org_event_card.dart';
+import '../../widgets/party_room_card.dart';
+import '../org/org_event_detail_page.dart';
 import '../../models/submission_model.dart';
 import '../../services/feed_service.dart';
 import '../../services/submission_service.dart';
@@ -26,7 +34,10 @@ import '../../l10n/tr.dart';
 //      7 ต.ค. 2026: ส่งรูปแล้วขึ้นฟีดทันที (เลิกให้ผู้เล่นตรวจ) — ผู้เล่นช่วยดูแลด้วยการรายงานโพสต์ที่ดูไม่ได้ทำจริงแทน
 // state อยู่ในหน้านี้เอง ไม่มี provider — ไม่มีหน้าอื่นใช้ข้อมูลชุดนี้ร่วม
 class FeedTab extends StatefulWidget {
-  const FeedTab({super.key});
+  // เข้าร่วม party จาก feed สำเร็จ -> CommunityPage สลับไปแท็บ Party
+  final VoidCallback? onPartyJoined;
+
+  const FeedTab({super.key, this.onPartyJoined});
 
   @override
   State<FeedTab> createState() => _FeedTabState();
@@ -35,9 +46,11 @@ class FeedTab extends StatefulWidget {
 class _FeedTabState extends State<FeedTab> with AutomaticKeepAliveClientMixin {
   final _feedService = FeedService();
   final _submissionService = SubmissionService();
+  final _orgService = OrgService();
   final _scroll = ScrollController();
 
   ImpactSummary? _impact;
+  List<OrgEventModel> _events = [];
   int _reportCount = 0; // แอดมิน: โพสต์ที่ถูกรายงานรอดู (ผู้เล่นทั่วไป = 0 เสมอ)
   List<SubmissionModel> _posts = [];
   bool _hasMore = false;
@@ -70,6 +83,9 @@ class _FeedTabState extends State<FeedTab> with AutomaticKeepAliveClientMixin {
         _feedService.fetchFeed(),
         _feedService.fetchImpact().then<ImpactSummary?>((v) => v).catchError((_) => null),
         _submissionService.fetchQueue().then<ReportQueue?>((q) => q).catchError((_) => null),
+        _orgService.fetchEvents().catchError((_) => <OrgEventModel>[]),
+        // microtask: loadRooms แจ้ง listener ทันที ถ้าเรียกตรงๆ ระหว่าง initState จะชนกับ build / error เก็บใน provider ไม่ throw
+        Future.microtask(context.read<PartyProvider>().loadRooms),
       ]);
       if (!mounted) return;
       final feed = results[0] as ({List<SubmissionModel> items, bool hasMore});
@@ -79,6 +95,7 @@ class _FeedTabState extends State<FeedTab> with AutomaticKeepAliveClientMixin {
         _impact = results[1] as ImpactSummary?;
         final queue = results[2] as ReportQueue?;
         _reportCount = queue != null && queue.isAdmin ? queue.pendingCount : 0;
+        _events = results[3] as List<OrgEventModel>;
         _isLoading = false;
       });
     } catch (e) {
@@ -177,6 +194,11 @@ class _FeedTabState extends State<FeedTab> with AutomaticKeepAliveClientMixin {
     }
   }
 
+  Future<void> _openEvent(OrgEventModel event) async {
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => OrgEventDetailPage(event: event)));
+    if (mounted) _load();
+  }
+
   Future<void> _openReports() async {
     await Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportedPostsPage()));
     if (mounted) _load();
@@ -191,6 +213,36 @@ class _FeedTabState extends State<FeedTab> with AutomaticKeepAliveClientMixin {
     );
   }
 
+  // อีเวนต์องค์กร + ห้อง party ที่เปิดรับอยู่ ให้ทุกคนเห็นและกดเข้าร่วมได้จาก feed เลย
+  // โชว์อย่างละไม่เกิน 3 อัน (ที่เหลือดูได้ใน Explore) ไม่งั้นโพสต์วันนี้โดนดันลงไปไกล
+  List<Widget> _buildOpenSection() {
+    final partyProvider = context.watch<PartyProvider>();
+    final myPartyId = partyProvider.party?.id;
+    final events = _events.take(3).toList();
+    final rooms = partyProvider.rooms.where((r) => !r.isFull || r.id == myPartyId).take(3).toList();
+    if (events.isEmpty && rooms.isEmpty) return [];
+    return [
+      const SizedBox(height: 16),
+      Text(tr('Events & parties'),
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87)),
+      const SizedBox(height: 2),
+      Text(tr('Open now — tap one to join'), style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+      const SizedBox(height: 10),
+      for (final event in events) ...[
+        OrgEventCard(event: event, onTap: () => _openEvent(event)),
+        const SizedBox(height: 12),
+      ],
+      for (final room in rooms) ...[
+        PartyRoomCard(
+          room: room,
+          isJoined: room.id == myPartyId,
+          onJoin: () => joinPartyRoom(context, room, onJoined: widget.onPartyJoined),
+        ),
+        const SizedBox(height: 12),
+      ],
+    ];
+  }
+
   Widget _buildFeed() {
     final children = <Widget>[
       if (_impact != null) _ImpactCard(impact: _impact!),
@@ -198,6 +250,7 @@ class _FeedTabState extends State<FeedTab> with AutomaticKeepAliveClientMixin {
         const SizedBox(height: 12),
         _ReportsBanner(count: _reportCount, onTap: _openReports),
       ],
+      ..._buildOpenSection(),
       const SizedBox(height: 16),
       // Today Feed — backend ส่งมาแค่ของวันนี้ ขึ้นวันใหม่ (เที่ยงคืนเวลาญี่ปุ่น) รูปเมื่อวานถูกลบ (backend/routes/feed.js)
       Text(tr("Today's quests"),
