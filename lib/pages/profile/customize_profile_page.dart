@@ -63,7 +63,7 @@ class CustomizeProfilePage extends StatelessWidget {
 
     showBubbleToast(
       context,
-      isEquipped ? '${item.title} unequipped' : '${item.title} equipped',
+      isEquipped ? tr('{0} unequipped', [item.title]) : tr('{0} equipped', [item.title]),
     );
   }
 

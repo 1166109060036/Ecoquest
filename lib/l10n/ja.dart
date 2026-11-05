@@ -809,4 +809,6 @@ const ja = <String, String>{
   'Missing friend id': '友達が選ばれていません',
   'Events & parties': 'イベント＆パーティー',
   'Open now — tap one to join': '参加受付中 — タップして参加',
+  '{0} equipped': '{0}を装備しました',
+  '{0} unequipped': '{0}を外しました',
 };
